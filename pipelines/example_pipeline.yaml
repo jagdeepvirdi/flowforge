@@ -1,0 +1,83 @@
+# Example FlowForge pipeline — Monthly Revenue Report
+#
+# This pipeline:
+#   1. Calls a DB procedure to populate a summary table
+#   2. Generates an Excel report from that table
+#   3. Emails the report (large files auto-uploaded to Drive)
+#
+# Variables available in any string value:
+#   {{ current_month }}, {{ current_date }}, {{ run_id }},
+#   {{ env.MY_VAR }}, {{ steps.step_name.output_path }}, etc.
+
+name: Monthly Revenue Report
+description: Runs monthly revenue summary and emails report to Finance team.
+schedule: "0 6 1 * *"   # 06:00 on the 1st of every month
+enabled: true
+timeout_minutes: 30
+
+variables:
+  report_period: "{{ current_month }}"
+
+steps:
+  - name: Populate Revenue Summary
+    type: db_procedure
+    on_error: stop
+    config:
+      connection_id: "<your-connection-uuid>"
+      procedure: pkg_revenue.populate_monthly_summary
+      params:
+        period: "{{ report_period }}"
+        run_id: "{{ run_id }}"
+
+  - name: Generate Revenue Report
+    type: report
+    on_error: stop
+    config:
+      inline_config:
+        connection_id: "<your-connection-uuid>"
+        query: |
+          SELECT
+            region,
+            product_line,
+            SUM(revenue)    AS total_revenue,
+            COUNT(*)        AS transaction_count
+          FROM revenue_summary
+          WHERE period = '{{ report_period }}'
+          GROUP BY region, product_line
+          ORDER BY total_revenue DESC
+        format: excel
+        sheet_name: Revenue
+        output_filename: "revenue_{{ report_period }}.xlsx"
+        columns:
+          - Region
+          - Product Line
+          - Total Revenue
+          - Transactions
+
+  - name: Email Report to Finance
+    type: email
+    on_error: continue
+    config:
+      inline_config:
+        provider_type: smtp
+        host: smtp.example.com
+        port: 587
+        username: reports@example.com
+        password: "{{ env.SMTP_PASSWORD }}"
+        use_tls: true
+        to_addresses:
+          - finance@example.com
+        subject: "Revenue Report — {{ report_period }}"
+        body_template: |
+          Hi team,
+
+          Please find the {{ report_period }} revenue report attached.
+
+          Pipeline run ID: {{ run_id }}
+
+          Regards,
+          FlowForge
+        attachment_max_mb: 10
+        drive_folder_id: "{{ env.GOOGLE_DRIVE_FOLDER_ID }}"
+      attachments:
+        - "{{ steps.Generate Revenue Report.output_path }}"

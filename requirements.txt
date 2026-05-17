@@ -1,0 +1,40 @@
+# Core runtime dependencies
+# Generated from pyproject.toml — install with: pip install -e .
+# For development: pip install -e .[dev]
+# For PDF support: pip install -e .[pdf]
+# For Oracle support: pip install -e .[oracle]
+
+# Web framework
+flask==3.0.3
+flask-sqlalchemy==3.1.1
+
+# Database
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.30
+
+# Scheduling
+apscheduler==3.10.4
+
+# Templating
+jinja2==3.1.4
+
+# Reports
+openpyxl==3.1.2
+xlsxwriter==3.2.0
+
+# Google APIs
+google-api-python-client==2.127.0
+google-auth==2.29.0
+google-auth-oauthlib==1.2.0
+
+# Microsoft 365
+msal==1.28.0
+
+# CLI
+click==8.1.7
+
+# Encryption
+cryptography==42.0.7
+
+# Env
+python-dotenv==1.0.1
