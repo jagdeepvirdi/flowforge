@@ -12,38 +12,32 @@ class ReportStep(BaseStep):
     """Generates a report file (Excel / CSV / PDF) from a configured report_config."""
 
     def run(self, context: dict[str, Any]) -> StepResult:
-        from flowforge.connections.postgres import PostgreSQLConnection
         from flowforge.engine.context import render
 
-        # Phase 1: load report_config from DB via report_config_id.
-        # Until then, inline_config is used for testing.
-        report_cfg = self.config.get('inline_config', {})
+        report_cfg = self._load_config()
 
         query = render(report_cfg.get('query', ''), context)
         fmt = report_cfg.get('format', 'excel').lower()
         output_filename = render(report_cfg.get('output_filename', 'report'), context)
         output_dir = Path(os.environ.get('FLOWFORGE_OUTPUT_DIR', './output'))
+        output_dir.mkdir(parents=True, exist_ok=True)
         output_path = output_dir / output_filename
 
-        conn = PostgreSQLConnection(
-            host=os.environ.get('DB_HOST', ''),
-            database=os.environ.get('DB_NAME', ''),
-            user=os.environ.get('DB_USER', ''),
-            password=os.environ.get('DB_PASSWORD', ''),
-        )
+        conn = self._get_connection(report_cfg)
         try:
             with conn:
                 rows = conn.execute_query(query)
 
-            columns = report_cfg.get('columns', [])
-            if not columns and rows:
-                columns = [f'col{i}' for i in range(len(rows[0]))]
+            columns = report_cfg.get('columns') or (
+                [f'col{i}' for i in range(len(rows[0]))] if rows else []
+            )
 
             if fmt == 'excel':
                 from flowforge.reports.excel_report import generate
-                sheet = report_cfg.get('sheet_name', 'Sheet1')
                 tmpl = Path(report_cfg['template_path']) if report_cfg.get('template_path') else None
-                generate(rows, columns, output_path, sheet_name=sheet, template_path=tmpl)
+                generate(rows, columns, output_path,
+                         sheet_name=report_cfg.get('sheet_name', 'Sheet1'),
+                         template_path=tmpl)
             elif fmt == 'csv':
                 from flowforge.reports.csv_report import generate
                 generate(rows, columns, output_path)
@@ -58,3 +52,36 @@ class ReportStep(BaseStep):
         except Exception as e:
             logger.error("Report step failed: %s", e)
             return StepResult(success=False, error=str(e))
+
+    def _load_config(self) -> dict:
+        report_config_id = self.config.get('report_config_id')
+        if report_config_id:
+            from flowforge.db.models import ReportConfig, db
+            row = db.session.get(ReportConfig, report_config_id)
+            if not row:
+                raise ValueError(f"ReportConfig not found: {report_config_id}")
+            return {
+                'connection_id': row.connection_id,
+                'query': row.query,
+                'format': row.format,
+                'template_path': row.template_path,
+                'output_filename': row.output_filename,
+                'title': row.title,
+                'sheet_name': row.sheet_name,
+                'columns': row.columns,
+            }
+        return self.config.get('inline_config', {})
+
+    def _get_connection(self, report_cfg: dict):
+        connection_id = report_cfg.get('connection_id')
+        if connection_id:
+            from flowforge.connections.factory import get_connection
+            return get_connection(connection_id)
+        import os
+        from flowforge.connections.postgres import PostgreSQLConnection
+        return PostgreSQLConnection(
+            host=os.environ.get('DB_HOST', ''),
+            database=os.environ.get('DB_NAME', ''),
+            user=os.environ.get('DB_USER', ''),
+            password=os.environ.get('DB_PASSWORD', ''),
+        )
