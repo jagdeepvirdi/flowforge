@@ -29,6 +29,10 @@ Thumbs.db
 
 # Credentials / secrets (should never be committed)
 *.json.bak
+connection.json
+settings.yaml
+service_account.json
+client_secrets.json
 
 # Node / frontend
 node_modules/
