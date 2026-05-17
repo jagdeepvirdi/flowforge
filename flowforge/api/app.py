@@ -1,0 +1,73 @@
+"""Flask application factory."""
+import os
+
+from flask import Flask, jsonify
+from flask_cors import CORS
+
+from flowforge.db.models import db
+
+
+def create_app(config: dict | None = None) -> Flask:
+    app = Flask(__name__)
+
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
+        'FLOWFORGE_DB_URL', 'postgresql://flowforge:flowforge@localhost:5432/flowforge'
+    )
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['SECRET_KEY'] = os.environ.get('FLOWFORGE_SECRET_KEY', '')
+    app.config['JWT_ALGORITHM'] = 'HS256'
+    app.config['JWT_EXPIRY_HOURS'] = 24
+
+    if config:
+        app.config.update(config)
+
+    db.init_app(app)
+    CORS(app, resources={r'/api/*': {'origins': os.environ.get('FLOWFORGE_CORS_ORIGIN', 'http://localhost:5173')}})
+
+    _register_blueprints(app)
+    _register_error_handlers(app)
+
+    return app
+
+
+def _register_blueprints(app: Flask) -> None:
+    from flowforge.api.routes.connections import bp as connections_bp
+    from flowforge.api.routes.emails import bp as emails_bp
+    from flowforge.api.routes.pipelines import bp as pipelines_bp
+    from flowforge.api.routes.providers import bp as providers_bp
+    from flowforge.api.routes.recipients import bp as recipients_bp
+    from flowforge.api.routes.reports import bp as reports_bp
+    from flowforge.api.routes.runs import bp as runs_bp
+    from flowforge.api.routes.setup import bp as setup_bp
+
+    for blueprint in (
+        connections_bp, emails_bp, pipelines_bp, providers_bp,
+        recipients_bp, reports_bp, runs_bp, setup_bp,
+    ):
+        app.register_blueprint(blueprint, url_prefix='/api')
+
+    @app.get('/api/health')
+    def health():
+        return jsonify({'status': 'ok'})
+
+
+def _register_error_handlers(app: Flask) -> None:
+    @app.errorhandler(400)
+    def bad_request(e):
+        return jsonify({'error': str(e)}), 400
+
+    @app.errorhandler(401)
+    def unauthorized(e):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    @app.errorhandler(403)
+    def forbidden(e):
+        return jsonify({'error': 'Forbidden'}), 403
+
+    @app.errorhandler(404)
+    def not_found(e):
+        return jsonify({'error': 'Not found'}), 404
+
+    @app.errorhandler(500)
+    def server_error(e):
+        return jsonify({'error': 'Internal server error'}), 500

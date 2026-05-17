@@ -1,0 +1,221 @@
+"""SQLAlchemy ORM models for FlowForge internal tables."""
+import uuid
+from datetime import datetime
+
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import (
+    Boolean, CheckConstraint, Column, DateTime, ForeignKey,
+    Integer, String, Text, UniqueConstraint,
+)
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
+from sqlalchemy.orm import relationship
+
+db = SQLAlchemy()
+
+
+def _uuid():
+    return str(uuid.uuid4())
+
+
+class User(db.Model):
+    __tablename__ = 'ff_users'
+
+    id            = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    username      = Column(String(100), nullable=False, unique=True)
+    password_hash = Column(String(255), nullable=False)
+    created_at    = Column(DateTime, default=datetime.utcnow)
+
+
+class RecipientGroup(db.Model):
+    __tablename__ = 'ff_recipient_groups'
+
+    id          = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    name        = Column(String(100), nullable=False)
+    description = Column(Text)
+    addresses   = Column(ARRAY(Text), nullable=False)
+    created_at  = Column(DateTime, default=datetime.utcnow)
+
+    email_configs = relationship('EmailConfig', back_populates='recipient_group')
+
+
+class EmailProvider(db.Model):
+    __tablename__ = 'ff_email_providers'
+    __table_args__ = (
+        CheckConstraint("provider_type IN ('gmail', 'microsoft365', 'smtp')", name='ck_email_provider_type'),
+    )
+
+    id            = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    name          = Column(String(100), nullable=False)
+    provider_type = Column(String(20), nullable=False)
+    config        = Column(Text, nullable=False)   # encrypted JSON
+    is_default    = Column(Boolean, default=False)
+    created_at    = Column(DateTime, default=datetime.utcnow)
+
+    email_configs = relationship('EmailConfig', back_populates='provider')
+
+
+class DbConnection(db.Model):
+    __tablename__ = 'ff_db_connections'
+    __table_args__ = (
+        CheckConstraint("db_type IN ('postgresql', 'oracle')", name='ck_db_connection_type'),
+    )
+
+    id         = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    name       = Column(String(100), nullable=False)
+    db_type    = Column(String(20), nullable=False)
+    config     = Column(Text, nullable=False)   # encrypted JSON
+    is_default = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    report_configs = relationship('ReportConfig', back_populates='connection')
+
+
+class ReportConfig(db.Model):
+    __tablename__ = 'ff_report_configs'
+    __table_args__ = (
+        CheckConstraint("format IN ('excel', 'csv', 'pdf')", name='ck_report_format'),
+    )
+
+    id              = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    name            = Column(String(255), nullable=False)
+    description     = Column(Text)
+    connection_id   = Column(UUID(as_uuid=False), ForeignKey('ff_db_connections.id', ondelete='SET NULL'))
+    query           = Column(Text, nullable=False)
+    format          = Column(String(20), nullable=False)
+    template_path   = Column(String(500))
+    output_filename = Column(String(500), nullable=False)
+    title           = Column(String(255))
+    sheet_name      = Column(String(100))
+    columns         = Column(ARRAY(Text))
+    created_at      = Column(DateTime, default=datetime.utcnow)
+    updated_at      = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    connection = relationship('DbConnection', back_populates='report_configs')
+
+
+class EmailConfig(db.Model):
+    __tablename__ = 'ff_email_configs'
+
+    id                  = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    name                = Column(String(255), nullable=False)
+    description         = Column(Text)
+    provider_id         = Column(UUID(as_uuid=False), ForeignKey('ff_email_providers.id', ondelete='SET NULL'))
+    from_name           = Column(String(255))
+    subject             = Column(String(500), nullable=False)
+    header_text         = Column(String(500))
+    body_template       = Column(Text, nullable=False)
+    recipient_group_id  = Column(UUID(as_uuid=False), ForeignKey('ff_recipient_groups.id', ondelete='SET NULL'))
+    to_addresses        = Column(ARRAY(Text))
+    cc_addresses        = Column(ARRAY(Text))
+    bcc_addresses       = Column(ARRAY(Text))
+    attachment_max_mb   = Column(Integer, default=10)
+    drive_folder_id     = Column(String(255))
+    drive_share_message = Column(Text)
+    created_at          = Column(DateTime, default=datetime.utcnow)
+    updated_at          = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    provider         = relationship('EmailProvider', back_populates='email_configs')
+    recipient_group  = relationship('RecipientGroup', back_populates='email_configs')
+
+
+class Pipeline(db.Model):
+    __tablename__ = 'ff_pipelines'
+
+    id              = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    name            = Column(String(255), nullable=False, unique=True)
+    description     = Column(Text)
+    schedule        = Column(String(100))
+    enabled         = Column(Boolean, default=True)
+    timeout_minutes = Column(Integer, default=60)
+    created_at      = Column(DateTime, default=datetime.utcnow)
+    updated_at      = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    steps     = relationship('PipelineStep', back_populates='pipeline',
+                             order_by='PipelineStep.step_order', cascade='all, delete-orphan')
+    variables = relationship('PipelineVariable', back_populates='pipeline',
+                             cascade='all, delete-orphan')
+    runs      = relationship('PipelineRun', back_populates='pipeline')
+
+
+class PipelineStep(db.Model):
+    __tablename__ = 'ff_pipeline_steps'
+    __table_args__ = (
+        CheckConstraint(
+            "step_type IN ('db_procedure','db_query','report','email','drive_upload','ai_analyze')",
+            name='ck_step_type',
+        ),
+        CheckConstraint("on_error IN ('stop', 'continue')", name='ck_on_error'),
+        UniqueConstraint('pipeline_id', 'step_order', name='uq_pipeline_step_order'),
+    )
+
+    id          = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    pipeline_id = Column(UUID(as_uuid=False), ForeignKey('ff_pipelines.id', ondelete='CASCADE'), nullable=False)
+    step_order  = Column(Integer, nullable=False)
+    name        = Column(String(255), nullable=False)
+    step_type   = Column(String(50), nullable=False)
+    config      = Column(JSONB, nullable=False, default=dict)
+    on_error    = Column(String(20), default='stop')
+    enabled     = Column(Boolean, default=True)
+
+    pipeline = relationship('Pipeline', back_populates='steps')
+
+
+class PipelineVariable(db.Model):
+    __tablename__ = 'ff_pipeline_variables'
+    __table_args__ = (
+        UniqueConstraint('pipeline_id', 'var_key', name='uq_pipeline_var_key'),
+    )
+
+    id          = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    pipeline_id = Column(UUID(as_uuid=False), ForeignKey('ff_pipelines.id', ondelete='CASCADE'), nullable=False)
+    var_key     = Column(String(100), nullable=False)
+    var_value   = Column(Text, nullable=False)
+    is_secret   = Column(Boolean, default=False)
+
+    pipeline = relationship('Pipeline', back_populates='variables')
+
+
+class PipelineRun(db.Model):
+    __tablename__ = 'ff_pipeline_runs'
+    __table_args__ = (
+        CheckConstraint("status IN ('running','success','failed','cancelled')", name='ck_run_status'),
+    )
+
+    id            = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    pipeline_id   = Column(UUID(as_uuid=False), ForeignKey('ff_pipelines.id', ondelete='SET NULL'))
+    pipeline_name = Column(String(255), nullable=False)
+    status        = Column(String(20), nullable=False)
+    started_at    = Column(DateTime, nullable=False, default=datetime.utcnow)
+    finished_at   = Column(DateTime)
+    duration_ms   = Column(Integer)
+    triggered_by  = Column(String(50))
+    error_step    = Column(String(255))
+    error_message = Column(Text)
+
+    pipeline  = relationship('Pipeline', back_populates='runs')
+    step_runs = relationship('StepRun', back_populates='pipeline_run', cascade='all, delete-orphan')
+
+
+class StepRun(db.Model):
+    __tablename__ = 'ff_step_runs'
+    __table_args__ = (
+        CheckConstraint("status IN ('running','success','failed','skipped')", name='ck_step_run_status'),
+    )
+
+    id              = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    pipeline_run_id = Column(UUID(as_uuid=False), ForeignKey('ff_pipeline_runs.id', ondelete='CASCADE'), nullable=False)
+    step_name       = Column(String(255), nullable=False)
+    step_type       = Column(String(50), nullable=False)
+    step_order      = Column(Integer, nullable=False)
+    status          = Column(String(20), nullable=False)
+    started_at      = Column(DateTime, nullable=False, default=datetime.utcnow)
+    finished_at     = Column(DateTime)
+    duration_ms     = Column(Integer)
+    rows_affected   = Column(Integer)
+    output_path     = Column(String(500))
+    drive_url       = Column(String(500))
+    email_sent_to   = Column(ARRAY(Text))
+    logs            = Column(Text)
+    error_message   = Column(Text)
+
+    pipeline_run = relationship('PipelineRun', back_populates='step_runs')

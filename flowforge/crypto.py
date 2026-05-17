@@ -1,0 +1,36 @@
+"""AES-256-GCM encryption for credential storage in the database."""
+import base64
+import json
+import os
+
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+
+def _key() -> bytes:
+    raw = os.environ.get('FLOWFORGE_SECRET_KEY', '')
+    if not raw:
+        raise RuntimeError("FLOWFORGE_SECRET_KEY environment variable is not set.")
+    # Accept hex-encoded 32-byte key (64 hex chars) or raw bytes
+    try:
+        decoded = bytes.fromhex(raw)
+    except ValueError:
+        decoded = raw.encode()
+    if len(decoded) != 32:
+        raise RuntimeError("FLOWFORGE_SECRET_KEY must be a 32-byte key (64 hex characters).")
+    return decoded
+
+
+def encrypt_config(data: dict) -> str:
+    """Encrypt a dict to a base64 string for storage in the database."""
+    plaintext = json.dumps(data).encode()
+    nonce = os.urandom(12)
+    ciphertext = AESGCM(_key()).encrypt(nonce, plaintext, None)
+    return base64.b64encode(nonce + ciphertext).decode()
+
+
+def decrypt_config(token: str) -> dict:
+    """Decrypt a base64 string from the database back to a dict."""
+    raw = base64.b64decode(token.encode())
+    nonce, ciphertext = raw[:12], raw[12:]
+    plaintext = AESGCM(_key()).decrypt(nonce, ciphertext, None)
+    return json.loads(plaintext.decode())
