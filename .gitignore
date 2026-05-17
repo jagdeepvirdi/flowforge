@@ -41,3 +41,7 @@ frontend/.env.local
 
 # FlowForge runtime
 .flowforge/
+
+# Internal working documents (not for public repo)
+docs/code-review.md
+docs/cleanup-report.md
