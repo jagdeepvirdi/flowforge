@@ -21,13 +21,12 @@ def report_id(client, headers):
 
 
 @pytest.fixture
-def conn_id(client, headers):
+def conn_id(client, headers, live_db_config):
     """A live DB connection for preview tests."""
     resp = client.post('/api/db-connections', json={
         'name': 'Test DB for Reports',
         'db_type': 'postgresql',
-        'config': {'host': 'localhost', 'port': 5434, 'database': 'flowforge',
-                   'username': 'flowforge', 'password': 'harpal123'},
+        'config': live_db_config,
     }, headers=headers)
     cid = resp.get_json()['id']
     yield cid

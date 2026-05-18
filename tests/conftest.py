@@ -2,6 +2,7 @@
 import os
 import pytest
 import bcrypt
+from urllib.parse import urlparse
 
 # Use a dedicated test database — never the production one
 os.environ.setdefault('FLOWFORGE_DB_URL', 'postgresql://flowforge:harpal123@localhost:5434/flowforge_test')
@@ -37,3 +38,16 @@ def auth_token(client):
 @pytest.fixture
 def headers(auth_token):
     return {'Authorization': f'Bearer {auth_token}', 'Content-Type': 'application/json'}
+
+
+@pytest.fixture(scope='session')
+def live_db_config():
+    """Parse FLOWFORGE_DB_URL so live-connection tests work in any environment."""
+    url = urlparse(os.environ['FLOWFORGE_DB_URL'])
+    return {
+        'host': url.hostname,
+        'port': url.port,
+        'database': url.path.lstrip('/'),
+        'username': url.username,
+        'password': url.password,
+    }
