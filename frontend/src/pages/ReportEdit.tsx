@@ -10,7 +10,7 @@ import type { ReportFormat } from '../lib/types'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 
-const VAR_HINTS = ['{{ current_date }}', '{{ current_month }}', '{{ current_year }}', '{{ run_id }}']
+const VAR_HINTS = ['{{ current_date }}', '{{ current_month }}', '{{ current_year }}', '{{ timestamp }}', '{{ run_id }}']
 
 export default function ReportEdit() {
   const { id } = useParams()

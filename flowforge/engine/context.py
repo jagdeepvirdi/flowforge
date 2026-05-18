@@ -6,6 +6,7 @@ Built-in variables available in all config strings:
   {{ current_month }}  — YYYY-MM
   {{ current_year }}   — YYYY
   {{ yesterday }}      — YYYY-MM-DD
+  {{ timestamp }}      — DDMMYYYYHHmmSS  (e.g. 18052026142304) — unique per second
   {{ run_id }}         — UUID of the current pipeline run
   {{ pipeline_name }}  — name of the running pipeline
   {{ env.VAR }}        — any environment variable
@@ -23,12 +24,14 @@ _jinja = Environment(undefined=Undefined)
 
 
 def _built_ins() -> dict[str, Any]:
-    today = datetime.today()
+    now = datetime.now()
+    today = now.date()
     return {
         'current_date': today.strftime('%Y-%m-%d'),
         'current_month': today.strftime('%Y-%m'),
         'current_year': str(today.year),
         'yesterday': (today - timedelta(days=1)).strftime('%Y-%m-%d'),
+        'timestamp': now.strftime('%d%m%Y%H%M%S'),
         'run_id': str(uuid4()),
     }
 
