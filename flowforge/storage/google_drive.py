@@ -14,7 +14,7 @@ def _get_service():
         from googleapiclient.discovery import build
     except ImportError:
         raise ImportError(
-            "google-api-python-client is required: pip install google-api-python-client"
+            "Google Drive support requires: pip install 'flowforge[drive]'"
         )
 
     sa_file = os.environ.get('GOOGLE_SERVICE_ACCOUNT_FILE')

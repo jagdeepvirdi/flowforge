@@ -26,7 +26,7 @@ class GmailProvider(EmailProvider):
             from google.oauth2.credentials import Credentials
         except ImportError:
             raise ImportError(
-                "google-auth is required for Gmail OAuth2: pip install google-auth google-auth-oauthlib"
+                "Gmail support requires: pip install 'flowforge[gmail]'"
             )
         creds = Credentials(
             token=None,
@@ -52,7 +52,7 @@ class GmailProvider(EmailProvider):
             from googleapiclient.discovery import build
         except ImportError:
             raise ImportError(
-                "google-api-python-client is required: pip install google-api-python-client"
+                "Gmail support requires: pip install 'flowforge[gmail]'"
             )
 
         msg = MIMEMultipart()

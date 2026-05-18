@@ -36,14 +36,6 @@ dependencies = [
     "jinja2>=3.1",
     # Reports
     "openpyxl>=3.1",
-    # HTTP (used by Microsoft 365 Graph API)
-    "requests>=2.31",
-    # Google APIs (Drive + Gmail)
-    "google-api-python-client>=2.120",
-    "google-auth>=2.28",
-    "google-auth-oauthlib>=1.2",
-    # Microsoft 365
-    "msal>=1.28",
     # CLI
     "click>=8.1",
     # Encryption
@@ -62,11 +54,30 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+gmail = [
+    "google-api-python-client>=2.120",
+    "google-auth>=2.28",
+    "google-auth-oauthlib>=1.2",
+]
+drive = [
+    "google-api-python-client>=2.120",
+    "google-auth>=2.28",
+]
+microsoft365 = [
+    "msal>=1.28",
+    "requests>=2.31",
+]
 pdf = [
     "weasyprint>=62.0",
 ]
 oracle = [
     "cx_Oracle>=8.3",
+]
+all = [
+    "flowforge[gmail]",
+    "flowforge[drive]",
+    "flowforge[microsoft365]",
+    "flowforge[pdf]",
 ]
 dev = [
     "pytest>=8.0",

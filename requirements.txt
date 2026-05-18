@@ -1,8 +1,14 @@
 # Core runtime dependencies
-# Generated from pyproject.toml — install with: pip install -e .
-# For development: pip install -e .[dev]
-# For PDF support: pip install -e .[pdf]
-# For Oracle support: pip install -e .[oracle]
+# Install with: pip install -e .
+#
+# Optional extras:
+#   pip install -e ".[gmail]"        — Gmail email provider + Drive upload
+#   pip install -e ".[drive]"        — Google Drive upload only
+#   pip install -e ".[microsoft365]" — Microsoft 365 email provider
+#   pip install -e ".[pdf]"          — PDF report generation (weasyprint)
+#   pip install -e ".[oracle]"       — Oracle database connections (cx_Oracle)
+#   pip install -e ".[all]"          — All of the above
+#   pip install -e ".[dev]"          — Development tools (pytest, ruff)
 
 # Web framework
 flask==3.0.3
@@ -20,17 +26,6 @@ jinja2==3.1.4
 
 # Reports
 openpyxl==3.1.2
-
-# HTTP (used by Microsoft 365 Graph API)
-requests==2.32.3
-
-# Google APIs
-google-api-python-client==2.127.0
-google-auth==2.29.0
-google-auth-oauthlib==1.2.0
-
-# Microsoft 365
-msal==1.28.0
 
 # CLI
 click==8.1.7
@@ -53,3 +48,20 @@ python-dotenv==1.0.1
 
 # YAML export/import
 pyyaml==6.0.2
+
+# ── Optional — install only what you need ────────────────────────────────────
+
+# [gmail] + [drive] — pip install -e ".[gmail]"
+# google-api-python-client==2.127.0
+# google-auth==2.29.0
+# google-auth-oauthlib==1.2.0
+
+# [microsoft365] — pip install -e ".[microsoft365]"
+# msal==1.28.0
+# requests==2.32.3
+
+# [pdf] — pip install -e ".[pdf]"
+# weasyprint>=62.0
+
+# [oracle] — pip install -e ".[oracle]"
+# cx_Oracle>=8.3

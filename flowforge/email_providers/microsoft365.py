@@ -21,7 +21,7 @@ class Microsoft365Provider(EmailProvider):
             import msal
         except ImportError:
             raise ImportError(
-                "msal is required for Microsoft 365: pip install msal"
+                "Microsoft 365 support requires: pip install 'flowforge[microsoft365]'"
             )
         app = msal.ConfidentialClientApplication(
             client_id,
@@ -45,7 +45,9 @@ class Microsoft365Provider(EmailProvider):
         try:
             import requests
         except ImportError:
-            raise ImportError("requests is required: pip install requests")
+            raise ImportError(
+                "Microsoft 365 support requires: pip install 'flowforge[microsoft365]'"
+            )
 
         graph_attachments = []
         for file_path in attachments:
