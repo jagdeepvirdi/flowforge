@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, CheckCircle, XCircle, Download } from 'lucide-react'
-import { getRun } from '../lib/api'
+import { getRun, downloadStepOutput } from '../lib/api'
 import type { StepRun } from '../lib/types'
 import StatusBadge from '../components/shared/StatusBadge'
 import TopBar from '../components/shared/TopBar'
@@ -33,6 +33,18 @@ const STATUS_COLOR: Record<string, string> = {
 function TimelineStep({ s, last }: { s: StepRun; last: boolean }) {
   const [open, setOpen]           = useState(s.status === 'failed')
   const [activeTab, setActiveTab] = useState(0)
+  const [downloading, setDownloading] = useState(false)
+
+  async function handleDownload() {
+    if (!s.output_path) return
+    setDownloading(true)
+    try {
+      const filename = s.output_path.split(/[\\/]/).pop() ?? 'output'
+      await downloadStepOutput(s.id, filename)
+    } finally {
+      setDownloading(false)
+    }
+  }
   const typeMeta = TYPE_META[s.step_type] ?? { cls: 'tbadge-query', label: s.step_type }
   const statusColor = STATUS_COLOR[s.status] ?? '#475569'
 
@@ -114,8 +126,25 @@ function TimelineStep({ s, last }: { s: StepRun; last: boolean }) {
 
               {activeTab === 1 && (<>
                 {s.output_path && (
-                  <div style={{ color: '#94A3B8', marginBottom: 6 }}>
-                    File: <span style={{ color: '#CBD5E1' }}>{s.output_path}</span>
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ color: '#64748B', fontSize: 11, marginBottom: 6 }}>
+                      {s.output_path.split(/[\\/]/).pop()}
+                    </div>
+                    <button
+                      onClick={handleDownload}
+                      disabled={downloading}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 6,
+                        padding: '6px 12px', borderRadius: 6, border: '1px solid #3A3F52',
+                        background: downloading ? '#1A1D27' : '#21252F',
+                        color: downloading ? '#475569' : '#F1F5F9',
+                        fontSize: 12, cursor: downloading ? 'default' : 'pointer',
+                        fontFamily: 'inherit',
+                      }}
+                    >
+                      <Download size={12} />
+                      {downloading ? 'Downloading…' : 'Download file'}
+                    </button>
                   </div>
                 )}
                 {s.drive_url && (

@@ -102,3 +102,28 @@ export const getRuns = (params?: { pipeline_id?: string; status?: string; limit?
   return get<import('./types').PipelineRun[]>(`/runs${q ? `?${q}` : ''}`)
 }
 export const getRun = (id: string) => get<import('./types').PipelineRun>(`/runs/${id}`)
+
+export async function downloadStepOutput(stepRunId: string, filename: string): Promise<void> {
+  const token = useAuth.getState().token
+  const headers: Record<string, string> = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  const res = await fetch(`${BASE}/step-runs/${stepRunId}/download`, { headers })
+  if (res.status === 401) {
+    useAuth.getState().clearToken()
+    window.location.href = '/login'
+    throw new Error('Unauthorized')
+  }
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`)
+  }
+
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}

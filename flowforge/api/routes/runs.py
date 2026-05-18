@@ -1,4 +1,7 @@
-from flask import Blueprint, jsonify, request
+import mimetypes
+import os
+
+from flask import Blueprint, jsonify, request, send_file
 
 from flowforge.api.auth import require_auth
 from flowforge.db.models import PipelineRun, StepRun, db
@@ -68,3 +71,25 @@ def get_run(run_id):
     if not run:
         return jsonify({'error': 'Run not found'}), 404
     return jsonify(_run_dict(run, include_steps=True))
+
+
+@bp.get('/step-runs/<uuid:step_run_id>/download')
+@require_auth
+def download_step_output(step_run_id):
+    step_run = db.session.get(StepRun, str(step_run_id))
+    if not step_run:
+        return jsonify({'error': 'Step run not found'}), 404
+    if not step_run.output_path:
+        return jsonify({'error': 'No output file for this step'}), 404
+
+    abs_path = os.path.abspath(step_run.output_path)
+    if not os.path.isfile(abs_path):
+        return jsonify({'error': 'Output file no longer exists on disk'}), 404
+
+    mime, _ = mimetypes.guess_type(abs_path)
+    return send_file(
+        abs_path,
+        mimetype=mime or 'application/octet-stream',
+        as_attachment=True,
+        download_name=os.path.basename(abs_path),
+    )
