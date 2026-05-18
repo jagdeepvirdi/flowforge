@@ -208,6 +208,53 @@ def export(pipeline_name: str, output: str | None):
             click.echo(text)
 
 
+@cli.command()
+@click.option('--days', default=None, type=int,
+              help='Delete files older than this many days (default: FLOWFORGE_OUTPUT_TTL_DAYS or 7).')
+@click.option('--dir', 'output_dir', default=None,
+              help='Output directory to clean (default: FLOWFORGE_OUTPUT_DIR or ./output).')
+@click.option('--dry-run', is_flag=True, help='Show what would be deleted without deleting.')
+def cleanup(days: int | None, output_dir: str | None, dry_run: bool):
+    """Delete generated output files older than the TTL."""
+    import os
+    from pathlib import Path
+    from datetime import datetime, timezone
+
+    directory = Path(output_dir or os.environ.get('FLOWFORGE_OUTPUT_DIR', 'output'))
+    ttl = days if days is not None else int(os.environ.get('FLOWFORGE_OUTPUT_TTL_DAYS', 7))
+
+    if not directory.exists():
+        click.echo(f"Output directory does not exist: {directory}")
+        return
+
+    cutoff = datetime.now(timezone.utc).timestamp() - ttl * 86_400
+    to_delete = [
+        p for p in directory.iterdir()
+        if p.is_file() and p.stat().st_mtime < cutoff
+    ]
+
+    if not to_delete:
+        click.echo(f"No files older than {ttl} days in {directory}.")
+        return
+
+    total_bytes = sum(p.stat().st_size for p in to_delete)
+    click.echo(f"{'Would delete' if dry_run else 'Deleting'} {len(to_delete)} file(s) "
+               f"({total_bytes / 1_048_576:.2f} MB) from {directory} [TTL={ttl}d]:")
+    for p in sorted(to_delete):
+        click.echo(f"  {p.name}")
+
+    if not dry_run:
+        errors = 0
+        for p in to_delete:
+            try:
+                p.unlink()
+            except Exception as e:
+                click.echo(f"  ERROR deleting {p.name}: {e}", err=True)
+                errors += 1
+        deleted = len(to_delete) - errors
+        click.echo(f"Done. {deleted} file(s) deleted.")
+
+
 def _create_app():
     from flowforge.api.app import create_app
     return create_app()

@@ -15,6 +15,7 @@ def start_scheduler():
 
     scheduler = BlockingScheduler(jobstores=jobstores, timezone='UTC')
     _load_pipeline_jobs(scheduler)
+    _register_cleanup_job(scheduler)
 
     logger.info("Scheduler started. Press Ctrl+C to stop.")
     try:
@@ -56,6 +57,23 @@ def _load_pipeline_jobs(scheduler: BlockingScheduler) -> None:
             logger.error("Failed to register schedule for '%s': %s", pipeline.name, e)
 
     logger.info("Registered %d scheduled pipelines.", registered)
+
+
+def _register_cleanup_job(scheduler: BlockingScheduler) -> None:
+    scheduler.add_job(
+        _cleanup_job,
+        trigger='cron',
+        hour=2, minute=0,
+        id='output_cleanup',
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+    logger.info("Registered daily output cleanup job (02:00 UTC).")
+
+
+def _cleanup_job() -> None:
+    from flowforge.engine.cleanup import cleanup_output_files
+    cleanup_output_files()
 
 
 def _run_pipeline_job(pipeline_id: str, pipeline_name: str) -> None:
