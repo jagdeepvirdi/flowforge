@@ -53,6 +53,8 @@ dependencies = [
     "bcrypt>=4.1",
     # CORS
     "flask-cors>=4.0",
+    # Rate limiting
+    "flask-limiter>=3.8",
     # Env
     "python-dotenv>=1.0",
     # YAML export/import

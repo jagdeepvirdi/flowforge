@@ -4,8 +4,12 @@ from pathlib import Path
 
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 from flowforge.db.models import db
+
+limiter = Limiter(key_func=get_remote_address, default_limits=[])
 
 _DIST = Path(__file__).parent.parent.parent / 'frontend' / 'dist'
 
@@ -25,6 +29,7 @@ def create_app(config: dict | None = None) -> Flask:
         app.config.update(config)
 
     db.init_app(app)
+    limiter.init_app(app)
     CORS(app, resources={r'/api/*': {'origins': os.environ.get('FLOWFORGE_CORS_ORIGIN', 'http://localhost:5173')}})
 
     _register_blueprints(app)
@@ -87,6 +92,10 @@ def _register_blueprints(app: Flask) -> None:
 
 
 def _register_error_handlers(app: Flask) -> None:
+    @app.errorhandler(429)
+    def rate_limited(e):
+        return jsonify({'error': 'Too many login attempts. Try again in a minute.'}), 429
+
     @app.errorhandler(400)
     def bad_request(e):
         return jsonify({'error': str(e)}), 400

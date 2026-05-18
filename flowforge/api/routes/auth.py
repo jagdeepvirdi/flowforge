@@ -1,12 +1,14 @@
 """Auth routes — POST /api/auth/login."""
 from flask import Blueprint, jsonify, request
 
+from flowforge.api.app import limiter
 from flowforge.api.auth import login as auth_login
 
 bp = Blueprint('auth', __name__)
 
 
 @bp.post('/auth/login')
+@limiter.limit('10 per minute')
 def login():
     data = request.get_json(silent=True) or {}
     username = data.get('username', '').strip()
