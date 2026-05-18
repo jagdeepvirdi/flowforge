@@ -59,10 +59,35 @@
 - [ ] Wire "Set up Drive" button similarly
 - [ ] Show current OAuth status (connected / not connected) per provider
 
-### 5 — Test Suite
-- [ ] Run `pytest tests/` — fix any failures
-- [ ] Run `tests/manual/check_api.py` against the live server
-- [ ] Achieve green on all crypto, auth, and API CRUD tests
+### 5 — Test Suite (Missing Tests)
+
+#### Already Written ✅
+- [x] `test_crypto.py` — encrypt/decrypt, unique nonces, bad key
+- [x] `test_auth.py` — login, JWT, protected routes
+- [x] `test_connections.py` — DB connection CRUD + live test + raw test
+- [x] `test_pipelines.py` — pipeline CRUD + step CRUD
+- [x] `test_reports.py` — report config CRUD + preview + semicolon fix
+- [x] `test_recipients.py` — recipient group CRUD
+- [x] `test_runs.py` — run history filters + disabled pipeline guard
+
+#### Written ✅ (all 168 tests pass)
+- [x] `test_email_configs.py` — email config CRUD (create, get, update, delete)
+- [x] `test_email_providers.py` — email provider CRUD + mocked SMTP send (SSL, TLS, CC/BCC, attachments, failure handling)
+- [x] `test_context.py` — Jinja2 variable resolution: `current_date`, `current_month`, `current_year`, `yesterday`, `run_id`, `pipeline_name`, `env.VAR`, `steps.x.output_path`, `steps.x.drive_url`
+- [x] `test_runner.py` — pipeline executor with mocked steps: step ordering, on_error stop, on_error continue, context passing between steps
+- [x] `test_steps_db.py` — db_query and db_procedure steps with mocked connections: rows returned, rows_affected, output_table, param variable resolution
+- [x] `test_report_generators.py` — Excel headers/data/bold/sheet name; CSV header row, delimiter, encoding
+- [x] `test_smart_attachments.py` — file under limit → direct attach; file over limit → Drive upload + link in body; missing file skipped; threshold edge cases
+- [x] `test_jwt_expiry.py` — expired/bad-secret/malformed/empty/no-header/wrong-scheme all → 401
+
+#### Still To Write
+- [ ] `test_pipeline_variables.py` — pipeline variables stored encrypted if `is_secret=True`; available in context as `{{ vars.key }}`
+
+#### Manual / Live Tests (in `tests/manual/`)
+- [x] `check_api.py` — full API smoke test against live server
+- [x] `check_email.py` — send a real Gmail test email
+- [x] `check_runner.py` — trigger a real pipeline run via API, poll until complete, assert success
+- [x] `check_scheduler.py` — enable a 1-minute cron pipeline, wait, confirm run appeared
 
 ### 6 — Documentation
 - [ ] Review `docs/gmail-oauth2-setup.md` — add screenshots, verify steps still match Google UI
