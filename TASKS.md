@@ -984,7 +984,7 @@ Report any found. Do not push until confirmed clean.
 - [ ] SFTP upload step
 - [ ] AWS S3 upload step
 - [ ] Azure Blob upload step
-- [ ] OneDrive upload step (natural fit given M365 support)
+- [ ] **OneDrive / SharePoint upload step** — natural fit for M365 users who shouldn't need a Google account just for large attachment handling. Uses the same Graph API + MSAL already installed via `[microsoft365]`. No new SDK needed. Scope: new `onedrive_upload` step type, extend smart attachment logic to accept a `storage_provider` field (`google_drive` | `onedrive`), add folder picker in email config UI, add `[onedrive]` extra (same as `[microsoft365]`). Decided against v1 — core stability (Alembic, help system) takes priority first.
 
 ### More DB Support
 - [ ] MySQL / MariaDB connection
