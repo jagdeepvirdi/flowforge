@@ -36,7 +36,8 @@ dependencies = [
     "jinja2>=3.1",
     # Reports
     "openpyxl>=3.1",
-    "xlsxwriter>=3.2",
+    # HTTP (used by Microsoft 365 Graph API)
+    "requests>=2.31",
     # Google APIs (Drive + Gmail)
     "google-api-python-client>=2.120",
     "google-auth>=2.28",
@@ -63,7 +64,7 @@ pdf = [
     "weasyprint>=62.0",
 ]
 oracle = [
-    "cx-oracle>=8.3",
+    "cx_Oracle>=8.3",
 ]
 dev = [
     "pytest>=8.0",
@@ -76,9 +77,9 @@ dev = [
 flowforge = "flowforge.cli:cli"
 
 [project.urls]
-Homepage = "https://github.com/your-org/flowforge"
-Documentation = "https://github.com/your-org/flowforge/blob/main/docs/getting-started.md"
-"Bug Tracker" = "https://github.com/your-org/flowforge/issues"
+Homepage = "https://github.com/YOUR_GITHUB_USERNAME/flowforge"
+Documentation = "https://github.com/YOUR_GITHUB_USERNAME/flowforge/blob/main/docs/getting-started.md"
+"Bug Tracker" = "https://github.com/YOUR_GITHUB_USERNAME/flowforge/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]

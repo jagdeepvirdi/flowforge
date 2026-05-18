@@ -43,7 +43,7 @@ export const getPipeline     = (id: string) => get<import('./types').Pipeline>(`
 export const createPipeline  = (data: Partial<import('./types').Pipeline>) => post<import('./types').Pipeline>('/pipelines', data)
 export const updatePipeline  = (id: string, data: Partial<import('./types').Pipeline>) => put<import('./types').Pipeline>(`/pipelines/${id}`, data)
 export const deletePipeline  = (id: string) => del<{ deleted: string }>(`/pipelines/${id}`)
-export const runPipeline     = (id: string) => post<{ success: boolean; run_id: string }>(`/pipelines/${id}/run`)
+export const runPipeline     = (id: string) => post<{ run_id: string; status: string; pipeline_name: string }>(`/pipelines/${id}/run`)
 export const getPipelineRuns = (id: string) => get<import('./types').PipelineRun[]>(`/pipelines/${id}/runs`)
 
 // Steps

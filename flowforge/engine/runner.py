@@ -25,6 +25,7 @@ def run_pipeline(
     pipeline_vars: dict[str, str] | None = None,
     triggered_by: str = 'api',
     pipeline_id: str | None = None,
+    existing_run_id: str | None = None,
 ) -> PipelineResult:
     """Execute an ordered list of steps, threading context between them."""
     from flowforge.engine.context import build
@@ -35,7 +36,7 @@ def run_pipeline(
     result = PipelineResult(success=True, pipeline_name=pipeline_name)
 
     # Create pipeline_run record if we have a DB context available
-    run_record = _create_run_record(pipeline_id, pipeline_name, triggered_by)
+    run_record = _create_run_record(pipeline_id, pipeline_name, triggered_by, existing_run_id)
     if run_record:
         result.run_id = run_record.id
 
@@ -98,9 +99,11 @@ def run_pipeline(
 # DB helpers — silently no-op if no app context
 # ─────────────────────────────────────────
 
-def _create_run_record(pipeline_id, pipeline_name, triggered_by):
+def _create_run_record(pipeline_id, pipeline_name, triggered_by, existing_run_id=None):
     try:
         from flowforge.db.models import PipelineRun, db
+        if existing_run_id:
+            return db.session.get(PipelineRun, existing_run_id)
         run = PipelineRun(
             pipeline_id=pipeline_id,
             pipeline_name=pipeline_name,

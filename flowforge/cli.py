@@ -131,18 +131,41 @@ def setup():
 
 @setup.command('gmail')
 def setup_gmail():
-    """OAuth2 setup for Gmail + Google Drive."""
-    click.echo("Gmail OAuth2 setup — coming in Phase 3.")
-    click.echo("For now, set these environment variables manually:")
-    click.echo("  GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN, GMAIL_SENDER")
+    """Print Gmail OAuth2 setup instructions."""
+    click.echo("")
+    click.echo("Gmail OAuth2 Setup")
+    click.echo("──────────────────")
+    click.echo("Full step-by-step guide: docs/gmail-oauth2-setup.md")
+    click.echo("")
+    click.echo("Quick summary:")
+    click.echo("  1. Go to https://console.cloud.google.com")
+    click.echo("  2. Create a project → Enable Gmail API and Google Drive API")
+    click.echo("  3. OAuth consent screen → Desktop app credentials")
+    click.echo("  4. Run the token script from docs/gmail-oauth2-setup.md to get GMAIL_REFRESH_TOKEN")
+    click.echo("  5. Set in .env:")
+    click.echo("       GMAIL_CLIENT_ID=")
+    click.echo("       GMAIL_CLIENT_SECRET=")
+    click.echo("       GMAIL_REFRESH_TOKEN=")
+    click.echo("       GMAIL_SENDER=you@gmail.com")
+    click.echo("")
 
 
 @setup.command('microsoft365')
 def setup_microsoft365():
-    """OAuth2 setup for Microsoft 365 via MSAL device code flow."""
-    click.echo("Microsoft 365 setup — coming in Phase 3.")
-    click.echo("For now, set these environment variables manually:")
-    click.echo("  MICROSOFT_TENANT_ID, MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET, MICROSOFT_SENDER_EMAIL")
+    """Print Microsoft 365 OAuth2 setup instructions."""
+    click.echo("")
+    click.echo("Microsoft 365 Setup")
+    click.echo("───────────────────")
+    click.echo("  1. Register an app in Azure AD: https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps")
+    click.echo("  2. Add permission: Microsoft Graph → Mail.Send (application permission)")
+    click.echo("  3. Grant admin consent")
+    click.echo("  4. Create a client secret under 'Certificates & secrets'")
+    click.echo("  5. Set in .env:")
+    click.echo("       MICROSOFT_TENANT_ID=")
+    click.echo("       MICROSOFT_CLIENT_ID=")
+    click.echo("       MICROSOFT_CLIENT_SECRET=")
+    click.echo("       MICROSOFT_SENDER_EMAIL=reports@yourcompany.com")
+    click.echo("")
 
 
 @cli.command()

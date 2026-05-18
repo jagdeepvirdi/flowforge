@@ -47,3 +47,6 @@ output/
 # Internal working documents (not for public repo)
 docs/code-review.md
 docs/cleanup-report.md
+
+# Legacy internal source code (kept locally for reference only)
+code/

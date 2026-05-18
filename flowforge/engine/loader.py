@@ -1,6 +1,7 @@
 """Load a pipeline definition from the database into executable step objects."""
 import logging
 
+from flowforge.crypto import decrypt_value
 from flowforge.db.models import Pipeline, db
 from flowforge.steps.base import BaseStep
 
@@ -36,16 +37,14 @@ def load_pipeline(pipeline_id: str) -> tuple[list[BaseStep], dict[str, str]]:
     if not pipeline.enabled:
         raise ValueError(f"Pipeline is disabled: {pipeline.name}")
 
-    pipeline_vars: dict[str, str] = {
-        v.var_key: v.var_value
-        for v in pipeline.variables
-        if not v.is_secret
-    }
-    # Secret vars ARE passed to the runner context (they're used internally by steps),
-    # but the API serialisation masks them from clients.
+    pipeline_vars: dict[str, str] = {}
     for v in pipeline.variables:
-        if v.is_secret:
-            pipeline_vars[v.var_key] = v.var_value
+        try:
+            value = decrypt_value(v.var_value) if v.is_secret else v.var_value
+        except Exception:
+            # Tolerate unencrypted legacy values (stored before encryption was added)
+            value = v.var_value
+        pipeline_vars[v.var_key] = value
 
     steps: list[BaseStep] = []
     for step_row in pipeline.steps:

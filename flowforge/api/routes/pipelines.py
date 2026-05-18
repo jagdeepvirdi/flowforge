@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 
 from flowforge.api.auth import require_auth
+from flowforge.crypto import decrypt_value, encrypt_value
 from flowforge.db.models import Pipeline, PipelineVariable, db
 
 bp = Blueprint('pipelines', __name__)
@@ -65,11 +66,13 @@ def create_pipeline():
     db.session.flush()
 
     for var in data.get('variables', []):
+        is_secret = var.get('is_secret', False)
+        raw_value = var['var_value']
         db.session.add(PipelineVariable(
             pipeline_id=pipeline.id,
             var_key=var['var_key'],
-            var_value=var['var_value'],
-            is_secret=var.get('is_secret', False),
+            var_value=encrypt_value(raw_value) if is_secret else raw_value,
+            is_secret=is_secret,
         ))
 
     db.session.commit()
@@ -115,6 +118,9 @@ def delete_pipeline(pipeline_id):
 @bp.post('/pipelines/<uuid:pipeline_id>/run')
 @require_auth
 def trigger_run(pipeline_id):
+    import threading
+    from flask import current_app
+    from flowforge.db.models import PipelineRun
     from flowforge.engine.loader import load_pipeline
     from flowforge.engine.runner import run_pipeline
 
@@ -124,22 +130,36 @@ def trigger_run(pipeline_id):
     if not pipeline.enabled:
         return jsonify({'error': 'Pipeline is disabled'}), 400
 
-    steps, pipeline_vars = load_pipeline(str(pipeline_id))
-    result = run_pipeline(
-        pipeline_name=pipeline.name,
-        steps=steps,
-        pipeline_vars=pipeline_vars,
-        triggered_by='web_ui',
+    # Pre-create the run record so we can return run_id immediately (202 response).
+    # The background thread takes ownership and updates status when done.
+    run = PipelineRun(
         pipeline_id=str(pipeline_id),
+        pipeline_name=pipeline.name,
+        status='running',
+        triggered_by='web_ui',
     )
-    return jsonify({
-        'success': result.success,
-        'pipeline_name': result.pipeline_name,
-        'steps_run': result.steps_run,
-        'steps_failed': result.steps_failed,
-        'error': result.error,
-        'run_id': result.run_id,
-    }), 200 if result.success else 500
+    db.session.add(run)
+    db.session.commit()
+    run_id = run.id
+
+    steps, pipeline_vars = load_pipeline(str(pipeline_id))
+    app = current_app._get_current_object()
+    pid = str(pipeline_id)
+    pname = pipeline.name
+
+    def _run_in_background():
+        with app.app_context():
+            run_pipeline(
+                pipeline_name=pname,
+                steps=steps,
+                pipeline_vars=pipeline_vars,
+                triggered_by='web_ui',
+                pipeline_id=pid,
+                existing_run_id=run_id,
+            )
+
+    threading.Thread(target=_run_in_background, daemon=True).start()
+    return jsonify({'run_id': run_id, 'status': 'running', 'pipeline_name': pname}), 202
 
 
 @bp.get('/pipelines/<uuid:pipeline_id>/runs')

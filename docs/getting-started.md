@@ -11,7 +11,7 @@ This guide walks you through installing FlowForge, connecting a database, and ru
 ## Installation
 
 ```bash
-git clone https://github.com/your-org/flowforge.git
+git clone https://github.com/YOUR_GITHUB_USERNAME/flowforge.git
 cd flowforge
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate

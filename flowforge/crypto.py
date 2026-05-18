@@ -20,6 +20,16 @@ def _key() -> bytes:
     return decoded
 
 
+def encrypt_value(s: str) -> str:
+    """Encrypt a single string value for database storage."""
+    return encrypt_config({'v': s})
+
+
+def decrypt_value(token: str) -> str:
+    """Decrypt a single string value from database storage."""
+    return decrypt_config(token)['v']
+
+
 def encrypt_config(data: dict) -> str:
     """Encrypt a dict to a base64 string for storage in the database."""
     plaintext = json.dumps(data).encode()

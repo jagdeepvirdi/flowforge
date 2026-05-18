@@ -20,7 +20,9 @@ jinja2==3.1.4
 
 # Reports
 openpyxl==3.1.2
-xlsxwriter==3.2.0
+
+# HTTP (used by Microsoft 365 Graph API)
+requests==2.32.3
 
 # Google APIs
 google-api-python-client==2.127.0
