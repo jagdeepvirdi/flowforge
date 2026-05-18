@@ -77,9 +77,9 @@ dev = [
 flowforge = "flowforge.cli:cli"
 
 [project.urls]
-Homepage = "https://github.com/YOUR_GITHUB_USERNAME/flowforge"
-Documentation = "https://github.com/YOUR_GITHUB_USERNAME/flowforge/blob/main/docs/getting-started.md"
-"Bug Tracker" = "https://github.com/YOUR_GITHUB_USERNAME/flowforge/issues"
+Homepage = "https://github.com/jagdeepvirdi/flowforge"
+Documentation = "https://github.com/jagdeepvirdi/flowforge/blob/main/docs/getting-started.md"
+"Bug Tracker" = "https://github.com/jagdeepvirdi/flowforge/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
