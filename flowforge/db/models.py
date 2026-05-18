@@ -1,6 +1,6 @@
 """SQLAlchemy ORM models for FlowForge internal tables."""
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import (
@@ -17,13 +17,17 @@ def _uuid():
     return str(uuid.uuid4())
 
 
+def _utcnow():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 class User(db.Model):
     __tablename__ = 'ff_users'
 
     id            = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
     username      = Column(String(100), nullable=False, unique=True)
     password_hash = Column(String(255), nullable=False)
-    created_at    = Column(DateTime, default=datetime.utcnow)
+    created_at    = Column(DateTime, default=_utcnow)
 
 
 class RecipientGroup(db.Model):
@@ -33,7 +37,7 @@ class RecipientGroup(db.Model):
     name        = Column(String(100), nullable=False)
     description = Column(Text)
     addresses   = Column(ARRAY(Text), nullable=False)
-    created_at  = Column(DateTime, default=datetime.utcnow)
+    created_at  = Column(DateTime, default=_utcnow)
 
     email_configs = relationship('EmailConfig', back_populates='recipient_group')
 
@@ -49,7 +53,7 @@ class EmailProvider(db.Model):
     provider_type = Column(String(20), nullable=False)
     config        = Column(Text, nullable=False)   # encrypted JSON
     is_default    = Column(Boolean, default=False)
-    created_at    = Column(DateTime, default=datetime.utcnow)
+    created_at    = Column(DateTime, default=_utcnow)
 
     email_configs = relationship('EmailConfig', back_populates='provider')
 
@@ -65,7 +69,7 @@ class DbConnection(db.Model):
     db_type    = Column(String(20), nullable=False)
     config     = Column(Text, nullable=False)   # encrypted JSON
     is_default = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
 
     report_configs = relationship('ReportConfig', back_populates='connection')
 
@@ -87,8 +91,8 @@ class ReportConfig(db.Model):
     title           = Column(String(255))
     sheet_name      = Column(String(100))
     columns         = Column(ARRAY(Text))
-    created_at      = Column(DateTime, default=datetime.utcnow)
-    updated_at      = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at      = Column(DateTime, default=_utcnow)
+    updated_at      = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
     connection = relationship('DbConnection', back_populates='report_configs')
 
@@ -111,8 +115,8 @@ class EmailConfig(db.Model):
     attachment_max_mb   = Column(Integer, default=10)
     drive_folder_id     = Column(String(255))
     drive_share_message = Column(Text)
-    created_at          = Column(DateTime, default=datetime.utcnow)
-    updated_at          = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at          = Column(DateTime, default=_utcnow)
+    updated_at          = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
     provider         = relationship('EmailProvider', back_populates='email_configs')
     recipient_group  = relationship('RecipientGroup', back_populates='email_configs')
@@ -127,8 +131,8 @@ class Pipeline(db.Model):
     schedule        = Column(String(100))
     enabled         = Column(Boolean, default=True)
     timeout_minutes = Column(Integer, default=60)
-    created_at      = Column(DateTime, default=datetime.utcnow)
-    updated_at      = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at      = Column(DateTime, default=_utcnow)
+    updated_at      = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
     steps     = relationship('PipelineStep', back_populates='pipeline',
                              order_by='PipelineStep.step_order', cascade='all, delete-orphan')
@@ -185,7 +189,7 @@ class PipelineRun(db.Model):
     pipeline_id   = Column(UUID(as_uuid=False), ForeignKey('ff_pipelines.id', ondelete='SET NULL'))
     pipeline_name = Column(String(255), nullable=False)
     status        = Column(String(20), nullable=False)
-    started_at    = Column(DateTime, nullable=False, default=datetime.utcnow)
+    started_at    = Column(DateTime, nullable=False, default=_utcnow)
     finished_at   = Column(DateTime)
     duration_ms   = Column(Integer)
     triggered_by  = Column(String(50))
@@ -208,7 +212,7 @@ class StepRun(db.Model):
     step_type       = Column(String(50), nullable=False)
     step_order      = Column(Integer, nullable=False)
     status          = Column(String(20), nullable=False)
-    started_at      = Column(DateTime, nullable=False, default=datetime.utcnow)
+    started_at      = Column(DateTime, nullable=False, default=_utcnow)
     finished_at     = Column(DateTime)
     duration_ms     = Column(Integer)
     rows_affected   = Column(Integer)

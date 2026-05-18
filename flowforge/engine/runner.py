@@ -39,6 +39,7 @@ def run_pipeline(
     run_record = _create_run_record(pipeline_id, pipeline_name, triggered_by, existing_run_id)
     if run_record:
         result.run_id = run_record.id
+        context['run_id'] = run_record.id  # overwrite uuid4() placeholder with real DB run ID
 
     step_order = 0
     for step in steps:
@@ -150,10 +151,10 @@ def _finish_run_record(run_record, success: bool, error_step: str = '', error_me
     try:
         from flowforge.db.models import db
         run_record.status = 'success' if success else 'failed'
-        run_record.finished_at = datetime.now(timezone.utc)
+        run_record.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
         if run_record.started_at:
             run_record.duration_ms = int(
-                (run_record.finished_at - run_record.started_at.replace(tzinfo=timezone.utc)).total_seconds() * 1000
+                (run_record.finished_at - run_record.started_at).total_seconds() * 1000
             )
         if error_step:
             run_record.error_step = error_step

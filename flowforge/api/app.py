@@ -1,10 +1,13 @@
 """Flask application factory."""
 import os
+from pathlib import Path
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 
 from flowforge.db.models import db
+
+_DIST = Path(__file__).parent.parent.parent / 'frontend' / 'dist'
 
 
 def create_app(config: dict | None = None) -> Flask:
@@ -72,6 +75,15 @@ def _register_blueprints(app: Flask) -> None:
     @app.get('/api/health')
     def health():
         return jsonify({'status': 'ok'})
+
+    if _DIST.is_dir():
+        @app.route('/', defaults={'path': ''})
+        @app.route('/<path:path>')
+        def serve_spa(path):
+            file_path = _DIST / path
+            if path and file_path.is_file():
+                return send_from_directory(_DIST, path)
+            return send_from_directory(_DIST, 'index.html')
 
 
 def _register_error_handlers(app: Flask) -> None:
