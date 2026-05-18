@@ -27,10 +27,32 @@ def create_app(config: dict | None = None) -> Flask:
     _register_blueprints(app)
     _register_error_handlers(app)
 
+    with app.app_context():
+        db.create_all()
+        _seed_admin(app)
+
     return app
 
 
+def _seed_admin(app: Flask) -> None:
+    """Insert the admin user from env vars if ff_users is empty."""
+    username = os.environ.get('FLOWFORGE_USERNAME', '').strip()
+    password_hash = os.environ.get('FLOWFORGE_PASSWORD', '').strip()
+    if not username or not password_hash:
+        return
+
+    from flowforge.db.models import User
+    if db.session.query(User).first():
+        return
+
+    user = User(username=username, password_hash=password_hash)
+    db.session.add(user)
+    db.session.commit()
+    app.logger.info('Admin user "%s" created from env vars.', username)
+
+
 def _register_blueprints(app: Flask) -> None:
+    from flowforge.api.routes.auth import bp as auth_bp
     from flowforge.api.routes.connections import bp as connections_bp
     from flowforge.api.routes.emails import bp as emails_bp
     from flowforge.api.routes.pipelines import bp as pipelines_bp
@@ -41,7 +63,7 @@ def _register_blueprints(app: Flask) -> None:
     from flowforge.api.routes.setup import bp as setup_bp
 
     for blueprint in (
-        connections_bp, emails_bp, pipelines_bp, providers_bp,
+        auth_bp, connections_bp, emails_bp, pipelines_bp, providers_bp,
         recipients_bp, reports_bp, runs_bp, setup_bp,
     ):
         app.register_blueprint(blueprint, url_prefix='/api')

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react'
 import { getRecipientGroups, createRecipientGroup, updateRecipientGroup, deleteRecipientGroup } from '../lib/api'
 import type { RecipientGroup } from '../lib/types'
-import PageHeader from '../components/shared/PageHeader'
+import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 
 function ChipInput({ values, onChange }: { values: string[]; onChange: (v: string[]) => void }) {
@@ -40,16 +40,18 @@ function GroupRow({ group, onSaved, onDelete }: { group: RecipientGroup; onSaved
 
   if (!editing) {
     return (
-      <tr className="border-b border-border/50 last:border-0 hover:bg-surface2/50">
-        <td className="px-4 py-3 font-medium text-text-primary">{group.name}</td>
-        <td className="px-4 py-3 text-text-muted text-xs">{group.description}</td>
-        <td className="px-4 py-3">
-          <div className="flex flex-wrap gap-1">{group.addresses.map(a => <span key={a} className="badge-muted text-xs">{a}</span>)}</div>
+      <tr>
+        <td style={{ fontWeight: 500, color: '#F1F5F9' }}>{group.name}</td>
+        <td style={{ color: '#94A3B8', fontSize: 12 }}>{group.description}</td>
+        <td>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {group.addresses.map(a => <span key={a} className="chip" style={{ height: 20, fontSize: 11 }}>{a}</span>)}
+          </div>
         </td>
-        <td className="px-4 py-3">
-          <div className="flex gap-1 justify-end">
-            <button className="btn-ghost p-1.5" onClick={() => setEditing(true)}><Pencil size={14}/></button>
-            <button className="btn-ghost p-1.5 hover:text-danger" onClick={() => window.confirm(`Delete "${group.name}"?`) && onDelete()}><Trash2 size={14}/></button>
+        <td>
+          <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+            <button className="btn btn-sm btn-ghost btn-icon" onClick={() => setEditing(true)}><Pencil size={12} /></button>
+            <button className="btn btn-sm btn-ghost btn-icon" onClick={() => window.confirm(`Delete "${group.name}"?`) && onDelete()}><Trash2 size={12} /></button>
           </div>
         </td>
       </tr>
@@ -57,14 +59,16 @@ function GroupRow({ group, onSaved, onDelete }: { group: RecipientGroup; onSaved
   }
 
   return (
-    <tr className="border-b border-border/50">
-      <td className="px-4 py-3"><input className="input" value={name} onChange={e => setName(e.target.value)}/></td>
-      <td className="px-4 py-3"><input className="input text-sm" value={desc} onChange={e => setDesc(e.target.value)}/></td>
-      <td className="px-4 py-3"><ChipInput values={addresses} onChange={setAddresses}/></td>
-      <td className="px-4 py-3">
-        <div className="flex gap-1 justify-end">
-          <button className="btn-ghost p-1.5 text-success" onClick={() => save()} disabled={isPending}>{isPending ? <Spinner size={13}/> : <Check size={14}/>}</button>
-          <button className="btn-ghost p-1.5" onClick={() => setEditing(false)}><X size={14}/></button>
+    <tr>
+      <td><input className="input" value={name} onChange={e => setName(e.target.value)} style={{ height: 32 }} /></td>
+      <td><input className="input" value={desc} onChange={e => setDesc(e.target.value)} style={{ height: 32 }} /></td>
+      <td><ChipInput values={addresses} onChange={setAddresses} /></td>
+      <td>
+        <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+          <button className="btn btn-sm btn-ghost btn-icon" onClick={() => save()} disabled={isPending} style={{ color: '#4ADE80' }}>
+            {isPending ? <Spinner size={12} /> : <Check size={13} />}
+          </button>
+          <button className="btn btn-sm btn-ghost btn-icon" onClick={() => setEditing(false)}><X size={13} /></button>
         </div>
       </td>
     </tr>
@@ -85,44 +89,59 @@ export default function Recipients() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['recipient-groups'] }); setShowNew(false); setNewName(''); setNewDesc(''); setNewAddrs([]) },
   })
 
-  if (isLoading) return <div className="p-8 flex justify-center"><Spinner /></div>
+  if (isLoading) return (
+    <><TopBar crumbs={['Workspace', 'Recipients']} />
+    <div className="scroll" style={{ display: 'flex', justifyContent: 'center' }}><Spinner /></div></>
+  )
 
   return (
-    <div className="p-8">
-      <PageHeader title="Recipient Groups" subtitle={`${groups.length} groups`}
-        action={<button className="btn-primary" onClick={() => setShowNew(true)}><Plus size={15}/> New Group</button>} />
-
-      {showNew && (
-        <div className="card mb-4 space-y-3 border-accent/30">
-          <h3 className="text-sm font-medium text-text-primary">New Group</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className="label">Name *</label><input className="input" value={newName} onChange={e => setNewName(e.target.value)}/></div>
-            <div><label className="label">Description</label><input className="input" value={newDesc} onChange={e => setNewDesc(e.target.value)}/></div>
-          </div>
-          <div><label className="label">Email addresses</label><ChipInput values={newAddrs} onChange={setNewAddrs}/></div>
-          <div className="flex gap-2">
-            <button className="btn-primary" onClick={() => add()} disabled={isPending || !newName}>{isPending ? <Spinner size={14}/> : null} Create</button>
-            <button className="btn-secondary" onClick={() => setShowNew(false)}>Cancel</button>
+    <>
+      <TopBar
+        crumbs={['Workspace', 'Recipients']}
+        actions={<button className="btn btn-primary btn-sm" onClick={() => setShowNew(true)}><Plus size={13} /> New Group</button>}
+      />
+      <div className="scroll">
+        <div className="page-h">
+          <div>
+            <h1>Recipient Groups</h1>
+            <p>{groups.length} group{groups.length !== 1 ? 's' : ''}</p>
           </div>
         </div>
-      )}
 
-      <div className="card overflow-hidden p-0">
-        <table className="w-full text-sm">
-          <thead className="border-b border-border">
-            <tr className="text-xs text-text-muted">
-              <th className="text-left px-4 py-3">Name</th>
-              <th className="text-left px-4 py-3">Description</th>
-              <th className="text-left px-4 py-3">Addresses</th>
-              <th className="px-4 py-3"/>
-            </tr>
-          </thead>
-          <tbody>
-            {groups.length === 0 && <tr><td colSpan={4} className="text-center py-8 text-text-muted">No groups yet.</td></tr>}
-            {groups.map(g => <GroupRow key={g.id} group={g} onSaved={() => qc.invalidateQueries({ queryKey: ['recipient-groups'] })} onDelete={() => remove(g.id)} />)}
-          </tbody>
-        </table>
+        {showNew && (
+          <div className="card" style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12, borderColor: 'rgba(249,115,22,0.3)' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#F1F5F9' }}>New Group</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="field"><label>Name *</label><input className="input" value={newName} onChange={e => setNewName(e.target.value)} /></div>
+              <div className="field"><label>Description</label><input className="input" value={newDesc} onChange={e => setNewDesc(e.target.value)} /></div>
+            </div>
+            <div className="field"><label>Email addresses</label><ChipInput values={newAddrs} onChange={setNewAddrs} /></div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-primary btn-sm" onClick={() => add()} disabled={isPending || !newName}>
+                {isPending ? <Spinner size={12} /> : null} Create
+              </button>
+              <button className="btn btn-sm" onClick={() => setShowNew(false)}>Cancel</button>
+            </div>
+          </div>
+        )}
+
+        <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Addresses</th>
+                <th style={{ width: 80 }} />
+              </tr>
+            </thead>
+            <tbody>
+              {groups.length === 0 && <tr><td colSpan={4} style={{ textAlign: 'center', padding: '40px 0', color: '#64748B' }}>No groups yet.</td></tr>}
+              {groups.map(g => <GroupRow key={g.id} group={g} onSaved={() => qc.invalidateQueries({ queryKey: ['recipient-groups'] })} onDelete={() => remove(g.id)} />)}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+    </>
   )
 }

@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Save, ArrowLeft, Play } from 'lucide-react'
+import { ArrowLeft, Play, Save, RefreshCw, Check } from 'lucide-react'
 import {
   getReportConfig, createReportConfig, updateReportConfig, previewReport,
   getDbConnections,
 } from '../lib/api'
 import type { ReportFormat } from '../lib/types'
-import PageHeader from '../components/shared/PageHeader'
+import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 
 const VAR_HINTS = ['{{ current_date }}', '{{ current_month }}', '{{ current_year }}', '{{ run_id }}']
@@ -21,17 +21,17 @@ export default function ReportEdit() {
   const { data: existing, isLoading } = useQuery({ queryKey: ['report-config', id], queryFn: () => getReportConfig(id!), enabled: !isNew })
   const { data: dbConns = [] } = useQuery({ queryKey: ['db-connections'], queryFn: getDbConnections })
 
-  const [name, setName]             = useState('')
-  const [desc, setDesc]             = useState('')
-  const [connId, setConnId]         = useState('')
-  const [query, setQuery]           = useState('')
-  const [format, setFormat]         = useState<ReportFormat>('excel')
-  const [filename, setFilename]     = useState('report_{{ current_month }}.xlsx')
-  const [sheetName, setSheetName]   = useState('Sheet1')
-  const [title, setTitle]           = useState('')
-  const [saving, setSaving]         = useState(false)
-  const [error, setError]           = useState('')
-  const [preview, setPreview]       = useState<{ columns: string[]; rows: unknown[][] } | null>(null)
+  const [name, setName]           = useState('')
+  const [desc, setDesc]           = useState('')
+  const [connId, setConnId]       = useState('')
+  const [query, setQuery]         = useState('')
+  const [format, setFormat]       = useState<ReportFormat>('excel')
+  const [filename, setFilename]   = useState('report_{{ current_month }}.xlsx')
+  const [sheetName, setSheetName] = useState('Sheet1')
+  const [title, setTitle]         = useState('')
+  const [saving, setSaving]       = useState(false)
+  const [error, setError]         = useState('')
+  const [preview, setPreview]     = useState<{ columns: string[]; rows: unknown[][] } | null>(null)
   const [previewing, setPreviewing] = useState(false)
 
   useEffect(() => {
@@ -64,7 +64,7 @@ export default function ReportEdit() {
   }
 
   const handlePreview = async () => {
-    if (!id) { setError('Save the config first to preview'); return }
+    if (!id) { setError('Save the report first to preview'); return }
     setPreviewing(true)
     try {
       const result = await previewReport(id)
@@ -76,93 +76,178 @@ export default function ReportEdit() {
     }
   }
 
-  if (!isNew && isLoading) return <div className="p-8 flex justify-center"><Spinner /></div>
+  const crumbs = isNew ? ['Workspace', 'Reports', 'New Report'] : ['Workspace', 'Reports', name || 'Edit Report']
+
+  if (!isNew && isLoading) return (
+    <><TopBar crumbs={crumbs} />
+    <div className="scroll" style={{ display: 'flex', justifyContent: 'center' }}><Spinner /></div></>
+  )
 
   return (
-    <div className="p-8 max-w-3xl">
-      <PageHeader title={isNew ? 'New Report Config' : 'Edit Report Config'}
-        action={
-          <div className="flex gap-2">
-            <Link to="/reports" className="btn-secondary"><ArrowLeft size={14}/> Back</Link>
+    <>
+      <TopBar
+        crumbs={crumbs}
+        actions={
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Link to="/reports" className="btn btn-sm"><ArrowLeft size={12} /> Back</Link>
             {!isNew && (
-              <button className="btn-secondary" onClick={handlePreview} disabled={previewing}>
-                {previewing ? <Spinner size={14}/> : <Play size={14}/>} Preview
+              <button className="btn btn-sm" onClick={handlePreview} disabled={previewing}>
+                {previewing ? <Spinner size={12} /> : <Play size={12} />} Run query
               </button>
             )}
-            <button className="btn-primary" onClick={handleSave} disabled={saving}>
-              {saving ? <Spinner size={14}/> : <Save size={14}/>} Save
+            <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
+              {saving ? <Spinner size={12} /> : <Save size={12} />} Save report
             </button>
           </div>
         }
       />
 
-      {error && <div className="mb-4 text-danger text-sm bg-danger/10 border border-danger/20 rounded-input px-3 py-2">{error}</div>}
+      <div className="scroll" style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 20, alignItems: 'start' }}>
+        {/* Left config panel */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <h1 style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.02em', margin: '0 0 4px', color: '#F1F5F9' }}>{name || 'New Report'}</h1>
+            {desc && <p style={{ color: '#64748B', fontSize: 12.5, margin: 0 }}>{desc}</p>}
+          </div>
 
-      <div className="card mb-4 space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div><label className="label">Name *</label><input className="input" value={name} onChange={e => setName(e.target.value)}/></div>
-          <div><label className="label">Connection</label>
-            <select className="input" value={connId} onChange={e => setConnId(e.target.value)}>
-              <option value="">Select connection…</option>
-              {dbConns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+          {error && <div style={{ padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 7, fontSize: 12.5, color: '#F87171' }}>{error}</div>}
+
+          {/* Name / description */}
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>Details</div>
+            <div className="field">
+              <label>Name *</label>
+              <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="My report" />
+            </div>
+            <div className="field">
+              <label>Description</label>
+              <input className="input" value={desc} onChange={e => setDesc(e.target.value)} />
+            </div>
+          </div>
+
+          {/* Data source */}
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>Data source</div>
+            <div className="field">
+              <label>Connection</label>
+              <select className="input" value={connId} onChange={e => setConnId(e.target.value)} style={{ height: 34 }}>
+                <option value="">Select connection…</option>
+                {dbConns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Output */}
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>Output</div>
+
+            {/* Format selector */}
+            <div className="field">
+              <label>Format</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                {(['excel', 'csv', 'pdf'] as ReportFormat[]).map(f => (
+                  <button key={f} onClick={() => setFormat(f)} style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                    padding: '10px 4px',
+                    background: format === f ? 'rgba(249,115,22,0.08)' : '#0F1117',
+                    border: `1px solid ${format === f ? '#F97316' : '#2D3143'}`,
+                    borderRadius: 7,
+                    color: format === f ? '#FB923C' : '#94A3B8',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    boxShadow: format === f ? '0 0 0 3px rgba(249,115,22,0.1)' : 'none',
+                  }}>
+                    {format === f && <Check size={12} />}
+                    {f === 'excel' ? 'Excel' : f === 'csv' ? 'CSV' : 'PDF'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {format === 'excel' && (
+              <div className="field">
+                <label>Sheet name</label>
+                <input className="input" value={sheetName} onChange={e => setSheetName(e.target.value)} />
+              </div>
+            )}
+            {format === 'pdf' && (
+              <div className="field">
+                <label>Title</label>
+                <input className="input" value={title} onChange={e => setTitle(e.target.value)} />
+              </div>
+            )}
+
+            <div className="field">
+              <label>Output filename</label>
+              <input className="input mono-input" value={filename} onChange={e => setFilename(e.target.value)} />
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                <span style={{ fontSize: 10.5, color: '#475569' }}>Variables:</span>
+                {VAR_HINTS.map(v => (
+                  <button key={v} onClick={() => setFilename(f => {
+                    const ext = format === 'excel' ? '.xlsx' : format === 'csv' ? '.csv' : '.pdf'
+                    return f.replace(/\.(xlsx|csv|pdf)$/, '') + v + ext
+                  })} className="mono" style={{ fontSize: 10.5, padding: '1px 6px', background: 'rgba(249,115,22,0.08)', color: '#FB923C', borderRadius: 3, border: '1px solid rgba(249,115,22,0.2)', cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace' }}>
+                    {v}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
-        <div><label className="label">Description</label><input className="input" value={desc} onChange={e => setDesc(e.target.value)}/></div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <div><label className="label">Format</label>
-            <select className="input" value={format} onChange={e => setFormat(e.target.value as ReportFormat)}>
-              <option value="excel">Excel</option>
-              <option value="csv">CSV</option>
-              <option value="pdf">PDF</option>
-            </select>
-          </div>
-          {format === 'excel' && <div><label className="label">Sheet name</label><input className="input" value={sheetName} onChange={e => setSheetName(e.target.value)}/></div>}
-          {format === 'pdf' && <div><label className="label">Title</label><input className="input" value={title} onChange={e => setTitle(e.target.value)}/></div>}
-        </div>
-
-        <div>
-          <label className="label">Output filename</label>
-          <input className="input font-mono text-sm" value={filename} onChange={e => setFilename(e.target.value)}/>
-          <div className="flex gap-1 mt-1.5 flex-wrap">
-            {VAR_HINTS.map(v => (
-              <button key={v} className="text-xs font-mono bg-surface2 border border-border px-1.5 py-0.5 rounded text-text-muted hover:text-text-primary"
-                onClick={() => setFilename(f => f.replace('.xlsx', '').replace('.csv', '').replace('.pdf', '') + v + (format === 'excel' ? '.xlsx' : format === 'csv' ? '.csv' : '.pdf'))}>
-                {v}
+        {/* Right panel: SQL editor + preview */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* SQL editor */}
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid #2D3143', background: '#161922' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#F1F5F9', fontWeight: 500 }}>
+                <span className="mono" style={{ color: '#94A3B8' }}>query.sql</span>
+              </div>
+              <button className="btn btn-sm btn-ghost" onClick={handlePreview} disabled={previewing}>
+                {previewing ? <Spinner size={12} /> : <RefreshCw size={12} />} Run
               </button>
-            ))}
+            </div>
+            <div style={{ background: '#0F1117', padding: 0 }}>
+              <textarea
+                className="input mono-input"
+                rows={12}
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="SELECT ..."
+                style={{ background: '#0F1117', border: 'none', borderRadius: 0, resize: 'vertical', height: 'auto', padding: '14px 16px', color: '#CBD5E1', lineHeight: 1.7, outline: 'none' }}
+              />
+            </div>
           </div>
-        </div>
 
-        <div>
-          <label className="label">SQL Query</label>
-          <textarea className="input font-mono text-sm resize-none" rows={8} value={query} onChange={e => setQuery(e.target.value)} placeholder="SELECT ..."/>
+          {/* Preview table */}
+          {preview && (
+            <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid #2D3143' }}>
+                <span style={{ fontSize: 12, color: '#F1F5F9', fontWeight: 600 }}>Query preview</span>
+                <span style={{ fontSize: 10.5, color: '#64748B' }}>· {preview.rows.length} rows</span>
+              </div>
+              <div style={{ overflow: 'auto', maxHeight: 360 }}>
+                <table className="tbl">
+                  <thead>
+                    <tr>{preview.columns.map(c => <th key={c}>{c}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {preview.rows.map((row, i) => (
+                      <tr key={i}>
+                        {(row as unknown[]).map((cell, j) => (
+                          <td key={j} className="mono" style={{ fontSize: 12 }}>{String(cell ?? '')}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Preview */}
-      {preview && (
-        <div className="card overflow-hidden p-0">
-          <div className="px-4 py-2.5 border-b border-border text-xs font-medium text-text-muted">
-            Preview — first {preview.rows.length} rows
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead className="border-b border-border bg-surface2">
-                <tr>{preview.columns.map(c => <th key={c} className="text-left px-3 py-2 text-text-muted">{c}</th>)}</tr>
-              </thead>
-              <tbody>
-                {preview.rows.map((row, i) => (
-                  <tr key={i} className="border-b border-border/50 last:border-0">
-                    {(row as unknown[]).map((cell, j) => <td key={j} className="px-3 py-1.5 font-mono text-text-primary">{String(cell ?? '')}</td>)}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-    </div>
+    </>
   )
 }

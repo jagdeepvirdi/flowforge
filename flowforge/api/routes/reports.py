@@ -115,7 +115,7 @@ def preview_report(config_id):
 
     try:
         with get_connection(config.connection_id) as conn:
-            rows = conn.execute_query(sql + ' LIMIT 20')
+            rows = conn.execute_query(sql.rstrip().rstrip(';') + ' LIMIT 20')
         columns = config.columns or [f'col{i}' for i in range(len(rows[0]))] if rows else []
         return jsonify({'columns': columns, 'rows': [list(r) for r in rows]})
     except Exception as e:

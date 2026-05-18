@@ -82,7 +82,9 @@ export const getDbConnection    = (id: string) => get<import('./types').DbConnec
 export const createDbConnection = (data: unknown) => post<import('./types').DbConnection>('/db-connections', data)
 export const updateDbConnection = (id: string, data: unknown) => put<import('./types').DbConnection>(`/db-connections/${id}`, data)
 export const deleteDbConnection = (id: string) => del<{ deleted: string }>(`/db-connections/${id}`)
-export const testDbConnection   = (id: string) => post<{ success: boolean; latency_ms?: number; error?: string }>(`/db-connections/${id}/test`)
+export const testDbConnection    = (id: string) => post<{ success: boolean; latency_ms?: number; error?: string }>(`/db-connections/${id}/test`)
+export const testDbConnectionRaw = (db_type: string, config: Record<string, unknown>) =>
+  post<{ success: boolean; latency_ms?: number; error?: string }>('/db-connections/test-raw', { db_type, config })
 
 // Recipient groups
 export const getRecipientGroups   = () => get<import('./types').RecipientGroup[]>('/recipient-groups')

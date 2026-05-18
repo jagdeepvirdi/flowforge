@@ -18,7 +18,7 @@ def get_connection(connection_id: str) -> BaseConnection:
         return PostgreSQLConnection(
             host=cfg['host'],
             database=cfg['database'],
-            user=cfg['user'],
+            user=cfg.get('user') or cfg.get('username', ''),
             password=cfg['password'],
             port=int(cfg.get('port', 5432)),
         )
@@ -29,7 +29,7 @@ def get_connection(connection_id: str) -> BaseConnection:
             host=cfg['host'],
             port=int(cfg.get('port', 1521)),
             service_name=cfg.get('service_name', ''),
-            user=cfg['user'],
+            user=cfg.get('user') or cfg.get('username', ''),
             password=cfg['password'],
         )
 

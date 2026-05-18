@@ -100,6 +100,35 @@ def delete_connection(conn_id):
     return jsonify({'deleted': str(conn_id)})
 
 
+@bp.post('/db-connections/test-raw')
+@require_auth
+def test_connection_raw():
+    """Test a connection using raw credentials (before saving)."""
+    import time
+    data = request.get_json() or {}
+    db_type = data.get('db_type')
+    cfg = data.get('config', {})
+    try:
+        if db_type == 'postgresql':
+            import psycopg2
+            start = time.monotonic()
+            conn = psycopg2.connect(
+                host=cfg.get('host', 'localhost'),
+                port=int(cfg.get('port', 5432)),
+                database=cfg.get('database', ''),
+                user=cfg.get('username') or cfg.get('user', ''),
+                password=cfg.get('password', ''),
+                connect_timeout=5,
+                options='-c TimeZone=UTC',
+            )
+            conn.close()
+            latency_ms = int((time.monotonic() - start) * 1000)
+            return jsonify({'success': True, 'latency_ms': latency_ms})
+        return jsonify({'success': False, 'error': f'Unsupported db_type: {db_type}'}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 502
+
+
 @bp.post('/db-connections/<uuid:conn_id>/test')
 @require_auth
 def test_connection(conn_id):

@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Save, ArrowLeft, X } from 'lucide-react'
 import { getEmailConfig, createEmailConfig, updateEmailConfig, getEmailProviders, getRecipientGroups } from '../lib/api'
-import PageHeader from '../components/shared/PageHeader'
+import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 
 function ChipInput({ values, onChange, placeholder }: { values: string[]; onChange: (v: string[]) => void; placeholder?: string }) {
@@ -32,6 +32,12 @@ function ChipInput({ values, onChange, placeholder }: { values: string[]; onChan
     </div>
   )
 }
+
+const TEMPLATE_VARS = [
+  '{{ current_month }}', '{{ current_date }}', '{{ current_year }}',
+  '{{ yesterday }}', '{{ run_id }}', '{{ pipeline_name }}',
+  '{{ steps.step_name.output_path }}', '{{ steps.step_name.drive_url }}',
+]
 
 export default function EmailEdit() {
   const { id } = useParams()
@@ -95,70 +101,170 @@ export default function EmailEdit() {
     }
   }
 
-  if (!isNew && isLoading) return <div className="p-8 flex justify-center"><Spinner /></div>
+  const crumbs = isNew
+    ? ['Workspace', 'Email Templates', 'New Email Config']
+    : ['Workspace', 'Email Templates', name || 'Edit Email Config']
+
+  if (!isNew && isLoading) return (
+    <><TopBar crumbs={crumbs} />
+    <div className="scroll" style={{ display: 'flex', justifyContent: 'center' }}><Spinner /></div></>
+  )
 
   return (
-    <div className="p-8 max-w-3xl">
-      <PageHeader title={isNew ? 'New Email Config' : 'Edit Email Config'}
-        action={
-          <div className="flex gap-2">
-            <Link to="/emails" className="btn-secondary"><ArrowLeft size={14}/> Back</Link>
-            <button className="btn-primary" onClick={handleSave} disabled={saving}>{saving ? <Spinner size={14}/> : <Save size={14}/>} Save</button>
+    <>
+      <TopBar
+        crumbs={crumbs}
+        actions={
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Link to="/emails" className="btn btn-sm"><ArrowLeft size={12} /> Back</Link>
+            <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
+              {saving ? <Spinner size={12} /> : <Save size={12} />} Save
+            </button>
           </div>
         }
       />
 
-      {error && <div className="mb-4 text-danger text-sm bg-danger/10 border border-danger/20 rounded-input px-3 py-2">{error}</div>}
-
-      <div className="card mb-4 space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div><label className="label">Name *</label><input className="input" value={name} onChange={e => setName(e.target.value)}/></div>
-          <div><label className="label">Provider</label>
-            <select className="input" value={providerId} onChange={e => setProviderId(e.target.value)}>
-              <option value="">Select provider…</option>
-              {providers.map(p => <option key={p.id} value={p.id}>{p.name} ({p.provider_type})</option>)}
-            </select>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div><label className="label">From name</label><input className="input" value={fromName} onChange={e => setFromName(e.target.value)}/></div>
-          <div><label className="label">Description</label><input className="input" value={desc} onChange={e => setDesc(e.target.value)}/></div>
-        </div>
-        <div><label className="label">Subject (supports {`{{ variables }}`})</label><input className="input" value={subject} onChange={e => setSubject(e.target.value)}/></div>
-        <div><label className="label">Header text</label><input className="input" value={headerText} onChange={e => setHeaderText(e.target.value)}/></div>
-
-        <div><label className="label">Recipient group (overrides To addresses)</label>
-          <select className="input" value={groupId} onChange={e => setGroupId(e.target.value)}>
-            <option value="">Use direct addresses</option>
-            {groups.map(g => <option key={g.id} value={g.id}>{g.name} ({g.addresses.length} recipients)</option>)}
-          </select>
-        </div>
-
-        {!groupId && (
-          <div><label className="label">To addresses (press Enter or comma to add)</label>
-            <ChipInput values={to} onChange={setTo} placeholder="recipient@example.com" />
-          </div>
+      <div className="scroll">
+        {error && (
+          <div style={{ marginBottom: 14, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 7, fontSize: 12.5, color: '#F87171' }}>{error}</div>
         )}
-        <div><label className="label">CC</label><ChipInput values={cc} onChange={setCc} placeholder="cc@example.com"/></div>
-        <div><label className="label">BCC</label><ChipInput values={bcc} onChange={setBcc} placeholder="bcc@example.com"/></div>
 
-        <div><label className="label">Body template (HTML + Jinja2)</label>
-          <textarea className="input font-mono text-sm resize-none" rows={8} value={body} onChange={e => setBody(e.target.value)} placeholder="Hi {{ name }}, ..."/>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 16, alignItems: 'start' }}>
+
+          {/* Left: main form */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+            {/* Details */}
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#F1F5F9' }}>Details</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="field">
+                  <label>Name *</label>
+                  <input className="input" value={name} onChange={e => setName(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>Provider</label>
+                  <select className="input" value={providerId} onChange={e => setProviderId(e.target.value)}>
+                    <option value="">Select provider…</option>
+                    {providers.map(p => <option key={p.id} value={p.id}>{p.name} ({p.provider_type})</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="field">
+                  <label>From name</label>
+                  <input className="input" value={fromName} onChange={e => setFromName(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>Description</label>
+                  <input className="input" value={desc} onChange={e => setDesc(e.target.value)} />
+                </div>
+              </div>
+              <div className="field">
+                <label>Subject</label>
+                <input className="input" value={subject} onChange={e => setSubject(e.target.value)} placeholder="Monthly Report — {{ current_month }}" />
+              </div>
+              <div className="field">
+                <label>Header text</label>
+                <input className="input" value={headerText} onChange={e => setHeaderText(e.target.value)} placeholder="Banner shown at the top of the email" />
+              </div>
+            </div>
+
+            {/* Recipients */}
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#F1F5F9' }}>Recipients</div>
+              <div className="field">
+                <label>Recipient group <span style={{ color: '#64748B', fontWeight: 400 }}>(overrides To addresses)</span></label>
+                <select className="input" value={groupId} onChange={e => setGroupId(e.target.value)}>
+                  <option value="">Use direct addresses</option>
+                  {groups.map(g => <option key={g.id} value={g.id}>{g.name} ({g.addresses.length} recipients)</option>)}
+                </select>
+              </div>
+              {!groupId && (
+                <div className="field">
+                  <label>To addresses <span style={{ color: '#64748B', fontWeight: 400 }}>(Enter or comma to add)</span></label>
+                  <ChipInput values={to} onChange={setTo} placeholder="recipient@example.com" />
+                </div>
+              )}
+              <div className="field">
+                <label>CC</label>
+                <ChipInput values={cc} onChange={setCc} placeholder="cc@example.com" />
+              </div>
+              <div className="field">
+                <label>BCC</label>
+                <ChipInput values={bcc} onChange={setBcc} placeholder="bcc@example.com" />
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#F1F5F9' }}>Body template <span style={{ color: '#64748B', fontWeight: 400, fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }}>HTML + Jinja2</span></div>
+              <textarea
+                className="input mono-input"
+                rows={14}
+                value={body}
+                onChange={e => setBody(e.target.value)}
+                placeholder={"<p>Hi {{ name }},</p>\n<p>Please find the attached report.</p>"}
+                style={{ resize: 'vertical', fontSize: 12.5, lineHeight: 1.6 }}
+              />
+            </div>
+          </div>
+
+          {/* Right rail */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+            {/* Smart attachment */}
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#F1F5F9' }}>Smart Attachments</div>
+              <p style={{ fontSize: 12, color: '#64748B', margin: 0, lineHeight: 1.5 }}>
+                Files over the size limit are uploaded to Google Drive and a link is sent instead.
+              </p>
+              <div className="field">
+                <label style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Max attachment size</span>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', color: '#F97316' }}>{maxMb} MB</span>
+                </label>
+                <input
+                  type="range" min={1} max={50} value={maxMb}
+                  onChange={e => setMaxMb(+e.target.value)}
+                  style={{ width: '100%', accentColor: '#F97316', cursor: 'pointer' }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#475569', marginTop: 2 }}>
+                  <span>1 MB</span><span>50 MB</span>
+                </div>
+              </div>
+              <div className="field">
+                <label>Google Drive folder ID</label>
+                <input className="input" value={folderId} onChange={e => setFolderId(e.target.value)} placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs" />
+              </div>
+              <div className="field">
+                <label>Drive share message template</label>
+                <textarea
+                  className="input mono-input"
+                  rows={5}
+                  value={driveMsg}
+                  onChange={e => setDriveMsg(e.target.value)}
+                  placeholder={"{% for link in drive_links %}\n• {{ link.filename }} — {{ link.url }}\n{% endfor %}"}
+                  style={{ resize: 'vertical', fontSize: 11.5 }}
+                />
+              </div>
+            </div>
+
+            {/* Variable reference */}
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#F1F5F9' }}>Available variables</div>
+              <p style={{ fontSize: 11.5, color: '#64748B', margin: 0 }}>Use in subject, header text, and body template.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {TEMPLATE_VARS.map(v => (
+                  <code key={v} className="mono" style={{ fontSize: 11, color: '#94A3B8', background: '#21252F', border: '1px solid #2D3143', borderRadius: 4, padding: '3px 8px', display: 'block' }}>
+                    {v}
+                  </code>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-
-      <div className="card space-y-4">
-        <h3 className="text-sm font-medium text-text-primary">Smart Attachment Settings</h3>
-        <div className="flex items-center gap-4">
-          <label className="label mb-0 whitespace-nowrap">Max attachment size: {maxMb}MB</label>
-          <input type="range" min={1} max={50} value={maxMb} onChange={e => setMaxMb(+e.target.value)} className="flex-1 accent-accent"/>
-        </div>
-        <div><label className="label">Google Drive folder ID</label><input className="input" value={folderId} onChange={e => setFolderId(e.target.value)}/></div>
-        <div><label className="label">Drive share message template</label>
-          <textarea className="input font-mono text-sm resize-none" rows={4} value={driveMsg} onChange={e => setDriveMsg(e.target.value)}
-            placeholder="{% for link in drive_links %}• {{ link.filename }} — {{ link.url }}&#10;{% endfor %}"/>
-        </div>
-      </div>
-    </div>
+    </>
   )
 }

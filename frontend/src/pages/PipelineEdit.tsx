@@ -15,7 +15,7 @@ import {
 } from '../lib/api'
 import type { Pipeline, PipelineStep, StepType } from '../lib/types'
 import StepEditor from '../components/pipeline/StepEditor'
-import PageHeader from '../components/shared/PageHeader'
+import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 
 const STEP_TYPES: StepType[] = ['db_procedure', 'db_query', 'report', 'email', 'drive_upload']
@@ -131,91 +131,97 @@ export default function PipelineEdit() {
     }
   }
 
-  if (!isNew && isLoading) return <div className="p-8 flex justify-center"><Spinner /></div>
+  const crumbs = isNew ? ['Workspace', 'Pipelines', 'New Pipeline'] : ['Workspace', 'Pipelines', name || 'Edit Pipeline']
+
+  if (!isNew && isLoading) return (
+    <><TopBar crumbs={crumbs} />
+    <div className="scroll" style={{ display: 'flex', justifyContent: 'center' }}><Spinner /></div></>
+  )
 
   return (
-    <div className="p-8 max-w-3xl">
-      <PageHeader
-        title={isNew ? 'New Pipeline' : 'Edit Pipeline'}
-        action={
-          <div className="flex gap-2">
-            <Link to="/pipelines" className="btn-secondary"><ArrowLeft size={14}/> Back</Link>
-            <button className="btn-primary" onClick={handleSave} disabled={saving}>
-              {saving ? <Spinner size={14} /> : <Save size={14} />} Save
+    <>
+      <TopBar
+        crumbs={crumbs}
+        actions={
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Link to="/pipelines" className="btn btn-sm"><ArrowLeft size={12} /> Back</Link>
+            <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
+              {saving ? <Spinner size={12} /> : <Save size={12} />} Save
             </button>
           </div>
         }
       />
 
-      {error && (
-        <div className="mb-4 text-danger text-sm bg-danger/10 border border-danger/20 rounded-input px-3 py-2">{error}</div>
-      )}
-
-      {/* Basic info */}
-      <div className="card mb-4 space-y-4">
-        <h2 className="text-sm font-medium text-text-primary">Details</h2>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="label">Name *</label>
-            <input className="input" value={name} onChange={e => setName(e.target.value)} />
-          </div>
-          <div>
-            <label className="label">Schedule (cron expression)</label>
-            <input className="input font-mono text-sm" value={schedule} onChange={e => setSchedule(e.target.value)} placeholder="0 6 * * 1" />
-          </div>
-        </div>
-        <div>
-          <label className="label">Description</label>
-          <input className="input" value={desc} onChange={e => setDesc(e.target.value)} />
-        </div>
-        <div className="flex items-center gap-6">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)}
-              className="w-4 h-4 accent-accent" />
-            <span className="text-sm text-text-primary">Enabled</span>
-          </label>
-          <div className="flex items-center gap-2">
-            <label className="label mb-0">Timeout (min)</label>
-            <input className="input w-20" type="number" min={1} value={timeout} onChange={e => setTimeout_(+e.target.value)} />
-          </div>
-        </div>
-      </div>
-
-      {/* Steps */}
-      <div className="mb-4">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-medium text-text-primary">Steps</h2>
-          <div className="flex gap-1">
-            {STEP_TYPES.map(t => (
-              <button key={t} className="btn-secondary text-xs py-1 px-2" onClick={() => addNewStep(t)}>
-                <Plus size={11} /> {t.replace('_', ' ')}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={steps.map(s => s.id)} strategy={verticalListSortingStrategy}>
-            {steps.map(step => (
-              <StepEditor
-                key={step.id}
-                step={step}
-                onChange={handleStepChange}
-                onDelete={handleStepDelete}
-                dbConnections={dbConns.map(c => ({ id: c.id, name: c.name }))}
-                reportConfigs={reportCfgs.map(r => ({ id: r.id, name: r.name }))}
-                emailConfigs={emailCfgs.map(e => ({ id: e.id, name: e.name }))}
-              />
-            ))}
-          </SortableContext>
-        </DndContext>
-
-        {steps.length === 0 && (
-          <div className="card text-center py-6 text-text-muted text-sm border-dashed">
-            Add steps using the buttons above.
-          </div>
+      <div className="scroll">
+        {error && (
+          <div style={{ marginBottom: 14, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 7, fontSize: 12.5, color: '#F87171' }}>{error}</div>
         )}
+
+        {/* Basic info */}
+        <div className="card" style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#F1F5F9' }}>Details</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="field">
+              <label>Name *</label>
+              <input className="input" value={name} onChange={e => setName(e.target.value)} />
+            </div>
+            <div className="field">
+              <label>Schedule (cron expression)</label>
+              <input className="input mono-input" value={schedule} onChange={e => setSchedule(e.target.value)} placeholder="0 6 * * 1" />
+            </div>
+          </div>
+          <div className="field">
+            <label>Description</label>
+            <input className="input" value={desc} onChange={e => setDesc(e.target.value)} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+              <input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} style={{ accentColor: '#F97316', width: 15, height: 15 }} />
+              <span style={{ color: '#F1F5F9' }}>Enabled</span>
+            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 11.5, color: '#94A3B8', fontWeight: 500 }}>Timeout (min)</span>
+              <input className="input" type="number" min={1} value={timeout} onChange={e => setTimeout_(+e.target.value)} style={{ width: 70, height: 30, padding: '4px 8px', fontSize: 12 }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Steps */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#F1F5F9' }}>Steps <span style={{ fontFamily: 'JetBrains Mono, monospace', color: '#64748B', fontSize: 11 }}>({steps.length})</span></span>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {STEP_TYPES.map(t => (
+                <button key={t} className="btn btn-sm" onClick={() => addNewStep(t)}>
+                  <Plus size={10} /> {t.replace(/_/g, ' ')}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={steps.map(s => s.id)} strategy={verticalListSortingStrategy}>
+              {steps.map(step => (
+                <StepEditor
+                  key={step.id}
+                  step={step}
+                  onChange={handleStepChange}
+                  onDelete={handleStepDelete}
+                  dbConnections={dbConns.map(c => ({ id: c.id, name: c.name }))}
+                  reportConfigs={reportCfgs.map(r => ({ id: r.id, name: r.name }))}
+                  emailConfigs={emailCfgs.map(e => ({ id: e.id, name: e.name }))}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
+
+          {steps.length === 0 && (
+            <div className="card ff-empty" style={{ borderStyle: 'dashed', padding: '24px 0' }}>
+              <p className="msg">Add steps using the buttons above.</p>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   )
 }

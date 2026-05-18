@@ -1,18 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Play, Clock, CheckCircle, AlertCircle, Calendar } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Plus, RefreshCw, Clock, Calendar, History, Pencil, Play } from 'lucide-react'
 import { getPipelines, getPipelineRuns, runPipeline, getRuns } from '../lib/api'
 import type { Pipeline, PipelineRun } from '../lib/types'
 import StatusBadge from '../components/shared/StatusBadge'
+import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 
-function formatDuration(ms: number | null): string {
+function fmtDur(ms: number | null): string {
   if (!ms) return '—'
   if (ms < 1000) return `${ms}ms`
   if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`
   return `${Math.floor(ms / 60_000)}m ${Math.floor((ms % 60_000) / 1000)}s`
 }
 
-function formatRelative(iso: string): string {
+function fmtRel(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
   const m = Math.floor(diff / 60_000)
   if (m < 1) return 'just now'
@@ -22,12 +24,14 @@ function formatRelative(iso: string): string {
   return `${Math.floor(h / 24)}d ago`
 }
 
+const RUN_BARS = 14
+
 function PipelineCard({ pipeline }: { pipeline: Pipeline }) {
   const qc = useQueryClient()
   const { data: runs = [] } = useQuery({
     queryKey: ['pipeline-runs', pipeline.id],
     queryFn: () => getPipelineRuns(pipeline.id),
-    refetchInterval: (query) => (query.state.data ?? []).some(r => r.status === 'running') ? 3000 : false,
+    refetchInterval: (q) => (q.state.data ?? []).some(r => r.status === 'running') ? 3000 : false,
   })
 
   const lastRun: PipelineRun | undefined = runs[0]
@@ -38,51 +42,84 @@ function PipelineCard({ pipeline }: { pipeline: Pipeline }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['pipeline-runs', pipeline.id] }),
   })
 
+  // Build mini run bars from recent history
+  const bars = Array.from({ length: RUN_BARS }).map((_, i) => {
+    const r = runs[RUN_BARS - 1 - i]
+    if (!r) return 'idle'
+    if (r.status === 'success') return 'ok'
+    if (r.status === 'running') return 'run'
+    if (r.status === 'failed') return 'fail'
+    return 'idle'
+  })
+
+  const barColor = (b: string) => b === 'ok' ? '#22C55E' : b === 'fail' ? '#EF4444' : b === 'run' ? '#3B82F6' : '#2D3143'
+
   return (
-    <div className="card hover:border-border/80 transition-colors">
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div className="min-w-0">
-          <h3 className="font-medium text-text-primary truncate">{pipeline.name}</h3>
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 16 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#F1F5F9', letterSpacing: '-0.01em', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {pipeline.name}
+          </div>
           {pipeline.description && (
-            <p className="text-xs text-text-muted truncate mt-0.5">{pipeline.description}</p>
+            <div style={{ fontSize: 11.5, color: '#64748B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pipeline.description}</div>
           )}
         </div>
-        <StatusBadge status={lastRun?.status ?? 'never run'} animate />
+        <StatusBadge status={lastRun?.status ?? 'idle'} animate />
       </div>
 
-      <div className="flex items-center gap-4 text-xs text-text-muted mb-4">
-        {pipeline.schedule && (
-          <span className="flex items-center gap-1">
-            <Calendar size={11} />
-            <span className="font-mono">{pipeline.schedule}</span>
-          </span>
-        )}
-        {lastRun && (
-          <span className="flex items-center gap-1">
-            <Clock size={11} />
-            {formatRelative(lastRun.started_at)}
-            {lastRun.duration_ms != null && ` · ${formatDuration(lastRun.duration_ms)}`}
-          </span>
-        )}
+      {/* Meta row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, padding: '12px 0', borderTop: '1px solid #2D3143', borderBottom: '1px solid #2D3143' }}>
+        <MetaCol label="Last run" icon={<Clock size={10} />} value={lastRun ? fmtRel(lastRun.started_at) : '—'} />
+        <MetaCol label="Duration" value={fmtDur(lastRun?.duration_ms ?? null)} mono />
+        <MetaCol label="Schedule" icon={<Calendar size={10} />} value={pipeline.schedule ?? '—'} mono />
       </div>
 
-      <button
-        className="btn-secondary w-full justify-center text-xs"
-        onClick={() => trigger()}
-        disabled={isPending || isRunning || !pipeline.enabled}
-      >
-        {isPending || isRunning ? <Spinner size={13} /> : <Play size={13} />}
-        {isRunning ? 'Running…' : 'Run Now'}
-      </button>
+      {/* Run mini-bars */}
+      <div style={{ display: 'flex', gap: 2 }}>
+        {bars.map((b, i) => (
+          <span key={i} style={{ flex: 1, height: 22, borderRadius: 2, background: barColor(b), opacity: b === 'idle' ? 0.5 : 0.85 }} />
+        ))}
+      </div>
+
+      {/* Footer */}
+      <div style={{ display: 'flex', gap: 6 }}>
+        <Link to={`/runs?pipeline=${pipeline.id}`} className="btn btn-sm" style={{ flex: 1 }}>
+          <History size={12} /> Runs
+        </Link>
+        <Link to={`/pipelines/${pipeline.id}/edit`} className="btn btn-sm" style={{ flex: 1 }}>
+          <Pencil size={12} /> Edit
+        </Link>
+        <button
+          className="btn btn-primary btn-sm"
+          style={{ flex: 1.4 }}
+          onClick={() => trigger()}
+          disabled={isPending || isRunning || !pipeline.enabled}
+        >
+          {isPending || isRunning ? <Spinner size={12} /> : <Play size={11} />}
+          {isRunning ? 'Running…' : 'Run Now'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function MetaCol({ label, value, icon, mono }: { label: string; value: string; icon?: React.ReactNode; mono?: boolean }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <span style={{ fontSize: 10.5, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 500 }}>{label}</span>
+      <span style={{ fontSize: 12.5, color: '#CBD5E1', display: 'flex', alignItems: 'center', gap: 4, fontFamily: mono ? 'JetBrains Mono, monospace' : 'inherit' }}>
+        {icon && <span style={{ color: '#64748B' }}>{icon}</span>}
+        {value}
+      </span>
     </div>
   )
 }
 
 export default function Dashboard() {
-  const { data: pipelines = [], isLoading } = useQuery({
-    queryKey: ['pipelines'],
-    queryFn: getPipelines,
-  })
+  const qc = useQueryClient()
+  const { data: pipelines = [], isLoading } = useQuery({ queryKey: ['pipelines'], queryFn: getPipelines })
   const { data: recentRuns = [] } = useQuery({
     queryKey: ['runs'],
     queryFn: () => getRuns({ limit: 50 }),
@@ -90,80 +127,114 @@ export default function Dashboard() {
   })
 
   const today = new Date().toDateString()
-  const runsToday = recentRuns.filter(r => new Date(r.started_at).toDateString() === today)
+  const runsToday    = recentRuns.filter(r => new Date(r.started_at).toDateString() === today)
   const successToday = runsToday.filter(r => r.status === 'success').length
-  const failedToday = runsToday.filter(r => r.status === 'failed')
-  const scheduled = pipelines.filter(p => p.enabled && p.schedule).length
-  const successRate = runsToday.length > 0 ? Math.round((successToday / runsToday.length) * 100) : 100
+  const failedToday  = runsToday.filter(r => r.status === 'failed')
+  const scheduled    = pipelines.filter(p => p.enabled && p.schedule).length
+  const successRate  = runsToday.length > 0 ? Math.round((successToday / runsToday.length) * 100) : 100
 
-  if (isLoading) {
-    return (
-      <div className="p-8 flex justify-center">
-        <Spinner />
-      </div>
-    )
-  }
+  const stats = [
+    { label: 'Runs today',       value: String(runsToday.length),  delta: null,          spark: true,  danger: false },
+    { label: 'Success rate',     value: `${successRate}%`,         delta: null,          spark: true,  danger: false },
+    { label: 'Active schedules', value: String(scheduled),         delta: null,          spark: false, danger: false },
+    { label: 'Failures (24h)',   value: String(failedToday.length),delta: null,          spark: false, danger: failedToday.length > 0 },
+  ]
+
+  if (isLoading) return (
+    <><TopBar crumbs={['Workspace', 'Dashboard']} />
+    <div className="scroll" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}><Spinner /></div></>
+  )
 
   return (
-    <div className="p-8">
-      <h1 className="text-xl font-semibold text-text-primary mb-6">Dashboard</h1>
+    <>
+      <TopBar
+        crumbs={['Workspace', 'Dashboard']}
+        actions={
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-sm" onClick={() => qc.invalidateQueries()}><RefreshCw size={12} /> Refresh</button>
+            <Link to="/pipelines/new" className="btn btn-primary btn-sm"><Plus size={12} /> New Pipeline</Link>
+          </div>
+        }
+      />
 
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
-        {[
-          { label: 'Runs today',       value: runsToday.length, icon: Play,         color: 'text-accent' },
-          { label: 'Success rate',     value: `${successRate}%`, icon: CheckCircle,  color: 'text-success' },
-          { label: 'Active schedules', value: scheduled,          icon: Calendar,     color: 'text-running' },
-          { label: 'Failures today',   value: failedToday.length, icon: AlertCircle,  color: 'text-danger' },
-        ].map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="card flex items-center gap-3">
-            <div className={`${color} opacity-80`}><Icon size={20} /></div>
-            <div>
-              <div className="text-xl font-semibold text-text-primary">{value}</div>
-              <div className="text-xs text-text-muted">{label}</div>
+      <div className="scroll">
+        <div className="page-h">
+          <div>
+            <h1>Dashboard</h1>
+            <p>{pipelines.length} pipeline{pipelines.length !== 1 ? 's' : ''} tracked · {failedToday.length} failure{failedToday.length !== 1 ? 's' : ''} today</p>
+          </div>
+        </div>
+
+        {/* Stats row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 28 }}>
+          {stats.map((s, i) => (
+            <div key={i} className="card" style={{ padding: '16px 18px' }}>
+              <div style={{ fontSize: 11, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: 8 }}>{s.label}</div>
+              <div style={{ fontSize: 28, fontWeight: 600, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '-0.02em', color: s.danger ? '#F87171' : '#F1F5F9' }}>
+                {s.value}
+              </div>
             </div>
+          ))}
+        </div>
+
+        {/* Pipeline grid */}
+        <div className="sec-h">
+          <h2>Pipelines</h2>
+          <Link to="/pipelines" style={{ fontSize: 12, color: '#94A3B8', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+            View all →
+          </Link>
+        </div>
+
+        {pipelines.length === 0 ? (
+          <div className="card ff-empty">
+            <p className="msg">No pipelines yet.</p>
+            <Link to="/pipelines/new" className="btn btn-primary">Create your first pipeline</Link>
           </div>
-        ))}
-      </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 28 }}>
+            {pipelines.map(p => <PipelineCard key={p.id} pipeline={p} />)}
+          </div>
+        )}
 
-      {/* Pipeline cards */}
-      <h2 className="text-sm font-medium text-text-muted uppercase tracking-wide mb-3">Pipelines</h2>
-      {pipelines.length === 0 ? (
-        <div className="card text-center py-10 text-text-muted text-sm">
-          No pipelines yet. <a href="/pipelines/new" className="text-accent hover:underline">Create one →</a>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
-          {pipelines.map(p => <PipelineCard key={p.id} pipeline={p} />)}
-        </div>
-      )}
-
-      {/* Recent failures */}
-      {failedToday.length > 0 && (
-        <>
-          <h2 className="text-sm font-medium text-text-muted uppercase tracking-wide mb-3">Recent Failures</h2>
-          <div className="card">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs text-text-muted border-b border-border">
-                  <th className="text-left pb-2">Pipeline</th>
-                  <th className="text-left pb-2">Error step</th>
-                  <th className="text-left pb-2">Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {failedToday.slice(0, 5).map(r => (
-                  <tr key={r.id} className="border-b border-border/50 last:border-0">
-                    <td className="py-2 font-medium text-text-primary">{r.pipeline_name}</td>
-                    <td className="py-2 text-danger text-xs font-mono">{r.error_step ?? '—'}</td>
-                    <td className="py-2 text-text-muted">{formatRelative(r.started_at)}</td>
+        {/* Recent failures */}
+        {failedToday.length > 0 && (
+          <>
+            <div className="sec-h">
+              <h2>Recent failures</h2>
+              <Link to="/runs?status=failed" style={{ fontSize: 12, color: '#94A3B8', textDecoration: 'none' }}>View all failures →</Link>
+            </div>
+            <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th style={{ width: 20 }} />
+                    <th>Pipeline · Step</th>
+                    <th>Error</th>
+                    <th style={{ width: 90 }}>When</th>
+                    <th style={{ width: 80 }} />
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-    </div>
+                </thead>
+                <tbody>
+                  {failedToday.slice(0, 5).map(r => (
+                    <tr key={r.id}>
+                      <td><span style={{ width: 6, height: 6, display: 'inline-block', borderRadius: '50%', background: '#EF4444' }} /></td>
+                      <td>
+                        <div style={{ fontWeight: 500, color: '#F1F5F9' }}>{r.pipeline_name}</div>
+                        {r.error_step && <div className="mono" style={{ fontSize: 11, color: '#64748B', marginTop: 2 }}>→ {r.error_step}</div>}
+                      </td>
+                      <td style={{ color: '#94A3B8', fontSize: 12, maxWidth: 360 }}>{r.error_message ?? '—'}</td>
+                      <td className="mono" style={{ color: '#64748B', fontSize: 11.5 }}>{fmtRel(r.started_at)}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <Link to={`/runs/${r.id}`} className="btn btn-sm btn-ghost">View</Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
+    </>
   )
 }

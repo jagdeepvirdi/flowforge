@@ -28,6 +28,7 @@ Thumbs.db
 *.log
 
 # Credentials / secrets (should never be committed)
+.env
 *.json.bak
 connection.json
 settings.yaml
@@ -41,6 +42,7 @@ frontend/.env.local
 
 # FlowForge runtime
 .flowforge/
+output/
 
 # Internal working documents (not for public repo)
 docs/code-review.md
