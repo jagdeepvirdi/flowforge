@@ -1,5 +1,76 @@
 # TASKS.md — FlowForge
 
+---
+
+## Current Status (as of 2026-05-18)
+
+### ✅ Done
+- DB schema, SQLAlchemy models, all 11 tables
+- AES-256 credential encryption (`crypto.py`)
+- Flask API — all REST routes wired
+- JWT auth, admin user seeding from env
+- DB connections — PostgreSQL + Oracle + factory + test endpoint
+- Frontend — all pages scaffolded and wired (Dashboard, Pipelines, Run History, Run Detail, Connections, Reports, Emails, Recipients, Settings, Login)
+- Report preview (SQL → first 20 rows)
+- Add/Edit Connection modal with Test-before-save
+- `server_start` / `server_stop` scripts (.ps1 + .sh)
+
+### ⚠️ Exists but Untested End-to-End
+- Pipeline runner (`engine/runner.py`, `engine/context.py`)
+- All step types (db_procedure, db_query, report, email, drive_upload)
+- Email providers (Gmail OAuth2, M365, SMTP)
+- Report generators (Excel, CSV, PDF)
+- Scheduler (APScheduler with cron)
+- Pipeline Builder step config saving
+
+### ❌ Not Yet Done
+- Settings page OAuth setup wizards (buttons are stubs)
+- CLI commands (`flowforge run`, `flowforge list`, etc.)
+- Google Drive folder picker in UI (text input only)
+- Email body preview (render-in-modal)
+- Automated test suite
+- Docs: `step-types.md`, `email-providers.md`, `connections.md`, `cli-reference.md`
+- GitHub public release (README polish, topics, v0.1.0 tag)
+- AI analyze step (v2 backlog)
+
+---
+
+## Immediate Action Items
+
+### 1 — End-to-End Pipeline Test
+- [ ] Create a DB connection in the UI → run Test → verify "Connected"
+- [ ] Create a report config with a simple `SELECT` query → run Preview → verify rows appear
+- [ ] Create a pipeline with one `report` step → click Run Now → check Run History for success/failure logs
+- [ ] Add an `email` step after the report step → run the pipeline → verify email received
+- [ ] Check that `{{ current_date }}` resolves correctly in output filename and email subject
+
+### 2 — Fix Any Runner Bugs Found Above
+- [ ] Diagnose and fix any step execution errors from the test run
+- [ ] Verify `StepResult.output_path` flows from report step → email step attachments
+- [ ] Verify `duration_ms` and `rows_affected` are written to `ff_step_runs`
+
+### 3 — Scheduler Smoke Test
+- [ ] Create a pipeline with a cron schedule (e.g. `* * * * *` = every minute)
+- [ ] Start the scheduler — verify run appears in Run History automatically
+- [ ] Disable the pipeline — verify no more runs triggered
+
+### 4 — Settings OAuth Wiring
+- [ ] Wire "Set up Gmail" button in Settings to redirect to `/api/setup/gmail`
+- [ ] Wire "Set up Drive" button similarly
+- [ ] Show current OAuth status (connected / not connected) per provider
+
+### 5 — Test Suite
+- [ ] Run `pytest tests/` — fix any failures
+- [ ] Run `tests/manual/check_api.py` against the live server
+- [ ] Achieve green on all crypto, auth, and API CRUD tests
+
+### 6 — Documentation
+- [ ] Review `docs/gmail-oauth2-setup.md` — add screenshots, verify steps still match Google UI
+- [ ] Write `docs/email-providers.md` (SMTP + M365 sections)
+- [ ] Write `docs/step-types.md`
+
+---
+
 ## Session Zero — Code Review (MANDATORY FIRST STEP)
 
 **Do this before any other session. No code changes. Review only.**

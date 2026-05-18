@@ -61,10 +61,11 @@ def _register_blueprints(app: Flask) -> None:
     from flowforge.api.routes.reports import bp as reports_bp
     from flowforge.api.routes.runs import bp as runs_bp
     from flowforge.api.routes.setup import bp as setup_bp
+    from flowforge.api.routes.steps import bp as steps_bp
 
     for blueprint in (
         auth_bp, connections_bp, emails_bp, pipelines_bp, providers_bp,
-        recipients_bp, reports_bp, runs_bp, setup_bp,
+        recipients_bp, reports_bp, runs_bp, setup_bp, steps_bp,
     ):
         app.register_blueprint(blueprint, url_prefix='/api')
 
