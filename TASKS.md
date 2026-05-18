@@ -2,12 +2,26 @@
 
 ---
 
+## GitHub Release Score: 5.5 / 10 (as of 2026-05-18)
+*Honest review. See action items below for what moves the score.*
+
+| Dimension | Score |
+|---|---|
+| Code quality | 7/10 — Clean architecture, good separation of concerns |
+| Feature completeness | 4/10 — Core pipeline run is blocking/synchronous; CLI setup is stubs |
+| Security | 5/10 — DB creds encrypted, but pipeline vars stored plaintext |
+| Documentation | 5/10 — Placeholder URLs, missing pages, no screenshots |
+| Deployment UX | 3/10 — No Docker, no CI, 10+ manual setup steps |
+| GitHub readiness | 4/10 — Legacy `code/` dir in git, stubs, placeholder text |
+
+---
+
 ## Current Status (as of 2026-05-18)
 
 ### ✅ Done
 - DB schema, SQLAlchemy models, all 11 tables
-- AES-256 credential encryption (`crypto.py`)
-- Flask API — all REST routes wired
+- AES-256 credential encryption (`crypto.py`) for DB credentials + email provider configs
+- Flask API — all REST routes wired, all 168 tests passing
 - JWT auth, admin user seeding from env
 - DB connections — PostgreSQL + Oracle + factory + test endpoint
 - Frontend — all pages scaffolded and wired (Dashboard, Pipelines, Run History, Run Detail, Connections, Reports, Emails, Recipients, Settings, Login)
@@ -15,23 +29,64 @@
 - Add/Edit Connection modal with Test-before-save
 - `server_start` / `server_stop` scripts (.ps1 + .sh)
 
-### ⚠️ Exists but Untested End-to-End
-- Pipeline runner (`engine/runner.py`, `engine/context.py`)
-- All step types (db_procedure, db_query, report, email, drive_upload)
-- Email providers (Gmail OAuth2, M365, SMTP)
-- Report generators (Excel, CSV, PDF)
-- Scheduler (APScheduler with cron)
-- Pipeline Builder step config saving
+### ⚠️ Exists but Broken / Incomplete
+- Pipeline runner — works but runs **synchronously** in HTTP thread (blocks server, timeouts for real pipelines)
+- `flowforge setup gmail` — is a stub that prints "coming in Phase 3"
+- `flowforge setup microsoft365` — same stub
+- Secret pipeline variables — `is_secret` only masks in UI; stored as **plaintext** in DB
+- `{{ run_id }}` in context is a different UUID than `PipelineRun.id` in database
+- M365 token refresh — token acquired once, expires after 1h with no refresh
+- YAML import — export works, import command does not exist
 
 ### ❌ Not Yet Done
-- Settings page OAuth setup wizards (buttons are stubs)
-- CLI commands (`flowforge run`, `flowforge list`, etc.)
-- Google Drive folder picker in UI (text input only)
-- Email body preview (render-in-modal)
-- Automated test suite
+- Async pipeline execution (background thread / Celery)
+- Docker / Docker Compose
+- GitHub Actions CI
+- Database migrations (Alembic)
 - Docs: `step-types.md`, `email-providers.md`, `connections.md`, `cli-reference.md`
-- GitHub public release (README polish, topics, v0.1.0 tag)
+- README screenshots
+- Output file cleanup / TTL
+- Rate limiting on login endpoint
 - AI analyze step (v2 backlog)
+
+---
+
+## Action Items to Improve Score
+
+### 🔴 BLOCKERS — Must fix before GitHub push
+
+- [ ] **Remove `code/` from git** — `git rm -r --cached code/` then add `code/` to `.gitignore`. The legacy source code with internal table names will be public on GitHub.
+- [ ] **Replace placeholder URLs** — `pyproject.toml` and `docs/getting-started.md` still have `https://github.com/your-org/flowforge`. Replace with real GitHub URL once repo is created.
+- [ ] **Fix pipeline run endpoint** — Run pipeline in a background thread so the HTTP response returns immediately with a `run_id`. Client polls `/api/runs/{run_id}` for status. The current synchronous implementation blocks the server and times out proxies for any real pipeline.
+- [ ] **Implement or honestly remove `flowforge setup gmail`** — Either implement the OAuth2 flow (redirect to Google consent → capture token → save to env/DB) or remove these CLI commands and update README to point to the manual docs instead of implying they work.
+- [ ] **Encrypt secret pipeline variables** — Use `crypto.encrypt_config` / `decrypt_config` (same as credential storage) when `is_secret=True`. Currently stored plaintext.
+- [ ] **Remove `xlsxwriter` from dependencies** — Never imported anywhere. Wasted install weight.
+- [ ] **Add `requests` to dependencies** — Used by `microsoft365.py` but missing from `pyproject.toml` and `requirements.txt`. M365 email fails on clean install.
+- [ ] **Fix `cx-oracle` → `cx_Oracle`** in `pyproject.toml` optional deps — wrong package name, `pip install flowforge[oracle]` fails.
+
+### 🟡 HIGH PRIORITY — Significantly improve quality
+
+- [ ] **Make Google/Microsoft SDK deps optional** — Move `google-api-python-client`, `google-auth`, `google-auth-oauthlib`, `msal` to optional extras (`[gmail]`, `[drive]`, `[microsoft365]`). SMTP-only users shouldn't install all of Google's SDK.
+- [ ] **Add Docker Compose** — Single `docker-compose.yml` that starts PostgreSQL + FlowForge. This is the #1 thing that makes "minutes to set up" actually true.
+- [ ] **Add GitHub Actions CI** — `.github/workflows/test.yml`: run pytest on every push/PR.
+- [ ] **Add database migrations** — Integrate Alembic. `db.create_all()` only works for fresh installs; any schema change breaks existing deployments.
+- [ ] **Fix `{{ run_id }}` to match database PipelineRun.id** — The context `run_id` is a fresh `uuid4()`, not the actual `PipelineRun.id`. Pass `run_id` from the runner into context after the DB record is created.
+- [ ] **Fix `datetime.utcnow()` deprecation** — Replace `default=datetime.utcnow` with `default=lambda: datetime.now(timezone.utc)` in all models.
+- [ ] **Add rate limiting on `/auth/login`** — Use `flask-limiter` (e.g. 10 attempts per minute per IP). Single-user admin account is brute-forceable.
+- [ ] **Add output file cleanup** — Either a max age TTL (delete files older than N days from `./output/`) or expose a cleanup endpoint. Daily pipelines fill disk indefinitely.
+- [ ] **Implement YAML import CLI command** — `flowforge import pipeline.yaml` to complement the existing `flowforge export` command.
+- [ ] **Fix M365 token refresh** — Token acquired once in `__init__` expires after 1h. Use `msal.ConfidentialClientApplication` with token cache and re-acquire before each send.
+
+### 🟢 POLISH — Improve impressions and docs
+
+- [ ] **Add README screenshots** — At minimum: Dashboard, Pipeline Builder, Run Detail. This is the single highest-impact thing for GitHub stars.
+- [ ] **Write `docs/step-types.md`** — Full config spec for each step type with examples.
+- [ ] **Write `docs/email-providers.md`** — SMTP + M365 sections (gmail already documented).
+- [ ] **Add `CONTRIBUTING.md`** — How to run tests, project structure, PR process.
+- [ ] **Add GitHub issue templates** — Bug report + feature request.
+- [ ] **Validate cron expressions properly** — Don't just check 5 parts; validate each field's range.
+- [ ] **Add `requests` to requirements** (duplicate of blocker — also fix `requirements.txt`).
+- [ ] **Update CHANGELOG.md** with current v0.1.0 features.
 
 ---
 
