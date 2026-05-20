@@ -44,16 +44,16 @@
 ## Phase 4 — Polish & Release Prep 🔵
 *Docs, GitHub presence, and final UX touches.*
 
-- [ ] **Visual cron builder** — Replace the raw cron text input in `PipelineEdit.tsx` with a frequency picker: Every N minutes / Hourly / Daily / Weekly / Monthly / Custom (raw). Picker generates the cron string; raw mode still available for power users. Show "Next 5 run times" preview below the field. Also fix `FieldTooltip` popping upward and clipping behind the fixed TopBar — switch to downward pop when near the top of the viewport.
-- [ ] **TopBar refresh button** — Add a `RefreshCw` icon button to `TopBar.tsx` (left of the help button) that calls `queryClient.invalidateQueries()` scoped to the current page's query keys. No-op on pages with no server data (e.g. Settings OAuth tab).
-- [ ] **Run history: log resolved variable values** — After context rendering in the pipeline runner, append a "Variables resolved:" block to `ff_step_runs.logs` listing each built-in and pipeline variable with its computed value (mask `is_secret` vars). Lets you validate in Run History exactly what date range was passed to a report query.
-- [ ] **Help discovery indicator** — Add a subtle pulse/dot to the TopBar `?` button for first-time users (cleared via `localStorage` flag `ff_help_seen`) so they know the help drawer exists. The drawer is fully built (Phase 3 done) but users may not discover it.
+- [x] **Visual cron builder** — Replace the raw cron text input in `PipelineEdit.tsx` with a frequency picker: Every N minutes / Hourly / Daily / Weekly / Monthly / Custom (raw). Picker generates the cron string; raw mode still available for power users. Show "Next 5 run times" preview below the field. Also fix `FieldTooltip` popping upward and clipping behind the fixed TopBar — switch to downward pop when near the top of the viewport.
+- [x] **TopBar refresh button** — Add a `RefreshCw` icon button to `TopBar.tsx` (left of the help button) that calls `queryClient.invalidateQueries()` scoped to the current page's query keys. No-op on pages with no server data (e.g. Settings OAuth tab).
+- [x] **Run history: log resolved variable values** — After context rendering in the pipeline runner, append a "Variables resolved:" block to `ff_step_runs.logs` listing each built-in and pipeline variable with its computed value (mask `is_secret` vars). Lets you validate in Run History exactly what date range was passed to a report query.
+- [x] **Help discovery indicator** — Add a subtle pulse/dot to the TopBar `?` button for first-time users (cleared via `localStorage` flag `ff_help_seen`) so they know the help drawer exists. The drawer is fully built (Phase 3 done) but users may not discover it.
 - [ ] **README screenshots** — Dashboard, Pipeline Builder, Run Detail. Highest-impact item for GitHub stars.
 - [ ] **Write `docs/step-types.md`** — Full config spec for each step type with YAML examples.
 - [ ] **Write `docs/email-providers.md`** — SMTP + M365 setup sections (Gmail already done).
 - [ ] **Add `CONTRIBUTING.md`** — Running tests, project structure, PR process.
 - [ ] **Add GitHub issue templates** — Bug report + feature request.
-- [ ] **Validate cron expressions** — Check field ranges, not just 5-part split.
+- [x] **Validate cron expressions** — Check field ranges, not just 5-part split.
 - [ ] **Update CHANGELOG.md** — Document what's actually in v0.1.0.
 
 ---
