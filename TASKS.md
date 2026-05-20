@@ -60,16 +60,16 @@
 
 ---
 
-## Phase 8 — Test Coverage 🟡
+## Phase 8 — Test Coverage 🟡 *(COMPLETE — 2026-05-20)*
 *Addresses TEST findings. Target score: Tests 6.0 → 7.5*
 
-- [ ] **[TEST-2] Fix false-green test** — `tests/test_runner.py:92`: add `assert result.success is False` to `test_on_error_continue_pipeline_still_fails`.
-- [ ] **[TEST-3a] Test smart attachment logic** — unit test `_handle_attachments()`: file below threshold → direct, file above → Drive upload called, missing file → skipped with warning.
-- [ ] **[TEST-3b] Test Jinja2 rendering errors** — test that a step with an invalid template string (`{{ unclosed`) fails gracefully with a `StepResult(success=False)` rather than crashing the runner.
-- [ ] **[TEST-3c] Test cron validation endpoint** — `GET /api/pipelines/cron-next?expr=...` with valid, invalid, and edge-case expressions.
-- [ ] **[TEST-3d] Test pipeline variable secret masking** — assert that `GET /api/pipelines/<id>` returns `var_value: "***"` for `is_secret=True` variables.
-- [ ] **[TEST-3e] Test encryption/decryption round-trip through API** — create a DB connection via API, retrieve it, assert sensitive fields are masked; verify the stored value is not plaintext via direct DB query.
-- [ ] **[TEST-4] Add frontend tests** — set up Vitest + React Testing Library; add smoke tests for Dashboard render, Pipelines list render, and TopBar search returning results from a seeded React Query cache.
+- [x] **[TEST-2] Fix false-green test** — added `assert result.success is False` to `test_on_error_continue_pipeline_still_fails` in `test_runner.py`.
+- [x] **[TEST-3a] Test smart attachment logic** — already fully covered by `test_smart_attachments.py` (direct, Drive upload, missing file). No new tests needed.
+- [x] **[TEST-3b] Test Jinja2 rendering errors** — `tests/test_jinja_errors.py` added: `render()` raises `TemplateSyntaxError` on `{{ unclosed`; runner catches it and produces `StepResult(success=False)`; on_error=continue continues past the bad step.
+- [x] **[TEST-3c] Test cron validation endpoint** — `tests/test_cron_endpoint.py` added: 12 tests covering valid expressions, n parameter, results ordering, ISO-8601 format, missing expr, invalid expr, out-of-range field, and auth guard.
+- [x] **[TEST-3d] Test pipeline variable secret masking** — already fully covered by `test_pipeline_variables.py` (`test_secret_var_masked_in_api_response`, `test_secret_var_not_leaked_by_update`). No new tests needed.
+- [x] **[TEST-3e] Test encryption/decryption round-trip** — two tests added to `test_connections.py`: API masks password as `***`; raw DB column does not contain plaintext; `decrypt_config()` recovers original value. Also fixed stale `test_create_connection_bad_type` (was testing `mysql` which is now valid — changed to `sqlite`). Updated `connections.py` route to accept the 5 valid types.
+- [x] **[TEST-4] Add frontend tests** — Vitest + @testing-library/react installed; `vitest.config.ts` added; 13 tests in 3 files: `Dashboard.test.tsx` (5 tests), `Pipelines.test.tsx` (3 tests), `TopBarSearch.test.tsx` (5 tests — seeded React Query cache, Escape to clear, report search). All 13 pass.
 
 ---
 

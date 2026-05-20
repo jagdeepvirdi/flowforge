@@ -90,6 +90,7 @@ def test_on_error_continue_pipeline_still_fails():
     steps = [make_step('a', success=False, on_error='continue')]
     result = run(steps)
     assert result.steps_failed == 1
+    assert result.success is False
 
 
 def test_multiple_failures_with_continue():

@@ -1,4 +1,4 @@
-"""Tests for DB connection CRUD and test endpoint."""
+"""Tests for DB connection CRUD, test endpoint, and encryption round-trip (TEST-3e)."""
 import pytest
 
 
@@ -47,7 +47,7 @@ def test_create_connection_missing_name(client, headers, db_payload):
 
 
 def test_create_connection_bad_type(client, headers, db_payload):
-    bad = {**db_payload, 'db_type': 'mysql'}
+    bad = {**db_payload, 'db_type': 'sqlite'}
     resp = client.post('/api/db-connections', json=bad, headers=headers)
     assert resp.status_code == 400
 
@@ -108,3 +108,45 @@ def test_test_raw_bad_password(client, headers, live_db_config):
     }, headers=headers)
     data = resp.get_json()
     assert data.get('success') is False
+
+
+# ── Encryption round-trip (TEST-3e) ───────────────────────────────────────────
+
+def test_sensitive_fields_masked_in_api_response(client, headers, conn_id):
+    """GET /api/db-connections/:id must mask password and any sensitive fields."""
+    resp = client.get(f'/api/db-connections/{conn_id}', headers=headers)
+    assert resp.status_code == 200
+    cfg = resp.get_json()['config']
+    assert cfg['password'] == '***', 'password must be masked in API response'
+    # Non-sensitive fields are returned plaintext
+    assert cfg['host'] not in ('', '***')
+
+
+def test_config_stored_encrypted_in_db(app, client, headers, live_db_config):
+    """The raw DB column must not contain plaintext credentials."""
+    from flowforge.crypto import decrypt_config
+    from flowforge.db.models import DbConnection, db
+
+    # Create a connection with a known password
+    secret_password = 'super_secret_pw_12345'
+    payload = {
+        'name': '__enc_test_conn__',
+        'db_type': 'postgresql',
+        'config': {**live_db_config, 'password': secret_password},
+        'is_default': False,
+    }
+    resp = client.post('/api/db-connections', json=payload, headers=headers)
+    assert resp.status_code == 201
+    conn_id = resp.get_json()['id']
+
+    try:
+        with app.app_context():
+            row = db.session.get(DbConnection, conn_id)
+            # Raw column must NOT be plaintext JSON containing the password
+            assert secret_password not in row.config, \
+                'Plaintext password found in raw DB column — encryption not applied'
+            # Decrypting must give back the original value
+            decrypted = decrypt_config(row.config)
+            assert decrypted['password'] == secret_password
+    finally:
+        client.delete(f'/api/db-connections/{conn_id}', headers=headers)
