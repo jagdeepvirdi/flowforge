@@ -29,6 +29,7 @@ Thumbs.db
 
 # Credentials / secrets (should never be committed)
 .env
+.env.test
 *.json.bak
 connection.json
 settings.yaml

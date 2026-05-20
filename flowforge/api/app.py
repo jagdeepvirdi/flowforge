@@ -6,6 +6,7 @@ from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from flowforge.db.models import db
 
@@ -21,16 +22,51 @@ def create_app(config: dict | None = None) -> Flask:
         'FLOWFORGE_DB_URL', 'postgresql://flowforge:flowforge@localhost:5432/flowforge'
     )
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    # AES-256 encryption key — used exclusively by flowforge/crypto.py
     app.config['SECRET_KEY'] = os.environ.get('FLOWFORGE_SECRET_KEY', '')
+
+    # JWT signing secret — separate from the encryption key (SEC-2)
+    # Falls back to SECRET_KEY for backward compatibility; set FLOWFORGE_JWT_SECRET in production.
+    jwt_secret = os.environ.get('FLOWFORGE_JWT_SECRET', '')
+    if not jwt_secret:
+        jwt_secret = app.config['SECRET_KEY']
+        if jwt_secret and not (config or {}).get('TESTING'):
+            import warnings
+            warnings.warn(
+                'FLOWFORGE_JWT_SECRET is not set — falling back to FLOWFORGE_SECRET_KEY for JWT '
+                'signing. Set a separate FLOWFORGE_JWT_SECRET in production.',
+                stacklevel=2,
+            )
+    app.config['JWT_SECRET'] = jwt_secret
     app.config['JWT_ALGORITHM'] = 'HS256'
     app.config['JWT_EXPIRY_HOURS'] = 24
 
     if config:
         app.config.update(config)
 
+    # ProxyFix — unwraps X-Forwarded-For so the rate limiter sees the real client IP (SEC-3)
+    # Set FLOWFORGE_TRUSTED_PROXIES=1 when running behind nginx/Traefik/ALB/etc.
+    num_proxies = int(os.environ.get('FLOWFORGE_TRUSTED_PROXIES', '0'))
+    if num_proxies > 0:
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=num_proxies, x_proto=num_proxies, x_host=num_proxies)
+
     db.init_app(app)
     limiter.init_app(app)
-    CORS(app, resources={r'/api/*': {'origins': os.environ.get('FLOWFORGE_CORS_ORIGIN', 'http://localhost:5173')}})
+
+    # CORS — warn loudly if FLOWFORGE_CORS_ORIGIN is not set in production (SEC-6)
+    cors_origin = os.environ.get('FLOWFORGE_CORS_ORIGIN', '')
+    if not cors_origin:
+        flask_env = os.environ.get('FLASK_ENV', 'development')
+        is_testing = (config or {}).get('TESTING', False)
+        if flask_env == 'production' and not is_testing:
+            app.logger.warning(
+                'SECURITY: FLOWFORGE_CORS_ORIGIN is not set. '
+                'All cross-origin browser requests to /api/* will be blocked. '
+                'Set FLOWFORGE_CORS_ORIGIN=https://your-domain.com in production.'
+            )
+        cors_origin = 'http://localhost:5173'  # dev/test fallback only
+    CORS(app, resources={r'/api/*': {'origins': cors_origin}})
 
     _register_blueprints(app)
     _register_error_handlers(app)
@@ -62,7 +98,7 @@ def _seed_admin(app: Flask) -> None:
         app.logger.info('Admin user "%s" created from env vars.', username)
     except OperationalError:
         app.logger.warning(
-            'ff_users table not found — run "flowforge db upgrade" to apply migrations.'
+            'ff_users table not found — run "alembic upgrade head" to apply migrations.'
         )
 
 

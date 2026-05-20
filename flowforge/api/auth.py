@@ -15,7 +15,8 @@ def _algorithm() -> str:
 
 
 def _secret() -> str:
-    return current_app.config['SECRET_KEY']
+    # SEC-2: use JWT_SECRET (separate from the AES encryption key)
+    return current_app.config.get('JWT_SECRET') or current_app.config['SECRET_KEY']
 
 
 def _expiry_hours() -> int:

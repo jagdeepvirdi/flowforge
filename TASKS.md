@@ -23,14 +23,14 @@
 
 ---
 
-## Phase 5 — Security Fixes 🔴 *(P0 — fix before any public traffic)*
+## Phase 5 — Security Fixes 🔴 *(COMPLETE — 2026-05-20)*
 *Addresses SEC findings from CODEBASE_REVIEW.md. Target score: Security 5.5 → 8.0*
 
-- [ ] **[SEC-1] Remove hardcoded credentials from `tests/conftest.py`** — replace `harpal123` default with `os.environ['FLOWFORGE_DB_URL']` (no default); add `.env.test.example`; update CI workflow to set the var explicitly.
-- [ ] **[SEC-2] Split encryption key and JWT secret** — introduce `FLOWFORGE_JWT_SECRET` env var used only for JWT signing; keep `FLOWFORGE_SECRET_KEY` for AES-256 only. Update `app.py`, `auth.py`, `.env.example`, docs.
-- [ ] **[SEC-3] Fix rate limiter for proxied deployments** — replace `get_remote_address` with `get_remote_address` + `app.config['RATELIMIT_HEADERS_ENABLED'] = True` and configure `ProxyFix` middleware; document `FLOWFORGE_TRUSTED_PROXIES` env var.
-- [ ] **[SEC-6] Require `FLOWFORGE_CORS_ORIGIN` in production** — raise a startup error (or at minimum log a loud `WARNING`) if the var is not set and `FLASK_ENV=production`. Remove the `http://localhost:5173` default.
-- [ ] **[SEC-7] Add basic audit logging** — log triggered-by, pipeline name, and outcome to a dedicated `logs/audit.log` file on every pipeline run and login attempt.
+- [x] **[SEC-1] Remove hardcoded credentials from `tests/conftest.py`** — removed `harpal123` default; added `.env.test.example`; `sys.exit(1)` with clear message if `FLOWFORGE_DB_URL` not set; CI workflow already sets it.
+- [x] **[SEC-2] Split encryption key and JWT secret** — `FLOWFORGE_JWT_SECRET` introduced for JWT signing; `FLOWFORGE_SECRET_KEY` reserved for AES-256 only. Falls back with a `warnings.warn` if unset. Updated `app.py`, `auth.py`, `conftest.py`, `.env.example`, CI workflow.
+- [x] **[SEC-3] Fix rate limiter for proxied deployments** — added `werkzeug.middleware.proxy_fix.ProxyFix` controlled by `FLOWFORGE_TRUSTED_PROXIES` env var (default 0). When set ≥1, `get_remote_address` correctly resolves real client IP from `X-Forwarded-For`. Documented in `.env.example`.
+- [x] **[SEC-6] Require `FLOWFORGE_CORS_ORIGIN` in production** — logs a loud `WARNING` at startup if `FLASK_ENV=production` and var is unset. `http://localhost:5173` is now dev/test fallback only. Added `FLOWFORGE_CORS_ORIGIN` to `.env.example`.
+- [x] **[SEC-7] Add basic audit logging** — `flowforge/audit.py` writes to `logs/audit.log`. Login success/failure logged from `routes/auth.py` (with IP). Pipeline STARTED/SUCCESS/FAILED logged from `runner.py`.
 
 ---
 

@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
+from flowforge import audit
 from flowforge.steps.base import BaseStep, StepResult
 
 logger = logging.getLogger(__name__)
@@ -65,6 +66,8 @@ def run_pipeline(
         result.run_id = run_record.id
         context['run_id'] = run_record.id  # overwrite uuid4() placeholder with real DB run ID
 
+    audit.log_pipeline_run(pipeline_name, triggered_by, result.run_id or context['run_id'], 'STARTED')
+
     step_order = 0
     for step in steps:
         step_order += 1
@@ -121,6 +124,10 @@ def run_pipeline(
     if not result.success and result.steps_run < len(steps):
         logger.error("[%s] Pipeline failed after %d/%d steps", pipeline_name, result.steps_run, len(steps))
 
+    audit.log_pipeline_run(
+        pipeline_name, triggered_by, result.run_id or context['run_id'],
+        'SUCCESS' if result.success else 'FAILED',
+    )
     return result
 
 

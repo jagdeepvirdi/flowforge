@@ -28,6 +28,7 @@ jobs:
     env:
       FLOWFORGE_DB_URL: postgresql://flowforge:testpass@localhost:5432/flowforge_test
       FLOWFORGE_SECRET_KEY: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      FLOWFORGE_JWT_SECRET:  bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 
     steps:
       - uses: actions/checkout@v4

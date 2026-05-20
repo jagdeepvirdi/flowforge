@@ -1,13 +1,29 @@
 """Shared pytest fixtures for FlowForge tests."""
 import os
+import sys
 import pytest
 import bcrypt
 from pathlib import Path
 from urllib.parse import urlparse
 
-# Use a dedicated test database — never the production one
-os.environ.setdefault('FLOWFORGE_DB_URL', 'postgresql://flowforge:harpal123@localhost:5434/flowforge_test')
-os.environ.setdefault('FLOWFORGE_SECRET_KEY', 'a' * 64)   # 32 bytes hex = 64 chars
+# ---------------------------------------------------------------------------
+# FLOWFORGE_DB_URL must be set before running the test suite.
+# For local dev: copy .env.test.example → .env.test, fill in credentials,
+#                then run:  source .env.test && pytest
+# For CI: the workflow sets it in the job env (see .github/workflows/test.yml).
+# ---------------------------------------------------------------------------
+if 'FLOWFORGE_DB_URL' not in os.environ:
+    print(
+        '\n[conftest] ERROR: FLOWFORGE_DB_URL is not set.\n'
+        'Copy .env.test.example to .env.test, fill in your test DB credentials,\n'
+        'then run:  source .env.test && pytest\n',
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+# Safe dummy keys for test runs — 64 hex chars = 32 bytes
+os.environ.setdefault('FLOWFORGE_SECRET_KEY', 'a' * 64)
+os.environ.setdefault('FLOWFORGE_JWT_SECRET',  'b' * 64)
 os.environ.setdefault('FLOWFORGE_USERNAME', 'testadmin')
 os.environ.setdefault('FLOWFORGE_PASSWORD', bcrypt.hashpw(b'testpass', bcrypt.gensalt(4)).decode())
 
@@ -23,7 +39,6 @@ def apply_migrations():
 
     db_url = os.environ['FLOWFORGE_DB_URL']
 
-    # Drop all FlowForge tables (FK-safe order) so migrations start clean
     engine = create_engine(db_url)
     with engine.begin() as conn:
         for table in [
@@ -47,6 +62,7 @@ def app(apply_migrations):
         'TESTING': True,
         'SQLALCHEMY_DATABASE_URI': os.environ['FLOWFORGE_DB_URL'],
         'SECRET_KEY': os.environ['FLOWFORGE_SECRET_KEY'],
+        'JWT_SECRET':  os.environ['FLOWFORGE_JWT_SECRET'],
     })
     yield application
 
