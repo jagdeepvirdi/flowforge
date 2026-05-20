@@ -2,6 +2,8 @@
 
 **Database-driven pipeline orchestrator. Configure everything from the UI — DB procedures, reports, email (Gmail/M365/SMTP), Google Drive, smart attachments, scheduling. No YAML. No Airflow complexity.**
 
+[![Tests](https://github.com/jagdeepvirdi/flowforge/actions/workflows/test.yml/badge.svg)](https://github.com/jagdeepvirdi/flowforge/actions/workflows/test.yml)
+
 ---
 
 ## What is FlowForge?
@@ -20,10 +22,16 @@ Designed for solo developers, data analysts, and small teams who need lightweigh
 - **Email providers**: Gmail (OAuth2), Microsoft 365 (MSAL + Graph API), SMTP (any server)
 - **Smart attachments**: files over a configurable size threshold are automatically uploaded to Google Drive; the email body gets a shareable link instead
 - **Report formats**: Excel (openpyxl, optional template), CSV, PDF (WeasyPrint)
-- **Google Drive**: upload, download, folder management; service account or OAuth2
-- **Jinja2 variable system**: `{{ current_date }}`, `{{ run_id }}`, `{{ steps.prev.output_path }}`, `{{ env.MY_VAR }}`, and more
-- **Scheduling**: APScheduler with cron expressions, managed from the UI
+- **Google Drive**: upload files, create shareable links, smart attachment fallback
+- **Jinja2 variable system**: date/range helpers, run context, step outputs, env vars, pipeline vars — available in every config field
+- **Scheduling**: APScheduler with cron expressions and hot reload, managed from the UI
+- **Visual cron builder**: frequency presets, live expression preview, next-5-runs display
 - **Run history**: step-level logs, timing, Drive links, and email recipients per run
+- **In-app help**: context-sensitive help drawer, page intro cards, field tooltips, concept glossary
+- **Security**: AES-256-GCM credential encryption, bcrypt admin password, JWT auth, login rate limiting
+- **Docker Compose**: one-command local stack (API + frontend + PostgreSQL)
+- **GitHub Actions CI**: full pytest suite on every push and PR
+- **Output cleanup**: CLI command + daily scheduler job to prune old report files
 
 ---
 
@@ -48,7 +56,7 @@ Designed for solo developers, data analysts, and small teams who need lightweigh
 | Step | What it does |
 |---|---|
 | `db_procedure` | Call a stored procedure or Oracle package |
-| `db_query` | Run a SQL query and write results to a table |
+| `db_query` | Run a SQL query and write results to a table; optionally capture a scalar into pipeline context |
 | `report` | Generate Excel / CSV / PDF from a SQL query |
 | `email` | Send email with smart attachment handling |
 | `drive_upload` | Upload a file to Google Drive |
@@ -71,12 +79,26 @@ Designed for solo developers, data analysts, and small teams who need lightweigh
 
 ## Quick Start
 
-### 1. Prerequisites
+### Option A — Docker Compose
+
+```bash
+git clone https://github.com/jagdeepvirdi/flowforge.git
+cd flowforge
+cp .env.example .env          # set FLOWFORGE_SECRET_KEY at minimum
+docker compose up
+```
+
+Open `http://localhost:5000`.
+
+### Option B — Local Development
+
+#### 1. Prerequisites
 
 - Python 3.11+
+- Node.js 18+
 - PostgreSQL (for FlowForge's own config database)
 
-### 2. Install
+#### 2. Install
 
 ```bash
 pip install -e .
@@ -84,64 +106,110 @@ pip install -e .
 pip install -e .[pdf]
 # With Oracle support:
 pip install -e .[oracle]
+# With Gmail / Drive support:
+pip install -e .[gmail]
+# With Microsoft 365 support:
+pip install -e .[microsoft365]
 ```
 
-### 3. Configure
+#### 3. Configure
 
 ```bash
 cp .env.example .env
 # Edit .env — set FLOWFORGE_DB_URL and FLOWFORGE_SECRET_KEY at minimum
 ```
 
-### 4. Initialize the database
+#### 4. Initialize the database
 
 ```bash
-# Coming in Phase 2 — for now, apply schema.sql manually:
-psql -U flowforge -d flowforge -f flowforge/db/schema.sql
+alembic upgrade head
 ```
 
-### 5. Run
+#### 5. Start the dev server
+
+**Windows:**
+```powershell
+.\server.ps1 start
+```
+
+**macOS / Linux:**
+```bash
+./server.sh start
+```
+
+Both scripts start the Flask API and Vite frontend together. Open `http://localhost:5173`.
+
+#### 6. Prod mode
+
+**Windows:**
+```powershell
+.\server.ps1 start -Mode prod -UseWaitress
+```
+
+**macOS / Linux:**
+```bash
+./server.sh start prod --gunicorn
+```
+
+#### 7. Stop
+
+**Windows:**
+```powershell
+.\server.ps1 stop
+```
+
+**macOS / Linux:**
+```bash
+./server.sh stop
+```
+
+---
+
+## CLI Reference
 
 ```bash
-# Start the web server
-flowforge web
+flowforge web                          # start Flask dev server
+flowforge schedule                     # start APScheduler daemon
+flowforge run "Monthly Revenue Report" # run a pipeline by name
+flowforge list                         # list all pipelines with schedule and status
+flowforge validate "Pipeline Name"     # validate pipeline config
+flowforge connections test             # test all configured DB connections
+flowforge export "Pipeline Name"       # export pipeline as YAML
+flowforge import pipeline.yaml         # import pipeline from YAML
+flowforge cleanup [--days N]           # remove output files older than N days
 
-# Run a pipeline from the CLI
-flowforge run "Monthly Revenue Report"
-
-# Start the scheduler
-flowforge schedule
-
-# Set up Gmail / Google Drive OAuth2
+# OAuth2 setup wizards
 flowforge setup gmail
-
-# Set up Microsoft 365
 flowforge setup microsoft365
+flowforge setup drive
 ```
 
 ---
 
 ## Variable System
 
-Available in all config strings rendered via Jinja2:
+Available in every config field rendered via Jinja2:
 
 | Variable | Example |
 |---|---|
-| `{{ current_date }}` | `2026-05-17` |
+| `{{ current_date }}` | `2026-05-20` |
 | `{{ current_month }}` | `2026-05` |
 | `{{ current_year }}` | `2026` |
-| `{{ yesterday }}` | `2026-05-16` |
+| `{{ yesterday }}` | `2026-05-19` |
+| `{{ week_start }}` | `2026-05-18` (Monday) |
+| `{{ week_end }}` | `2026-05-24` (Sunday) |
+| `{{ month_start }}` | `2026-05-01` |
+| `{{ month_end }}` | `2026-05-31` |
+| `{{ quarter_start }}` | `2026-04-01` |
+| `{{ quarter_end }}` | `2026-06-30` |
+| `{{ timestamp }}` | `20052026142304` (DDMMYYYYHHmmSS) |
 | `{{ run_id }}` | UUID of current run |
 | `{{ pipeline_name }}` | `Monthly Revenue Report` |
 | `{{ env.MY_VAR }}` | Any environment variable |
 | `{{ steps.name.output_path }}` | Output file path from a previous step |
 | `{{ steps.name.drive_url }}` | Drive URL from a previous step |
-
----
-
-## Example Pipeline (YAML import)
-
-See [`pipelines/example_pipeline.yaml`](pipelines/example_pipeline.yaml) for a complete example.
+| `{{ steps.name.rows_affected }}` | Row count from a previous step |
+| `{{ my_var }}` / `{{ vars.my_var }}` | Pipeline-level variable |
 
 ---
 
@@ -149,35 +217,47 @@ See [`pipelines/example_pipeline.yaml`](pipelines/example_pipeline.yaml) for a c
 
 ```
 flowforge/
-├── flowforge/          # Python package
-│   ├── cli.py          # Click CLI
-│   ├── engine/         # Pipeline runner + context + scheduler
-│   ├── steps/          # Step type implementations
-│   ├── connections/    # PostgreSQL + Oracle
-│   ├── email_providers/# Gmail, M365, SMTP
-│   ├── reports/        # Excel, CSV, PDF
-│   ├── storage/        # Google Drive
-│   ├── crypto.py       # AES-256 credential encryption
-│   ├── db/             # SQLAlchemy models + migrations
-│   └── api/            # Flask REST API
-├── frontend/           # React + Vite + TypeScript
-├── docs/
-├── pipelines/          # Example YAML configs
+├── flowforge/               # Python package
+│   ├── cli.py               # Click CLI
+│   ├── engine/              # Pipeline runner, scheduler, variable context
+│   ├── steps/               # Step type implementations
+│   ├── connections/         # PostgreSQL + Oracle
+│   ├── email_providers/     # Gmail, M365, SMTP
+│   ├── reports/             # Excel, CSV, PDF
+│   ├── storage/             # Google Drive
+│   ├── crypto.py            # AES-256-GCM credential encryption
+│   ├── db/                  # SQLAlchemy models + Alembic migrations
+│   └── api/                 # Flask REST API
+├── frontend/                # React + Vite + TypeScript
+├── docs/                    # Guides: getting-started, step-types, email-providers
 ├── tests/
+├── .github/workflows/       # GitHub Actions CI
+├── server.ps1               # Windows dev/prod server script
+├── server.sh                # macOS/Linux dev/prod server script
+├── docker-compose.yml
+├── Dockerfile
+├── alembic.ini
 ├── .env.example
 ├── pyproject.toml
-└── requirements.txt
+└── CHANGELOG.md
 ```
+
+---
+
+## Documentation
+
+- [`docs/getting-started.md`](docs/getting-started.md) — end-to-end setup walkthrough
+- [`docs/step-types.md`](docs/step-types.md) — full config reference for all step types
+- [`docs/email-providers.md`](docs/email-providers.md) — SMTP, M365, and Gmail setup
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — dev setup, running tests, PR process
+- [`CHANGELOG.md`](CHANGELOG.md) — version history
 
 ---
 
 ## Roadmap
 
-- **v0.2**: Flask REST API, SQLAlchemy models, full CLI, APScheduler integration
-- **v0.3**: React frontend — Dashboard, Pipeline Builder, Report Designer, Email Designer
-- **v0.4**: Credential encryption (AES-256), authentication
-- **v1.0**: Stable API, full documentation, Docker image
-- **v2**: Multi-user auth, Slack/Teams notifications, S3/Azure Blob, ai_analyze step
+- **v0.1.0** ✅ — Pipeline engine, all step types, all email providers, reports, Drive, scheduler, React frontend, Docker, CI, Alembic migrations, AES-256 encryption, JWT auth
+- **v2**: Multi-user auth, Slack/Teams notifications, S3/Azure Blob, `ai_analyze` step, OneDrive upload
 
 ---
 
