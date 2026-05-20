@@ -46,6 +46,17 @@ class OracleConnection(BaseConnection):
             for row in rows
         ]
 
+    def execute_query_with_columns(self, sql: str, params: tuple = ()) -> tuple[list[tuple], list[str]]:
+        with self._conn.cursor() as cur:
+            cur.arraysize = 1000
+            cur.execute(sql, params)
+            columns = [desc[0] for desc in cur.description] if cur.description else []
+            rows = cur.fetchall()
+        return [
+            tuple(col.read() if hasattr(col, 'read') else col for col in row)
+            for row in rows
+        ], columns
+
     def execute_write(self, sql: str, params: tuple = ()) -> int:
         with self._conn.cursor() as cur:
             cur.execute(sql, params)

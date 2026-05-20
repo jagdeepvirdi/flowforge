@@ -10,6 +10,9 @@ class BaseConnection(ABC):
     def execute_query(self, sql: str, params: tuple = ()) -> list[tuple]: ...
 
     @abstractmethod
+    def execute_query_with_columns(self, sql: str, params: tuple = ()) -> tuple[list[tuple], list[str]]: ...
+
+    @abstractmethod
     def execute_write(self, sql: str, params: tuple = ()) -> int: ...
 
     @abstractmethod

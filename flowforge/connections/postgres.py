@@ -37,6 +37,12 @@ class PostgreSQLConnection(BaseConnection):
             cur.execute(sql, params)
             return cur.fetchall()
 
+    def execute_query_with_columns(self, sql: str, params: tuple = ()) -> tuple[list[tuple], list[str]]:
+        with self._conn.cursor() as cur:
+            cur.execute(sql, params)
+            columns = [desc[0] for desc in cur.description] if cur.description else []
+            return cur.fetchall(), columns
+
     def execute_write(self, sql: str, params: tuple = ()) -> int:
         with self._conn.cursor() as cur:
             cur.execute(sql, params)

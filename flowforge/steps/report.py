@@ -26,11 +26,10 @@ class ReportStep(BaseStep):
         conn = self._get_connection(report_cfg)
         try:
             with conn:
-                rows = conn.execute_query(query)
+                rows, columns = conn.execute_query_with_columns(query)
 
-            columns = report_cfg.get('columns') or (
-                [f'col{i}' for i in range(len(rows[0]))] if rows else []
-            )
+            if report_cfg.get('columns'):
+                columns = report_cfg['columns']
 
             if fmt == 'excel':
                 from flowforge.reports.excel_report import generate
