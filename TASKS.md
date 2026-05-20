@@ -45,11 +45,6 @@
 *Docs, GitHub presence, and final UX touches.*
 
 - [ ] **README screenshots** — Dashboard, Pipeline Builder, Run Detail. Highest-impact item for GitHub stars.
-- [ ] **Write `docs/step-types.md`** — Full config spec for each step type with YAML examples.
-- [ ] **Write `docs/email-providers.md`** — SMTP + M365 setup sections (Gmail already done).
-- [ ] **Add `CONTRIBUTING.md`** — Running tests, project structure, PR process.
-- [ ] **Add GitHub issue templates** — Bug report + feature request.
-- [ ] **Update CHANGELOG.md** — Document what's actually in v0.1.0.
 
 ---
 
