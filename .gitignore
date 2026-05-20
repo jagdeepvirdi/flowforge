@@ -30,6 +30,7 @@ Thumbs.db
 # Credentials / secrets (should never be committed)
 .env
 .env.test
+.claude/settings.local.json
 *.json.bak
 connection.json
 settings.yaml
