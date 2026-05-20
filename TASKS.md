@@ -31,11 +31,6 @@
 ## Phase 2 — Tests & Verification 🧪
 *Automated test coverage + manual pre-launch smoke tests.*
 
-### Features Before Launch
-
-- [x] **Built-in smart date-range variables** — Add `{{ week_start }}`, `{{ week_end }}`, `{{ month_start }}`, `{{ month_end }}`, `{{ quarter_start }}`, `{{ quarter_end }}` to `flowforge/engine/context.py` alongside the existing date vars. Values always calculated relative to today at runtime (ISO week: Mon–Sun; month: 1st–last day; quarter: Q1=Jan–Mar etc.). Update the `{{ variable }}` field tooltip in `helpContent.ts` to list the new vars with examples.
-- [x] **db_query scalar output variable** — Add optional `output_variable` field to `db_query` step config. When set, captures the value from the first column of the first row and makes it available as `{{ <output_variable> }}` in subsequent step configs and the email body template (e.g., `output_variable: subscription_count` → `{{ subscription_count }}` in email). Update `StepEditor.tsx` to show the field for `db_query` steps.
-
 ### Manual Verification Checklist (do before launch)
 
 #### End-to-End Pipeline Test
