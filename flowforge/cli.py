@@ -62,7 +62,7 @@ def run(pipeline_name: str, var: tuple[str, ...]):
             sys.exit(1)
 
         click.echo(f"Running pipeline: {pipeline_name}")
-        steps, pipeline_vars = load_pipeline(pipeline.id)
+        steps, pipeline_vars, secret_keys = load_pipeline(pipeline.id)
         pipeline_vars.update(overrides)
 
         result = run_pipeline(
@@ -71,6 +71,7 @@ def run(pipeline_name: str, var: tuple[str, ...]):
             pipeline_vars=pipeline_vars,
             triggered_by='cli',
             pipeline_id=pipeline.id,
+            secret_var_keys=secret_keys,
         )
 
         click.echo(f"\nStatus:       {'✓ SUCCESS' if result.success else '✗ FAILED'}")
@@ -117,7 +118,7 @@ def validate(pipeline_name: str):
             sys.exit(1)
 
         try:
-            steps, _ = load_pipeline(pipeline.id)
+            steps, _, _sk = load_pipeline(pipeline.id)
             click.echo(f"✓ Pipeline '{pipeline_name}' loaded: {len(steps)} steps")
         except Exception as e:
             click.echo(f"✗ Validation failed: {e}", err=True)
@@ -253,6 +254,136 @@ def cleanup(days: int | None, output_dir: str | None, dry_run: bool):
                 errors += 1
         deleted = len(to_delete) - errors
         click.echo(f"Done. {deleted} file(s) deleted.")
+
+
+@cli.group('db')
+def db_group():
+    """Database migration commands (wraps Alembic)."""
+
+
+def _alembic_cfg():
+    """Return an Alembic Config pointed at the bundled migrations directory."""
+    from pathlib import Path
+    from alembic.config import Config
+    migrations_dir = Path(__file__).parent / 'db' / 'migrations'
+    cfg = Config()
+    cfg.set_main_option('script_location', str(migrations_dir))
+    return cfg
+
+
+@db_group.command('upgrade')
+@click.argument('revision', default='head')
+def db_upgrade(revision: str):
+    """Apply pending migrations (default: head)."""
+    from alembic import command as alembic_cmd
+    alembic_cmd.upgrade(_alembic_cfg(), revision)
+    click.echo('Database is up to date.')
+
+
+@db_group.command('downgrade')
+@click.argument('revision')
+def db_downgrade(revision: str):
+    """Revert to REVISION (use -1 for one step back)."""
+    from alembic import command as alembic_cmd
+    alembic_cmd.downgrade(_alembic_cfg(), revision)
+
+
+@db_group.command('revision')
+@click.option('--message', '-m', required=True, help='Short description of the change.')
+@click.option('--autogenerate', is_flag=True, help='Detect schema changes from models.')
+def db_revision(message: str, autogenerate: bool):
+    """Generate a new migration script."""
+    from alembic import command as alembic_cmd
+    alembic_cmd.revision(_alembic_cfg(), message=message, autogenerate=autogenerate)
+
+
+@db_group.command('current')
+def db_current():
+    """Show the currently applied migration revision."""
+    from alembic import command as alembic_cmd
+    alembic_cmd.current(_alembic_cfg())
+
+
+@db_group.command('stamp')
+@click.argument('revision')
+def db_stamp(revision: str):
+    """Mark the database as being at REVISION without running migrations.
+    Use 'head' to mark an existing database as up to date after a fresh install.
+    """
+    from alembic import command as alembic_cmd
+    alembic_cmd.stamp(_alembic_cfg(), revision)
+    click.echo(f'Database stamped at revision: {revision}')
+
+
+@cli.command('import')
+@click.argument('file_path', type=click.Path(exists=True))
+@click.option('--overwrite', is_flag=True,
+              help='Replace the existing pipeline if one with the same name already exists.')
+def import_pipeline(file_path: str, overwrite: bool):
+    """Import a pipeline definition from a YAML file."""
+    app = _create_app()
+    with app.app_context():
+        import yaml
+        from flowforge.db.models import Pipeline, PipelineStep, PipelineVariable, db
+
+        with open(file_path) as f:
+            data = yaml.safe_load(f)
+
+        name = data.get('name')
+        if not name:
+            click.echo("ERROR: YAML is missing 'name' field.", err=True)
+            sys.exit(1)
+
+        existing = db.session.query(Pipeline).filter_by(name=name).first()
+        if existing:
+            if not overwrite:
+                click.echo(
+                    f"ERROR: Pipeline '{name}' already exists. Use --overwrite to replace.",
+                    err=True,
+                )
+                sys.exit(1)
+            db.session.delete(existing)
+            db.session.flush()
+
+        pipeline = Pipeline(
+            name=name,
+            description=data.get('description'),
+            schedule=data.get('schedule'),
+            enabled=data.get('enabled', True),
+            timeout_minutes=data.get('timeout_minutes', 60),
+        )
+        db.session.add(pipeline)
+        db.session.flush()
+
+        for step_data in data.get('steps', []):
+            db.session.add(PipelineStep(
+                pipeline_id=pipeline.id,
+                step_order=step_data['step_order'],
+                name=step_data['name'],
+                step_type=step_data['step_type'],
+                config=step_data.get('config', {}),
+                on_error=step_data.get('on_error', 'stop'),
+            ))
+
+        skipped_secrets = 0
+        for var_data in data.get('variables', []):
+            if var_data.get('is_secret') and var_data.get('var_value') == '***':
+                skipped_secrets += 1
+                continue
+            db.session.add(PipelineVariable(
+                pipeline_id=pipeline.id,
+                var_key=var_data['var_key'],
+                var_value=var_data['var_value'],
+                is_secret=var_data.get('is_secret', False),
+            ))
+
+        db.session.commit()
+        step_count = len(data.get('steps', []))
+        click.echo(f"Imported pipeline '{name}' ({step_count} step(s)).")
+        if skipped_secrets:
+            click.echo(
+                f"  Note: {skipped_secrets} secret variable(s) skipped (exported as '***') — set them manually."
+            )
 
 
 def _create_app():

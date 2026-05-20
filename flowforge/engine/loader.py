@@ -23,13 +23,14 @@ def _import_step_class(dotted_path: str):
     return getattr(module, class_name)
 
 
-def load_pipeline(pipeline_id: str) -> tuple[list[BaseStep], dict[str, str]]:
+def load_pipeline(pipeline_id: str) -> tuple[list[BaseStep], dict[str, str], set[str]]:
     """
     Load a pipeline from the database.
 
     Returns:
-        steps        — ordered list of BaseStep instances ready to execute
+        steps         — ordered list of BaseStep instances ready to execute
         pipeline_vars — dict of pipeline-level variables (keys → values)
+        secret_keys   — set of var_key names that are secret (for log masking)
     """
     pipeline: Pipeline | None = db.session.get(Pipeline, pipeline_id)
     if not pipeline:
@@ -38,6 +39,7 @@ def load_pipeline(pipeline_id: str) -> tuple[list[BaseStep], dict[str, str]]:
         raise ValueError(f"Pipeline is disabled: {pipeline.name}")
 
     pipeline_vars: dict[str, str] = {}
+    secret_keys: set[str] = set()
     for v in pipeline.variables:
         try:
             value = decrypt_value(v.var_value) if v.is_secret else v.var_value
@@ -45,6 +47,8 @@ def load_pipeline(pipeline_id: str) -> tuple[list[BaseStep], dict[str, str]]:
             # Tolerate unencrypted legacy values (stored before encryption was added)
             value = v.var_value
         pipeline_vars[v.var_key] = value
+        if v.is_secret:
+            secret_keys.add(v.var_key)
 
     steps: list[BaseStep] = []
     for step_row in pipeline.steps:
@@ -63,4 +67,4 @@ def load_pipeline(pipeline_id: str) -> tuple[list[BaseStep], dict[str, str]]:
         logger.debug("Loaded step %d: %s (%s)", step_row.step_order, step_row.name, step_row.step_type)
 
     logger.info("Loaded pipeline '%s': %d steps", pipeline.name, len(steps))
-    return steps, pipeline_vars
+    return steps, pipeline_vars, secret_keys

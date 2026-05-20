@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -12,11 +12,13 @@ import {
   getPipeline, createPipeline, updatePipeline,
   addStep, updateStep, deleteStep,
   getDbConnections, getReportConfigs, getEmailConfigs,
+  getCronNext,
 } from '../lib/api'
 import type { Pipeline, PipelineStep, StepType } from '../lib/types'
 import StepEditor from '../components/pipeline/StepEditor'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
+import FieldTooltip from '../components/shared/FieldTooltip'
 
 const STEP_TYPES: StepType[] = ['db_procedure', 'db_query', 'report', 'email', 'drive_upload']
 
@@ -166,8 +168,13 @@ export default function PipelineEdit() {
               <input className="input" value={name} onChange={e => setName(e.target.value)} />
             </div>
             <div className="field">
-              <label>Schedule (cron expression)</label>
-              <input className="input mono-input" value={schedule} onChange={e => setSchedule(e.target.value)} placeholder="0 6 * * 1" />
+              <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                Schedule
+                <FieldTooltip field="cron" />
+              </label>
+              {(!id || existing) && (
+                <CronBuilder key={id ?? 'new'} defaultValue={schedule} onChange={setSchedule} />
+              )}
             </div>
           </div>
           <div className="field">
@@ -223,5 +230,142 @@ export default function PipelineEdit() {
         </div>
       </div>
     </>
+  )
+}
+
+// ─── CronBuilder ─────────────────────────────────────────────────────────────
+
+type Freq = 'none' | 'minutely' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'custom'
+interface CronState { n: number; minute: number; hour: number; weekday: number; monthDay: number }
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+function detectFreq(cron: string): Freq {
+  if (!cron) return 'none'
+  const p = cron.trim().split(/\s+/)
+  if (p.length !== 5) return 'custom'
+  const [min, hr, dom, mon, dow] = p
+  if (/^\*\/\d+$/.test(min) && hr==='*' && dom==='*' && mon==='*' && dow==='*') return 'minutely'
+  if (/^\d+$/.test(min) && hr==='*' && dom==='*' && mon==='*' && dow==='*') return 'hourly'
+  if (/^\d+$/.test(min) && /^\d+$/.test(hr) && dom==='*' && mon==='*' && dow==='*') return 'daily'
+  if (/^\d+$/.test(min) && /^\d+$/.test(hr) && dom==='*' && mon==='*' && /^\d+$/.test(dow)) return 'weekly'
+  if (/^\d+$/.test(min) && /^\d+$/.test(hr) && /^\d+$/.test(dom) && mon==='*' && dow==='*') return 'monthly'
+  return 'custom'
+}
+
+function parseCronState(cron: string): CronState {
+  const p = cron.trim().split(/\s+/)
+  if (p.length !== 5) return { n: 5, minute: 0, hour: 8, weekday: 1, monthDay: 1 }
+  const [min, hr, dom, , dow] = p
+  return {
+    n:        parseInt(min.replace('*/', '')) || 5,
+    minute:   parseInt(min) || 0,
+    hour:     parseInt(hr) || 8,
+    weekday:  parseInt(dow) || 1,
+    monthDay: parseInt(dom) || 1,
+  }
+}
+
+function buildCronStr(freq: Freq, s: CronState): string {
+  switch (freq) {
+    case 'minutely': return `*/${s.n} * * * *`
+    case 'hourly':   return `${s.minute} * * * *`
+    case 'daily':    return `${s.minute} ${s.hour} * * *`
+    case 'weekly':   return `${s.minute} ${s.hour} * * ${s.weekday}`
+    case 'monthly':  return `${s.minute} ${s.hour} ${s.monthDay} * *`
+    default:         return ''
+  }
+}
+
+function CronBuilder({ defaultValue, onChange }: { defaultValue: string; onChange: (v: string) => void }) {
+  const [freq, setFreq]       = useState<Freq>(() => detectFreq(defaultValue))
+  const [state, setCronState] = useState<CronState>(() => parseCronState(defaultValue))
+  const [rawCron, setRawCron] = useState(defaultValue)
+  const mounted = useRef(false)
+
+  const currentCron = freq === 'custom' ? rawCron : freq === 'none' ? '' : buildCronStr(freq, state)
+
+  useEffect(() => {
+    if (!mounted.current) { mounted.current = true; return }
+    onChange(currentCron)
+  }, [currentCron])
+
+  const { data: nextData } = useQuery({
+    queryKey: ['cron-next', currentCron],
+    queryFn:  () => getCronNext(currentCron),
+    enabled:  !!currentCron && currentCron.trim().split(/\s+/).length === 5,
+    staleTime: 60_000,
+    retry: false,
+  })
+
+  const upd = (key: keyof CronState, val: number) => setCronState(s => ({ ...s, [key]: val }))
+  const muted: React.CSSProperties = { fontSize: 12.5, color: '#94A3B8' }
+  const row:   React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={row}>
+        <select className="input" value={freq} onChange={e => setFreq(e.target.value as Freq)} style={{ height: 34, width: 160 }}>
+          <option value="none">No schedule</option>
+          <option value="minutely">Every N minutes</option>
+          <option value="hourly">Hourly</option>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+          <option value="custom">Custom (raw cron)</option>
+        </select>
+
+        {freq === 'minutely' && (<>
+          <span style={muted}>every</span>
+          <input className="input" type="number" min={1} max={59} value={state.n} onChange={e => upd('n', +e.target.value)} style={{ width: 64, height: 34 }} />
+          <span style={muted}>minutes</span>
+        </>)}
+
+        {freq === 'hourly' && (<>
+          <span style={muted}>at minute</span>
+          <input className="input" type="number" min={0} max={59} value={state.minute} onChange={e => upd('minute', +e.target.value)} style={{ width: 64, height: 34 }} />
+        </>)}
+
+        {(freq === 'daily' || freq === 'weekly' || freq === 'monthly') && (<>
+          <span style={muted}>at</span>
+          <select className="input" value={state.hour} onChange={e => upd('hour', +e.target.value)} style={{ height: 34, width: 80 }}>
+            {Array.from({length: 24}, (_, i) => <option key={i} value={i}>{String(i).padStart(2,'0')}:00</option>)}
+          </select>
+          <input className="input" type="number" min={0} max={59} value={state.minute} onChange={e => upd('minute', +e.target.value)} style={{ width: 56, height: 34 }} title="Minute (0–59)" />
+        </>)}
+
+        {freq === 'weekly' && (<>
+          <span style={muted}>on</span>
+          <select className="input" value={state.weekday} onChange={e => upd('weekday', +e.target.value)} style={{ height: 34, width: 110 }}>
+            {DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
+          </select>
+        </>)}
+
+        {freq === 'monthly' && (<>
+          <span style={muted}>on day</span>
+          <input className="input" type="number" min={1} max={31} value={state.monthDay} onChange={e => upd('monthDay', +e.target.value)} style={{ width: 64, height: 34 }} />
+        </>)}
+
+        {freq === 'custom' && (
+          <input className="input mono-input" value={rawCron} onChange={e => setRawCron(e.target.value)} placeholder="0 8 * * 1-5" style={{ width: 160, height: 34 }} />
+        )}
+      </div>
+
+      {currentCron && freq !== 'custom' && (
+        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#475569' }}>
+          {currentCron}
+        </div>
+      )}
+
+      {nextData?.next_runs && nextData.next_runs.length > 0 && (
+        <div style={{ fontSize: 11.5, color: '#64748B', display: 'flex', flexWrap: 'wrap', gap: '4px 14px' }}>
+          <span style={{ color: '#475569', fontWeight: 500, marginRight: 4 }}>Next runs:</span>
+          {nextData.next_runs.map((t, i) => (
+            <span key={i} style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+              {new Date(t).toLocaleString('en-US', { weekday:'short', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', timeZoneName:'short' })}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }

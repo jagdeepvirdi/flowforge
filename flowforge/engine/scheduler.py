@@ -84,13 +84,14 @@ def _run_pipeline_job(pipeline_id: str, pipeline_name: str) -> None:
 
     try:
         with current_app.app_context():
-            steps, pipeline_vars = load_pipeline(pipeline_id)
+            steps, pipeline_vars, secret_keys = load_pipeline(pipeline_id)
             run_pipeline(
                 pipeline_name=pipeline_name,
                 steps=steps,
                 pipeline_vars=pipeline_vars,
                 triggered_by='scheduler',
                 pipeline_id=pipeline_id,
+                secret_var_keys=secret_keys,
             )
     except Exception as e:
         logger.error("Scheduled run of '%s' failed: %s", pipeline_name, e)

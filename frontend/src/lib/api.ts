@@ -39,6 +39,7 @@ export const login = (username: string, password: string) =>
 
 // Pipelines
 export const getPipelines    = () => get<import('./types').Pipeline[]>('/pipelines')
+export const getCronNext     = (expr: string) => get<{ next_runs: string[] }>(`/pipelines/cron-next?expr=${encodeURIComponent(expr)}`)
 export const getPipeline     = (id: string) => get<import('./types').Pipeline>(`/pipelines/${id}`)
 export const createPipeline  = (data: Partial<import('./types').Pipeline>) => post<import('./types').Pipeline>('/pipelines', data)
 export const updatePipeline  = (id: string, data: Partial<import('./types').Pipeline>) => put<import('./types').Pipeline>(`/pipelines/${id}`, data)
@@ -102,6 +103,14 @@ export const getRuns = (params?: { pipeline_id?: string; status?: string; limit?
   return get<import('./types').PipelineRun[]>(`/runs${q ? `?${q}` : ''}`)
 }
 export const getRun = (id: string) => get<import('./types').PipelineRun>(`/runs/${id}`)
+
+// Setup / OAuth status
+export type SetupStatus = {
+  gmail:        { configured: boolean; sender: string }
+  drive:        { configured: boolean; folder_id: string }
+  microsoft365: { configured: boolean; sender: string }
+}
+export const getSetupStatus = () => get<SetupStatus>('/setup/status')
 
 export async function downloadStepOutput(stepRunId: string, filename: string): Promise<void> {
   const token = useAuth.getState().token

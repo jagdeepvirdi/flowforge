@@ -257,6 +257,20 @@ body {
   50%      { box-shadow: 0 0 0 5px rgba(59,130,246,0); }
 }
 
+@keyframes ff-accent-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(249,115,22,0.7); }
+  50%      { box-shadow: 0 0 0 4px rgba(249,115,22,0); }
+}
+.ff-help-dot {
+  position: absolute;
+  top: 7px; right: 7px;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  pointer-events: none;
+  animation: ff-accent-pulse 1.8s ease-in-out infinite;
+}
+
 /* ── Type badges ────────────────────────────────────── */
 .tbadge {
   display: inline-flex;

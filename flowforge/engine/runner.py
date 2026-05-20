@@ -19,6 +19,28 @@ class PipelineResult:
     run_id: str = ''
 
 
+_BUILT_IN_VAR_KEYS = (
+    'current_date', 'current_month', 'current_year', 'yesterday',
+    'week_start', 'week_end', 'month_start', 'month_end',
+    'quarter_start', 'quarter_end', 'timestamp', 'run_id', 'pipeline_name',
+)
+_CONTEXT_META_KEYS = frozenset(_BUILT_IN_VAR_KEYS) | {'env', 'steps', 'triggered_by', 'vars'}
+
+
+def _build_vars_log(context: dict, secret_keys: set[str] | None) -> str:
+    secret_keys = secret_keys or set()
+    sep = '─' * 42
+    lines = [sep, 'Variables resolved:']
+    for key in _BUILT_IN_VAR_KEYS:
+        if key in context:
+            lines.append(f'  {key:<20} {context[key]}')
+    for key, val in context.items():
+        if key not in _CONTEXT_META_KEYS:
+            lines.append(f'  {key:<20} {"***" if key in secret_keys else val}')
+    lines.append(sep)
+    return '\n'.join(lines)
+
+
 def run_pipeline(
     pipeline_name: str,
     steps: list[BaseStep],
@@ -26,12 +48,14 @@ def run_pipeline(
     triggered_by: str = 'api',
     pipeline_id: str | None = None,
     existing_run_id: str | None = None,
+    secret_var_keys: set[str] | None = None,
 ) -> PipelineResult:
     """Execute an ordered list of steps, threading context between them."""
     from flowforge.engine.context import build
 
     context = build(pipeline_name, pipeline_vars=pipeline_vars)
     context['triggered_by'] = triggered_by
+    vars_log = _build_vars_log(context, secret_var_keys)
 
     result = PipelineResult(success=True, pipeline_name=pipeline_name)
 
@@ -70,7 +94,7 @@ def run_pipeline(
         if step_result.output_variables:
             context.update(step_result.output_variables)
 
-        _write_step_run(run_record, step, step_order, step_result, step_start, step_end, duration_ms)
+        _write_step_run(run_record, step, step_order, step_result, step_start, step_end, duration_ms, vars_log)
 
         if not step_result.success:
             result.steps_failed += 1
@@ -122,11 +146,12 @@ def _create_run_record(pipeline_id, pipeline_name, triggered_by, existing_run_id
         return None
 
 
-def _write_step_run(run_record, step, step_order, step_result, started_at, finished_at, duration_ms):
+def _write_step_run(run_record, step, step_order, step_result, started_at, finished_at, duration_ms, vars_log=''):
     if not run_record:
         return
     try:
         from flowforge.db.models import StepRun, db
+        combined_logs = '\n\n'.join(filter(None, [vars_log, step_result.logs])) or None
         sr = StepRun(
             pipeline_run_id=run_record.id,
             step_name=step.name,
@@ -140,7 +165,7 @@ def _write_step_run(run_record, step, step_order, step_result, started_at, finis
             output_path=step_result.output_path or None,
             drive_url=step_result.drive_url or None,
             email_sent_to=step_result.extra.get('email_sent_to') if step_result.extra else None,
-            logs=step_result.logs or None,
+            logs=combined_logs,
             error_message=step_result.error or None,
         )
         db.session.add(sr)

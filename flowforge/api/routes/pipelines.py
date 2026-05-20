@@ -7,6 +7,18 @@ from flowforge.db.models import Pipeline, PipelineVariable, db
 bp = Blueprint('pipelines', __name__)
 
 
+def _validate_cron(expr: str) -> str | None:
+    """Return an error string if expr is not a valid 5-field cron expression, else None."""
+    if not expr:
+        return None
+    try:
+        from apscheduler.triggers.cron import CronTrigger
+        CronTrigger.from_crontab(expr)
+        return None
+    except Exception as e:
+        return str(e)
+
+
 def _pipeline_dict(p: Pipeline) -> dict:
     return {
         'id': p.id,
@@ -48,12 +60,42 @@ def list_pipelines():
     return jsonify([_pipeline_dict(p) for p in pipelines])
 
 
+@bp.get('/pipelines/cron-next')
+@require_auth
+def cron_next_runs():
+    expr = request.args.get('expr', '').strip()
+    n = min(int(request.args.get('n', 5)), 10)
+    if not expr:
+        return jsonify({'error': 'expr is required'}), 400
+    err = _validate_cron(expr)
+    if err:
+        return jsonify({'error': err}), 400
+    try:
+        from datetime import datetime, timezone
+        from apscheduler.triggers.cron import CronTrigger
+        trigger = CronTrigger.from_crontab(expr, timezone='UTC')
+        times, t = [], datetime.now(timezone.utc)
+        for _ in range(n):
+            t = trigger.get_next_fire_time(t, t)
+            if t is None:
+                break
+            times.append(t.isoformat())
+        return jsonify({'next_runs': times})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+
 @bp.post('/pipelines')
 @require_auth
 def create_pipeline():
     data = request.get_json()
     if not data or not data.get('name'):
         return jsonify({'error': 'name is required'}), 400
+
+    if data.get('schedule'):
+        err = _validate_cron(data['schedule'])
+        if err:
+            return jsonify({'error': f'Invalid cron expression: {err}'}), 400
 
     pipeline = Pipeline(
         name=data['name'],
@@ -96,6 +138,11 @@ def update_pipeline(pipeline_id):
         return jsonify({'error': 'Pipeline not found'}), 404
 
     data = request.get_json() or {}
+    if data.get('schedule'):
+        err = _validate_cron(data['schedule'])
+        if err:
+            return jsonify({'error': f'Invalid cron expression: {err}'}), 400
+
     for field in ('name', 'description', 'schedule', 'enabled', 'timeout_minutes'):
         if field in data:
             setattr(pipeline, field, data[field])
@@ -142,7 +189,7 @@ def trigger_run(pipeline_id):
     db.session.commit()
     run_id = run.id
 
-    steps, pipeline_vars = load_pipeline(str(pipeline_id))
+    steps, pipeline_vars, secret_keys = load_pipeline(str(pipeline_id))
     app = current_app._get_current_object()
     pid = str(pipeline_id)
     pname = pipeline.name
@@ -156,6 +203,7 @@ def trigger_run(pipeline_id):
                 triggered_by='web_ui',
                 pipeline_id=pid,
                 existing_run_id=run_id,
+                secret_var_keys=secret_keys,
             )
 
     threading.Thread(target=_run_in_background, daemon=True).start()
