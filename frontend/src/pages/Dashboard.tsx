@@ -1,11 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { Plus, RefreshCw, Clock, Calendar, History, Pencil, Play } from 'lucide-react'
+import { Plus, Clock, Calendar, History, Pencil, Play } from 'lucide-react'
 import { getPipelines, getPipelineRuns, runPipeline, getRuns } from '../lib/api'
 import type { Pipeline, PipelineRun } from '../lib/types'
 import StatusBadge from '../components/shared/StatusBadge'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
+import PageIntro from '../components/shared/PageIntro'
 
 function fmtDur(ms: number | null): string {
   if (!ms) return '—'
@@ -118,7 +119,6 @@ function MetaCol({ label, value, icon, mono }: { label: string; value: string; i
 }
 
 export default function Dashboard() {
-  const qc = useQueryClient()
   const { data: pipelines = [], isLoading } = useQuery({ queryKey: ['pipelines'], queryFn: getPipelines })
   const { data: recentRuns = [] } = useQuery({
     queryKey: ['runs'],
@@ -149,15 +149,12 @@ export default function Dashboard() {
     <>
       <TopBar
         crumbs={['Workspace', 'Dashboard']}
-        actions={
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-sm" onClick={() => qc.invalidateQueries()}><RefreshCw size={12} /> Refresh</button>
-            <Link to="/pipelines/new" className="btn btn-primary btn-sm"><Plus size={12} /> New Pipeline</Link>
-          </div>
-        }
+        helpTopic="dashboard"
+        actions={<Link to="/pipelines/new" className="btn btn-primary btn-sm"><Plus size={12} /> New Pipeline</Link>}
       />
 
       <div className="scroll">
+        <PageIntro page="dashboard" />
         <div className="page-h">
           <div>
             <h1>Dashboard</h1>
