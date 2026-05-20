@@ -66,6 +66,7 @@ export default function EmailEdit() {
   const [driveMsg, setDriveMsg]       = useState('')
   const [saving, setSaving]           = useState(false)
   const [error, setError]             = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (existing) {
@@ -80,8 +81,12 @@ export default function EmailEdit() {
   }, [existing])
 
   const handleSave = async () => {
-    if (!name.trim()) { setError('Name is required'); return }
-    if (!subject.trim()) { setError('Subject is required'); return }
+    const errs: Record<string, string> = {}
+    if (!name.trim()) errs.name = 'Name is required'
+    if (!subject.trim()) errs.subject = 'Subject is required'
+    if (!groupId && to.length === 0) errs.recipients = 'Add at least one recipient address or select a group'
+    if (Object.keys(errs).length) { setFieldErrors(errs); return }
+    setFieldErrors({})
     setSaving(true); setError('')
     try {
       const payload = {
@@ -137,11 +142,12 @@ export default function EmailEdit() {
 
             {/* Details */}
             <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#F1F5F9' }}>Details</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Details</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div className="field">
                   <label>Name *</label>
-                  <input className="input" value={name} onChange={e => setName(e.target.value)} />
+                  <input className="input" value={name} onChange={e => { setName(e.target.value); if (fieldErrors.name) setFieldErrors(f => ({ ...f, name: '' })) }} />
+                  {fieldErrors.name && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{fieldErrors.name}</span>}
                 </div>
                 <div className="field">
                   <label>Provider</label>
@@ -163,7 +169,8 @@ export default function EmailEdit() {
               </div>
               <div className="field">
                 <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Subject<FieldTooltip field="variables" /></label>
-                <input className="input" value={subject} onChange={e => setSubject(e.target.value)} placeholder="Monthly Report — {{ current_month }}" />
+                <input className="input" value={subject} onChange={e => { setSubject(e.target.value); if (fieldErrors.subject) setFieldErrors(f => ({ ...f, subject: '' })) }} placeholder="Monthly Report — {{ current_month }}" />
+                {fieldErrors.subject && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{fieldErrors.subject}</span>}
               </div>
               <div className="field">
                 <label>Header text</label>
@@ -173,9 +180,9 @@ export default function EmailEdit() {
 
             {/* Recipients */}
             <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#F1F5F9' }}>Recipients</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Recipients</div>
               <div className="field">
-                <label>Recipient group <span style={{ color: '#64748B', fontWeight: 400 }}>(overrides To addresses)</span></label>
+                <label>Recipient group <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(overrides To addresses)</span></label>
                 <select className="input" value={groupId} onChange={e => setGroupId(e.target.value)}>
                   <option value="">Use direct addresses</option>
                   {groups.map(g => <option key={g.id} value={g.id}>{g.name} ({g.addresses.length} recipients)</option>)}
@@ -183,8 +190,9 @@ export default function EmailEdit() {
               </div>
               {!groupId && (
                 <div className="field">
-                  <label>To addresses <span style={{ color: '#64748B', fontWeight: 400 }}>(Enter or comma to add)</span></label>
-                  <ChipInput values={to} onChange={setTo} placeholder="recipient@example.com" />
+                  <label>To addresses <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(Enter or comma to add)</span></label>
+                  <ChipInput values={to} onChange={v => { setTo(v); if (fieldErrors.recipients) setFieldErrors(f => ({ ...f, recipients: '' })) }} placeholder="recipient@example.com" />
+                  {fieldErrors.recipients && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{fieldErrors.recipients}</span>}
                 </div>
               )}
               <div className="field">
@@ -199,7 +207,7 @@ export default function EmailEdit() {
 
             {/* Body */}
             <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#F1F5F9', display: 'flex', alignItems: 'center', gap: 6 }}>Body template <span style={{ color: '#64748B', fontWeight: 400, fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }}>HTML + Jinja2</span><FieldTooltip field="body_template" /></div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>Body template <span style={{ color: '#64748B', fontWeight: 400, fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }}>HTML + Jinja2</span><FieldTooltip field="body_template" /></div>
               <textarea
                 className="input mono-input"
                 rows={14}
@@ -216,19 +224,19 @@ export default function EmailEdit() {
 
             {/* Smart attachment */}
             <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#F1F5F9' }}>Smart Attachments</div>
-              <p style={{ fontSize: 12, color: '#64748B', margin: 0, lineHeight: 1.5 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Smart Attachments</div>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
                 Files over the size limit are uploaded to Google Drive and a link is sent instead.
               </p>
               <div className="field">
                 <label style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Max attachment size<FieldTooltip field="attachment_max_mb" /></span>
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace', color: '#F97316' }}>{maxMb} MB</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{maxMb} MB</span>
                 </label>
                 <input
                   type="range" min={1} max={50} value={maxMb}
                   onChange={e => setMaxMb(+e.target.value)}
-                  style={{ width: '100%', accentColor: '#F97316', cursor: 'pointer' }}
+                  style={{ width: '100%', accentColor: 'var(--accent)', cursor: 'pointer' }}
                 />
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#475569', marginTop: 2 }}>
                   <span>1 MB</span><span>50 MB</span>
@@ -253,11 +261,11 @@ export default function EmailEdit() {
 
             {/* Variable reference */}
             <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#F1F5F9' }}>Available variables</div>
-              <p style={{ fontSize: 11.5, color: '#64748B', margin: 0 }}>Use in subject, header text, and body template.</p>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Available variables</div>
+              <p style={{ fontSize: 11.5, color: 'var(--text-muted)', margin: 0 }}>Use in subject, header text, and body template.</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {TEMPLATE_VARS.map(v => (
-                  <code key={v} className="mono" style={{ fontSize: 11, color: '#94A3B8', background: '#21252F', border: '1px solid #2D3143', borderRadius: 4, padding: '3px 8px', display: 'block' }}>
+                  <code key={v} className="mono" style={{ fontSize: 11, color: '#94A3B8', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 4, padding: '3px 8px', display: 'block' }}>
                     {v}
                   </code>
                 ))}

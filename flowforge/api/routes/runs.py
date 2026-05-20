@@ -54,13 +54,14 @@ def list_runs():
     pipeline_id = request.args.get('pipeline_id')
     status      = request.args.get('status')
     limit       = min(int(request.args.get('limit', 100)), 500)
+    offset      = max(int(request.args.get('offset', 0)), 0)
 
     if pipeline_id:
         query = query.filter(PipelineRun.pipeline_id == pipeline_id)
     if status:
         query = query.filter(PipelineRun.status == status)
 
-    runs = query.limit(limit).all()
+    runs = query.offset(offset).limit(limit).all()
     return jsonify([_run_dict(r) for r in runs])
 
 

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useState, useEffect } from 'react'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Search, ChevronRight, Clock, User } from 'lucide-react'
 import { getRuns, getPipelines } from '../lib/api'
@@ -15,6 +15,7 @@ function fmtDur(ms: number | null) {
   return `${Math.floor(ms / 60_000)}m ${Math.floor((ms % 60_000) / 1000)}s`
 }
 
+const PAGE_SIZE = 50
 const TIME_TABS = ['24h', '7d', '30d', 'All']
 
 export default function RunHistory() {
@@ -22,14 +23,18 @@ export default function RunHistory() {
   const [filterPipeline, setFilterPipeline] = useState('')
   const [filterStatus, setFilterStatus]     = useState('')
   const [search, setSearch] = useState('')
+  const [limit, setLimit]   = useState(PAGE_SIZE)
 
-  const { data: runs = [], isLoading } = useQuery({
-    queryKey: ['runs', filterPipeline, filterStatus],
+  useEffect(() => { setLimit(PAGE_SIZE) }, [filterPipeline, filterStatus])
+
+  const { data: runs = [], isLoading, isFetching } = useQuery({
+    queryKey: ['runs', filterPipeline, filterStatus, limit],
     queryFn: () => getRuns({
       pipeline_id: filterPipeline || undefined,
       status:      filterStatus   || undefined,
-      limit: 200,
+      limit,
     }),
+    placeholderData: keepPreviousData,
     refetchInterval: 10_000,
   })
   const { data: pipelines = [] } = useQuery({ queryKey: ['pipelines'], queryFn: getPipelines })
@@ -59,12 +64,12 @@ export default function RunHistory() {
             <p>{filtered.length} runs</p>
           </div>
           {/* Time tabs */}
-          <div style={{ display: 'flex', gap: 1, background: '#21252F', borderRadius: 7, padding: 2, border: '1px solid #2D3143' }}>
+          <div style={{ display: 'flex', gap: 1, background: 'var(--surface-2)', borderRadius: 7, padding: 2, border: '1px solid var(--border)' }}>
             {TIME_TABS.map(t => (
               <button key={t} onClick={() => setTimeTab(t)} style={{
-                background: timeTab === t ? '#1A1D27' : 'transparent',
+                background: timeTab === t ? 'var(--surface)' : 'transparent',
                 border: 'none',
-                color: timeTab === t ? '#F1F5F9' : '#64748B',
+                color: timeTab === t ? 'var(--text)' : 'var(--text-muted)',
                 padding: '5px 12px',
                 borderRadius: 5,
                 fontSize: 12,
@@ -93,12 +98,12 @@ export default function RunHistory() {
 
         {/* Filters */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#1A1D27', border: '1px solid #2D3143', borderRadius: 8, padding: '0 12px', height: 34, flex: 1, maxWidth: 320 }}>
-            <Search size={14} style={{ color: '#64748B' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '0 12px', height: 34, flex: 1, maxWidth: 320 }}>
+            <Search size={14} style={{ color: 'var(--text-muted)' }} />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              style={{ background: 'transparent', border: 'none', outline: 'none', color: '#F1F5F9', fontSize: 13, fontFamily: 'inherit', flex: 1 }}
+              style={{ background: 'transparent', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 13, fontFamily: 'inherit', flex: 1 }}
               placeholder="Search by run ID, pipeline…"
             />
           </div>
@@ -147,7 +152,7 @@ export default function RunHistory() {
               {filtered.map(r => (
                 <tr key={r.id}>
                   <td><StatusBadge status={r.status} animate /></td>
-                  <td style={{ color: '#F1F5F9', fontWeight: 500 }}>{r.pipeline_name}</td>
+                  <td style={{ color: 'var(--text)', fontWeight: 500 }}>{r.pipeline_name}</td>
                   <td className="mono" style={{ color: '#94A3B8', fontSize: 11.5 }}>{r.id.slice(0, 12)}…</td>
                   <td>
                     <span style={{ fontSize: 11.5, color: '#94A3B8', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
@@ -166,6 +171,17 @@ export default function RunHistory() {
               ))}
             </tbody>
           </table>
+          {runs.length === limit && (
+            <div style={{ padding: '12px 0', textAlign: 'center', borderTop: '1px solid var(--border)' }}>
+              <button
+                className="btn btn-sm"
+                onClick={() => setLimit(l => l + PAGE_SIZE)}
+                disabled={isFetching}
+              >
+                {isFetching ? <Spinner size={11} /> : null} Load more
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </>

@@ -58,6 +58,7 @@ export default function PipelineEdit() {
   const [steps, setSteps]         = useState<PipelineStep[]>([])
   const [saving, setSaving]       = useState(false)
   const [error, setError]         = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (existing) {
@@ -94,7 +95,11 @@ export default function PipelineEdit() {
   }
 
   const handleSave = async () => {
-    if (!name.trim()) { setError('Pipeline name is required'); return }
+    const errs: Record<string, string> = {}
+    if (!name.trim()) errs.name = 'Pipeline name is required'
+    if (timeout < 1) errs.timeout = 'Timeout must be at least 1 minute'
+    if (Object.keys(errs).length) { setFieldErrors(errs); return }
+    setFieldErrors({})
     setSaving(true)
     setError('')
     try {
@@ -161,11 +166,12 @@ export default function PipelineEdit() {
 
         {/* Basic info */}
         <div className="card" style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#F1F5F9' }}>Details</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Details</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div className="field">
               <label>Name *</label>
-              <input className="input" value={name} onChange={e => setName(e.target.value)} />
+              <input className="input" value={name} onChange={e => { setName(e.target.value); if (fieldErrors.name) setFieldErrors(f => ({ ...f, name: '' })) }} />
+              {fieldErrors.name && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{fieldErrors.name}</span>}
             </div>
             <div className="field">
               <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -183,12 +189,13 @@ export default function PipelineEdit() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
-              <input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} style={{ accentColor: '#F97316', width: 15, height: 15 }} />
-              <span style={{ color: '#F1F5F9' }}>Enabled</span>
+              <input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} style={{ accentColor: 'var(--accent)', width: 15, height: 15 }} />
+              <span style={{ color: 'var(--text)' }}>Enabled</span>
             </label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 11.5, color: '#94A3B8', fontWeight: 500 }}>Timeout (min)</span>
-              <input className="input" type="number" min={1} value={timeout} onChange={e => setTimeout_(+e.target.value)} style={{ width: 70, height: 30, padding: '4px 8px', fontSize: 12 }} />
+              <span style={{ fontSize: 11.5, color: 'var(--text-muted)', fontWeight: 500 }}>Timeout (min)</span>
+              <input className="input" type="number" min={1} value={timeout} onChange={e => { setTimeout_(+e.target.value); if (fieldErrors.timeout) setFieldErrors(f => ({ ...f, timeout: '' })) }} style={{ width: 70, height: 30, padding: '4px 8px', fontSize: 12 }} />
+              {fieldErrors.timeout && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{fieldErrors.timeout}</span>}
             </div>
           </div>
         </div>
@@ -196,7 +203,7 @@ export default function PipelineEdit() {
         {/* Steps */}
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#F1F5F9' }}>Steps <span style={{ fontFamily: 'JetBrains Mono, monospace', color: '#64748B', fontSize: 11 }}>({steps.length})</span></span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Steps <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', fontSize: 11 }}>({steps.length})</span></span>
             <div style={{ display: 'flex', gap: 4 }}>
               {STEP_TYPES.map(t => (
                 <button key={t} className="btn btn-sm" onClick={() => addNewStep(t)}>
@@ -351,16 +358,16 @@ function CronBuilder({ defaultValue, onChange }: { defaultValue: string; onChang
       </div>
 
       {currentCron && freq !== 'custom' && (
-        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#475569' }}>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-dim)' }}>
           {currentCron}
         </div>
       )}
 
       {nextData?.next_runs && nextData.next_runs.length > 0 && (
-        <div style={{ fontSize: 11.5, color: '#64748B', display: 'flex', flexWrap: 'wrap', gap: '4px 14px' }}>
-          <span style={{ color: '#475569', fontWeight: 500, marginRight: 4 }}>Next runs:</span>
+        <div style={{ fontSize: 11.5, color: 'var(--text-muted)', display: 'flex', flexWrap: 'wrap', gap: '4px 14px' }}>
+          <span style={{ color: 'var(--text-dim)', fontWeight: 500, marginRight: 4 }}>Next runs:</span>
           {nextData.next_runs.map((t, i) => (
-            <span key={i} style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+            <span key={i} style={{ fontFamily: 'var(--font-mono)' }}>
               {new Date(t).toLocaleString('en-US', { weekday:'short', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', timeZoneName:'short' })}
             </span>
           ))}

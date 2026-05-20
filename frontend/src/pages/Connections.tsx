@@ -214,17 +214,17 @@ export default function Connections() {
             return (
               <button key={t.id} onClick={() => setTab(t.id)} style={{
                 background: 'transparent', border: 'none',
-                color: active ? '#F97316' : '#94A3B8',
+                color: active ? 'var(--accent)' : '#94A3B8',
                 padding: '10px 16px', fontSize: 13,
                 fontWeight: active ? 600 : 500,
                 cursor: 'pointer',
-                borderBottom: active ? '2px solid #F97316' : '2px solid transparent',
+                borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
                 marginBottom: -1,
                 display: 'flex', alignItems: 'center', gap: 8,
                 fontFamily: 'inherit',
               }}>
                 {t.label}
-                <span style={{ fontSize: 10.5, color: active ? '#FB923C' : '#64748B', background: active ? 'rgba(249,115,22,0.14)' : '#21252F', padding: '1px 6px', borderRadius: 999, fontFamily: 'JetBrains Mono, monospace' }}>
+                <span style={{ fontSize: 10.5, color: active ? 'var(--accent-h)' : 'var(--text-muted)', background: active ? 'var(--accent-soft)' : 'var(--surface-2)', padding: '1px 6px', borderRadius: 999, fontFamily: 'var(--font-mono)' }}>
                   {t.count}
                 </span>
               </button>
@@ -250,8 +250,8 @@ export default function Connections() {
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: '#F1F5F9' }}>{c.name}</span>
-                        <span className="mono" style={{ fontSize: 10.5, padding: '1px 6px', borderRadius: 4, background: '#21252F', color: '#94A3B8' }}>{label}</span>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{c.name}</span>
+                        <span className="mono" style={{ fontSize: 10.5, padding: '1px 6px', borderRadius: 4, background: 'var(--surface-2)', color: '#94A3B8' }}>{label}</span>
                         {ts === 'ok'   && <StatusBadge status="success" label="Healthy" />}
                         {ts === 'fail' && <StatusBadge status="failed"  label="Unreachable" />}
                       </div>
@@ -301,8 +301,8 @@ export default function Connections() {
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: '#F1F5F9' }}>{p.name}</span>
-                        <span className="mono" style={{ fontSize: 10.5, padding: '1px 6px', borderRadius: 4, background: '#21252F', color: '#94A3B8' }}>{p.provider_type}</span>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{p.name}</span>
+                        <span className="mono" style={{ fontSize: 10.5, padding: '1px 6px', borderRadius: 4, background: 'var(--surface-2)', color: '#94A3B8' }}>{p.provider_type}</span>
                         {ts === 'ok'   && <StatusBadge status="success" label="Verified" />}
                         {ts === 'fail' && <StatusBadge status="failed"  label="Failed" />}
                       </div>
@@ -345,7 +345,7 @@ export default function Connections() {
 
             {/* Header + type tabs */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#F1F5F9' }}>{editId ? 'Edit Connection' : 'Add Connection'}</h2>
+              <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>{editId ? 'Edit Connection' : 'Add Connection'}</h2>
               <button className="btn btn-ghost btn-icon" onClick={closeModal}><X size={15} /></button>
             </div>
 
@@ -354,8 +354,8 @@ export default function Connections() {
               {(['db', 'mail'] as Tab[]).map(t => (
                 <button key={t} onClick={() => setTab(t)} className="btn btn-sm" style={{
                   background: tab === t ? 'rgba(249,115,22,0.15)' : 'transparent',
-                  color: tab === t ? '#F97316' : '#94A3B8',
-                  border: `1px solid ${tab === t ? 'rgba(249,115,22,0.4)' : '#2D3143'}`,
+                  color: tab === t ? 'var(--accent)' : '#94A3B8',
+                  border: `1px solid ${tab === t ? 'rgba(249,115,22,0.4)' : 'var(--border)'}`,
                 }}>
                   {t === 'db' ? 'Database' : 'Email Provider'}
                 </button>

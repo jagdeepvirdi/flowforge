@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../lib/auth'
 import { getRuns } from '../../lib/api'
 import HelpDrawer from './HelpDrawer'
+import RouteErrorBoundary from './RouteErrorBoundary'
 
 const NAV_MAIN = [
   { to: '/dashboard',   label: 'Dashboard',       icon: 'dashboard' },
@@ -73,9 +74,9 @@ export default function Layout() {
             </svg>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#F1F5F9', letterSpacing: '-0.01em', lineHeight: 1.1 }}>FlowForge</span>
-            <span style={{ fontSize: 10.5, color: '#64748B', fontFamily: 'JetBrains Mono, monospace', display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#22C55E', boxShadow: '0 0 6px #22C55E' }} />
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.01em', lineHeight: 1.1 }}>FlowForge</span>
+            <span style={{ fontSize: 10.5, color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--success)', boxShadow: '0 0 6px var(--success)' }} />
               production
             </span>
           </div>
@@ -89,7 +90,7 @@ export default function Layout() {
                 {({ isActive }) => (
                   <>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ color: isActive ? '#F97316' : '#64748B' }}><NavIcon name={icon} /></span>
+                      <span style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)' }}><NavIcon name={icon} /></span>
                       {label}
                     </span>
                     {isActive && <span className="ff-active-bar" />}
@@ -107,7 +108,7 @@ export default function Layout() {
                 {({ isActive }) => (
                   <>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ color: isActive ? '#F97316' : '#64748B' }}><NavIcon name={icon} /></span>
+                      <span style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)' }}><NavIcon name={icon} /></span>
                       {label}
                     </span>
                     {isActive && <span className="ff-active-bar" />}
@@ -118,7 +119,7 @@ export default function Layout() {
             <button
               onClick={() => { clearToken(); navigate('/login') }}
               className="ff-nav-item"
-              style={{ border: 'none', background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer', fontSize: 13, color: '#64748B' }}
+              style={{ border: 'none', background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer', fontSize: 13, color: 'var(--text-muted)' }}
             >
               <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -133,7 +134,7 @@ export default function Layout() {
         {/* Footer stat card */}
         <div className="ff-stat-card">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span style={{ fontSize: 11, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Today</span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Today</span>
             {runsCount > 0 && (
               <span style={{ fontSize: 10.5, color: '#4ADE80', fontWeight: 600 }}>
                 {successCount}/{runsCount} ok
@@ -141,12 +142,12 @@ export default function Layout() {
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 8 }}>
-            <span style={{ fontSize: 22, fontWeight: 600, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '-0.02em', color: '#F1F5F9' }}>{runsCount}</span>
-            <span style={{ fontSize: 11, color: '#64748B' }}>run{runsCount !== 1 ? 's' : ''}</span>
+            <span style={{ fontSize: 22, fontWeight: 600, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '-0.02em', color: 'var(--text)' }}>{runsCount}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>run{runsCount !== 1 ? 's' : ''}</span>
           </div>
           <div className="sparkbars" style={{ height: 22 }}>
             {sparkNorm.map((h, i) => (
-              <span key={i} style={{ height: h, background: i === sparkNorm.length - 1 ? '#F97316' : '#2D3143', width: 4, borderRadius: 1 }} />
+              <span key={i} style={{ height: h, background: i === sparkNorm.length - 1 ? 'var(--accent)' : 'var(--border)', width: 4, borderRadius: 1 }} />
             ))}
           </div>
         </div>
@@ -154,7 +155,9 @@ export default function Layout() {
 
       {/* Main content */}
       <main className="ff-main">
-        <Outlet />
+        <RouteErrorBoundary>
+          <Outlet />
+        </RouteErrorBoundary>
       </main>
 
       <HelpDrawer />

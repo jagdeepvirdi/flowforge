@@ -94,11 +94,12 @@ export const updateRecipientGroup = (id: string, data: Partial<import('./types')
 export const deleteRecipientGroup = (id: string) => del<{ deleted: string }>(`/recipient-groups/${id}`)
 
 // Runs
-export const getRuns = (params?: { pipeline_id?: string; status?: string; limit?: number }) => {
+export const getRuns = (params?: { pipeline_id?: string; status?: string; limit?: number; offset?: number }) => {
   const qs = new URLSearchParams()
   if (params?.pipeline_id) qs.set('pipeline_id', params.pipeline_id)
   if (params?.status)      qs.set('status', params.status)
   if (params?.limit)       qs.set('limit', String(params.limit))
+  if (params?.offset)      qs.set('offset', String(params.offset))
   const q = qs.toString()
   return get<import('./types').PipelineRun[]>(`/runs${q ? `?${q}` : ''}`)
 }

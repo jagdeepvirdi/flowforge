@@ -110,12 +110,12 @@ def run_pipeline(
 
         if not step_result.success:
             result.steps_failed += 1
+            result.success = False
             if step.on_error == 'stop':
                 logger.error(
                     "[%s] Step '%s' failed (on_error=stop). Error: %s",
                     pipeline_name, step.name, step_result.error,
                 )
-                result.success = False
                 result.error = step_result.error
                 _finish_run_record(run_record, success=False, error_step=step.name,
                                    error_message=step_result.error)
@@ -124,6 +124,8 @@ def run_pipeline(
                 "[%s] Step '%s' failed (on_error=continue). Error: %s",
                 pipeline_name, step.name, step_result.error,
             )
+            if not result.error:
+                result.error = step_result.error
     else:
         # Loop completed without break — all steps attempted
         if result.success:

@@ -1,6 +1,7 @@
 """Shared pytest fixtures for FlowForge tests."""
 import os
 import sys
+import uuid
 import pytest
 import bcrypt
 from pathlib import Path
@@ -53,6 +54,17 @@ def apply_migrations():
     cfg = Config()
     cfg.set_main_option('script_location', str(_MIGRATIONS_DIR))
     alembic_cmd.upgrade(cfg, 'head')
+
+    # Seed the test admin user so auth_token fixture can log in
+    seed_engine = create_engine(db_url)
+    _username = os.environ.get('FLOWFORGE_USERNAME', 'testadmin')
+    _hash = bcrypt.hashpw(b'testpass', bcrypt.gensalt(4)).decode()
+    with seed_engine.begin() as conn:
+        conn.execute(
+            text('INSERT INTO ff_users (id, username, password_hash) VALUES (:id, :u, :h)'),
+            {'id': str(uuid.uuid4()), 'u': _username, 'h': _hash},
+        )
+    seed_engine.dispose()
 
 
 @pytest.fixture(scope='session')
