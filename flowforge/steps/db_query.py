@@ -21,6 +21,8 @@ class DbQueryStep(BaseStep):
         if output_table and mode not in _VALID_MODES:
             return StepResult(success=False, error=f"Invalid mode '{mode}'. Must be one of: {', '.join(_VALID_MODES)}")
 
+        output_variable = self.config.get('output_variable', '').strip()
+
         conn = self._get_connection()
         try:
             with conn:
@@ -36,8 +38,12 @@ class DbQueryStep(BaseStep):
                     for row in rows:
                         conn.execute_write(insert_sql, tuple(row))
 
+            output_vars: dict = {}
+            if output_variable and rows:
+                output_vars[output_variable] = rows[0][0]
+
             logger.info("Query returned %d rows", len(rows))
-            return StepResult(success=True, rows_affected=len(rows))
+            return StepResult(success=True, rows_affected=len(rows), output_variables=output_vars)
         except Exception as e:
             logger.error("DB query step failed: %s", e)
             return StepResult(success=False, error=str(e))

@@ -61,10 +61,14 @@ def run_pipeline(
 
         # Expose this step's outputs to downstream steps via {{ steps.name.* }}
         context['steps'][step.name] = {
-            'output_path': step_result.output_path,
-            'drive_url':   step_result.drive_url,
+            'output_path':   step_result.output_path,
+            'drive_url':     step_result.drive_url,
             'rows_affected': step_result.rows_affected,
         }
+
+        # Scalar output variables (e.g. from db_query output_variable) go to top-level context
+        if step_result.output_variables:
+            context.update(step_result.output_variables)
 
         _write_step_run(run_record, step, step_order, step_result, step_start, step_end, duration_ms)
 

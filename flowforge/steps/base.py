@@ -12,6 +12,7 @@ class StepResult:
     logs: str = ''
     error: str = ''
     extra: dict[str, Any] = field(default_factory=dict)
+    output_variables: dict[str, Any] = field(default_factory=dict)
 
 
 class BaseStep(ABC):

@@ -3,6 +3,8 @@ import { ChevronDown, ChevronUp, Trash2, GripVertical } from 'lucide-react'
 import type { PipelineStep, StepType } from '../../lib/types'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import FieldTooltip from '../shared/FieldTooltip'
+import { STEP_HINTS } from '../../lib/helpContent'
 
 const STEP_META: Record<StepType, { label: string; cls: string }> = {
   db_procedure: { label: 'Proc',   cls: 'tbadge-procedure' },
@@ -60,15 +62,18 @@ export default function StepEditor({ step, onChange, onDelete, dbConnections, re
             placeholder="Step name"
           />
 
-          <select
-            className="btn btn-sm"
-            value={step.on_error}
-            onChange={e => onChange(step.id, { on_error: e.target.value as 'stop' | 'continue' })}
-            style={{ cursor: 'pointer', fontSize: 11, height: 26, padding: '0 8px' }}
-          >
-            <option value="stop">Stop on error</option>
-            <option value="continue">Continue on error</option>
-          </select>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <select
+              className="btn btn-sm"
+              value={step.on_error}
+              onChange={e => onChange(step.id, { on_error: e.target.value as 'stop' | 'continue' })}
+              style={{ cursor: 'pointer', fontSize: 11, height: 26, padding: '0 8px' }}
+            >
+              <option value="stop">Stop on error</option>
+              <option value="continue">Continue on error</option>
+            </select>
+            <FieldTooltip field="on_error" />
+          </div>
 
           <button onClick={() => setExpanded(x => !x)} className="btn btn-sm btn-ghost btn-icon">
             {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
@@ -82,6 +87,13 @@ export default function StepEditor({ step, onChange, onDelete, dbConnections, re
 
         {expanded && (
           <div style={{ padding: '0 14px 14px', borderTop: '1px solid #2D3143', display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 12 }}>
+            {/* Contextual hint banner */}
+            {STEP_HINTS[step.step_type] && (
+              <div style={{ fontSize: 12, color: '#64748B', background: '#161922', borderRadius: 6, padding: '7px 10px', lineHeight: 1.5 }}>
+                {STEP_HINTS[step.step_type].summary}
+              </div>
+            )}
+
             {step.step_type === 'db_procedure' && (
               <>
                 <Field label="Connection">
@@ -125,6 +137,12 @@ export default function StepEditor({ step, onChange, onDelete, dbConnections, re
                     </select>
                   </Field>
                 </div>
+                <Field label="Output variable (optional)">
+                  <input className="input mono-input" value={String(cfg.output_variable ?? '')} onChange={e => setConfig('output_variable', e.target.value)} placeholder="e.g. subscription_count" />
+                  <span style={{ fontSize: 11, color: '#64748B', marginTop: 3 }}>
+                    Captures the first column of the first row as <code style={{ color: '#94A3B8' }}>{'{{ subscription_count }}'}</code> in downstream steps.
+                  </span>
+                </Field>
               </>
             )}
 
@@ -161,7 +179,7 @@ export default function StepEditor({ step, onChange, onDelete, dbConnections, re
                   <input className="input mono-input" value={String(cfg.file_path ?? '')} onChange={e => setConfig('file_path', e.target.value)} />
                 </Field>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <Field label="Drive folder ID">
+                  <Field label="Drive folder ID" tooltip={<FieldTooltip field="drive_folder_id" />}>
                     <input className="input" value={String(cfg.folder_id ?? '')} onChange={e => setConfig('folder_id', e.target.value)} />
                   </Field>
                   <Field label="Rename to (optional)">
@@ -177,10 +195,13 @@ export default function StepEditor({ step, onChange, onDelete, dbConnections, re
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, tooltip }: { label: string; children: React.ReactNode; tooltip?: React.ReactNode }) {
   return (
     <div className="field">
-      <label>{label}</label>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        {label}
+        {tooltip}
+      </label>
       {children}
     </div>
   )
