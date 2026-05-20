@@ -29,6 +29,27 @@ services:
         condition: service_healthy
     volumes:
       - output_files:/app/output
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/health', timeout=4)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  scheduler:
+    build: .
+    restart: unless-stopped
+    command: ["flowforge", "schedule"]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      FLOWFORGE_DB_URL: postgresql://flowforge:flowforge@db:5432/flowforge
+    depends_on:
+      app:
+        condition: service_healthy
+    volumes:
+      - output_files:/app/output
 
 volumes:
   postgres_data:

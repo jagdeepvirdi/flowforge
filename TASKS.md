@@ -34,16 +34,16 @@
 
 ---
 
-## Phase 6 — Reliability & Production Readiness 🟠
+## Phase 6 — Reliability & Production Readiness 🟠 *(COMPLETE — 2026-05-20)*
 *Addresses ARCH + OPS findings. Target score: Architecture 6.5 → 8.0, DevOps 6.0 → 7.5*
 
-- [ ] **[ARCH-1a] Add concurrency limit to pipeline execution** — introduce `FLOWFORGE_MAX_CONCURRENT_RUNS` env var (default 5); use a `threading.Semaphore` in `trigger_run` to reject excess runs with HTTP 429.
-- [ ] **[ARCH-1b] Enforce `timeout_minutes` in `runner.py`** — run each pipeline in a `concurrent.futures.ThreadPoolExecutor` with a timeout; on timeout set run status to `failed` with `error_message = "Pipeline timed out"`.
-- [ ] **[ARCH-1c] Sweep stuck `running` runs on startup** — on `create_app()`, query all `PipelineRun` rows with `status='running'` and set them to `failed` with `error_message = "Run interrupted by server restart"`.
-- [ ] **[ARCH-2] Add `scheduler` service to `docker-compose.yml`** — add a second service that runs `flowforge schedule`; share the same image; mount the same `output_files` volume.
-- [ ] **[ARCH-3] Fix stuck-run race condition in `trigger_run`** — wrap `load_pipeline()` call in `try/except`; on failure update the pre-created run record to `failed` before returning 500.
-- [ ] **[OPS-2] Add `healthcheck` to `app` service in `docker-compose.yml`** — `GET /api/health` returns 200; configure `interval: 15s`, `timeout: 5s`, `retries: 3`.
-- [ ] **[OPS-3] Move `_seed_admin` out of `create_app()`** — make it a `flowforge db seed` CLI command; document in getting-started.md; remove the DB query from the app factory.
+- [x] **[ARCH-1a] Add concurrency limit to pipeline execution** — `FLOWFORGE_MAX_CONCURRENT_RUNS` env var (default 5); `threading.Semaphore` in `trigger_run`; excess runs rejected with HTTP 429; semaphore released in `finally` block.
+- [x] **[ARCH-1b] Enforce `timeout_minutes` in `runner.py`** — background thread uses `concurrent.futures.ThreadPoolExecutor`; `.result(timeout=...)` raises `TimeoutError`; run marked `failed` with `"Pipeline timed out"`.
+- [x] **[ARCH-1c] Sweep stuck `running` runs on startup** — `_sweep_stuck_runs()` called from `create_app()`; marks all `status='running'` rows as `failed` with `"Run interrupted by server restart"`; skips silently if table missing.
+- [x] **[ARCH-2] Add `scheduler` service to `docker-compose.yml`** — second service runs `flowforge schedule`; shares image + `output_files` volume; depends on `app: service_healthy`.
+- [x] **[ARCH-3] Fix stuck-run race condition in `trigger_run`** — `load_pipeline()` wrapped in `try/except`; on failure run record is set to `failed` and semaphore is released before returning 500.
+- [x] **[OPS-2] Add `healthcheck` to `app` service in `docker-compose.yml`** — `GET /api/health`; `interval: 15s`, `timeout: 5s`, `retries: 3`, `start_period: 30s`.
+- [x] **[OPS-3] Move `_seed_admin` out of `create_app()`** — `flowforge db seed` CLI command added; documented in getting-started.md; `_seed_admin` removed from app factory, replaced with `_sweep_stuck_runs`.
 
 ---
 

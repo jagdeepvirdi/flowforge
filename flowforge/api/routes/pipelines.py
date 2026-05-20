@@ -1,10 +1,23 @@
+import os
+import threading
+
 from flask import Blueprint, jsonify, request
 
 from flowforge.api.auth import require_auth
 from flowforge.crypto import decrypt_value, encrypt_value
-from flowforge.db.models import Pipeline, PipelineVariable, db
+from flowforge.db.models import Pipeline, PipelineRun, PipelineVariable, db
 
 bp = Blueprint('pipelines', __name__)
+
+_semaphore: threading.Semaphore | None = None
+
+
+def _get_semaphore() -> threading.Semaphore:
+    global _semaphore
+    if _semaphore is None:
+        limit = int(os.environ.get('FLOWFORGE_MAX_CONCURRENT_RUNS', '5'))
+        _semaphore = threading.Semaphore(limit)
+    return _semaphore
 
 
 def _validate_cron(expr: str) -> str | None:
@@ -165,9 +178,9 @@ def delete_pipeline(pipeline_id):
 @bp.post('/pipelines/<uuid:pipeline_id>/run')
 @require_auth
 def trigger_run(pipeline_id):
-    import threading
+    import concurrent.futures
+    from datetime import datetime, timezone
     from flask import current_app
-    from flowforge.db.models import PipelineRun
     from flowforge.engine.loader import load_pipeline
     from flowforge.engine.runner import run_pipeline
 
@@ -177,8 +190,12 @@ def trigger_run(pipeline_id):
     if not pipeline.enabled:
         return jsonify({'error': 'Pipeline is disabled'}), 400
 
+    # ARCH-1a: reject when concurrency limit is reached
+    sem = _get_semaphore()
+    if not sem.acquire(blocking=False):
+        return jsonify({'error': 'Too many concurrent pipeline runs. Try again later.'}), 429
+
     # Pre-create the run record so we can return run_id immediately (202 response).
-    # The background thread takes ownership and updates status when done.
     run = PipelineRun(
         pipeline_id=str(pipeline_id),
         pipeline_name=pipeline.name,
@@ -189,22 +206,53 @@ def trigger_run(pipeline_id):
     db.session.commit()
     run_id = run.id
 
-    steps, pipeline_vars, secret_keys = load_pipeline(str(pipeline_id))
+    # ARCH-3: if load fails, mark the pre-created run as failed before returning 500
+    try:
+        steps, pipeline_vars, secret_keys = load_pipeline(str(pipeline_id))
+    except Exception as e:
+        run.status = 'failed'
+        run.error_message = f'Failed to load pipeline: {e}'
+        run.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        db.session.commit()
+        sem.release()
+        return jsonify({'error': f'Failed to load pipeline: {e}'}), 500
+
     app = current_app._get_current_object()
     pid = str(pipeline_id)
     pname = pipeline.name
+    timeout_minutes = pipeline.timeout_minutes or 60
 
     def _run_in_background():
-        with app.app_context():
-            run_pipeline(
-                pipeline_name=pname,
-                steps=steps,
-                pipeline_vars=pipeline_vars,
-                triggered_by='web_ui',
-                pipeline_id=pid,
-                existing_run_id=run_id,
-                secret_var_keys=secret_keys,
-            )
+        timeout_secs = timeout_minutes * 60
+
+        def _run_with_ctx():
+            with app.app_context():
+                run_pipeline(
+                    pipeline_name=pname,
+                    steps=steps,
+                    pipeline_vars=pipeline_vars,
+                    triggered_by='web_ui',
+                    pipeline_id=pid,
+                    existing_run_id=run_id,
+                    secret_var_keys=secret_keys,
+                )
+
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(_run_with_ctx)
+                try:
+                    future.result(timeout=timeout_secs)
+                except concurrent.futures.TimeoutError:
+                    # Mark run as timed out; underlying thread may still run briefly
+                    with app.app_context():
+                        timed_out = db.session.get(PipelineRun, run_id)
+                        if timed_out and timed_out.status == 'running':
+                            timed_out.status = 'failed'
+                            timed_out.error_message = 'Pipeline timed out'
+                            timed_out.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
+                            db.session.commit()
+        finally:
+            sem.release()
 
     threading.Thread(target=_run_in_background, daemon=True).start()
     return jsonify({'run_id': run_id, 'status': 'running', 'pipeline_name': pname}), 202

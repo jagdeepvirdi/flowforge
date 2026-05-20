@@ -49,14 +49,15 @@ python -c "import secrets; print(secrets.token_hex(32))"
 
 ## Database Setup
 
-Create the FlowForge config database in PostgreSQL, then apply migrations:
+Create the FlowForge config database in PostgreSQL, then apply migrations and seed the admin user:
 
 ```bash
 createdb flowforge
 flowforge db upgrade
+flowforge db seed
 ```
 
-This creates all required tables and seeds the admin user from `FLOWFORGE_USERNAME` / `FLOWFORGE_PASSWORD` in your `.env`.
+`flowforge db seed` reads `FLOWFORGE_USERNAME` and `FLOWFORGE_PASSWORD` from your `.env` and creates the admin account. It is safe to run more than once — it skips if a user already exists.
 
 > **Upgrading from an older version?** If your database was created before Alembic was introduced, run `flowforge db stamp head` once instead of `flowforge db upgrade`. See [RUNBOOK.md](../RUNBOOK.md#32-existing-database) for details.
 

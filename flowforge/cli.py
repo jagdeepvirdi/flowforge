@@ -315,6 +315,39 @@ def db_stamp(revision: str):
     click.echo(f'Database stamped at revision: {revision}')
 
 
+@db_group.command('seed')
+def db_seed():
+    """Create the initial admin user from FLOWFORGE_USERNAME / FLOWFORGE_PASSWORD env vars.
+
+    Run once after applying migrations on a fresh installation:
+
+        flowforge db upgrade
+        flowforge db seed
+    """
+    username = os.environ.get('FLOWFORGE_USERNAME', '').strip()
+    password_hash = os.environ.get('FLOWFORGE_PASSWORD', '').strip()
+    if not username or not password_hash:
+        click.echo(
+            'ERROR: Set FLOWFORGE_USERNAME and FLOWFORGE_PASSWORD env vars before seeding.',
+            err=True,
+        )
+        sys.exit(1)
+
+    app = _create_app()
+    with app.app_context():
+        try:
+            from flowforge.db.models import User, db
+            if db.session.query(User).first():
+                click.echo('Admin user already exists — skipping.')
+                return
+            db.session.add(User(username=username, password_hash=password_hash))
+            db.session.commit()
+            click.echo(f'Admin user "{username}" created.')
+        except Exception as e:
+            click.echo(f'ERROR: {e}', err=True)
+            sys.exit(1)
+
+
 @cli.command('import')
 @click.argument('file_path', type=click.Path(exists=True))
 @click.option('--overwrite', is_flag=True,

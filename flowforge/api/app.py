@@ -72,34 +72,29 @@ def create_app(config: dict | None = None) -> Flask:
     _register_error_handlers(app)
 
     with app.app_context():
-        _seed_admin(app)
+        _sweep_stuck_runs(app)
 
     return app
 
 
-def _seed_admin(app: Flask) -> None:
-    """Insert the admin user from env vars if ff_users is empty.
-
-    Skips silently if the table doesn't exist yet (migrations not yet applied).
-    """
-    username = os.environ.get('FLOWFORGE_USERNAME', '').strip()
-    password_hash = os.environ.get('FLOWFORGE_PASSWORD', '').strip()
-    if not username or not password_hash:
-        return
-
+def _sweep_stuck_runs(app: Flask) -> None:
+    """Mark any pipeline runs left in 'running' state as failed (interrupted by restart)."""
     try:
+        from datetime import datetime, timezone
         from sqlalchemy.exc import OperationalError
-        from flowforge.db.models import User
-        if db.session.query(User).first():
+        from flowforge.db.models import PipelineRun
+        stuck = db.session.query(PipelineRun).filter_by(status='running').all()
+        if not stuck:
             return
-        user = User(username=username, password_hash=password_hash)
-        db.session.add(user)
+        for run in stuck:
+            run.status = 'failed'
+            run.error_message = 'Run interrupted by server restart'
+            if not run.finished_at:
+                run.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
         db.session.commit()
-        app.logger.info('Admin user "%s" created from env vars.', username)
-    except OperationalError:
-        app.logger.warning(
-            'ff_users table not found — run "alembic upgrade head" to apply migrations.'
-        )
+        app.logger.warning('Swept %d stuck pipeline run(s) left from previous session.', len(stuck))
+    except Exception:
+        pass  # Migrations not yet applied or DB unreachable — skip silently
 
 
 def _register_blueprints(app: Flask) -> None:
