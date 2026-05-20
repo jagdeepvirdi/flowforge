@@ -1,18 +1,74 @@
-# FlowForge - server_start.ps1
+# FlowForge - server.ps1
 # Usage:
-#   .\server_start.ps1              # dev mode (Flask debug + Vite HMR)
-#   .\server_start.ps1 -Mode prod   # prod mode (build frontend + waitress)
-#   .\server_start.ps1 -Mode prod -UseWaitress
+#   .\server.ps1 start              # dev mode (Flask debug + Vite HMR)
+#   .\server.ps1 start -Mode prod   # prod mode (build frontend + waitress)
+#   .\server.ps1 start -Mode prod -UseWaitress
+#   .\server.ps1 stop               # stop Flask API and Vite dev server
 
 param(
+    [Parameter(Mandatory, Position = 0)]
+    [ValidateSet('start','stop')]
+    [string]$Action,
+
     [ValidateSet('dev','prod')]
     [string]$Mode = 'dev',
+
     [switch]$UseWaitress,
     [int]$Port = 0
 )
 
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
+
+# ── STOP ────────────────────────────────────────────────────────────────────
+if ($Action -eq 'stop') {
+    function Stop-ByPort {
+        param([int]$Port, [string]$Label)
+        $conn = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+        if ($conn) {
+            $pid = $conn.OwningProcess
+            $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
+            if ($proc) {
+                Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
+                Write-Host "  Stopped $Label (PID $pid, port $Port)" -ForegroundColor Green
+            }
+        } else {
+            Write-Host "  $Label not running on port $Port" -ForegroundColor Gray
+        }
+    }
+
+    Write-Host ''
+    Write-Host 'Stopping FlowForge servers...' -ForegroundColor Yellow
+
+    $envFile = Join-Path $root '.env'
+    if (Test-Path $envFile) {
+        Get-Content $envFile | Where-Object { $_ -match '^\s*[^#]\S+=.*' } | ForEach-Object {
+            $parts = $_ -split '=', 2
+            $key   = $parts[0].Trim()
+            $value = $parts[1].Trim()
+            if ($key -and -not [Environment]::GetEnvironmentVariable($key)) {
+                [Environment]::SetEnvironmentVariable($key, $value, 'Process')
+            }
+        }
+    }
+
+    $ffPort = if ($env:FLOWFORGE_PORT) { [int]$env:FLOWFORGE_PORT } else { 5000 }
+
+    Stop-ByPort -Port $ffPort -Label 'Flask API'
+    Stop-ByPort -Port 5173    -Label 'Vite UI'
+
+    Get-Job | Where-Object { $_.State -in 'Running','Stopped' } | ForEach-Object {
+        Stop-Job  $_ -ErrorAction SilentlyContinue
+        Remove-Job $_ -ErrorAction SilentlyContinue
+    }
+
+    Write-Host ''
+    Write-Host 'Done.' -ForegroundColor Cyan
+    Write-Host ''
+    return
+}
+
+# ── START ────────────────────────────────────────────────────────────────────
 
 # Load .env
 $envFile = Join-Path $root '.env'
@@ -40,14 +96,14 @@ $python = if (Test-Path $venvPython) { $venvPython } else { 'python' }
 
 $resolvedPort = if ($Port -ne 0) { $Port } elseif ($env:FLOWFORGE_PORT) { [int]$env:FLOWFORGE_PORT } else { 5000 }
 
-# ── DEV MODE ────────────────────────────────────────────────────────────────
+# ── DEV MODE ─────────────────────────────────────────────────────────────────
 if ($Mode -eq 'dev') {
     Write-Host ''
     Write-Host 'Starting FlowForge in DEV mode...' -ForegroundColor Yellow
     Write-Host "  API  -> http://localhost:$resolvedPort" -ForegroundColor Green
     Write-Host '  UI   -> http://localhost:5173' -ForegroundColor Green
     Write-Host ''
-    Write-Host 'Run .\server_stop.ps1 in another terminal to stop.' -ForegroundColor Gray
+    Write-Host 'Run .\server.ps1 stop in another terminal to stop.' -ForegroundColor Gray
     Write-Host ''
 
     $apiJob = Start-Job -ScriptBlock {
@@ -91,7 +147,7 @@ if ($Mode -eq 'dev') {
     }
 }
 
-# ── PROD MODE ───────────────────────────────────────────────────────────────
+# ── PROD MODE ─────────────────────────────────────────────────────────────────
 if ($Mode -eq 'prod') {
     Write-Host ''
     Write-Host 'Starting FlowForge in PROD mode...' -ForegroundColor Yellow

@@ -1,16 +1,63 @@
 #!/usr/bin/env bash
-# FlowForge - server_start.sh
+# FlowForge - server.sh
 # Usage:
-#   ./server_start.sh           # dev mode (Flask debug + Vite HMR)
-#   ./server_start.sh prod      # prod mode (build frontend + Flask/gunicorn)
-#   ./server_start.sh prod --gunicorn
+#   ./server.sh start               # dev mode (Flask debug + Vite HMR)
+#   ./server.sh start prod          # prod mode (build frontend + Flask/gunicorn)
+#   ./server.sh start prod --gunicorn
+#   ./server.sh stop                # stop Flask API and Vite dev server
 
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-MODE="${1:-dev}"
+ACTION="${1:-}"
+if [ -z "$ACTION" ]; then
+    echo "Usage: $0 {start|stop} [dev|prod] [--gunicorn]" >&2
+    exit 1
+fi
+
+# ── STOP ────────────────────────────────────────────────────────────────────
+if [ "$ACTION" = "stop" ]; then
+    if [ -f "$ROOT/.env" ]; then
+        set -a
+        # shellcheck disable=SC1091
+        source "$ROOT/.env"
+        set +a
+    fi
+
+    PORT="${FLOWFORGE_PORT:-5000}"
+
+    stop_port() {
+        local port="$1"
+        local label="$2"
+        local pid
+        pid=$(lsof -ti tcp:"$port" 2>/dev/null || true)
+        if [ -n "$pid" ]; then
+            kill -TERM "$pid" 2>/dev/null || true
+            echo "  Stopped $label (PID $pid, port $port)"
+        else
+            echo "  $label not running on port $port"
+        fi
+    }
+
+    echo ""
+    echo "Stopping FlowForge servers..."
+    stop_port "$PORT" "Flask API"
+    stop_port "5173"  "Vite UI"
+    echo ""
+    echo "Done."
+    echo ""
+    exit 0
+fi
+
+# ── START ────────────────────────────────────────────────────────────────────
+if [ "$ACTION" != "start" ]; then
+    echo "Unknown action: $ACTION. Use 'start' or 'stop'." >&2
+    exit 1
+fi
+
+MODE="${2:-dev}"
 USE_GUNICORN=false
-for arg in "${@:2}"; do
+for arg in "${@:3}"; do
     case $arg in
         --gunicorn) USE_GUNICORN=true ;;
         *) echo "Unknown argument: $arg" >&2; exit 1 ;;
@@ -37,14 +84,14 @@ fi
 
 PORT="${FLOWFORGE_PORT:-5000}"
 
-# ── DEV MODE ────────────────────────────────────────────────────────────────
+# ── DEV MODE ─────────────────────────────────────────────────────────────────
 if [ "$MODE" = "dev" ]; then
     echo ""
     echo "Starting FlowForge in DEV mode..."
     echo "  API  -> http://localhost:$PORT"
     echo "  UI   -> http://localhost:5173"
     echo ""
-    echo "Run ./server_stop.sh in another terminal to stop."
+    echo "Run ./server.sh stop in another terminal to stop."
     echo ""
 
     cleanup() {
@@ -70,7 +117,7 @@ if [ "$MODE" = "dev" ]; then
     wait -n "$API_PID" "$UI_PID" 2>/dev/null || wait "$API_PID" "$UI_PID"
 fi
 
-# ── PROD MODE ───────────────────────────────────────────────────────────────
+# ── PROD MODE ─────────────────────────────────────────────────────────────────
 if [ "$MODE" = "prod" ]; then
     echo ""
     echo "Starting FlowForge in PROD mode..."
