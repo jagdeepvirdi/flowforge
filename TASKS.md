@@ -9,8 +9,8 @@
 | Dimension | Score |
 |---|---|
 | Code quality | 7/10 — Clean architecture, good separation of concerns |
-| Feature completeness | 7/10 — Async, Docker, CI done; M365 token refresh + YAML import still missing |
-| Security | 8/10 — Encryption + rate limiting done; Alembic migrations still missing |
+| Feature completeness | 8/10 — Async, Docker, CI, M365 token refresh, YAML import all done |
+| Security | 9/10 — Encryption, rate limiting, Alembic migrations all done |
 | Documentation | 5/10 — Missing pages, no screenshots |
 | Deployment UX | 7/10 — Docker Compose + CI added |
 | GitHub readiness | 8/10 — Legacy removed, stubs fixed, deps corrected |
@@ -18,13 +18,6 @@
 ---
 
 ## Remaining Work
-
----
-
-## Phase 1 — Core Stability 🔴
-*Must be done before any public release. Backend fixes.*
-
-- [ ] **Bug: Report columns show as col0/col1/col2** — `execute_query()` in `connections/postgres.py:35` discards `cursor.description` and returns only rows. `ReportStep` at `steps/report.py:31` falls back to `[f'col{i}' for i in range(...)]` whenever `report_cfg['columns']` is null (always true for `report_config_id`-based configs). Fix: add `execute_query_with_columns() -> tuple[list[tuple], list[str]]` to `BaseConnection` and both concrete implementations; update `ReportStep.run()` to use it. Same fix needed in `oracle.py`.
 
 ---
 
