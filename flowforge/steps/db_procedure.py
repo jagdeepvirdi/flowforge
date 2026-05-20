@@ -9,6 +9,8 @@ logger = logging.getLogger(__name__)
 class DbProcedureStep(BaseStep):
     """Calls a stored procedure or package on a configured database connection."""
 
+    step_type = 'db_procedure'
+
     def run(self, context: dict[str, Any]) -> StepResult:
         from flowforge.engine.context import render
 

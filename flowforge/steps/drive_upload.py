@@ -10,6 +10,8 @@ logger = logging.getLogger(__name__)
 class DriveUploadStep(BaseStep):
     """Uploads a file to Google Drive and stores the shareable URL in step context."""
 
+    step_type = 'drive_upload'
+
     def run(self, context: dict[str, Any]) -> StepResult:
         from flowforge.engine.context import render
         from flowforge.storage.google_drive import upload_file

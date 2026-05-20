@@ -66,13 +66,32 @@ def update_step(step_id):
         return jsonify({'error': 'Step not found'}), 404
 
     data = request.get_json() or {}
-    for field in ('name', 'step_order', 'config', 'on_error', 'enabled'):
+    for field in ('name', 'config', 'on_error', 'enabled'):
         if field in data:
             setattr(step, field, data[field])
     if 'step_type' in data:
         if data['step_type'] not in _VALID_TYPES:
             return jsonify({'error': 'Invalid step_type'}), 400
         step.step_type = data['step_type']
+
+    # DB-1: two-phase swap to avoid (pipeline_id, step_order) unique constraint violation
+    if 'step_order' in data and data['step_order'] != step.step_order:
+        new_order = data['step_order']
+        old_order = step.step_order
+        occupant = (
+            db.session.query(PipelineStep)
+            .filter_by(pipeline_id=step.pipeline_id, step_order=new_order)
+            .filter(PipelineStep.id != step.id)
+            .first()
+        )
+        if occupant:
+            occupant.step_order = 999999  # vacate the slot
+            db.session.flush()
+            step.step_order = new_order
+            db.session.flush()
+            occupant.step_order = old_order
+        else:
+            step.step_order = new_order
 
     db.session.commit()
     return jsonify(_step_dict(step))

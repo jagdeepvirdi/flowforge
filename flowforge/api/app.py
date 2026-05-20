@@ -90,7 +90,7 @@ def _sweep_stuck_runs(app: Flask) -> None:
             run.status = 'failed'
             run.error_message = 'Run interrupted by server restart'
             if not run.finished_at:
-                run.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
+                run.finished_at = datetime.now(timezone.utc)
         db.session.commit()
         app.logger.warning('Swept %d stuck pipeline run(s) left from previous session.', len(stuck))
     except Exception:

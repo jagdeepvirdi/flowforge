@@ -3,6 +3,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
+from sqlalchemy.exc import SQLAlchemyError
+
 from flowforge import audit
 from flowforge.steps.base import BaseStep, StepResult
 
@@ -93,9 +95,16 @@ def run_pipeline(
             'rows_affected': step_result.rows_affected,
         }
 
-        # Scalar output variables (e.g. from db_query output_variable) go to top-level context
+        # Scalar output variables go to top-level context; guard against overwriting built-ins
         if step_result.output_variables:
-            context.update(step_result.output_variables)
+            collisions = _CONTEXT_META_KEYS & step_result.output_variables.keys()
+            if collisions:
+                logger.warning(
+                    "[%s] Step '%s' tried to overwrite reserved variable(s): %s — skipping.",
+                    pipeline_name, step.name, sorted(collisions),
+                )
+            context.update({k: v for k, v in step_result.output_variables.items()
+                            if k not in _CONTEXT_META_KEYS})
 
         _write_step_run(run_record, step, step_order, step_result, step_start, step_end, duration_ms, vars_log)
 
@@ -149,7 +158,8 @@ def _create_run_record(pipeline_id, pipeline_name, triggered_by, existing_run_id
         db.session.add(run)
         db.session.commit()
         return run
-    except Exception:
+    except SQLAlchemyError as e:
+        logger.error("Failed to create pipeline_run record: %s", e)
         return None
 
 
@@ -162,7 +172,7 @@ def _write_step_run(run_record, step, step_order, step_result, started_at, finis
         sr = StepRun(
             pipeline_run_id=run_record.id,
             step_name=step.name,
-            step_type=step.__class__.__name__.replace('Step', '').lower(),
+            step_type=step.step_type or step.__class__.__name__.replace('Step', '').lower(),
             step_order=step_order,
             status='success' if step_result.success else 'failed',
             started_at=started_at,
@@ -177,8 +187,8 @@ def _write_step_run(run_record, step, step_order, step_result, started_at, finis
         )
         db.session.add(sr)
         db.session.commit()
-    except Exception as e:
-        logger.warning("Failed to write step_run record: %s", e)
+    except SQLAlchemyError as e:
+        logger.error("Failed to write step_run record: %s", e)
 
 
 def _finish_run_record(run_record, success: bool, error_step: str = '', error_message: str = ''):
@@ -187,7 +197,7 @@ def _finish_run_record(run_record, success: bool, error_step: str = '', error_me
     try:
         from flowforge.db.models import db
         run_record.status = 'success' if success else 'failed'
-        run_record.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        run_record.finished_at = datetime.now(timezone.utc)
         if run_record.started_at:
             run_record.duration_ms = int(
                 (run_record.finished_at - run_record.started_at).total_seconds() * 1000
@@ -197,5 +207,5 @@ def _finish_run_record(run_record, success: bool, error_step: str = '', error_me
         if error_message:
             run_record.error_message = error_message
         db.session.commit()
-    except Exception as e:
-        logger.warning("Failed to update pipeline_run record: %s", e)
+    except SQLAlchemyError as e:
+        logger.error("Failed to update pipeline_run record: %s", e)

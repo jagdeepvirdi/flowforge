@@ -212,7 +212,7 @@ def trigger_run(pipeline_id):
     except Exception as e:
         run.status = 'failed'
         run.error_message = f'Failed to load pipeline: {e}'
-        run.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        run.finished_at = datetime.now(timezone.utc)
         db.session.commit()
         sem.release()
         return jsonify({'error': f'Failed to load pipeline: {e}'}), 500
@@ -249,7 +249,7 @@ def trigger_run(pipeline_id):
                         if timed_out and timed_out.status == 'running':
                             timed_out.status = 'failed'
                             timed_out.error_message = 'Pipeline timed out'
-                            timed_out.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
+                            timed_out.finished_at = datetime.now(timezone.utc)
                             db.session.commit()
         finally:
             sem.release()

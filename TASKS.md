@@ -47,16 +47,16 @@
 
 ---
 
-## Phase 7 — Code Quality 🟡
+## Phase 7 — Code Quality 🟡 *(COMPLETE — 2026-05-20)*
 *Addresses CODE + DB findings. Target score: Code Quality 6.0 → 7.5, Database 6.5 → 8.0*
 
-- [ ] **[CODE-1] Fix silent exception swallowing in `runner.py` DB helpers** — change `except Exception: return None` to `except SQLAlchemyError as e: logger.error(...)` in `_create_run_record`, `_write_step_run`, `_finish_run_record`.
-- [ ] **[CODE-2] Replace class-name string manipulation for `step_type`** — add `step_type: str` class attribute to `BaseStep`; set it in each concrete step class; use it in `_write_step_run`.
-- [ ] **[CODE-3] Protect built-in context variables from `output_variables` overwrite** — before `context.update(step_result.output_variables)`, check for key collisions with `_CONTEXT_META_KEYS`; raise `RuntimeError` or log a warning and skip the conflicting key.
-- [ ] **[CODE-4] Fix `_utcnow()` timezone stripping** — change to `datetime.now(timezone.utc)` (no `.replace(tzinfo=None)`); ensure all model columns use `DateTime(timezone=True)`; add Alembic migration for the column type change.
-- [ ] **[DB-1] Fix step reordering constraint** — update the `PUT /pipeline-steps/<id>` route and the drag-to-reorder mutation to use a two-phase swap (set temp order → set target order) to avoid unique constraint violations.
-- [ ] **[DB-2] Add performance indexes in a new Alembic migration** — `(pipeline_id, started_at DESC)` on `ff_pipeline_runs`; `(pipeline_run_id)` on `ff_step_runs`.
-- [ ] **[DB-3] Widen `DbConnection` check constraint** — add `'mysql'`, `'snowflake'`, `'mssql'` to the check constraint (or remove it and validate at the application layer); add Alembic migration.
+- [x] **[CODE-1] Fix silent exception swallowing in `runner.py` DB helpers** — `except Exception: return None` replaced with `except SQLAlchemyError as e: logger.error(...)` in all three helpers; `SQLAlchemyError` imported at module level.
+- [x] **[CODE-2] Replace class-name string manipulation for `step_type`** — `step_type: str = ''` added to `BaseStep`; each concrete step sets its own value; `_write_step_run` uses `step.step_type` with the string-hack as fallback.
+- [x] **[CODE-3] Protect built-in context variables from `output_variables` overwrite** — before `context.update(...)`, collision check against `_CONTEXT_META_KEYS`; conflicting keys logged and skipped; safe keys propagated normally.
+- [x] **[CODE-4] Fix `_utcnow()` timezone stripping** — `_utcnow()` returns `datetime.now(timezone.utc)` (no `.replace(tzinfo=None)`); all model `DateTime` columns changed to `DateTime(timezone=True)`; all call sites updated; migration `0002_timezone_timestamps.py` converts columns to TIMESTAMPTZ.
+- [x] **[DB-1] Fix step reordering constraint** — `PUT /pipeline-steps/<id>` uses two-phase swap: occupant moved to order 999999 → target step moved → occupant moved to original slot; no unique constraint violation.
+- [x] **[DB-2] Add performance indexes** — migration `0003_indexes_and_constraints.py` adds `ix_pipeline_runs_pipeline_started` on `(pipeline_id, started_at DESC)` and `ix_step_runs_pipeline_run` on `(pipeline_run_id)`.
+- [x] **[DB-3] Widen `DbConnection` check constraint** — `mysql`, `mssql`, `snowflake` added to constraint in both `models.py` and migration `0003`; old constraint dropped and recreated.
 
 ---
 

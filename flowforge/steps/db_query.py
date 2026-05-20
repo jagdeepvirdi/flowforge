@@ -11,6 +11,8 @@ _VALID_MODES = {'replace', 'append', 'truncate_insert'}
 class DbQueryStep(BaseStep):
     """Executes a SQL query and optionally writes results to an output table."""
 
+    step_type = 'db_query'
+
     def run(self, context: dict[str, Any]) -> StepResult:
         from flowforge.engine.context import render
 

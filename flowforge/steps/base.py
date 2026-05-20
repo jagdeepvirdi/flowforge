@@ -17,6 +17,7 @@ class StepResult:
 
 class BaseStep(ABC):
     on_error: str = 'stop'  # 'stop' | 'continue'
+    step_type: str = ''     # overridden by each concrete step class
 
     def __init__(self, name: str, config: dict[str, Any]):
         self.name = name

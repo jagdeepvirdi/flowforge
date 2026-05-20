@@ -11,6 +11,8 @@ logger = logging.getLogger(__name__)
 class ReportStep(BaseStep):
     """Generates a report file (Excel / CSV / PDF) from a configured report_config."""
 
+    step_type = 'report'
+
     def run(self, context: dict[str, Any]) -> StepResult:
         from flowforge.engine.context import render
 

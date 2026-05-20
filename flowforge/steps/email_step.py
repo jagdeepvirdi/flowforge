@@ -57,6 +57,8 @@ def _handle_attachments(
 class EmailStep(BaseStep):
     """Sends an email with smart attachment handling (large files → Drive link)."""
 
+    step_type = 'email'
+
     def run(self, context: dict[str, Any]) -> StepResult:
         from flowforge.engine.context import render
 

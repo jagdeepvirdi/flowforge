@@ -18,7 +18,7 @@ def _uuid():
 
 
 def _utcnow():
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(timezone.utc)
 
 
 class User(db.Model):
@@ -27,7 +27,7 @@ class User(db.Model):
     id            = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
     username      = Column(String(100), nullable=False, unique=True)
     password_hash = Column(String(255), nullable=False)
-    created_at    = Column(DateTime, default=_utcnow)
+    created_at    = Column(DateTime(timezone=True), default=_utcnow)
 
 
 class RecipientGroup(db.Model):
@@ -53,7 +53,7 @@ class EmailProvider(db.Model):
     provider_type = Column(String(20), nullable=False)
     config        = Column(Text, nullable=False)   # encrypted JSON
     is_default    = Column(Boolean, default=False)
-    created_at    = Column(DateTime, default=_utcnow)
+    created_at    = Column(DateTime(timezone=True), default=_utcnow)
 
     email_configs = relationship('EmailConfig', back_populates='provider')
 
@@ -61,7 +61,7 @@ class EmailProvider(db.Model):
 class DbConnection(db.Model):
     __tablename__ = 'ff_db_connections'
     __table_args__ = (
-        CheckConstraint("db_type IN ('postgresql', 'oracle')", name='ck_db_connection_type'),
+        CheckConstraint("db_type IN ('postgresql', 'oracle', 'mysql', 'mssql', 'snowflake')", name='ck_db_connection_type'),
     )
 
     id         = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
@@ -91,8 +91,8 @@ class ReportConfig(db.Model):
     title           = Column(String(255))
     sheet_name      = Column(String(100))
     columns         = Column(ARRAY(Text))
-    created_at      = Column(DateTime, default=_utcnow)
-    updated_at      = Column(DateTime, default=_utcnow, onupdate=_utcnow)
+    created_at      = Column(DateTime(timezone=True), default=_utcnow)
+    updated_at      = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
     connection = relationship('DbConnection', back_populates='report_configs')
 
@@ -131,8 +131,8 @@ class Pipeline(db.Model):
     schedule        = Column(String(100))
     enabled         = Column(Boolean, default=True)
     timeout_minutes = Column(Integer, default=60)
-    created_at      = Column(DateTime, default=_utcnow)
-    updated_at      = Column(DateTime, default=_utcnow, onupdate=_utcnow)
+    created_at      = Column(DateTime(timezone=True), default=_utcnow)
+    updated_at      = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
     steps     = relationship('PipelineStep', back_populates='pipeline',
                              order_by='PipelineStep.step_order', cascade='all, delete-orphan')
@@ -189,8 +189,8 @@ class PipelineRun(db.Model):
     pipeline_id   = Column(UUID(as_uuid=False), ForeignKey('ff_pipelines.id', ondelete='SET NULL'))
     pipeline_name = Column(String(255), nullable=False)
     status        = Column(String(20), nullable=False)
-    started_at    = Column(DateTime, nullable=False, default=_utcnow)
-    finished_at   = Column(DateTime)
+    started_at    = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    finished_at   = Column(DateTime(timezone=True))
     duration_ms   = Column(Integer)
     triggered_by  = Column(String(50))
     error_step    = Column(String(255))
@@ -212,8 +212,8 @@ class StepRun(db.Model):
     step_type       = Column(String(50), nullable=False)
     step_order      = Column(Integer, nullable=False)
     status          = Column(String(20), nullable=False)
-    started_at      = Column(DateTime, nullable=False, default=_utcnow)
-    finished_at     = Column(DateTime)
+    started_at      = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    finished_at     = Column(DateTime(timezone=True))
     duration_ms     = Column(Integer)
     rows_affected   = Column(Integer)
     output_path     = Column(String(500))
