@@ -1,975 +1,72 @@
 # TASKS.md — FlowForge
 
+*Completed tasks are in [TASKS_ARCHIVE.md](TASKS_ARCHIVE.md).*
+
 ---
 
-## GitHub Release Score: 7 / 10 (updated 2026-05-18 after blocker fixes)
-*All 8 blockers resolved. Remaining work is high-priority polish and deployment UX.*
+## GitHub Release Score: 8.2 / 10 (updated 2026-05-18)
 
 | Dimension | Score |
 |---|---|
 | Code quality | 7/10 — Clean architecture, good separation of concerns |
-| Feature completeness | 6/10 — Async execution fixed; M365 token refresh + YAML import still missing |
-| Security | 7/10 — DB creds + pipeline vars now encrypted; rate limiting still missing |
-| Documentation | 5/10 — Missing pages, no screenshots, placeholder URL needs real value |
-| Deployment UX | 3/10 — No Docker, no CI, 10+ manual setup steps |
-| GitHub readiness | 8/10 — Legacy code removed, stubs fixed, deps corrected |
+| Feature completeness | 7/10 — Async, Docker, CI done; M365 token refresh + YAML import still missing |
+| Security | 8/10 — Encryption + rate limiting done; Alembic migrations still missing |
+| Documentation | 5/10 — Missing pages, no screenshots |
+| Deployment UX | 7/10 — Docker Compose + CI added |
+| GitHub readiness | 8/10 — Legacy removed, stubs fixed, deps corrected |
 
 ---
 
-## Current Status (as of 2026-05-18)
-
-### ✅ Done
-- DB schema, SQLAlchemy models, all 11 tables
-- AES-256 credential encryption — DB credentials, email provider configs, secret pipeline variables
-- Flask API — all REST routes wired, all 168 tests passing
-- JWT auth, admin user seeding from env
-- DB connections — PostgreSQL + Oracle + factory + test endpoint
-- Frontend — all pages scaffolded and wired (Dashboard, Pipelines, Run History, Run Detail, Connections, Reports, Emails, Recipients, Settings, Login)
-- Report preview (SQL → first 20 rows)
-- Add/Edit Connection modal with Test-before-save
-- `server_start` / `server_stop` scripts (.ps1 + .sh)
-- **Async pipeline execution** — `POST /run` returns 202 + `run_id` immediately; daemon thread executes
-- **`code/` removed from git** — legacy internal source no longer tracked
-- **CLI setup commands** — now print actionable step-by-step instructions
-- **Dependency fixes** — `xlsxwriter` removed, `requests` added, `cx_Oracle` corrected
-
-### ⚠️ Exists but Incomplete
-- `{{ run_id }}` in context is a different UUID than `PipelineRun.id` in database
-- M365 token refresh — token acquired once in `__init__`, expires after 1h with no refresh
-- YAML import — `flowforge export` works, `flowforge import` does not exist
-- Placeholder URL `YOUR_GITHUB_USERNAME` in `pyproject.toml` and `getting-started.md` — replace when repo is created
-
-### ❌ Not Yet Done
-- Docker / Docker Compose
-- GitHub Actions CI
-- Database migrations (Alembic)
-- Docs: `step-types.md`, `email-providers.md`, `connections.md`, `cli-reference.md`
-- README screenshots
-- Output file cleanup / TTL
-- Rate limiting on `/auth/login`
-- Google/M365 SDK deps as optional extras
-- AI analyze step (v2 backlog)
+## Remaining Work
 
 ---
 
-## Action Items to Improve Score
+## Phase 1 — Core Stability 🔴
+*Must be done before any public release. Backend fixes.*
 
-### 🔴 BLOCKERS — All fixed ✅
-All 8 blockers resolved in commit c615fb1. See git log for details.
-
-### 🟡 HIGH PRIORITY — Significantly improve quality
-
-- [ ] **Add Docker Compose** — `docker-compose.yml` that starts PostgreSQL + FlowForge backend + frontend build. The #1 thing that makes "minutes to set up" actually true.
-- [ ] **Add GitHub Actions CI** — `.github/workflows/test.yml`: run pytest on every push/PR.
-- [ ] **Add database migrations (Alembic)** — `db.create_all()` only works for fresh installs; any schema change breaks existing deployments.
-- [ ] **Make Google/M365 SDK deps optional** — Move `google-api-python-client`, `google-auth`, `google-auth-oauthlib`, `msal` to optional extras (`[gmail]`, `[drive]`, `[microsoft365]`). SMTP-only users install all of Google's SDK today.
-- [ ] **Fix `{{ run_id }}` to match `PipelineRun.id`** — Context `run_id` is a fresh `uuid4()`; actual DB record has a different UUID. Pass the real run ID into context after the record is created in `runner.py`.
-- [ ] **Fix `datetime.utcnow()` deprecation** — Replace `default=datetime.utcnow` with `default=lambda: datetime.now(timezone.utc)` in all models (Python 3.12 deprecation warning).
-- [ ] **Add rate limiting on `/auth/login`** — `flask-limiter`: 10 attempts/minute per IP. Single-user admin account is brute-forceable.
-- [ ] **Add output file cleanup** — Delete files older than N days from `./output/`. Daily pipelines fill disk indefinitely.
-- [ ] **Implement `flowforge import` CLI command** — Reads a pipeline YAML and creates it via the DB (mirrors existing `flowforge export`).
-- [ ] **Fix M365 token refresh** — Token acquired once in `__init__`, expires after 1h. Re-acquire via MSAL before each `send()` call.
-
-### 🔵 IN-APP HELP SYSTEM — Frontend-only, high user value
-
-The goal: a user who has never seen FlowForge should be able to configure a pipeline, report, and email without reading any external docs.
-
-#### HelpDrawer component
-- [ ] `frontend/src/components/shared/HelpDrawer.tsx` — right-side sliding panel (400px wide), `?` button in TopBar between Bell and avatar
-- [ ] Drawer renders context-sensitive content based on current route (`/pipelines` → pipeline help, `/connections` → connection help, etc.)
-- [ ] Keyboard shortcut: `?` key opens/closes the drawer
-- [ ] Zustand store `useHelp` — `{ open: boolean, topic: string | null, openHelp(topic?): void, closeHelp(): void }`
-- [ ] Close on Escape, close on overlay click
-- [ ] Smooth slide-in animation (Tailwind `transition-transform`)
-
-#### Page intro cards
-- [ ] Each page gets a collapsible "What is this?" card at the top, visible until the user dismisses it (localStorage flag `ff_help_dismissed_<page>`)
-- [ ] **Dashboard** — "Your pipeline control center. See last run status, trigger runs manually, monitor active jobs."
-- [ ] **Pipelines** — "A pipeline is an ordered list of steps. Steps run in sequence: query a DB, generate a report, send an email. Each step can pass its output to the next."
-- [ ] **Reports** — "Report configs define a SQL query + output format (Excel/PDF/CSV). A report step in a pipeline runs this query and writes the file."
-- [ ] **Emails** — "Email configs define the subject, body, and recipients. They reference an Email Provider (Gmail/M365/SMTP). An email step sends the file generated by a previous report step."
-- [ ] **Connections** — "DB Connections store credentials for your databases (PostgreSQL, Oracle). Used by report steps and db_procedure/db_query steps. Credentials are encrypted at rest."
-- [ ] **Recipients** — "Recipient groups are named lists of email addresses (e.g. 'Finance Team'). Assign a group to an email config instead of typing addresses every time."
-- [ ] **Run History** — "Every pipeline execution is recorded here. Click a run to see step-by-step timing, logs, and any errors."
-- [ ] **Settings** — "Connect FlowForge to Gmail or Microsoft 365 via OAuth2. Configure system-wide defaults for attachments and Google Drive."
-
-#### Field-level tooltips
-Add `(?)` icon next to these specific fields — clicking shows a small popover with explanation and example:
-- [ ] **Cron schedule field** — Explain 5-part format, show examples: `0 8 * * 1-5` = weekdays at 8am, `0 6 1 * *` = 1st of month at 6am. Link to crontab.guru.
-- [ ] **`{{ variable }}` syntax fields** (output filename, email subject, procedure params) — List all available variables: `{{ current_date }}`, `{{ current_month }}`, `{{ current_year }}`, `{{ yesterday }}`, `{{ run_id }}`, `{{ pipeline_name }}`, `{{ steps.step_name.output_path }}`
-- [ ] **DB Connection — host/port/database** — Show example values for PostgreSQL and Oracle separately
-- [ ] **Drive Folder ID** — "The ID is the last part of the Drive folder URL: `https://drive.google.com/drive/folders/THIS_PART`"
-- [ ] **Attachment max MB** — "Files larger than this threshold are uploaded to Google Drive and a share link is sent in the email instead of attaching the file directly."
-- [ ] **Email body template** — Note that the body supports Jinja2: `{{ variable }}`, `{% if condition %}`, etc.
-- [ ] **on_error field (step editor)** — `stop`: pipeline halts on this step's failure. `continue`: log the error but run the next step anyway.
-- [ ] **Oracle connection — connection string** — Show both formats: `host:port/service` (thin) and TNS alias
-
-#### Empty state guidance
-- [ ] **Pipelines page (no pipelines)** — "No pipelines yet. A pipeline is an ordered sequence of steps. Create your first one to automate a report or email." + Create Pipeline button
-- [ ] **Connections page (no connections)** — "No connections yet. Add a database connection to run queries and stored procedures from pipeline steps." + Add Connection button
-- [ ] **Emails page (no configs)** — "No email configs yet. An email config defines your subject, body, and recipients. You'll also need an Email Provider (Gmail/M365/SMTP) set up first." + links to both
-- [ ] **Reports page (no configs)** — "No report configs yet. A report config defines a SQL query and output format. Once created, use it in a pipeline report step."
-- [ ] **Run History (no runs)** — "No runs yet. Trigger a pipeline from the Pipelines page to see execution history here."
-
-#### Concept glossary (in HelpDrawer)
-- [ ] Accessible from any page via the `?` button → "Glossary" tab in the drawer
-- [ ] Defines: Pipeline, Step, Step Type, Report Config, Email Config, Email Provider, Recipient Group, Smart Attachments, Run, Step Run, Pipeline Variable, on_error
-- [ ] Each definition has a 2-sentence plain English explanation + a "Where to find it" link
-
-#### Step editor contextual help
-- [ ] Each step type in StepEditor shows a "How to configure this step" hint in the expanded body
-- [ ] **db_procedure** — "Calls a stored procedure or package. For Oracle use `package.procedure` syntax. Params support `{{ variables }}`."
-- [ ] **db_query** — "Runs a SQL query and writes results to a table. `replace` mode truncates then inserts. `append` adds rows without deleting existing data."
-- [ ] **report** — "Generates a file (Excel/PDF/CSV) from a report config. The output file path is available in later steps as `{{ steps.this_step_name.output_path }}`."
-- [ ] **email** — "Sends an email using an email config. Use `{{ steps.report_step.output_path }}` in the attachments field to attach a file from a previous report step."
-- [ ] **drive_upload** — "Uploads a file to Google Drive. The shareable link is available as `{{ steps.this_step_name.drive_url }}` in later steps."
-
-#### Implementation notes
-- No backend changes required — all frontend-only
-- Help content lives in `frontend/src/lib/helpContent.ts` — plain TS object keyed by route/field name, easy to update
-- Tooltip component: `frontend/src/components/shared/HelpTooltip.tsx` — wraps Radix UI Tooltip (already in Tailwind ecosystem) or a lightweight custom popover
-- HelpDrawer uses a shared `HelpContent` component for consistency between drawer and tooltips
-- LocalStorage keys prefixed `ff_help_` so they don't collide
+- [ ] **Bug: Report columns show as col0/col1/col2** — `execute_query()` in `connections/postgres.py:35` discards `cursor.description` and returns only rows. `ReportStep` at `steps/report.py:31` falls back to `[f'col{i}' for i in range(...)]` whenever `report_cfg['columns']` is null (always true for `report_config_id`-based configs). Fix: add `execute_query_with_columns() -> tuple[list[tuple], list[str]]` to `BaseConnection` and both concrete implementations; update `ReportStep.run()` to use it. Same fix needed in `oracle.py`.
 
 ---
 
-### 🟢 POLISH — Improve impressions and docs
+## Phase 2 — Tests & Verification 🧪
+*Automated test coverage + manual pre-launch smoke tests.*
 
-- [ ] **Add README screenshots** — Dashboard, Pipeline Builder, Run Detail. Highest-impact item for GitHub stars.
+### Features Before Launch
+
+- [ ] **Built-in smart date-range variables** — Add `{{ week_start }}`, `{{ week_end }}`, `{{ month_start }}`, `{{ month_end }}`, `{{ quarter_start }}`, `{{ quarter_end }}` to `flowforge/engine/context.py` alongside the existing date vars. Values always calculated relative to today at runtime (ISO week: Mon–Sun; month: 1st–last day; quarter: Q1=Jan–Mar etc.). Update the `{{ variable }}` field tooltip in `helpContent.ts` to list the new vars with examples.
+- [ ] **db_query scalar output variable** — Add optional `output_variable` field to `db_query` step config. When set, captures the value from the first column of the first row and makes it available as `{{ <output_variable> }}` in subsequent step configs and the email body template (e.g., `output_variable: subscription_count` → `{{ subscription_count }}` in email). Update `StepEditor.tsx` to show the field for `db_query` steps.
+
+### Manual Verification Checklist (do before launch)
+
+#### End-to-End Pipeline Test
+- [ ] Create DB connection → Test → verify "Connected"
+- [ ] Create report config with simple `SELECT` → Preview → verify rows appear
+- [ ] Create pipeline with one `report` step → Run Now → check Run History
+- [ ] Add `email` step after report → run → verify email received
+- [ ] Verify `{{ current_date }}` resolves in output filename and email subject
+- [ ] Verify `StepResult.output_path` flows from report step → email attachments
+- [ ] Verify `duration_ms` and `rows_affected` written to `ff_step_runs`
+
+#### Scheduler Smoke Test
+- [ ] Create pipeline with `* * * * *` schedule → start scheduler → verify auto-run in history
+- [ ] Disable pipeline → verify no more runs triggered
+
+---
+
+## Phase 4 — Polish & Release Prep 🔵
+*Docs, GitHub presence, and final UX touches.*
+
+- [ ] **Visual cron builder** — Replace the raw cron text input in `PipelineEdit.tsx` with a frequency picker: Every N minutes / Hourly / Daily / Weekly / Monthly / Custom (raw). Picker generates the cron string; raw mode still available for power users. Show "Next 5 run times" preview below the field. Also fix `FieldTooltip` popping upward and clipping behind the fixed TopBar — switch to downward pop when near the top of the viewport.
+- [ ] **TopBar refresh button** — Add a `RefreshCw` icon button to `TopBar.tsx` (left of the help button) that calls `queryClient.invalidateQueries()` scoped to the current page's query keys. No-op on pages with no server data (e.g. Settings OAuth tab).
+- [ ] **Run history: log resolved variable values** — After context rendering in the pipeline runner, append a "Variables resolved:" block to `ff_step_runs.logs` listing each built-in and pipeline variable with its computed value (mask `is_secret` vars). Lets you validate in Run History exactly what date range was passed to a report query.
+- [ ] **Help discovery indicator** — Add a subtle pulse/dot to the TopBar `?` button for first-time users (cleared via `localStorage` flag `ff_help_seen`) so they know the help drawer exists. The drawer is fully built (Phase 3 done) but users may not discover it.
+- [ ] **README screenshots** — Dashboard, Pipeline Builder, Run Detail. Highest-impact item for GitHub stars.
 - [ ] **Write `docs/step-types.md`** — Full config spec for each step type with YAML examples.
 - [ ] **Write `docs/email-providers.md`** — SMTP + M365 setup sections (Gmail already done).
 - [ ] **Add `CONTRIBUTING.md`** — Running tests, project structure, PR process.
-- [ ] **Add GitHub issue templates** — Bug report + feature request templates.
+- [ ] **Add GitHub issue templates** — Bug report + feature request.
 - [ ] **Validate cron expressions** — Check field ranges, not just 5-part split.
 - [ ] **Update CHANGELOG.md** — Document what's actually in v0.1.0.
-
-### 🧪 Tests Still To Write
-
-- [ ] `test_pipeline_variables.py` — secret var encrypted on write, decrypted correctly at runtime, plaintext non-secret var unaffected
-
----
-
-## Immediate Action Items
-
-### 1 — End-to-End Pipeline Test
-- [ ] Create a DB connection in the UI → run Test → verify "Connected"
-- [ ] Create a report config with a simple `SELECT` query → run Preview → verify rows appear
-- [ ] Create a pipeline with one `report` step → click Run Now → check Run History for success/failure logs
-- [ ] Add an `email` step after the report step → run the pipeline → verify email received
-- [ ] Check that `{{ current_date }}` resolves correctly in output filename and email subject
-
-### 2 — Fix Any Runner Bugs Found Above
-- [ ] Diagnose and fix any step execution errors from the test run
-- [ ] Verify `StepResult.output_path` flows from report step → email step attachments
-- [ ] Verify `duration_ms` and `rows_affected` are written to `ff_step_runs`
-
-### 3 — Scheduler Smoke Test
-- [ ] Create a pipeline with a cron schedule (e.g. `* * * * *` = every minute)
-- [ ] Start the scheduler — verify run appears in Run History automatically
-- [ ] Disable the pipeline — verify no more runs triggered
-
-### 4 — Settings OAuth Wiring
-- [ ] Wire "Set up Gmail" button in Settings to redirect to `/api/setup/gmail`
-- [ ] Wire "Set up Drive" button similarly
-- [ ] Show current OAuth status (connected / not connected) per provider
-
-### 5 — Test Suite (Missing Tests)
-
-#### Already Written ✅
-- [x] `test_crypto.py` — encrypt/decrypt, unique nonces, bad key
-- [x] `test_auth.py` — login, JWT, protected routes
-- [x] `test_connections.py` — DB connection CRUD + live test + raw test
-- [x] `test_pipelines.py` — pipeline CRUD + step CRUD
-- [x] `test_reports.py` — report config CRUD + preview + semicolon fix
-- [x] `test_recipients.py` — recipient group CRUD
-- [x] `test_runs.py` — run history filters + disabled pipeline guard
-
-#### Written ✅ (all 168 tests pass)
-- [x] `test_email_configs.py` — email config CRUD (create, get, update, delete)
-- [x] `test_email_providers.py` — email provider CRUD + mocked SMTP send (SSL, TLS, CC/BCC, attachments, failure handling)
-- [x] `test_context.py` — Jinja2 variable resolution: `current_date`, `current_month`, `current_year`, `yesterday`, `run_id`, `pipeline_name`, `env.VAR`, `steps.x.output_path`, `steps.x.drive_url`
-- [x] `test_runner.py` — pipeline executor with mocked steps: step ordering, on_error stop, on_error continue, context passing between steps
-- [x] `test_steps_db.py` — db_query and db_procedure steps with mocked connections: rows returned, rows_affected, output_table, param variable resolution
-- [x] `test_report_generators.py` — Excel headers/data/bold/sheet name; CSV header row, delimiter, encoding
-- [x] `test_smart_attachments.py` — file under limit → direct attach; file over limit → Drive upload + link in body; missing file skipped; threshold edge cases
-- [x] `test_jwt_expiry.py` — expired/bad-secret/malformed/empty/no-header/wrong-scheme all → 401
-
-#### Still To Write
-- [ ] `test_pipeline_variables.py` — pipeline variables stored encrypted if `is_secret=True`; available in context as `{{ vars.key }}`
-
-#### Manual / Live Tests (in `tests/manual/`)
-- [x] `check_api.py` — full API smoke test against live server
-- [x] `check_email.py` — send a real Gmail test email
-- [x] `check_runner.py` — trigger a real pipeline run via API, poll until complete, assert success
-- [x] `check_scheduler.py` — enable a 1-minute cron pipeline, wait, confirm run appeared
-
-### 6 — Documentation
-- [ ] Review `docs/gmail-oauth2-setup.md` — add screenshots, verify steps still match Google UI
-- [ ] Write `docs/email-providers.md` (SMTP + M365 sections)
-- [ ] Write `docs/step-types.md`
-
----
-
-## Session Zero — Code Review (MANDATORY FIRST STEP)
-
-**Do this before any other session. No code changes. Review only.**
-
-### Claude Code Prompt for Session Zero
-```
-Read ALL existing code in this project directory carefully.
-Do NOT make any changes.
-
-Produce a structured code review saved to docs/code-review.md covering:
-
-1. INVENTORY
-   - List every file with a one-line description of what it does
-   - Identify all entry points (scripts that are run directly)
-   - Map how files import and call each other
-
-2. EXISTING CAPABILITIES — for each, describe HOW it currently works:
-   - Email sending: which library, which provider, how configured?
-   - Google Drive upload: which library, how authenticated?
-   - Report generation: which formats, which libraries?
-   - Database connections: which DBs, how connection strings stored?
-   - Stored procedure/package calls: how are these currently invoked?
-   - Scheduling: how are jobs currently triggered?
-   - Configuration: what is hardcoded vs file-based vs DB-stored?
-
-3. DATABASE SCHEMA
-   - List every table the code reads from or writes to
-   - For each table: what is it used for?
-   - Identify config tables vs data/staging tables
-   - List all stored procedures or packages called by name
-
-4. CODE QUALITY ASSESSMENT
-   - Which modules are clean and reusable as-is?
-   - Which are tightly coupled to internal systems?
-   - Where is error handling missing or insufficient?
-   - Where are credentials or sensitive values hardcoded?
-   - Any SQL built by string formatting (security risk)?
-   - Any large monolithic functions that need breaking up?
-
-5. SCRUB PRIORITY LIST
-   - Every company/telecom reference found (file + line number)
-   - Every hardcoded credential (file + line number)
-   - Every internal hostname, URL, email address
-   - Every internal table name that reveals business context
-   - Ranked: MUST REMOVE before GitHub / SHOULD REMOVE / OPTIONAL
-
-6. REUSE PLAN
-   - Which existing functions map directly to FlowForge step types?
-   - What can be wrapped vs what needs rewriting?
-   - Any existing DB schema tables that become FlowForge config tables?
-
-Save the complete review to docs/code-review.md.
-Stop here. Do not make any code changes.
-```
-
-### After Session Zero — Review the Output
-- [ ] Read `docs/code-review.md` fully before proceeding
-- [ ] Verify the scrub list is complete — add anything missed
-- [ ] Note which existing capabilities are reusable — update this TASKS.md if needed
-- [ ] Upload `docs/code-review.md` to DevBrain as a FlowForge document
-- [ ] Only then proceed to Scrub Sessions
-
----
-
-## Pre-Phase: Scrub Existing Code (4 Claude Code Sessions)
-
-### Session 1 — Cleanup & Consolidation
-
-**Goal**: Produce a smaller, cleaner codebase before any scrubbing begins.
-Dead files deleted. Duplicate logic merged. Bloated functions split.
-Do NOT scrub company references yet. Do NOT restructure into FlowForge
-folders yet. Cleanup only — every change must be reversible via git.
-
-**Why cleanup before scrub**: Scrubbing dead code wastes effort. Merging
-duplicates after scrubbing means scrubbing the same logic twice. Clean
-first, scrub second, restructure third.
-
-```
-Read D:\Project\flowforge\docs\code-review.md carefully.
-Read ALL existing code in D:\Project\flowforge.
-Also read D:\Project\flowforge\CLAUDE.md for planned architecture.
-
-Do NOT scrub company or telecom references yet.
-Do NOT restructure into FlowForge package folders yet.
-Do NOT change any business logic.
-This session is cleanup and consolidation only.
-
-Work through these tasks in order.
-Commit after each task so every change is reversible.
-
-─────────────────────────────────────────
-TASK 1 — DELETE DEAD CODE AND UNUSED FILES
-─────────────────────────────────────────
-Identify and delete:
-- Files that are never imported or called by anything
-- Functions that are defined but never called anywhere
-- Large blocks of commented-out old code (10+ lines)
-- Duplicate files — same logic existing in two places
-- Old or backup files: anything named with suffix
-  _old, _bak, _v1, _v2, _copy, _backup, _temp, _test,
-  or prefixed with old_, bak_, temp_, draft_
-- One-off scripts that were clearly used once and abandoned
-- Empty files (0 lines or only comments/whitespace)
-
-Before deleting any file — confirm it is truly unused:
-check ALL import statements and ALL function calls
-across the entire codebase. If unsure — keep it and
-flag it in the cleanup report instead.
-
-Commit: git commit -m "cleanup: remove dead code and unused files"
-
-─────────────────────────────────────────
-TASK 2 — CONSOLIDATE DUPLICATE LOGIC
-─────────────────────────────────────────
-Using the duplication analysis from code-review.md,
-consolidate each category of duplication:
-
-DB Connections:
-- If multiple files open DB connections separately,
-  merge ALL connection logic into one file: db.py
-  or connections.py (do not use FlowForge folder
-  names yet — just consolidate into one place)
-- Update all other files to import from this one file
-- Delete the duplicate connection code from each file
-
-Email Sending:
-- If multiple files contain email sending logic,
-  merge ALL email logic into one file: email.py
-  or mailer.py
-- Update all callers to import from this one file
-- Delete the duplicate email code from each file
-
-Report Generation:
-- If report building logic is repeated or scattered,
-  consolidate into one file per format
-  (excel.py, pdf.py, csv.py or a single reports.py)
-- Delete duplicate report code
-
-Drive Upload:
-- If Drive upload logic exists in more than one place,
-  merge into one file: drive.py
-- Update all callers, delete duplicates
-
-Any other duplications flagged in the review:
-- Apply the same pattern: consolidate → update
-  callers → delete duplicates
-
-After each consolidation run the code mentally to
-confirm the callers still work with the merged version.
-
-Commit after each category:
-git commit -m "cleanup: consolidate {category} into single module"
-
-─────────────────────────────────────────
-TASK 3 — SPLIT FUNCTIONS THAT DO TOO MUCH
-─────────────────────────────────────────
-From the code review, any function flagged as doing
-more than one thing must be split into focused
-single-purpose functions.
-
-Common patterns to fix:
-  generate_and_send_report(params)
-  → generate_report(params) → returns file_path
-  → send_email(file_path, recipients) → returns bool
-
-  fetch_data_and_build_excel(params)
-  → fetch_data(query, params) → returns rows
-  → build_excel(rows, output_path) → returns file_path
-
-Rules for splitting:
-- Each new function does exactly one thing
-- Function name describes what it does, not when
-- Update the original caller to call both functions
-  in sequence — do not change the caller's behavior
-- If the original function is called in multiple
-  places, update all call sites
-
-Commit after each split:
-git commit -m "cleanup: split {function_name} into focused functions"
-
-─────────────────────────────────────────
-TASK 4 — REMOVE OBVIOUS JUNK
-─────────────────────────────────────────
-Across all surviving files:
-
-- Remove all print() debug statements
-  Replace with logging.debug() where the output
-  is genuinely useful, remove entirely otherwise
-- Remove unused imports at the top of each file
-  (imported but never referenced in the file)
-- Remove large blocks of commented-out old code
-  that were not caught in Task 1
-- Remove stale TODO and FIXME comments that
-  reference internal systems, old tickets, or
-  people's names
-- Remove any hardcoded test data or example
-  values embedded in non-test files
-
-Do NOT remove logging statements that are currently
-active and useful — only print() calls.
-
-Commit: git commit -m "cleanup: remove debug prints, unused imports, stale comments"
-
-─────────────────────────────────────────
-TASK 5 — FLATTEN UNNECESSARY STRUCTURE
-─────────────────────────────────────────
-Look at the folder structure:
-- If a folder contains only one file and exists
-  purely for organization that adds no clarity,
-  move the file up and delete the folder
-- If __init__.py files are importing things that
-  nothing outside uses, simplify them
-- If config is split across many small files that
-  logically belong together, merge them into one
-- If there are nested utils/helpers/common folders
-  inside other folders, flatten where sensible
-
-Do NOT flatten if the structure is intentional and
-clear — only flatten genuinely confusing nesting.
-
-Commit: git commit -m "cleanup: flatten unnecessary folder structure"
-
-─────────────────────────────────────────
-TASK 6 — FINAL CLEANUP REPORT
-─────────────────────────────────────────
-After all tasks are done, produce a summary and
-save it to docs/cleanup-report.md:
-
-## Cleanup Report
-
-### File Count
-- Files before cleanup: X
-- Files after cleanup:  Y
-- Files deleted:        Z
-
-### Deleted Files
-List every deleted file and why it was deleted:
-| File | Reason |
-|------|--------|
-| old_report.py | Unused — never imported |
-
-### Consolidated Modules
-List every consolidation made:
-| What | From (files) | Into (file) |
-|------|-------------|-------------|
-| DB connections | db_utils.py, helpers.py | connections.py |
-
-### Functions Split
-List every function that was split:
-| Original | Split Into |
-|----------|-----------|
-| generate_and_send() | generate_report() + send_email() |
-
-### Remaining Files
-Brief description of every file that survived:
-| File | Purpose |
-|------|---------|
-| main.py | Entry point |
-| connections.py | All DB connection logic |
-
-### Code Volume
-- Approximate lines before cleanup: X
-- Approximate lines after cleanup:  Y
-- Reduction: Z%
-
-### Flagged Items (kept but uncertain)
-List anything you were unsure about deleting:
-| File/Function | Reason kept | Recommendation |
-
-Save to docs/cleanup-report.md
-
-─────────────────────────────────────────
-STRICT RULES FOR THIS SESSION
-─────────────────────────────────────────
-✅ Delete unused files and functions
-✅ Merge duplicate logic into single files
-✅ Split functions that do more than one thing
-✅ Remove print() and unused imports
-✅ Commit after each task
-✅ Save cleanup-report.md at the end
-
-❌ Do NOT rename variables or functions
-❌ Do NOT scrub company or telecom references
-❌ Do NOT restructure into FlowForge package folders
-❌ Do NOT change business logic
-❌ Do NOT delete anything you are unsure about
-   — flag it in the report instead
-```
-
-### After Session 1 — Review the Output
-- [ ] Read `docs/cleanup-report.md`
-- [ ] Check the "Flagged Items" section — decide what to delete
-- [ ] Upload `docs/cleanup-report.md` to DevBrain as a FlowForge document
-- [ ] Note the file count and line reduction — update CLAUDE.md if architecture assumptions changed
-- [ ] Only then proceed to Session 2 (Scrub)
-
-### Session 2 — Apply Scrub
-```
-Read docs/code-review.md and the scrub mapping.
-
-Apply ALL scrub changes:
-- Company/telecom names → generic equivalents
-- Internal email addresses → {{ env.RECIPIENT }} pattern  
-- Hardcoded credentials → os.environ.get('VAR_NAME')
-- Internal table names → agreed generic names
-- Internal hostnames/URLs → env vars
-- Remove all comments referencing internal systems
-
-Commit after each file:
-git commit -m "scrub: remove company references from {filename}"
-
-Run grep scan after all files done — confirm zero remaining references.
-```
-
-### Session 3 — Refactor & Restructure
-```
-Read docs/code-review.md and scrubbed code.
-
-Restructure into FlowForge package layout as defined in CLAUDE.md.
-
-Priority:
-1. Extract email sending → flowforge/email_providers/ (Gmail, SMTP classes)
-2. Extract Drive upload → flowforge/storage/google_drive.py
-3. Extract report generation → flowforge/reports/ (excel, pdf, csv)
-4. Extract DB connections → flowforge/connections/ (postgres, oracle)
-5. Wrap each in BaseStep subclass → flowforge/steps/
-6. Add type hints, docstrings, proper logging throughout
-7. Parameterize all SQL (no f-string or % formatting)
-8. Add connection pooling to PostgreSQL connection
-
-Do NOT change what the code does — only restructure how it is organized.
-Commit after each major module extraction.
-```
-
-### Session 4 — GitHub Ready
-```
-Create all GitHub release files:
-- README.md (see Phase 7 for content spec)
-- .gitignore (Python + .env + output/ + *.log + connections.yaml)
-- requirements.txt (pip freeze with pinned versions)
-- pyproject.toml
-- .env.example (all variables with inline comments)
-- LICENSE (MIT)
-- CHANGELOG.md (v0.1.0 — initial public release)
-- docs/getting-started.md
-- pipelines/ directory with example_pipeline YAML
-
-Final verification — scan every file:
-- Zero company/telecom references
-- Zero hardcoded credentials  
-- Zero internal hostnames or email addresses
-- All TODO comments that reference internal systems removed
-
-Report any found. Do not push until confirmed clean.
-```
-
----
-
-## Phase 1 — Database Schema & API Foundation (Week 1–2)
-
-### FlowForge Internal DB Schema
-- [ ] Create full schema from CLAUDE.md:
-  - [ ] `email_providers` table (Gmail, M365, SMTP configs — encrypted JSONB)
-  - [ ] `db_connections` table (PostgreSQL, Oracle configs — encrypted JSONB)
-  - [ ] `pipelines` table
-  - [ ] `pipeline_steps` table (ordered, JSONB config per step type)
-  - [ ] `pipeline_variables` table (key/value with is_secret flag)
-  - [ ] `report_configs` table
-  - [ ] `email_configs` table (full email config including smart attachment fields)
-  - [ ] `recipient_groups` table
-  - [ ] `pipeline_runs` table
-  - [ ] `step_runs` table (output_path, drive_url, email_sent_to columns)
-- [ ] Enable pgvector extension (for future AI features)
-- [ ] Write migration scripts
-- [ ] SQLAlchemy models for all tables
-- [ ] Seed: default admin user
-
-### Encryption
-- [ ] Build `flowforge/crypto.py`:
-  - [ ] AES-256-GCM encrypt/decrypt using `cryptography` library
-  - [ ] Key from `FLOWFORGE_SECRET_KEY` env var
-  - [ ] `encrypt_config(dict) → str` — encrypts sensitive JSONB fields
-  - [ ] `decrypt_config(str) → dict` — decrypts on read
-  - [ ] Apply to: `db_connections.config`, `email_providers.config`, secret pipeline variables
-
-### Flask API Setup
-- [ ] Flask app factory in `flowforge/api/app.py`
-- [ ] JWT auth middleware (single user v1)
-- [ ] CORS configured for frontend dev server
-- [ ] Health check: `GET /api/health`
-- [ ] Error handler: returns JSON error responses consistently
-
-### Core REST API Routes
-- [ ] `GET/POST /api/pipelines`
-- [ ] `GET/PUT/DELETE /api/pipelines/:id`
-- [ ] `GET/POST /api/pipelines/:id/steps`
-- [ ] `PUT/DELETE /api/pipeline-steps/:id`
-- [ ] `POST /api/pipelines/:id/run` — trigger pipeline run
-- [ ] `GET /api/pipelines/:id/runs` — run history for pipeline
-- [ ] `GET/POST /api/report-configs`
-- [ ] `GET/PUT/DELETE /api/report-configs/:id`
-- [ ] `GET/POST /api/email-configs`
-- [ ] `GET/PUT/DELETE /api/email-configs/:id`
-- [ ] `GET/POST /api/recipient-groups`
-- [ ] `GET/PUT/DELETE /api/recipient-groups/:id`
-- [ ] `GET/POST /api/db-connections`
-- [ ] `PUT/DELETE /api/db-connections/:id`
-- [ ] `POST /api/db-connections/:id/test`
-- [ ] `GET/POST /api/email-providers`
-- [ ] `PUT/DELETE /api/email-providers/:id`
-- [ ] `POST /api/email-providers/:id/test`
-- [ ] `GET /api/runs` — all run history with filters
-- [ ] `GET /api/runs/:id` — run detail with step runs
-
----
-
-## Phase 2 — Core Engine (Week 2)
-
-### Pipeline Loader
-- [ ] Build `flowforge/engine/loader.py`:
-  - [ ] Load pipeline from DB (not YAML — DB is source of truth)
-  - [ ] Validate step configs at load time
-  - [ ] Return typed `Pipeline` dataclass with ordered steps
-
-### Variable Context
-- [ ] Build `flowforge/engine/context.py`:
-  - [ ] Built-in vars: `current_month`, `current_date`, `current_year`, `yesterday`, `run_id`, `pipeline_name`, `failed_step`
-  - [ ] `{{ env.VAR }}` → os.environ
-  - [ ] `{{ steps.step_name.output_path }}` → from step results
-  - [ ] `{{ steps.step_name.drive_url }}` → from step results
-  - [ ] `{{ ai_summary }}` → from ai_analyze step result
-  - [ ] Jinja2 render all string config values before step execution
-
-### Pipeline Runner
-- [ ] Build `flowforge/engine/runner.py`:
-  - [ ] Load pipeline config from DB
-  - [ ] Create `pipeline_run` record (status: running)
-  - [ ] Execute steps in `step_order` order
-  - [ ] Pass context between steps
-  - [ ] `on_error: stop` → abort, run on_failure steps
-  - [ ] `on_error: continue` → log, continue
-  - [ ] Run on_success or on_failure steps at end
-  - [ ] Write `step_run` record after each step
-  - [ ] Update `pipeline_run` to success/failed + duration on completion
-  - [ ] Stream logs to SSE endpoint during run (frontend polls this)
-
----
-
-## Phase 3 — Step Implementations (Week 2–3)
-
-### Base Step
-- [ ] `flowforge/steps/base.py` — `BaseStep` abstract + `StepResult` dataclass
-
-### db_procedure Step
-- [ ] Load connection from `db_connections` table (decrypt config)
-- [ ] Route to PostgreSQL or Oracle connection class
-- [ ] Build params dict from config + context variable resolution
-- [ ] PostgreSQL: `CALL procedure_name(params)` or `SELECT function_name(params)`
-- [ ] Oracle: `BEGIN package_name.procedure_name(params); END;`
-- [ ] Log: procedure name, params (mask secrets), duration, success/error
-
-### db_query Step
-- [ ] Load connection from DB
-- [ ] Render SQL through Jinja2 context
-- [ ] Execute query → fetch all rows
-- [ ] Write to output_table (replace/append/truncate_insert modes)
-- [ ] Log: rows fetched, rows written, duration
-
-### report Step
-- [ ] Load `report_config` from DB
-- [ ] Load connection from report_config
-- [ ] Execute report query
-- [ ] Dispatch to excel/pdf/csv report generator
-- [ ] Ensure `output/` directory exists
-- [ ] Render output filename through Jinja2
-- [ ] Store output path in StepResult → available to downstream steps
-
-### email Step (with smart attachment)
-- [ ] Load `email_config` from DB (decrypt provider config)
-- [ ] Resolve recipient list (group or direct addresses)
-- [ ] Resolve attachment paths through Jinja2 (file paths from previous steps)
-- [ ] **Smart attachment logic**:
-  - [ ] For each attachment: check file size vs `attachment_max_mb`
-  - [ ] If over limit: upload to Drive → get shareable link → add to drive_links list
-  - [ ] If under limit: add to direct attachments list
-  - [ ] Render `drive_share_message` template with drive_links → append to email body
-- [ ] Render subject, header, body through Jinja2
-- [ ] Dispatch to correct email provider (Gmail/M365/SMTP)
-- [ ] Log: provider, recipients, subject, attachment count, drive uploads, duration
-
-### drive_upload Step
-- [ ] Resolve file path through Jinja2
-- [ ] Upload via `google_drive.py`
-- [ ] Get shareable link
-- [ ] Store drive_url in StepResult
-
----
-
-## Phase 4 — Email Providers (Week 3)
-
-### Base Provider
-- [ ] `flowforge/email_providers/base.py` — `EmailProvider` ABC
-
-### Gmail Provider
-- [ ] `flowforge/email_providers/gmail.py`
-- [ ] OAuth2 via `google-auth` + Gmail API
-- [ ] Refresh token stored encrypted in `email_providers.config`
-- [ ] Build MIME message with HTML body + attachments
-- [ ] Handle send errors with retry (3 attempts, exponential backoff)
-
-### Microsoft 365 Provider
-- [ ] `flowforge/email_providers/microsoft365.py`
-- [ ] `msal` library — client credentials flow
-- [ ] Azure AD app registration required (document in setup guide)
-- [ ] Send via Microsoft Graph API: `POST /v1.0/users/{sender}/sendMail`
-- [ ] Handle attachment as base64 in Graph API payload
-- [ ] `flowforge setup microsoft365` — device code flow → saves tokens encrypted
-- [ ] Token refresh handled automatically via MSAL token cache
-
-### SMTP Provider
-- [ ] `flowforge/email_providers/smtp.py`
-- [ ] `smtplib` + `email.mime`
-- [ ] Config: host, port, username, password, use_tls (STARTTLS), use_ssl
-- [ ] Covers: Outlook (smtp.office365.com:587), Yahoo, corporate mail
-- [ ] Connection test: `EHLO` + auth verify
-
-### Provider Factory
-- [ ] `get_email_provider(provider_id) → EmailProvider`
-- [ ] Loads from DB, decrypts config, instantiates correct class
-
----
-
-## Phase 5 — Database Connections (Week 3)
-
-### Base Connection
-- [ ] `flowforge/connections/base.py` — `BaseConnection` ABC:
-  - [ ] `execute_procedure(name, params)` → success/error
-  - [ ] `execute_query(sql, params)` → rows
-  - [ ] `execute_write(sql, params, output_table, mode)` → rows_affected
-  - [ ] `test()` → bool + latency_ms
-  - [ ] Context manager (auto-close/pool-return)
-
-### PostgreSQL Connection
-- [ ] `flowforge/connections/postgres.py`
-- [ ] `psycopg2.pool.ThreadedConnectionPool` (min=1, max=5)
-- [ ] `execute_procedure`: `SELECT proc_name(%(param)s)` or `CALL proc_name(%(param)s)`
-- [ ] Parameterized queries only — no string formatting
-- [ ] `execute_write`: bulk insert via `execute_values` for performance
-- [ ] `test()`: simple `SELECT 1`, return latency
-
-### Oracle Connection
-- [ ] `flowforge/connections/oracle.py`
-- [ ] `cx_Oracle` with connection pool
-- [ ] Oracle Instant Client dependency — documented clearly
-- [ ] `execute_procedure`: `BEGIN pkg.proc(:param); END;` with named params
-- [ ] Handle Oracle package syntax: split `package.procedure` on `.`
-- [ ] Handle Oracle types: LOB → read as string, DATE/TIMESTAMP → Python datetime
-- [ ] `arraysize = 1000` on cursors for bulk fetch performance
-- [ ] `test()`: `SELECT 1 FROM DUAL`, return latency
-
-### Connection Factory
-- [ ] `get_connection(connection_id) → BaseConnection`
-- [ ] Loads from DB, decrypts config, instantiates correct class
-
----
-
-## Phase 6 — Report Generators (Week 3–4)
-
-### Excel Report
-- [ ] `flowforge/reports/excel_report.py`
-- [ ] Optional template: load `.xlsx`, write data starting at configured row
-- [ ] No template: create new workbook, write headers + data
-- [ ] Auto-width columns (cap at 60 chars)
-- [ ] Header row: bold + background color
-- [ ] Support multiple sheets (one query result per sheet config)
-- [ ] Number/date formatting based on column type
-
-### PDF Report
-- [ ] `flowforge/reports/pdf_report.py`
-- [ ] Jinja2 HTML template → `weasyprint` → PDF
-- [ ] Default template: clean table layout with title, date, data
-- [ ] Custom templates: user uploads HTML template to `templates/pdf/`
-- [ ] Make `weasyprint` an optional dependency: `pip install flowforge[pdf]`
-
-### CSV Report
-- [ ] `flowforge/reports/csv_report.py`
-- [ ] UTF-8 BOM encoding option (for Excel CSV compatibility)
-- [ ] Configurable delimiter, quoting
-- [ ] Optional header row
-
----
-
-## Phase 7 — Scheduler & CLI (Week 4)
-
-### Scheduler
-- [ ] APScheduler with PostgreSQL job store (survives restarts)
-- [ ] On start: load all enabled pipelines with `schedule` field → register cron jobs
-- [ ] Poll DB every 60s for schedule changes (hot reload)
-- [ ] `enabled: false` pipelines automatically unregistered
-- [ ] Log next 3 scheduled runs on startup
-- [ ] Missed run handling: `misfire_grace_time=300` (5 min grace)
-
-### CLI
-- [ ] `flowforge list` — table: name, schedule, last run, status, next run
-- [ ] `flowforge run <pipeline_name>` — run now, stream logs
-- [ ] `flowforge run <pipeline_name> --step <step_name>` — single step
-- [ ] `flowforge schedule start` — start scheduler daemon
-- [ ] `flowforge validate <pipeline_name>` — test connections, validate SQL
-- [ ] `flowforge connections test <name>` — test DB connection
-- [ ] `flowforge setup gmail` — OAuth2 wizard
-- [ ] `flowforge setup microsoft365` — MSAL device code flow
-- [ ] `flowforge setup drive` — Drive OAuth2 wizard
-- [ ] `flowforge web` — start Flask + React frontend
-- [ ] `flowforge export <pipeline_name>` — export pipeline as YAML
-- [ ] `flowforge import pipeline.yaml` — import YAML → DB
-
----
-
-## Phase 8 — Frontend (Week 4–6)
-
-### Setup
-- [ ] Scaffold React + Vite + TypeScript in `frontend/`
-- [ ] Apply design tokens from CLAUDE.md to tailwind.config.ts
-- [ ] Set up React Query for all API calls
-- [ ] Set up React Router for page navigation
-- [ ] JWT auth: login page, token storage, API interceptor
-
-### Dashboard Page
-- [ ] Pipeline cards: name, status badge (with pulse animation for running), last run, next run, Run Now button
-- [ ] Status badge colors: Success=green, Failed=red, Running=blue pulse, Never=gray
-- [ ] Live polling: every 5s when any pipeline is `running`
-- [ ] Global stats row: runs today, success rate, active schedules count
-- [ ] Recent failures widget
-
-### Pipeline Builder
-- [ ] Pipeline list page — table with edit/delete/clone actions
-- [ ] Pipeline edit page:
-  - [ ] Basic info: name, description, enabled toggle
-  - [ ] Visual cron builder → human readable + cron expression
-  - [ ] Steps list with drag-to-reorder (dnd-kit)
-  - [ ] Add step: type selector → type-specific config form
-  - [ ] Step config forms:
-    - [ ] `db_procedure`: connection picker, procedure name input, params key/value editor
-    - [ ] `db_query`: connection picker, SQL editor (CodeMirror), output table, mode
-    - [ ] `report`: report config picker dropdown (or "+ Create New")
-    - [ ] `email`: email config picker dropdown (or "+ Create New")
-    - [ ] `drive_upload`: file path input, folder picker, rename input
-  - [ ] on_failure steps section (collapsible, same step editor)
-  - [ ] on_error per step: stop/continue toggle
-  - [ ] Save + Validate button
-
-### Report Designer
-- [ ] Report configs list
-- [ ] Report edit page:
-  - [ ] Name, description
-  - [ ] Connection picker
-  - [ ] SQL editor (CodeMirror 6 with SQL syntax + autocomplete)
-  - [ ] Format selector: Excel / PDF / CSV
-  - [ ] Excel: template file upload, sheet name input
-  - [ ] Output filename input with variable chip hints
-  - [ ] **Preview**: "Run Query" button → fetch first 20 rows → show in data table
-  - [ ] Row count indicator
-
-### Email Designer
-- [ ] Email configs list
-- [ ] Email edit page:
-  - [ ] Name, description
-  - [ ] Provider picker (Gmail / M365 / SMTP)
-  - [ ] From name input
-  - [ ] Recipients: group picker OR direct address input (chip input)
-  - [ ] CC, BCC fields (chip input)
-  - [ ] Subject input with variable chip hints
-  - [ ] Header/banner text input
-  - [ ] Body editor: toggle between rich editor and raw HTML + Jinja2
-  - [ ] Smart attachment section:
-    - [ ] Max size slider (1–50MB)
-    - [ ] Drive folder picker (shows folder tree)
-    - [ ] Drive share message editor (Jinja2 template)
-  - [ ] **Preview**: renders email with sample variables → shows in modal iframe
-
-### Recipient Groups
-- [ ] Groups list
-- [ ] Create/edit group: name, description, address chip input
-- [ ] Show which email configs use each group
-
-### Connections Manager
-- [ ] DB Connections list + Email Providers list (tabbed)
-- [ ] Add DB connection form: type selector → PostgreSQL or Oracle fields
-- [ ] Add Email provider form: type selector → Gmail / M365 / SMTP fields
-- [ ] Test button per connection → shows latency or error inline
-- [ ] All credential fields masked (show/hide toggle)
-
-### Run History
-- [ ] Table: pipeline name, triggered by badge, started, duration, status badge
-- [ ] Filters: pipeline, status, date range, triggered by
-- [ ] Run detail page:
-  - [ ] Step timeline: step name, type badge, status icon, duration bar, rows affected
-  - [ ] Click step → expand logs panel (monospace, scrollable)
-  - [ ] Drive URLs shown as clickable links
-  - [ ] Email recipients shown as chips
-  - [ ] Error highlighted in red with full message
-
-### Settings Page
-- [ ] OAuth setup: Gmail, Drive, Microsoft 365 — setup wizard buttons
-- [ ] Default attachment threshold setting
-- [ ] Default Drive folder setting
-- [ ] Export/import pipeline YAML
-
----
-
-## Phase 9 — Documentation & GitHub Release (Week 6–7)
-
-### README.md Content
-- [ ] Hero: what FlowForge is, one-line pitch
-- [ ] Features list: DB procedures, multi-provider email, reports, Drive, smart attachments, scheduling, web UI
-- [ ] Quick start (5 steps)
-- [ ] Screenshot: dashboard + pipeline builder + email designer
-- [ ] Comparison table: FlowForge vs Airflow vs Prefect vs cron+scripts
-- [ ] Step types reference table
-- [ ] Supported: PostgreSQL, Oracle | Gmail, M365, SMTP | Excel, PDF, CSV
-- [ ] Installation: `pip install flowforge`
-- [ ] Contributing + License
-
-### docs/
-- [ ] `getting-started.md` — install → first pipeline → schedule → view results
-- [ ] `step-types.md` — full spec for each step type
-- [ ] `email-providers.md` — Gmail OAuth2, Microsoft 365 MSAL, SMTP setup
-- [ ] `database-connections.md` — PostgreSQL, Oracle (Instant Client requirement)
-- [ ] `smart-attachments.md` — how Drive fallback works, how to configure
-- [ ] `variables.md` — full variable reference
-- [ ] `cli-reference.md` — all CLI commands
-
-### Tests
-- [ ] `test_runner.py` — step ordering, on_failure trigger, context passing
-- [ ] `test_smart_attachments.py` — under limit → direct attach, over limit → Drive + link
-- [ ] `test_email_providers.py` — mock Gmail, M365, SMTP send
-- [ ] `test_connections.py` — mock PostgreSQL, Oracle connections
-- [ ] `test_report_generators.py` — Excel/CSV output verification
-- [ ] `test_crypto.py` — encrypt/decrypt round-trip
-- [ ] GitHub Actions: run pytest on push
-
-### GitHub
-- [ ] Create public repo: `flowforge`
-- [ ] Description: "Database-driven data pipeline orchestrator. DB procedures → reports → email (Gmail/M365/SMTP) → Google Drive. Smart attachments, scheduler, full web UI."
-- [ ] Topics: `python`, `data-pipeline`, `etl`, `automation`, `reporting`, `postgresql`, `oracle`, `gmail`, `microsoft365`, `scheduler`, `google-drive`
-- [ ] First release: v0.1.0
-
----
-
-## Phase 10 — AI Analysis Step (v2, Post-Launch)
-
-- [ ] `flowforge/steps/ai_analyze.py`
-- [ ] Run query → fetch rows (cap 500 for context window safety)
-- [ ] Format as markdown table
-- [ ] Route to Ollama (default) or Claude API (opt-in via USE_CLAUDE)
-- [ ] Store result in context as `output_variable`
-- [ ] Available downstream via `{{ ai_summary }}` in email/report steps
-- [ ] Frontend: ai_analyze step config form in Pipeline Builder
-- [ ] Anomaly detection flag: `detect_anomalies: true`
-- [ ] Report integration: Excel cell target for AI summary, PDF text block
 
 ---
 
@@ -984,23 +81,80 @@ Report any found. Do not push until confirmed clean.
 - [ ] SFTP upload step
 - [ ] AWS S3 upload step
 - [ ] Azure Blob upload step
-- [ ] **OneDrive / SharePoint upload step** — natural fit for M365 users who shouldn't need a Google account just for large attachment handling. Uses the same Graph API + MSAL already installed via `[microsoft365]`. No new SDK needed. Scope: new `onedrive_upload` step type, extend smart attachment logic to accept a `storage_provider` field (`google_drive` | `onedrive`), add folder picker in email config UI, add `[onedrive]` extra (same as `[microsoft365]`). Decided against v1 — core stability (Alembic, help system) takes priority first.
+- [ ] **OneDrive / SharePoint upload step** — Graph API + MSAL (already installed via `[microsoft365]`). New `onedrive_upload` step type, extend smart attachment with `storage_provider` field (`google_drive` | `onedrive`). Deferred to post-core-stability. *User confirmed active need.*
 
 ### More DB Support
-- [ ] MySQL / MariaDB connection
-- [ ] MSSQL / SQL Server connection
-- [ ] Generic ODBC connection
+- [ ] MySQL / MariaDB
+- [ ] MSSQL / SQL Server
+- [ ] Generic ODBC
 
 ### Pipeline Features
 - [ ] Pipeline dependencies (run B after A)
 - [ ] Parallel step execution
 - [ ] Step retry with exponential backoff
 - [ ] Pipeline YAML import/export from UI
+- [ ] **Pipeline run parameter UI** — A "Parameters" section on the pipeline edit page where you define named params and their computation rules (e.g., `week_start = start of current ISO week`, `week_end = end of current ISO week`). More flexible than built-in date vars; allows per-pipeline customization. Params become available as `{{ params.week_start }}` in all step configs. Pairs with the built-in smart date vars (ship those first).
+- [ ] **Bulk file loader step (`bulk_load`)** — Replaces the Oracle SQL\*Loader shell script at `github.com/jagdeepvirdi/DayToDayOfficeOperations`. Full spec below.
+
+  **Step config (stored in `pipeline_steps.config` JSONB):**
+  ```json
+  {
+    "connection_id": "uuid",
+    "source_directory": "/data/incoming/",
+    "file_prefix": "SUBS_",
+    "file_prefix_exclude": null,
+    "file_type": "csv",
+    "delimiter": ",",
+    "header_rows": 1,
+    "footer_rows": 0,
+    "target_table": "STAGING.SUBSCRIPTIONS",
+    "load_mode": "append",
+    "column_mapping": [],
+    "use_sqlloader": true,
+    "archive_directory": "/data/archive/{{ current_date }}/",
+    "on_no_files": "skip"
+  }
+  ```
+
+  **Execution — three internal paths:**
+  1. **Oracle + `use_sqlloader: true`** — FlowForge generates a `.ctl` control file dynamically from the step config (delimiter, column mapping, date formats). Calls `sqlldr user/pass@dsn control=<tmp>.ctl log=<tmp>.log bad=<tmp>.bad` as a subprocess. Parses the `.log` file for "rows loaded" / "rows not loaded" counts. Surfaces `.bad` file content (rejected rows) in `step_runs.logs`. Fastest path — Oracle direct-path load, bypasses redo logging.
+  2. **PostgreSQL** — Uses psycopg2 `cursor.copy_expert("COPY table FROM STDIN CSV HEADER", file)`. Equivalent speed to SQL\*Loader for Postgres. Parse `copy_expert` counts for loaded/rejected rows.
+  3. **Python fallback** (any DB, or `use_sqlloader: false`)— Reads file in chunks of 10,000 rows, strips `header_rows` + `footer_rows`, inserts via `executemany()`. Slower but requires no external tooling.
+
+  **Control file auto-generation (Oracle path):**
+  FlowForge writes the `.ctl` to a temp directory — the user never touches it. Derives from: delimiter, `column_mapping`, any date-format hints on columns. After load: archive source files to `archive_directory`, delete temp `.ctl`/`.log`/`.bad`.
+
+  **Step output variables (available in subsequent steps via `{{ steps.<name>.x }}`):**
+  | Variable | Example |
+  |---|---|
+  | `files_found` | 3 |
+  | `files_loaded` | 3 |
+  | `files_failed` | 0 |
+  | `records_loaded` | 147,832 |
+  | `records_failed` | 14 |
+  | `duration_sec` | 8.3 |
+
+  Use these directly in an `email` step body to send a load confirmation — no new feature needed, standard pipeline step.
+
+  **Run History tracking:**
+  - `step_runs.rows_affected` = `records_loaded`
+  - `step_runs.logs` = full load summary + first 50 rejected rows from `.bad` file
+
+  **Code changes required:**
+  - `flowforge/steps/bulk_load.py` — new step class
+  - `flowforge/steps/base.py` — add `files_found`, `files_loaded`, `files_failed`, `records_loaded`, `records_failed`, `duration_sec` fields to `StepResult`
+  - `flowforge/engine/context.py` — propagate new `StepResult` fields into pipeline context (same pattern as `output_path` and `drive_url`)
+  - `frontend/src/components/pipeline/StepEditor.tsx` — add `bulk_load` step config panel
+  - `frontend/src/lib/helpContent.ts` — add `bulk_load` to step hints
+  - Alembic migration — add `bulk_load` to step type enum if constrained
+
+  **Implementation order:** Python fallback first (works immediately, no Oracle client needed for dev/test) → PostgreSQL COPY → Oracle SQL\*Loader.
 
 ### Platform
-- [ ] Docker image: `docker pull flowforge/flowforge`
 - [ ] Multi-user auth with roles (v2)
 - [ ] Plugin system for community step types
+- [ ] Slack/Teams notifications (v2)
+- [ ] AI analyze step — `flowforge/steps/ai_analyze.py`, Ollama/Claude routing, `{{ ai_summary }}` variable (v2)
 
 ---
 
@@ -1008,11 +162,10 @@ Report any found. Do not push until confirmed clean.
 
 | Risk | Mitigation |
 |---|---|
-| cx_Oracle requires Oracle Instant Client | Document clearly; make Oracle optional install: `pip install flowforge[oracle]` |
+| cx_Oracle requires Oracle Instant Client | Document clearly; make Oracle optional: `pip install flowforge[oracle]` |
 | M365 requires Azure AD app registration | Step-by-step guide in docs/email-providers.md; flowforge setup microsoft365 wizard |
-| Gmail OAuth2 token expiry | MSAL-style refresh token handling; re-auth wizard in settings |
+| Gmail OAuth2 token expiry | Refresh token handling; re-auth wizard in settings |
 | Drive folder ID opaque to users | Folder picker in frontend fetches Drive tree via API |
 | Smart attachment: Drive upload fails after report generated | Fallback: attach directly if Drive upload fails, log warning |
-| Scrub misses internal references | Session Zero audit + Session 2 scrub + Session 4 final scan = 3 passes |
 | Large report query times out in Preview | Preview uses `LIMIT 20` wrapper around user query |
 | Oracle LOB columns break row serialization | OracleConnection reads LOB values explicitly before cursor close |
