@@ -51,6 +51,8 @@ dependencies = [
     "python-dotenv>=1.0",
     # YAML export/import
     "pyyaml>=6.0",
+    # Database migrations
+    "alembic>=1.13",
 ]
 
 [project.optional-dependencies]

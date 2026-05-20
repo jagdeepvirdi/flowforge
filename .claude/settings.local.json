@@ -3,7 +3,26 @@
     "allow": [
       "Bash(git init *)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(git remote *)",
+      "Bash(git push *)",
+      "Bash(pip install *)",
+      "Bash(python -m pytest --tb=short -q)",
+      "Bash(python -m pytest --version)",
+      "Bash(where pytest *)",
+      "Bash(pytest --version)",
+      "Bash(pip --version)",
+      "Bash(.venv\\\\Scripts\\\\pip install *)",
+      "Bash(.venv\\\\Scripts\\\\pytest --tb=short -q)",
+      "Bash(\".venv/Scripts/pip\" install *)",
+      "Bash(\".venv/Scripts/pytest\" --tb=short -q)",
+      "Bash(git config *)",
+      "Bash(python *)",
+      "Bash(npx tsc *)",
+      "Bash(gh repo *)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(git *)"
     ]
   }
 }

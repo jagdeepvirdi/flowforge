@@ -9,6 +9,8 @@ import {
 import StatusBadge from '../components/shared/StatusBadge'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
+import PageIntro from '../components/shared/PageIntro'
+import FieldTooltip from '../components/shared/FieldTooltip'
 
 type Tab = 'db' | 'mail'
 
@@ -57,10 +59,10 @@ const emptyMail = (): MailForm => ({
 
 // ── field helpers ────────────────────────────────────────────────────────────
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, tooltip }: { label: string; children: React.ReactNode; tooltip?: React.ReactNode }) {
   return (
     <div className="field">
-      <label>{label}</label>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>{label}{tooltip}</label>
       {children}
     </div>
   )
@@ -192,10 +194,12 @@ export default function Connections() {
     <>
       <TopBar
         crumbs={['Workspace', 'Connections']}
+        helpTopic="connections"
         actions={<button className="btn btn-primary btn-sm" onClick={openModal}><Plus size={13} /> Add Connection</button>}
       />
 
       <div className="scroll">
+        <PageIntro page="connections" />
         <div className="page-h">
           <div>
             <h1>Connections</h1>
@@ -272,7 +276,11 @@ export default function Connections() {
               )
             })}
             {!dbLoading && dbConns.length === 0 && (
-              <div className="card ff-empty"><p className="msg">No database connections yet.</p></div>
+              <div className="card ff-empty">
+                <p className="msg">No database connections yet.</p>
+                <p style={{ fontSize: 12.5, color: '#64748B', margin: '0 0 14px' }}>Add a PostgreSQL or Oracle connection. Credentials are encrypted at rest with AES-256.</p>
+                <button className="btn btn-primary btn-sm" onClick={openModal}>Add connection</button>
+              </div>
             )}
           </div>
         )}
@@ -319,7 +327,11 @@ export default function Connections() {
               )
             })}
             {!mailLoading && providers.length === 0 && (
-              <div className="card ff-empty"><p className="msg">No email providers configured yet.</p></div>
+              <div className="card ff-empty">
+                <p className="msg">No email providers configured yet.</p>
+                <p style={{ fontSize: 12.5, color: '#64748B', margin: '0 0 14px' }}>Add a Gmail, Microsoft 365, or SMTP provider. One provider can be shared across many email configs.</p>
+                <button className="btn btn-primary btn-sm" onClick={openModal}>Add email provider</button>
+              </div>
             )}
           </div>
         )}
@@ -365,7 +377,7 @@ export default function Connections() {
                 </Field>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: 10 }}>
-                  <Field label="Host">
+                  <Field label="Host" tooltip={<FieldTooltip field={dbForm.db_type === 'oracle' ? 'oracle_connection' : 'db_host_port'} />}>
                     <input className="input" value={dbForm.host} onChange={e => setDbForm(f => ({ ...f, host: e.target.value }))} placeholder="localhost" required />
                   </Field>
                   <Field label="Port">

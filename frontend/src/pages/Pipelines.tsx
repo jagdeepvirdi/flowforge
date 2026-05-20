@@ -6,6 +6,7 @@ import { getPipelines, deletePipeline, runPipeline } from '../lib/api'
 import StatusBadge from '../components/shared/StatusBadge'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
+import PageIntro from '../components/shared/PageIntro'
 
 function FilterChip({ label, value, options, onChange }: {
   label: string; value: string; options: string[]; onChange: (v: string) => void
@@ -54,12 +55,14 @@ export default function Pipelines() {
     <>
       <TopBar
         crumbs={['Workspace', 'Pipelines']}
+        helpTopic="pipelines"
         actions={
           <Link to="/pipelines/new" className="btn btn-primary btn-sm"><Plus size={13} /> New Pipeline</Link>
         }
       />
 
       <div className="scroll">
+        <PageIntro page="pipelines" />
         <div className="page-h">
           <div>
             <h1>Pipelines</h1>

@@ -14,21 +14,26 @@ class Microsoft365Provider(EmailProvider):
 
     def __init__(self, tenant_id: str, client_id: str, client_secret: str, sender_email: str):
         self.sender = sender_email
-        self._token = self._acquire_token(tenant_id, client_id, client_secret)
+        self._msal_app = self._build_msal_app(tenant_id, client_id, client_secret)
 
-    def _acquire_token(self, tenant_id: str, client_id: str, client_secret: str) -> str:
+    def _build_msal_app(self, tenant_id: str, client_id: str, client_secret: str):
         try:
             import msal
         except ImportError:
             raise ImportError(
                 "Microsoft 365 support requires: pip install 'flowforge[microsoft365]'"
             )
-        app = msal.ConfidentialClientApplication(
+        return msal.ConfidentialClientApplication(
             client_id,
             authority=f'https://login.microsoftonline.com/{tenant_id}',
             client_credential=client_secret,
         )
-        result = app.acquire_token_for_client(scopes=['https://graph.microsoft.com/.default'])
+
+    def _get_token(self) -> str:
+        """Acquire a token, using MSAL's in-memory cache when still valid."""
+        result = self._msal_app.acquire_token_for_client(
+            scopes=['https://graph.microsoft.com/.default']
+        )
         if 'access_token' not in result:
             raise RuntimeError(f"MSAL token acquisition failed: {result.get('error_description')}")
         return result['access_token']
@@ -77,7 +82,7 @@ class Microsoft365Provider(EmailProvider):
                 url,
                 json=payload,
                 headers={
-                    'Authorization': f'Bearer {self._token}',
+                    'Authorization': f'Bearer {self._get_token()}',
                     'Content-Type': 'application/json',
                 },
             )

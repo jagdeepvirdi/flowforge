@@ -2,6 +2,7 @@
 import os
 import pytest
 import bcrypt
+from pathlib import Path
 from urllib.parse import urlparse
 
 # Use a dedicated test database — never the production one
@@ -10,9 +11,37 @@ os.environ.setdefault('FLOWFORGE_SECRET_KEY', 'a' * 64)   # 32 bytes hex = 64 ch
 os.environ.setdefault('FLOWFORGE_USERNAME', 'testadmin')
 os.environ.setdefault('FLOWFORGE_PASSWORD', bcrypt.hashpw(b'testpass', bcrypt.gensalt(4)).decode())
 
+_MIGRATIONS_DIR = Path(__file__).parent.parent / 'flowforge' / 'db' / 'migrations'
+
+
+@pytest.fixture(scope='session', autouse=True)
+def apply_migrations():
+    """Drop all FlowForge tables and reapply migrations for a clean test DB."""
+    from alembic import command as alembic_cmd
+    from alembic.config import Config
+    from sqlalchemy import create_engine, text
+
+    db_url = os.environ['FLOWFORGE_DB_URL']
+
+    # Drop all FlowForge tables (FK-safe order) so migrations start clean
+    engine = create_engine(db_url)
+    with engine.begin() as conn:
+        for table in [
+            'ff_step_runs', 'ff_pipeline_runs', 'ff_pipeline_variables',
+            'ff_pipeline_steps', 'ff_pipelines', 'ff_email_configs',
+            'ff_report_configs', 'ff_db_connections', 'ff_email_providers',
+            'ff_recipient_groups', 'ff_users', 'alembic_version',
+        ]:
+            conn.execute(text(f'DROP TABLE IF EXISTS {table} CASCADE'))
+    engine.dispose()
+
+    cfg = Config()
+    cfg.set_main_option('script_location', str(_MIGRATIONS_DIR))
+    alembic_cmd.upgrade(cfg, 'head')
+
 
 @pytest.fixture(scope='session')
-def app():
+def app(apply_migrations):
     from flowforge.api.app import create_app
     application = create_app({
         'TESTING': True,

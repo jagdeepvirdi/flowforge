@@ -5,6 +5,7 @@ import { getRecipientGroups, createRecipientGroup, updateRecipientGroup, deleteR
 import type { RecipientGroup } from '../lib/types'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
+import PageIntro from '../components/shared/PageIntro'
 
 function ChipInput({ values, onChange }: { values: string[]; onChange: (v: string[]) => void }) {
   const [input, setInput] = useState('')
@@ -98,9 +99,11 @@ export default function Recipients() {
     <>
       <TopBar
         crumbs={['Workspace', 'Recipients']}
+        helpTopic="recipients"
         actions={<button className="btn btn-primary btn-sm" onClick={() => setShowNew(true)}><Plus size={13} /> New Group</button>}
       />
       <div className="scroll">
+        <PageIntro page="recipients" />
         <div className="page-h">
           <div>
             <h1>Recipient Groups</h1>
@@ -136,7 +139,7 @@ export default function Recipients() {
               </tr>
             </thead>
             <tbody>
-              {groups.length === 0 && <tr><td colSpan={4} style={{ textAlign: 'center', padding: '40px 0', color: '#64748B' }}>No groups yet.</td></tr>}
+              {groups.length === 0 && <tr><td colSpan={4} style={{ textAlign: 'center', padding: '40px 0', color: '#64748B' }}>No recipient groups yet. Create a named list of addresses — "Finance Team", "Management" — and assign it to an email config.</td></tr>}
               {groups.map(g => <GroupRow key={g.id} group={g} onSaved={() => qc.invalidateQueries({ queryKey: ['recipient-groups'] })} onDelete={() => remove(g.id)} />)}
             </tbody>
           </table>

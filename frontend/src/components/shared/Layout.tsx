@@ -2,6 +2,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../lib/auth'
 import { getRuns } from '../../lib/api'
+import HelpDrawer from './HelpDrawer'
 
 const NAV_MAIN = [
   { to: '/dashboard',   label: 'Dashboard',       icon: 'dashboard' },
@@ -155,6 +156,8 @@ export default function Layout() {
       <main className="ff-main">
         <Outlet />
       </main>
+
+      <HelpDrawer />
     </div>
   )
 }

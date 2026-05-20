@@ -1,4 +1,6 @@
 """Auth login endpoint and OAuth2 setup stubs."""
+import os
+
 from flask import Blueprint, jsonify, request
 
 from flowforge.api.auth import login, require_auth
@@ -32,6 +34,29 @@ def auth_refresh():
     if not username:
         return jsonify({'error': 'Invalid token'}), 401
     return jsonify({'token': generate_token(username)})
+
+
+@bp.get('/setup/status')
+@require_auth
+def setup_status():
+    """Return which OAuth providers are fully configured via env vars."""
+    def _all(*keys: str) -> bool:
+        return all(os.environ.get(k, '').strip() for k in keys)
+
+    return jsonify({
+        'gmail': {
+            'configured': _all('GMAIL_CLIENT_ID', 'GMAIL_CLIENT_SECRET', 'GMAIL_REFRESH_TOKEN', 'GMAIL_SENDER'),
+            'sender': os.environ.get('GMAIL_SENDER', ''),
+        },
+        'drive': {
+            'configured': _all('GMAIL_CLIENT_ID', 'GMAIL_CLIENT_SECRET', 'GMAIL_REFRESH_TOKEN'),
+            'folder_id': os.environ.get('GOOGLE_DRIVE_FOLDER_ID', ''),
+        },
+        'microsoft365': {
+            'configured': _all('MICROSOFT_TENANT_ID', 'MICROSOFT_CLIENT_ID', 'MICROSOFT_CLIENT_SECRET', 'MICROSOFT_SENDER_EMAIL'),
+            'sender': os.environ.get('MICROSOFT_SENDER_EMAIL', ''),
+        },
+    })
 
 
 @bp.post('/setup/gmail')

@@ -36,27 +36,34 @@ def create_app(config: dict | None = None) -> Flask:
     _register_error_handlers(app)
 
     with app.app_context():
-        db.create_all()
         _seed_admin(app)
 
     return app
 
 
 def _seed_admin(app: Flask) -> None:
-    """Insert the admin user from env vars if ff_users is empty."""
+    """Insert the admin user from env vars if ff_users is empty.
+
+    Skips silently if the table doesn't exist yet (migrations not yet applied).
+    """
     username = os.environ.get('FLOWFORGE_USERNAME', '').strip()
     password_hash = os.environ.get('FLOWFORGE_PASSWORD', '').strip()
     if not username or not password_hash:
         return
 
-    from flowforge.db.models import User
-    if db.session.query(User).first():
-        return
-
-    user = User(username=username, password_hash=password_hash)
-    db.session.add(user)
-    db.session.commit()
-    app.logger.info('Admin user "%s" created from env vars.', username)
+    try:
+        from sqlalchemy.exc import OperationalError
+        from flowforge.db.models import User
+        if db.session.query(User).first():
+            return
+        user = User(username=username, password_hash=password_hash)
+        db.session.add(user)
+        db.session.commit()
+        app.logger.info('Admin user "%s" created from env vars.', username)
+    except OperationalError:
+        app.logger.warning(
+            'ff_users table not found — run "flowforge db upgrade" to apply migrations.'
+        )
 
 
 def _register_blueprints(app: Flask) -> None:

@@ -6,6 +6,7 @@ import { getRuns, getPipelines } from '../lib/api'
 import StatusBadge from '../components/shared/StatusBadge'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
+import PageIntro from '../components/shared/PageIntro'
 
 function fmtDur(ms: number | null) {
   if (!ms) return '—'
@@ -48,9 +49,10 @@ export default function RunHistory() {
 
   return (
     <>
-      <TopBar crumbs={['Workspace', 'Run History']} />
+      <TopBar crumbs={['Workspace', 'Run History']} helpTopic="runs" />
 
       <div className="scroll">
+        <PageIntro page="runs" />
         <div className="page-h">
           <div>
             <h1>Run History</h1>
@@ -138,7 +140,9 @@ export default function RunHistory() {
             </thead>
             <tbody>
               {filtered.length === 0 && (
-                <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px 0', color: '#64748B' }}>No runs found.</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px 0', color: '#64748B' }}>
+                  {runs.length === 0 ? 'No runs yet. Trigger a pipeline from the Pipelines page.' : 'No runs match your filters.'}
+                </td></tr>
               )}
               {filtered.map(r => (
                 <tr key={r.id}>

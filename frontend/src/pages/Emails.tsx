@@ -4,6 +4,7 @@ import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { getEmailConfigs, deleteEmailConfig, getEmailProviders } from '../lib/api'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
+import PageIntro from '../components/shared/PageIntro'
 
 export default function Emails() {
   const qc = useQueryClient()
@@ -25,9 +26,11 @@ export default function Emails() {
     <>
       <TopBar
         crumbs={['Workspace', 'Email Templates']}
+        helpTopic="emails"
         actions={<Link to="/emails/new" className="btn btn-primary btn-sm"><Plus size={13} /> New Email Config</Link>}
       />
       <div className="scroll">
+        <PageIntro page="emails" />
         <div className="page-h">
           <div>
             <h1>Email Templates</h1>
@@ -38,7 +41,11 @@ export default function Emails() {
         {configs.length === 0 ? (
           <div className="card ff-empty">
             <p className="msg">No email configs yet.</p>
-            <Link to="/emails/new" className="btn btn-primary">Create email config</Link>
+            <p style={{ fontSize: 12.5, color: '#64748B', margin: '0 0 14px' }}>An email config stores the subject, body, and recipients for a type of email. You'll also need an Email Provider (Gmail/M365/SMTP) set up under Connections.</p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <Link to="/emails/new" className="btn btn-primary">Create email config</Link>
+              <Link to="/connections" className="btn btn-sm">Set up email provider →</Link>
+            </div>
           </div>
         ) : (
           <div className="card" style={{ overflow: 'hidden', padding: 0 }}>

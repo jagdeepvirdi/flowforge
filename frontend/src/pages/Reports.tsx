@@ -4,6 +4,7 @@ import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { getReportConfigs, deleteReportConfig } from '../lib/api'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
+import PageIntro from '../components/shared/PageIntro'
 
 const FORMAT_META: Record<string, { cls: string }> = {
   excel: { cls: 'tbadge-report' },
@@ -28,9 +29,11 @@ export default function Reports() {
     <>
       <TopBar
         crumbs={['Workspace', 'Reports']}
+        helpTopic="reports"
         actions={<Link to="/reports/new" className="btn btn-primary btn-sm"><Plus size={13} /> New Report</Link>}
       />
       <div className="scroll">
+        <PageIntro page="reports" />
         <div className="page-h">
           <div>
             <h1>Reports</h1>
@@ -41,7 +44,8 @@ export default function Reports() {
         {configs.length === 0 ? (
           <div className="card ff-empty">
             <p className="msg">No report configs yet.</p>
-            <Link to="/reports/new" className="btn btn-primary">Create report config</Link>
+            <p style={{ fontSize: 12.5, color: '#64748B', margin: '0 0 14px' }}>A report config pairs a SQL query with an output format (Excel, PDF, CSV). Once created, reference it in a pipeline's report step.</p>
+            <Link to="/reports/new" className="btn btn-primary">Create first report config</Link>
           </div>
         ) : (
           <div className="card" style={{ overflow: 'hidden', padding: 0 }}>

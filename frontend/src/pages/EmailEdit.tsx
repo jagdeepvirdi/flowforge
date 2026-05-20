@@ -5,6 +5,7 @@ import { Save, ArrowLeft, X } from 'lucide-react'
 import { getEmailConfig, createEmailConfig, updateEmailConfig, getEmailProviders, getRecipientGroups } from '../lib/api'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
+import FieldTooltip from '../components/shared/FieldTooltip'
 
 function ChipInput({ values, onChange, placeholder }: { values: string[]; onChange: (v: string[]) => void; placeholder?: string }) {
   const [input, setInput] = useState('')
@@ -161,7 +162,7 @@ export default function EmailEdit() {
                 </div>
               </div>
               <div className="field">
-                <label>Subject</label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Subject<FieldTooltip field="variables" /></label>
                 <input className="input" value={subject} onChange={e => setSubject(e.target.value)} placeholder="Monthly Report — {{ current_month }}" />
               </div>
               <div className="field">
@@ -198,7 +199,7 @@ export default function EmailEdit() {
 
             {/* Body */}
             <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#F1F5F9' }}>Body template <span style={{ color: '#64748B', fontWeight: 400, fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }}>HTML + Jinja2</span></div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#F1F5F9', display: 'flex', alignItems: 'center', gap: 6 }}>Body template <span style={{ color: '#64748B', fontWeight: 400, fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }}>HTML + Jinja2</span><FieldTooltip field="body_template" /></div>
               <textarea
                 className="input mono-input"
                 rows={14}
@@ -221,7 +222,7 @@ export default function EmailEdit() {
               </p>
               <div className="field">
                 <label style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Max attachment size</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Max attachment size<FieldTooltip field="attachment_max_mb" /></span>
                   <span style={{ fontFamily: 'JetBrains Mono, monospace', color: '#F97316' }}>{maxMb} MB</span>
                 </label>
                 <input
@@ -234,7 +235,7 @@ export default function EmailEdit() {
                 </div>
               </div>
               <div className="field">
-                <label>Google Drive folder ID</label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Google Drive folder ID<FieldTooltip field="drive_folder_id" /></label>
                 <input className="input" value={folderId} onChange={e => setFolderId(e.target.value)} placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs" />
               </div>
               <div className="field">

@@ -49,12 +49,16 @@ python -c "import secrets; print(secrets.token_hex(32))"
 
 ## Database Setup
 
-Create the FlowForge config database in PostgreSQL:
+Create the FlowForge config database in PostgreSQL, then apply migrations:
 
 ```bash
 createdb flowforge
-psql -U postgres -d flowforge -f flowforge/db/schema.sql
+flowforge db upgrade
 ```
+
+This creates all required tables and seeds the admin user from `FLOWFORGE_USERNAME` / `FLOWFORGE_PASSWORD` in your `.env`.
+
+> **Upgrading from an older version?** If your database was created before Alembic was introduced, run `flowforge db stamp head` once instead of `flowforge db upgrade`. See [RUNBOOK.md](../RUNBOOK.md#32-existing-database) for details.
 
 ## Start FlowForge
 
@@ -119,10 +123,9 @@ In the web UI:
 4. Go to **Pipeline Builder** — create a pipeline, add a `report` step and an `email` step; set `on_error: stop` or `continue` per step
 5. Click **Run Now**
 
-Or import the example pipeline YAML:
+Or import a pipeline YAML exported from another instance:
 
 ```bash
-# Coming in Phase 2
 flowforge import pipelines/example_pipeline.yaml
 ```
 
