@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 # Stored at module level so job functions (which run in worker threads) can
 # create their own app contexts without receiving the app as a pickled arg.
 _app = None
+_scheduler = None
 
 
 def start_scheduler(app) -> None:
@@ -19,31 +20,82 @@ def start_scheduler(app) -> None:
     existing app context. Each scheduled job creates its own short-lived
     app context so that Flask-SQLAlchemy sessions are properly scoped per run.
     """
-    global _app
+    global _app, _scheduler
     _app = app
 
     db_url = os.environ.get('FLOWFORGE_DB_URL', '')
     jobstores = {'default': SQLAlchemyJobStore(url=db_url)} if db_url else {}
 
-    scheduler = BlockingScheduler(jobstores=jobstores, timezone='UTC')
+    _scheduler = BlockingScheduler(jobstores=jobstores, timezone='UTC')
 
-    # Load pipeline jobs inside a temporary app context, then release it.
-    # The scheduler itself holds no DB connection between job runs.
     with app.app_context():
-        _load_pipeline_jobs(scheduler)
+        _sync_pipeline_jobs()
 
-    _register_cleanup_job(scheduler)
+    _register_cleanup_job()
+    _register_sync_job()
 
     logger.info("Scheduler started. Press Ctrl+C to stop.")
     try:
-        scheduler.start()
+        _scheduler.start()
     except (KeyboardInterrupt, SystemExit):
         logger.info("Scheduler stopped.")
 
 
+def _sync_pipeline_jobs() -> None:
+    """Reconcile APScheduler jobs with current DB state.
+
+    Adds new jobs, updates changed schedules, and removes jobs for pipelines
+    that have had their schedule cleared or been disabled. Must be called
+    inside an active app context.
+    """
+    from flowforge.db.models import Pipeline, db
+
+    existing_ids = {j.id for j in _scheduler.get_jobs() if j.id.startswith('pipeline_')}
+
+    pipelines = db.session.query(Pipeline).filter_by(enabled=True).all()
+    active_ids = set()
+    registered = 0
+
+    for pipeline in pipelines:
+        if not pipeline.schedule:
+            continue
+        job_id = f'pipeline_{pipeline.id}'
+        try:
+            cron_parts = pipeline.schedule.strip().split()
+            if len(cron_parts) != 5:
+                logger.warning("Invalid cron expression for '%s': %s", pipeline.name, pipeline.schedule)
+                continue
+            minute, hour, day, month, day_of_week = cron_parts
+            _scheduler.add_job(
+                _run_pipeline_job,
+                trigger='cron',
+                args=[pipeline.id, pipeline.name],
+                id=job_id,
+                minute=minute,
+                hour=hour,
+                day=day,
+                month=month,
+                day_of_week=day_of_week,
+                replace_existing=True,
+                misfire_grace_time=300,
+            )
+            active_ids.add(job_id)
+            registered += 1
+            logger.info("Scheduled '%s': %s", pipeline.name, pipeline.schedule)
+        except Exception as e:
+            logger.error("Failed to register schedule for '%s': %s", pipeline.name, e)
+
+    # Remove jobs whose pipeline has been disabled or schedule cleared
+    for stale_id in existing_ids - active_ids:
+        _scheduler.remove_job(stale_id)
+        logger.info("Removed stale job: %s", stale_id)
+
+    removed = len(existing_ids - active_ids)
+    logger.info("Sync complete: %d active job(s), %d removed.", registered, removed)
+
+
 def _load_pipeline_jobs(scheduler: BlockingScheduler) -> None:
-    """Register one cron job per enabled scheduled pipeline. Must be called
-    inside an active app context."""
+    """Add-only job loader used by check_scheduler.py with an external scheduler instance."""
     from flowforge.db.models import Pipeline, db
 
     pipelines = db.session.query(Pipeline).filter_by(enabled=True).all()
@@ -60,7 +112,6 @@ def _load_pipeline_jobs(scheduler: BlockingScheduler) -> None:
             scheduler.add_job(
                 _run_pipeline_job,
                 trigger='cron',
-                # pipeline_id and pipeline_name are plain strings — safe to pickle
                 args=[pipeline.id, pipeline.name],
                 id=f'pipeline_{pipeline.id}',
                 minute=minute,
@@ -79,8 +130,8 @@ def _load_pipeline_jobs(scheduler: BlockingScheduler) -> None:
     logger.info("Registered %d scheduled pipeline(s).", registered)
 
 
-def _register_cleanup_job(scheduler: BlockingScheduler) -> None:
-    scheduler.add_job(
+def _register_cleanup_job() -> None:
+    _scheduler.add_job(
         _cleanup_job,
         trigger='cron',
         hour=2, minute=0,
@@ -91,9 +142,32 @@ def _register_cleanup_job(scheduler: BlockingScheduler) -> None:
     logger.info("Registered daily output cleanup job (02:00 UTC).")
 
 
+def _register_sync_job() -> None:
+    _scheduler.add_job(
+        _sync_db_job,
+        trigger='interval',
+        minutes=1,
+        id='_pipeline_sync',
+        replace_existing=True,
+        misfire_grace_time=60,
+    )
+    logger.info("Registered pipeline sync job (every 60s).")
+
+
 def _cleanup_job() -> None:
     from flowforge.engine.cleanup import cleanup_output_files
     cleanup_output_files()
+
+
+def _sync_db_job() -> None:
+    """Periodic job: reconcile APScheduler state with current pipeline DB state."""
+    if _app is None:
+        return
+    try:
+        with _app.app_context():
+            _sync_pipeline_jobs()
+    except Exception as e:
+        logger.error("Pipeline sync failed: %s", e)
 
 
 def _run_pipeline_job(pipeline_id: str, pipeline_name: str) -> None:
