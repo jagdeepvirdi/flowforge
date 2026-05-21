@@ -221,8 +221,9 @@ export default function PipelineEdit() {
                   step={step}
                   onChange={handleStepChange}
                   onDelete={handleStepDelete}
+                  allSteps={steps}
                   dbConnections={dbConns.map(c => ({ id: c.id, name: c.name }))}
-                  reportConfigs={reportCfgs.map(r => ({ id: r.id, name: r.name }))}
+                  reportConfigs={reportCfgs.map(r => ({ id: r.id, name: r.name, output_filename: r.output_filename }))}
                   emailConfigs={emailCfgs.map(e => ({ id: e.id, name: e.name }))}
                 />
               ))}

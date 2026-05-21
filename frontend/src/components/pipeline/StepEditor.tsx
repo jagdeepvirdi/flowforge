@@ -19,12 +19,13 @@ interface Props {
   step: PipelineStep
   onChange: (id: string, updates: Partial<PipelineStep>) => void
   onDelete: (id: string) => void
+  allSteps: PipelineStep[]
   dbConnections: { id: string; name: string }[]
-  reportConfigs: { id: string; name: string }[]
+  reportConfigs: { id: string; name: string; output_filename: string }[]
   emailConfigs:  { id: string; name: string }[]
 }
 
-export default function StepEditor({ step, onChange, onDelete, dbConnections, reportConfigs, emailConfigs }: Props) {
+export default function StepEditor({ step, onChange, onDelete, allSteps, dbConnections, reportConfigs, emailConfigs }: Props) {
   const [expanded, setExpanded] = useState(true)
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: step.id })
   const style = { transform: CSS.Transform.toString(transform), transition }
@@ -163,12 +164,57 @@ export default function StepEditor({ step, onChange, onDelete, dbConnections, re
                     {emailConfigs.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                   </select>
                 </Field>
-                <Field label="Attachments (one path per line, supports {{ variables }})">
+                <Field label="Attachments">
+                  {/* Quick-add buttons for preceding report steps */}
+                  {(() => {
+                    const precedingReports = allSteps.filter(
+                      s => s.step_type === 'report' && s.step_order < step.step_order
+                    )
+                    if (precedingReports.length === 0) return null
+                    const current = (cfg.attachments as string[] ?? [])
+                    return (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                        {precedingReports.map(rs => {
+                          const variable = `{{ steps.${rs.name}.output_path }}`
+                          const already = current.includes(variable)
+                          const rc = reportConfigs.find(r => r.id === (rs.config as Record<string,unknown>).report_config_id)
+                          const filename = rc?.output_filename ?? rs.name
+                          return (
+                            <button
+                              key={rs.id}
+                              type="button"
+                              onClick={() => {
+                                if (!already) setConfig('attachments', [...current, variable])
+                              }}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: 6,
+                                background: already ? '#1a2e1a' : '#1A1D27',
+                                border: `1px solid ${already ? '#22C55E' : '#3A3F52'}`,
+                                borderRadius: 6, padding: '4px 10px', cursor: already ? 'default' : 'pointer',
+                                fontSize: 11, color: already ? '#22C55E' : '#94A3B8',
+                              }}
+                            >
+                              <span style={{ fontWeight: 600, color: already ? '#22C55E' : '#F97316' }}>
+                                {already ? '✓' : '+'} {rs.name}
+                              </span>
+                              <span style={{ color: '#475569', fontFamily: 'JetBrains Mono, monospace' }}>
+                                {filename}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )
+                  })()}
                   <textarea className="input mono-input" rows={3}
                     value={(cfg.attachments as string[] ?? []).join('\n')}
                     onChange={e => setConfig('attachments', e.target.value.split('\n').filter(Boolean))}
-                    style={{ height: 'auto', resize: 'none' }}
+                    placeholder="{{ steps.my_report.output_path }}"
+                    style={{ height: 'auto', resize: 'none', fontSize: 12 }}
                   />
+                  <span style={{ fontSize: 11, color: '#64748B', marginTop: 3 }}>
+                    Click a report above to attach it, or type a path manually. One path per line.
+                  </span>
                 </Field>
               </>
             )}
