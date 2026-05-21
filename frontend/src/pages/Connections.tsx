@@ -40,7 +40,7 @@ type MailForm = {
   host: string; port: string; username: string; password: string
   use_tls: boolean
   // gmail/m365
-  client_id: string; client_secret: string; sender: string
+  client_id: string; client_secret: string; refresh_token: string; sender: string
   tenant_id: string
   is_default: boolean
 }
@@ -53,7 +53,7 @@ const emptyDb = (): DbForm => ({
 const emptyMail = (): MailForm => ({
   name: '', provider_type: 'smtp', host: '', port: '587',
   username: '', password: '', use_tls: true,
-  client_id: '', client_secret: '', sender: '', tenant_id: '',
+  client_id: '', client_secret: '', refresh_token: '', sender: '', tenant_id: '',
   is_default: false,
 })
 
@@ -137,7 +137,7 @@ export default function Connections() {
           is_default: data.is_default, sender: cfg.sender ?? '',
           host: cfg.host ?? '', port: String(cfg.port ?? 587),
           username: cfg.username ?? '', password: '***', use_tls: cfg.use_tls ?? true,
-          client_id: cfg.client_id ?? '', client_secret: '***', tenant_id: cfg.tenant_id ?? '' })
+          client_id: cfg.client_id ?? '', client_secret: '***', refresh_token: cfg.refresh_token ? '***' : '', tenant_id: cfg.tenant_id ?? '' })
       }).catch(() => setFormError('Failed to load provider details'))
     }
   }
@@ -160,7 +160,7 @@ export default function Connections() {
       Object.assign(config, { host: mailForm.host, port: Number(mailForm.port),
         username: mailForm.username, password: mailForm.password, use_tls: mailForm.use_tls })
     } else if (mailForm.provider_type === 'gmail') {
-      Object.assign(config, { client_id: mailForm.client_id, client_secret: mailForm.client_secret })
+      Object.assign(config, { client_id: mailForm.client_id, client_secret: mailForm.client_secret, refresh_token: mailForm.refresh_token })
     } else {
       Object.assign(config, { tenant_id: mailForm.tenant_id,
         client_id: mailForm.client_id, client_secret: mailForm.client_secret })
@@ -481,6 +481,15 @@ export default function Connections() {
                     <Field label="Client Secret">
                       <input className="input" type="password" value={mailForm.client_secret} onChange={e => setMailForm(f => ({ ...f, client_secret: e.target.value }))} required />
                     </Field>
+                    {mailForm.provider_type === 'gmail' && (
+                      <Field label="Refresh Token">
+                        <input className="input" type="password" value={mailForm.refresh_token} onChange={e => setMailForm(f => ({ ...f, refresh_token: e.target.value }))}
+                          placeholder="Paste refresh token from OAuth2 setup" required />
+                        <span style={{ fontSize: 11, color: '#64748B', marginTop: 3 }}>
+                          Run <code style={{ color: '#94A3B8' }}>flowforge setup gmail</code> in the terminal to generate this token.
+                        </span>
+                      </Field>
+                    )}
                   </>
                 )}
 
