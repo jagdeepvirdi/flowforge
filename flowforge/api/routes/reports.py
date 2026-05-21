@@ -39,8 +39,8 @@ def create_report_config():
     missing = [f for f in required if not data.get(f)]
     if missing:
         return jsonify({'error': f'Missing required fields: {", ".join(missing)}'}), 400
-    if data['format'] not in ('excel', 'csv', 'pdf'):
-        return jsonify({'error': 'format must be excel, csv, or pdf'}), 400
+    if data['format'] not in ('excel', 'csv', 'pdf', 'json'):
+        return jsonify({'error': 'format must be excel, csv, pdf, or json'}), 400
 
     config = ReportConfig(
         name=data['name'],

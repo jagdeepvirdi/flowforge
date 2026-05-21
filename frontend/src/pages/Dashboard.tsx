@@ -25,6 +25,18 @@ function fmtRel(iso: string): string {
   return `${Math.floor(h / 24)}d ago`
 }
 
+function fmtNext(iso: string | null): string {
+  if (!iso) return '—'
+  const diff = new Date(iso).getTime() - Date.now()
+  if (diff < 0) return 'overdue'
+  const m = Math.floor(diff / 60_000)
+  if (m < 1) return 'in <1m'
+  if (m < 60) return `in ${m}m`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `in ${h}h ${m % 60}m`
+  return `in ${Math.floor(h / 24)}d ${h % 24}h`
+}
+
 const RUN_BARS = 14
 
 function PipelineCard({ pipeline }: { pipeline: Pipeline }) {
@@ -74,7 +86,7 @@ function PipelineCard({ pipeline }: { pipeline: Pipeline }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, padding: '12px 0', borderTop: '1px solid #2D3143', borderBottom: '1px solid #2D3143' }}>
         <MetaCol label="Last run" icon={<Clock size={10} />} value={lastRun ? fmtRel(lastRun.started_at) : '—'} />
         <MetaCol label="Duration" value={fmtDur(lastRun?.duration_ms ?? null)} mono />
-        <MetaCol label="Schedule" icon={<Calendar size={10} />} value={pipeline.schedule ?? '—'} mono />
+        <MetaCol label="Next run" icon={<Calendar size={10} />} value={pipeline.schedule ? fmtNext(pipeline.next_run) : '—'} />
       </div>
 
       {/* Run mini-bars */}

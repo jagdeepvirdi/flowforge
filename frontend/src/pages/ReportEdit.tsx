@@ -11,6 +11,7 @@ import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 
 const VAR_HINTS = ['{{ current_date }}', '{{ current_month }}', '{{ current_year }}', '{{ timestamp }}', '{{ run_id }}']
+const FORMAT_EXT: Record<ReportFormat, string> = { excel: '.xlsx', csv: '.csv', pdf: '.pdf', json: '.json' }
 
 export default function ReportEdit() {
   const { id } = useParams()
@@ -149,9 +150,12 @@ export default function ReportEdit() {
             {/* Format selector */}
             <div className="field">
               <label>Format</label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-                {(['excel', 'csv', 'pdf'] as ReportFormat[]).map(f => (
-                  <button key={f} onClick={() => setFormat(f)} style={{
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
+                {(['excel', 'csv', 'pdf', 'json'] as ReportFormat[]).map(f => (
+                  <button key={f} onClick={() => {
+                    setFormat(f)
+                    setFilename(prev => prev.replace(/\.(xlsx|csv|pdf|json)$/, '') + FORMAT_EXT[f])
+                  }} style={{
                     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                     padding: '10px 4px',
                     background: format === f ? 'rgba(249,115,22,0.08)' : 'var(--bg)',
@@ -165,7 +169,7 @@ export default function ReportEdit() {
                     boxShadow: format === f ? '0 0 0 3px rgba(249,115,22,0.1)' : 'none',
                   }}>
                     {format === f && <Check size={12} />}
-                    {f === 'excel' ? 'Excel' : f === 'csv' ? 'CSV' : 'PDF'}
+                    {f === 'excel' ? 'Excel' : f === 'csv' ? 'CSV' : f === 'pdf' ? 'PDF' : 'JSON'}
                   </button>
                 ))}
               </div>
@@ -191,8 +195,7 @@ export default function ReportEdit() {
                 <span style={{ fontSize: 10.5, color: 'var(--text-dim)' }}>Variables:</span>
                 {VAR_HINTS.map(v => (
                   <button key={v} onClick={() => setFilename(f => {
-                    const ext = format === 'excel' ? '.xlsx' : format === 'csv' ? '.csv' : '.pdf'
-                    return f.replace(/\.(xlsx|csv|pdf)$/, '') + v + ext
+                    return f.replace(/\.(xlsx|csv|pdf|json)$/, '') + v + FORMAT_EXT[format]
                   })} className="mono" style={{ fontSize: 10.5, padding: '1px 6px', background: 'rgba(249,115,22,0.08)', color: 'var(--accent-h)', borderRadius: 3, border: '1px solid rgba(249,115,22,0.2)', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>
                     {v}
                   </button>

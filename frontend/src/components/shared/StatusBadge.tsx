@@ -7,6 +7,7 @@ interface Props {
 export default function StatusBadge({ status, label, animate: _animate }: Props) {
   const map: Record<string, { cls: string; text: string }> = {
     success:    { cls: 'pill-success', text: label ?? 'Success' },
+    active:     { cls: 'pill-success', text: label ?? 'Active' },
     failed:     { cls: 'pill-failure', text: label ?? 'Failed' },
     failure:    { cls: 'pill-failure', text: label ?? 'Failed' },
     running:    { cls: 'pill-running', text: label ?? 'Running' },

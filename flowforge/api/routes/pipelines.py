@@ -32,12 +32,27 @@ def _validate_cron(expr: str) -> str | None:
         return str(e)
 
 
+def _next_run_iso(schedule: str | None) -> str | None:
+    if not schedule:
+        return None
+    try:
+        from datetime import datetime, timezone
+        from apscheduler.triggers.cron import CronTrigger
+        trigger = CronTrigger.from_crontab(schedule, timezone='UTC')
+        now = datetime.now(timezone.utc)
+        t = trigger.get_next_fire_time(now, now)
+        return t.isoformat() if t else None
+    except Exception:
+        return None
+
+
 def _pipeline_dict(p: Pipeline) -> dict:
     return {
         'id': p.id,
         'name': p.name,
         'description': p.description,
         'schedule': p.schedule,
+        'next_run': _next_run_iso(p.schedule),
         'enabled': p.enabled,
         'timeout_minutes': p.timeout_minutes,
         'created_at': p.created_at.isoformat() if p.created_at else None,

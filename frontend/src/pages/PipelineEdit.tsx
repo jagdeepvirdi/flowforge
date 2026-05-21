@@ -328,8 +328,10 @@ function CronBuilder({ defaultValue, onChange }: { defaultValue: string; onChang
         </>)}
 
         {freq === 'hourly' && (<>
-          <span style={muted}>at minute</span>
-          <input className="input" type="number" min={0} max={59} value={state.minute} onChange={e => upd('minute', +e.target.value)} style={{ width: 64, height: 34 }} />
+          <span style={muted}>at</span>
+          <span style={{ ...muted, fontFamily: 'var(--font-mono)' }}>:</span>
+          <input className="input" type="number" min={0} max={59} value={state.minute} onChange={e => upd('minute', +e.target.value)} style={{ width: 64, height: 34 }} title="Minute past the hour (0–59)" />
+          <span style={muted}>each hour</span>
         </>)}
 
         {(freq === 'daily' || freq === 'weekly' || freq === 'monthly') && (<>

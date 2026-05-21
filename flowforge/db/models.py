@@ -77,7 +77,7 @@ class DbConnection(db.Model):
 class ReportConfig(db.Model):
     __tablename__ = 'ff_report_configs'
     __table_args__ = (
-        CheckConstraint("format IN ('excel', 'csv', 'pdf')", name='ck_report_format'),
+        CheckConstraint("format IN ('excel', 'csv', 'pdf', 'json')", name='ck_report_format'),
     )
 
     id              = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)

@@ -45,6 +45,9 @@ class ReportStep(BaseStep):
             elif fmt == 'pdf':
                 from flowforge.reports.pdf_report import generate
                 generate(rows, columns, output_path, title=report_cfg.get('title', ''))
+            elif fmt == 'json':
+                from flowforge.reports.json_report import generate
+                generate(rows, columns, output_path)
             else:
                 return StepResult(success=False, error=f"Unknown report format: {fmt}")
 

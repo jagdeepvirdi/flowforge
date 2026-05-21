@@ -97,10 +97,9 @@ def web():
 def schedule():
     """Start the FlowForge scheduler daemon."""
     app = _create_app()
-    with app.app_context():
-        from flowforge.engine.scheduler import start_scheduler
-        click.echo('Starting scheduler...')
-        start_scheduler()
+    from flowforge.engine.scheduler import start_scheduler
+    click.echo('Starting scheduler...')
+    start_scheduler(app)
 
 
 @cli.command()

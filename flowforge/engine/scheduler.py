@@ -7,14 +7,31 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 
 logger = logging.getLogger(__name__)
 
+# Stored at module level so job functions (which run in worker threads) can
+# create their own app contexts without receiving the app as a pickled arg.
+_app = None
 
-def start_scheduler():
-    """Start the blocking APScheduler daemon. Loads all enabled scheduled pipelines from DB."""
+
+def start_scheduler(app) -> None:
+    """Start the blocking APScheduler daemon.
+
+    Must be called with the Flask app object directly — NOT from inside an
+    existing app context. Each scheduled job creates its own short-lived
+    app context so that Flask-SQLAlchemy sessions are properly scoped per run.
+    """
+    global _app
+    _app = app
+
     db_url = os.environ.get('FLOWFORGE_DB_URL', '')
     jobstores = {'default': SQLAlchemyJobStore(url=db_url)} if db_url else {}
 
     scheduler = BlockingScheduler(jobstores=jobstores, timezone='UTC')
-    _load_pipeline_jobs(scheduler)
+
+    # Load pipeline jobs inside a temporary app context, then release it.
+    # The scheduler itself holds no DB connection between job runs.
+    with app.app_context():
+        _load_pipeline_jobs(scheduler)
+
     _register_cleanup_job(scheduler)
 
     logger.info("Scheduler started. Press Ctrl+C to stop.")
@@ -25,6 +42,8 @@ def start_scheduler():
 
 
 def _load_pipeline_jobs(scheduler: BlockingScheduler) -> None:
+    """Register one cron job per enabled scheduled pipeline. Must be called
+    inside an active app context."""
     from flowforge.db.models import Pipeline, db
 
     pipelines = db.session.query(Pipeline).filter_by(enabled=True).all()
@@ -41,6 +60,7 @@ def _load_pipeline_jobs(scheduler: BlockingScheduler) -> None:
             scheduler.add_job(
                 _run_pipeline_job,
                 trigger='cron',
+                # pipeline_id and pipeline_name are plain strings — safe to pickle
                 args=[pipeline.id, pipeline.name],
                 id=f'pipeline_{pipeline.id}',
                 minute=minute,
@@ -56,7 +76,7 @@ def _load_pipeline_jobs(scheduler: BlockingScheduler) -> None:
         except Exception as e:
             logger.error("Failed to register schedule for '%s': %s", pipeline.name, e)
 
-    logger.info("Registered %d scheduled pipelines.", registered)
+    logger.info("Registered %d scheduled pipeline(s).", registered)
 
 
 def _register_cleanup_job(scheduler: BlockingScheduler) -> None:
@@ -77,13 +97,20 @@ def _cleanup_job() -> None:
 
 
 def _run_pipeline_job(pipeline_id: str, pipeline_name: str) -> None:
-    """Entry point called by APScheduler — runs inside a Flask app context."""
-    from flask import current_app
+    """Entry point called by APScheduler worker threads.
+
+    Creates its own Flask app context so Flask-SQLAlchemy and other
+    context-locals are properly initialised for this thread.
+    """
+    if _app is None:
+        logger.error("Scheduler app not initialised — cannot run '%s'", pipeline_name)
+        return
+
     from flowforge.engine.loader import load_pipeline
     from flowforge.engine.runner import run_pipeline
 
     try:
-        with current_app.app_context():
+        with _app.app_context():
             steps, pipeline_vars, secret_keys = load_pipeline(pipeline_id)
             run_pipeline(
                 pipeline_name=pipeline_name,

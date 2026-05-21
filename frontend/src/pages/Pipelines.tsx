@@ -8,6 +8,38 @@ import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 import PageIntro from '../components/shared/PageIntro'
 
+function describeCron(expr: string): string {
+  const p = expr.trim().split(/\s+/)
+  if (p.length !== 5) return expr
+  const [min, hr, dom, mon, dow] = p
+  const hh = (v: string) => String(parseInt(v)).padStart(2, '0')
+  const mm = (v: string) => String(parseInt(v)).padStart(2, '0')
+  const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+  // Every N minutes: */N * * * *
+  if (/^\*\/\d+$/.test(min) && hr === '*' && dom === '*' && mon === '*' && dow === '*') {
+    const n = parseInt(min.replace('*/', ''))
+    return `Every ${n} min`
+  }
+  // Hourly: M * * * *
+  if (/^\d+$/.test(min) && hr === '*' && dom === '*' && mon === '*' && dow === '*') {
+    return `Hourly at :${mm(min)}`
+  }
+  // Daily: M H * * *
+  if (/^\d+$/.test(min) && /^\d+$/.test(hr) && dom === '*' && mon === '*' && dow === '*') {
+    return `Daily ${hh(hr)}:${mm(min)}`
+  }
+  // Weekly: M H * * D
+  if (/^\d+$/.test(min) && /^\d+$/.test(hr) && dom === '*' && mon === '*' && /^\d+$/.test(dow)) {
+    return `Weekly ${DAYS[parseInt(dow)] ?? dow} ${hh(hr)}:${mm(min)}`
+  }
+  // Monthly: M H D * *
+  if (/^\d+$/.test(min) && /^\d+$/.test(hr) && /^\d+$/.test(dom) && mon === '*' && dow === '*') {
+    return `Monthly day ${parseInt(dom)} ${hh(hr)}:${mm(min)}`
+  }
+  return expr
+}
+
 function FilterChip({ label, value, options, onChange }: {
   label: string; value: string; options: string[]; onChange: (v: string) => void
 }) {
@@ -97,9 +129,8 @@ export default function Pipelines() {
                 <tr>
                   <th>Name</th>
                   <th style={{ width: 110 }}>Status</th>
-                  <th style={{ width: 180 }}>Schedule</th>
+                  <th style={{ width: 200 }}>Schedule</th>
                   <th style={{ width: 60 }}>Steps</th>
-                  <th style={{ width: 80 }}>Enabled</th>
                   <th style={{ width: 120 }} />
                 </tr>
               </thead>
@@ -116,23 +147,18 @@ export default function Pipelines() {
                       </div>
                       {p.description && <div style={{ fontSize: 11.5, color: '#64748B', marginTop: 2 }}>{p.description}</div>}
                     </td>
-                    <td><StatusBadge status={p.enabled ? 'idle' : 'paused'} label={p.enabled ? 'Active' : 'Disabled'} /></td>
+                    <td><StatusBadge status={p.enabled ? 'active' : 'paused'} label={p.enabled ? 'Active' : 'Disabled'} /></td>
                     <td>
                       {p.schedule ? (
                         <>
-                          <div style={{ fontSize: 12, color: '#CBD5E1' }}>Scheduled</div>
+                          <div style={{ fontSize: 12, color: '#CBD5E1' }}>{describeCron(p.schedule)}</div>
                           <div className="mono" style={{ fontSize: 10.5, color: '#64748B', marginTop: 2 }}>{p.schedule}</div>
                         </>
                       ) : (
-                        <span style={{ color: '#475569' }}>—</span>
+                        <span style={{ color: '#475569' }}>Manual only</span>
                       )}
                     </td>
                     <td className="mono" style={{ color: '#CBD5E1' }}>{p.steps.length}</td>
-                    <td>
-                      <span style={{ fontSize: 12, color: p.enabled ? '#4ADE80' : '#64748B' }}>
-                        {p.enabled ? 'Yes' : 'No'}
-                      </span>
-                    </td>
                     <td>
                       <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
                         <button className="btn btn-sm btn-ghost btn-icon" onClick={() => trigger(p.id)} title="Run now" disabled={!p.enabled}>
