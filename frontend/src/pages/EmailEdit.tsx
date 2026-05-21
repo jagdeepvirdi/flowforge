@@ -210,11 +210,11 @@ export default function EmailEdit() {
               <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>Body template <span style={{ color: '#64748B', fontWeight: 400, fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }}>HTML + Jinja2</span><FieldTooltip field="body_template" /></div>
               <textarea
                 className="input mono-input"
-                rows={14}
+                rows={28}
                 value={body}
                 onChange={e => setBody(e.target.value)}
                 placeholder={"<p>Hi {{ name }},</p>\n<p>Please find the attached report.</p>"}
-                style={{ resize: 'vertical', fontSize: 12.5, lineHeight: 1.6 }}
+                style={{ resize: 'vertical', fontSize: 12.5, lineHeight: 1.6, minHeight: 420 }}
               />
             </div>
           </div>
