@@ -26,11 +26,11 @@ if ($Action -eq 'stop') {
         param([int]$Port, [string]$Label)
         $conn = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
         if ($conn) {
-            $pid = $conn.OwningProcess
-            $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
+            $procId = $conn.OwningProcess
+            $proc = Get-Process -Id $procId -ErrorAction SilentlyContinue
             if ($proc) {
-                Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
-                Write-Host "  Stopped $Label (PID $pid, port $Port)" -ForegroundColor Green
+                Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
+                Write-Host "  Stopped $Label (PID $procId, port $Port)" -ForegroundColor Green
             }
         } else {
             Write-Host "  $Label not running on port $Port" -ForegroundColor Gray
