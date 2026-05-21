@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# FlowForge - server.sh
+# FlowForge - flowforge.sh
 # Usage:
-#   ./server.sh start               # dev mode (Flask debug + Vite HMR)
-#   ./server.sh start prod          # prod mode (build frontend + Flask/gunicorn)
-#   ./server.sh start prod --gunicorn
-#   ./server.sh stop                # stop Flask API and Vite dev server
+#   ./flowforge.sh start               # dev mode (Flask debug + Vite HMR + scheduler)
+#   ./flowforge.sh start prod          # prod mode (build frontend + Flask/gunicorn + scheduler)
+#   ./flowforge.sh start prod --gunicorn
+#   ./flowforge.sh stop                # stop Flask API, Vite dev server, and scheduler
 
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -39,10 +39,24 @@ if [ "$ACTION" = "stop" ]; then
         fi
     }
 
+    stop_pattern() {
+        local pattern="$1"
+        local label="$2"
+        local pids
+        pids=$(pgrep -f "$pattern" 2>/dev/null || true)
+        if [ -n "$pids" ]; then
+            echo "$pids" | xargs kill -TERM 2>/dev/null || true
+            echo "  Stopped $label (PID(s) $pids)"
+        else
+            echo "  $label not running"
+        fi
+    }
+
     echo ""
-    echo "Stopping FlowForge servers..."
-    stop_port "$PORT" "Flask API"
-    stop_port "5173"  "Vite UI"
+    echo "Stopping FlowForge..."
+    stop_port    "$PORT" "Flask API"
+    stop_port    "5173"  "Vite UI"
+    stop_pattern "flowforge.cli schedule" "Scheduler"
     echo ""
     echo "Done."
     echo ""
@@ -88,17 +102,18 @@ PORT="${FLOWFORGE_PORT:-5000}"
 if [ "$MODE" = "dev" ]; then
     echo ""
     echo "Starting FlowForge in DEV mode..."
-    echo "  API  -> http://localhost:$PORT"
-    echo "  UI   -> http://localhost:5173"
+    echo "  API       -> http://localhost:$PORT"
+    echo "  UI        -> http://localhost:5173"
+    echo "  Scheduler -> running alongside API"
     echo ""
-    echo "Run ./server.sh stop in another terminal to stop."
+    echo "Press Ctrl+C to stop all three processes."
     echo ""
 
     cleanup() {
         echo ""
         echo "Stopping servers..."
-        kill "$API_PID" "$UI_PID" 2>/dev/null || true
-        wait "$API_PID" "$UI_PID" 2>/dev/null || true
+        kill "$API_PID" "$SCHED_PID" "$UI_PID" 2>/dev/null || true
+        wait "$API_PID" "$SCHED_PID" "$UI_PID" 2>/dev/null || true
         echo "Stopped."
     }
     trap cleanup INT TERM
@@ -106,15 +121,20 @@ if [ "$MODE" = "dev" ]; then
     FLASK_ENV=development \
     python -m flask --app flowforge.api.app:create_app run \
         --host 0.0.0.0 --port "$PORT" --debug \
-        2>&1 | sed 's/^/[api] /' &
+        2>&1 | sed 's/^/[api]   /' &
     API_PID=$!
 
+    python -m flowforge.cli schedule \
+        2>&1 | sed 's/^/[sched] /' &
+    SCHED_PID=$!
+
     cd "$ROOT/frontend"
-    npm run dev 2>&1 | sed 's/^/[ui]  /' &
+    npm run dev 2>&1 | sed 's/^/[ui]    /' &
     UI_PID=$!
     cd "$ROOT"
 
-    wait -n "$API_PID" "$UI_PID" 2>/dev/null || wait "$API_PID" "$UI_PID"
+    wait -n "$API_PID" "$SCHED_PID" "$UI_PID" 2>/dev/null || \
+        wait "$API_PID" "$SCHED_PID" "$UI_PID"
 fi
 
 # ── PROD MODE ─────────────────────────────────────────────────────────────────
@@ -127,6 +147,21 @@ if [ "$MODE" = "prod" ]; then
     npm run build
     cd "$ROOT"
     echo "[ok] Frontend built -> frontend/dist/"
+
+    # Start scheduler in background
+    python -m flowforge.cli schedule \
+        2>&1 | sed 's/^/[sched] /' &
+    SCHED_PID=$!
+    echo "[sched] Scheduler started (PID $SCHED_PID)"
+
+    cleanup() {
+        echo ""
+        echo "Stopping scheduler..."
+        kill "$SCHED_PID" 2>/dev/null || true
+        wait "$SCHED_PID" 2>/dev/null || true
+        echo "Stopped."
+    }
+    trap cleanup EXIT INT TERM
 
     echo ""
     echo "Listening on http://0.0.0.0:$PORT"
@@ -143,7 +178,7 @@ if [ "$MODE" = "prod" ]; then
             --error-logfile - \
             "flowforge.api.app:create_app()"
     else
-        echo "[server] Flask built-in server — use --gunicorn for real production traffic."
+        echo "[server] Flask built-in server -- use --gunicorn for production traffic."
         export FLASK_ENV=production
         exec python -m flask --app flowforge.api.app:create_app run \
             --host 0.0.0.0 --port "$PORT"
