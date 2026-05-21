@@ -63,15 +63,34 @@ flowforge db seed
 
 ## Start FlowForge
 
-```bash
-# Web server (default port 5000)
-flowforge web
+The easiest way to start everything is with the startup script — it launches the API, scheduler, and frontend dev server together:
 
-# Or run a specific pipeline directly
-flowforge run "My Pipeline Name"
+```powershell
+# Windows
+.\flowforge.ps1 start
 ```
 
-Open `http://localhost:5000` in your browser.
+```bash
+# macOS / Linux
+./flowforge.sh start
+```
+
+Open `http://localhost:5000` in your browser. The scheduler starts automatically alongside the API, so any pipelines with a cron schedule will fire without any additional setup.
+
+To stop all three processes: press **Ctrl+C** in the same terminal, or run `.\flowforge.ps1 stop` / `./flowforge.sh stop` from another terminal.
+
+**Running components individually (advanced):**
+
+```bash
+# Web server only
+flowforge web
+
+# Scheduler only (in a separate terminal)
+flowforge schedule
+
+# Run a specific pipeline directly from the CLI
+flowforge run "My Pipeline Name"
+```
 
 ## Setting Up Email
 
@@ -119,7 +138,7 @@ export GOOGLE_SERVICE_ACCOUNT_FILE=service_account.json
 In the web UI:
 
 1. Go to **Connections** — add your database connection and test it
-2. Go to **Report Designer** — write a SQL query, pick a format (Excel/CSV/PDF), set an output filename like `report_{{ current_month }}.xlsx`
+2. Go to **Report Designer** — write a SQL query, pick a format (Excel, CSV, PDF, or JSON), set an output filename like `report_{{ current_month }}.xlsx`. The file extension updates automatically when you change the format.
 3. Go to **Email Designer** — configure recipients, subject, body; link to your email provider
 4. Go to **Pipeline Builder** — create a pipeline, add a `report` step and an `email` step; set `on_error: stop` or `continue` per step
 5. Click **Run Now**
@@ -153,6 +172,16 @@ If a report file exceeds `attachment_max_mb` (default: 10 MB), FlowForge automat
 3. Replaces the direct attachment with a link in the email body
 
 Configure the threshold and Drive folder in the Email Designer under **Smart Attachment Settings**.
+
+## Scheduler Diagnostics
+
+If a scheduled pipeline isn't firing, run the built-in diagnostic script from the project root:
+
+```bash
+python check_scheduler.py
+```
+
+This script tests each layer independently — env vars, database connectivity, pipeline discovery, worker-thread app context, a live direct job fire, run history, and APScheduler job registration — and prints a clear PASS/FAIL at each step.
 
 ## Running Tests
 

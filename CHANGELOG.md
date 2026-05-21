@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] — 2026-05-21
+
+### Fixed
+
+- **Scheduler critical bug** — Scheduled pipelines silently never fired. Root cause: APScheduler fires jobs in background threads, which have no Flask application context. `current_app` is a thread-local proxy and raises `RuntimeError: Working outside of application context` when accessed from a worker thread. The exception was swallowed by the outer `except Exception` handler, so no error was visible. Fixed by storing the Flask `app` object at module level in `scheduler.py` (bypasses pickling and thread-locality constraints) and pushing a fresh app context per job run with `with _app.app_context()`. ([`flowforge/engine/scheduler.py`](flowforge/engine/scheduler.py))
+- **CLI schedule command** — Removed erroneous `with app.app_context()` wrapper from the `schedule` CLI command; `start_scheduler()` now takes the `app` object directly and manages its own context lifetime. ([`flowforge/cli.py`](flowforge/cli.py))
+- **Login failure** — Fixed `FLOWFORGE_USERNAME` typo in `.env` (`testadmind` → `testadmin`).
+
+### Added
+
+- **JSON report format** — New `json` output option in the Report Designer generates a JSON array of objects (one per row, column names as keys). Added across: `flowforge/reports/json_report.py`, `flowforge/steps/report.py`, `flowforge/api/routes/reports.py`, `flowforge/db/models.py`. Alembic migration `0004_json_report_format.py` drops and recreates the `ck_report_format` check constraint.
+- **Dashboard next run time** — Pipeline cards now show when the next scheduled run will fire (e.g. "in 23 min", "tomorrow at 02:00"). Computed server-side using `APScheduler.CronTrigger.from_crontab()` and returned as `next_run` in the pipeline API response.
+- **Scheduler auto-start in startup scripts** — `flowforge.ps1` and `flowforge.sh` now start the scheduler alongside the API and UI. In dev mode all three run in parallel with `[api]`, `[sched]`, and `[ui]` log prefixes; Ctrl+C stops all three. The `stop` action also terminates the scheduler process.
+- **Scheduler diagnostic script** — `check_scheduler.py` at the project root runs a 7-step end-to-end diagnostic (env vars → DB → pipeline discovery → worker-thread context → direct job fire → run history → APScheduler job registration). Run with `python check_scheduler.py`.
+
+### Changed
+
+- **Report Designer** — Selecting a format (Excel/CSV/PDF/JSON) now automatically updates the output filename extension to match.
+- **Pipelines list** — Schedule column now shows a human-readable description (e.g. "Every hour", "Daily at 02:00") with the raw cron expression below it; unscheduled pipelines show "Manual only". Status column now shows a green "Active" badge for enabled pipelines instead of a plain Yes/No text column.
+- **CronBuilder label** — Hourly frequency label corrected from the confusing "at minute N" to "at :N each hour".
+
 ## [0.1.0] — 2026-05-20
 
 ### Added
@@ -113,5 +134,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `flowforge[pdf]` — `weasyprint`
 - `flowforge[dev]` — `pytest`, `pytest-mock`, `responses`, `pytest-cov`
 
-[Unreleased]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/jagdeepvirdi/flowforge/releases/tag/v0.1.0

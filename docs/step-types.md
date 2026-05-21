@@ -75,7 +75,7 @@ config:
 
 ## report
 
-Generates a report file (Excel, CSV, or PDF) from a saved report config. The report config holds the query, format, and output filename.
+Generates a report file (Excel, CSV, PDF, or JSON) from a saved report config. The report config holds the query, format, and output filename.
 
 ```yaml
 step_type: report
@@ -89,11 +89,13 @@ The report config itself (stored in `report_configs` table) contains:
 |---|---|
 | `connection_id` | Database to run the query against |
 | `query` | SQL query — supports `{{ variables }}` |
-| `format` | `excel` \| `csv` \| `pdf` |
-| `output_filename` | Supports variables: `report_{{ current_month }}.xlsx` |
+| `format` | `excel` \| `csv` \| `pdf` \| `json` |
+| `output_filename` | Supports variables: `report_{{ current_month }}.xlsx`. Extension updates automatically when format is changed in the UI. |
 | `sheet_name` | Excel only — sheet tab name |
 | `template_path` | Excel only — path to a `.xlsx` template file |
 | `title` | PDF only — document title |
+
+**JSON format:** Outputs a JSON array of objects, one per row. Column names from `cursor.description` become the object keys. Useful for downstream API consumers or further processing steps.
 
 **Outputs:**
 - `{{ steps.<name>.output_path }}` — absolute path to the generated file
