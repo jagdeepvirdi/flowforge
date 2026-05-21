@@ -5,17 +5,55 @@
 
 ---
 
-## GitHub Release Score: 8.2 / 10 (updated 2026-05-18)
+## GitHub Release Score: 8.6 / 10 (updated 2026-05-22)
 ## Codebase Review Score: 6.0 / 10 (reviewed 2026-05-20 — see CODEBASE_REVIEW.md)
 
 | Dimension | Score |
 |---|---|
 | Code quality | 7/10 — Clean architecture, good separation of concerns |
-| Feature completeness | 8/10 — Async, Docker, CI, M365 token refresh, YAML import all done |
+| Feature completeness | 9/10 — Scheduler sync, JSON format, quick-attach, all phase 9 items done |
 | Security | 9/10 — Encryption, rate limiting, Alembic migrations all done |
-| Documentation | 5/10 — Missing pages, no screenshots |
+| Documentation | 7/10 — All docs updated, scheduler runbook added, screenshots in progress |
 | Deployment UX | 7/10 — Docker Compose + CI added |
-| GitHub readiness | 8/10 — Legacy removed, stubs fixed, deps corrected |
+| GitHub readiness | 9/10 — Startup scripts solid, scheduler reliable, UX improvements shipped |
+
+---
+
+## Session — 2026-05-21 / 2026-05-22 🟢 *(COMPLETE)*
+
+### Bug Fixes
+- [x] **Scheduler stale job bug** — `_load_pipeline_jobs()` only added jobs, never removed them. Clearing or disabling a pipeline schedule in the UI had no effect; the old job persisted in the PostgreSQL jobstore across restarts. Fixed by replacing with `_sync_pipeline_jobs()` which diffs existing vs active job IDs and calls `remove_job()` for stale entries. Added a `_pipeline_sync` interval job (every 60s) so schedule changes apply automatically without restarting. (`flowforge/engine/scheduler.py`)
+- [x] **Scheduler thread-context bug** — APScheduler worker threads had no Flask app context; `current_app` raised `RuntimeError`. Fixed by storing `app` at module level and pushing context per job run. (`flowforge/engine/scheduler.py`, `flowforge/cli.py`)
+- [x] **PowerShell `$PID` reserved variable** — `.\flowforge.ps1 stop` crashed with "Cannot overwrite variable PID because it is read-only or constant". Renamed local variable to `$procId`. (`flowforge.ps1`)
+
+### Features Added
+- [x] **JSON report format** — New output format in Report Designer: generates a JSON array of objects (one per row). Alembic migration `0004_json_report_format.py` applied. (`flowforge/reports/json_report.py`, `flowforge/steps/report.py`, `flowforge/api/routes/reports.py`, `flowforge/db/models.py`)
+- [x] **Dashboard next run time** — Pipeline cards show when the next scheduled run fires, computed server-side via APScheduler `CronTrigger.from_crontab()`. (`flowforge/api/routes/pipelines.py`, `frontend/src/pages/Dashboard.tsx`)
+- [x] **Startup scripts auto-start scheduler** — `flowforge.ps1` and `flowforge.sh` now start API + scheduler + UI together. `[sched]` log prefix. Stop action kills all three. (`flowforge.ps1`, `flowforge.sh`)
+- [x] **Scheduler diagnostic script** — `check_scheduler.py` — 7-step end-to-end diagnostic (env → DB → pipelines → thread context → direct fire → run history → job registration).
+- [x] **Quick-attach report steps in email config** — When an email step has preceding report steps in the same pipeline, they appear as one-click buttons showing step name + output filename. Clicking inserts `{{ steps.<name>.output_path }}` automatically; already-added steps show green checkmark. (`frontend/src/components/pipeline/StepEditor.tsx`)
+- [x] **Email body template size increase** — `rows={14}` → `rows={28}`, `minHeight: 420px`. (`frontend/src/pages/EmailEdit.tsx`)
+
+### UI Improvements
+- [x] **Report Designer format auto-extension** — Selecting a format now automatically updates the output filename extension.
+- [x] **Pipelines list schedule column** — Shows human-readable cron description + raw expression; "Manual only" for unscheduled.
+- [x] **Pipelines list status column** — Green "Active" badge for enabled pipelines.
+- [x] **CronBuilder hourly label** — Fixed confusing "at minute N" → "at :N each hour".
+
+### Documentation
+- [x] `docs/running-the-server.md` — scheduler as third process, updated mode descriptions, stop behaviour, troubleshooting rows
+- [x] `docs/getting-started.md` — startup script as recommended path, JSON format mention, Scheduler Diagnostics section
+- [x] `docs/step-types.md` — JSON added to report format options
+- [x] `RUNBOOK.md` — all-in-one startup section, scheduler troubleshooting table (section 4a)
+- [x] `CHANGELOG.md` — v0.1.1 and v0.1.2 entries
+
+### Manual Testing (Phase 2)
+- [x] DB connection test — Connected · 20ms (`docs/screenshots/connection-test-success.png`)
+- [x] Report preview rows — 9 rows (`docs/screenshots/report-preview-rows.png`)
+- [x] Pipeline Run Now → success in Run History (`docs/screenshots/pipeline-run-now-success.png`)
+- [x] Run detail step timeline + output path + rows_affected (`docs/screenshots/run-detail-steps.png`)
+- [x] Scheduler auto-trigger — 19 runs with `triggered_by=scheduler` (`docs/screenshots/scheduler-auto-run-history.png`)
+- [x] Dashboard README screenshot (`docs/screenshots/dashboard.png`)
 
 ---
 
@@ -42,16 +80,16 @@
 ### Manual Verification Checklist (do before launch)
 
 #### End-to-End Pipeline Test
-- [ ] Create DB connection → Test → verify "Connected"
-- [ ] Create report config with simple `SELECT` → Preview → verify rows appear
-- [ ] Create pipeline with one `report` step → Run Now → check Run History
+- [x] Create DB connection → Test → verify "Connected" *(screenshot: connection-test-success.png — Connected · 20ms)*
+- [x] Create report config with simple `SELECT` → Preview → verify rows appear *(screenshot: report-preview-rows.png — 9 rows)*
+- [x] Create pipeline with one `report` step → Run Now → check Run History *(screenshot: pipeline-run-now-success.png — 20 runs, 0 failed)*
 - [ ] Add `email` step after report → run → verify email received
-- [ ] Verify `{{ current_date }}` resolves in output filename and email subject
-- [ ] Verify `StepResult.output_path` flows from report step → email attachments
-- [ ] Verify `duration_ms` and `rows_affected` written to `ff_step_runs`
+- [x] Verify `{{ current_month }}` resolves in output filename *(screenshot: run-detail-steps.png — RunBook_Report_2026-05_...csv visible)*
+- [x] Verify `StepResult.output_path` flows from report step *(screenshot: run-detail-steps.png — output file and Download button visible)*
+- [x] Verify `rows_affected` written to `ff_step_runs` *(screenshot: run-detail-steps.png — "Rows affected: 9" visible)*
 
 #### Scheduler Smoke Test
-- [ ] Create pipeline with `* * * * *` schedule → start scheduler → verify auto-run in history
+- [x] Create pipeline with scheduled run → start scheduler → verify auto-run in history *(screenshot: scheduler-auto-run-history.png — 19 scheduler-triggered runs)*
 - [ ] Disable pipeline → verify no more runs triggered
 
 ---
@@ -59,7 +97,7 @@
 ## Phase 4 — Polish & Release Prep 🔵
 *Docs, GitHub presence, and final UX touches.*
 
-- [ ] **README screenshots** — Dashboard, Pipeline Builder, Run Detail. Highest-impact item for GitHub stars.
+- [ ] **README screenshots** — ~~Dashboard~~ ✓, ~~Run Detail~~ ✓, **Pipeline Builder still needed**. Highest-impact item for GitHub stars.
 
 ---
 

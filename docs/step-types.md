@@ -121,6 +121,8 @@ config:
     - "/absolute/path/to/file.csv"
 ```
 
+**Quick-attach (Pipeline Builder UI):** Any `report` steps that appear before the email step in the pipeline are shown as one-click buttons above the attachments field, displaying the step name and expected output filename. Clicking inserts `{{ steps.<name>.output_path }}` automatically — no typing required.
+
 The email config (stored in `email_configs` table) contains:
 
 | Field | Description |

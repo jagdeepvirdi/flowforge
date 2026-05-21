@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] — 2026-05-22
+
+### Fixed
+
+- **Scheduler stale jobs** — Clearing or disabling a pipeline schedule in the UI had no effect; the old APScheduler job persisted in the PostgreSQL jobstore across restarts. `_load_pipeline_jobs()` only ever added jobs, never removed them. Replaced with `_sync_pipeline_jobs()` which diffs existing `pipeline_*` job IDs against the current active set and calls `remove_job()` for anything stale. Restart the scheduler once to flush any jobs orphaned before this fix. ([`flowforge/engine/scheduler.py`](flowforge/engine/scheduler.py))
+- **Scheduler auto-sync** — Schedule changes made in the UI now apply within 60 seconds without restarting, via a new `_pipeline_sync` interval job that calls `_sync_pipeline_jobs()` every minute.
+- **PowerShell `$PID` reserved variable** — `.\flowforge.ps1 stop` crashed with `Cannot overwrite variable PID because it is read-only or constant`. `$PID` is a read-only automatic variable in PowerShell. Renamed local variable to `$procId`. ([`flowforge.ps1`](flowforge.ps1))
+
+### Added
+
+- **Quick-attach report steps in email config** — When an email step has preceding report steps in the same pipeline, each report step appears as a one-click button above the attachments field, showing the step name and the output filename from its report config. Clicking inserts `{{ steps.<name>.output_path }}` automatically. Already-added steps show a green checkmark. Manual path entry still works as before. ([`frontend/src/components/pipeline/StepEditor.tsx`](frontend/src/components/pipeline/StepEditor.tsx))
+
+### Changed
+
+- **Email body template editor** — Height increased from 14 rows to 28 rows (420px minimum) in the Email Config editor. Still resizable. ([`frontend/src/pages/EmailEdit.tsx`](frontend/src/pages/EmailEdit.tsx))
+
 ## [0.1.1] — 2026-05-21
 
 ### Fixed
@@ -134,6 +150,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `flowforge[pdf]` — `weasyprint`
 - `flowforge[dev]` — `pytest`, `pytest-mock`, `responses`, `pytest-cov`
 
-[Unreleased]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/jagdeepvirdi/flowforge/releases/tag/v0.1.0
