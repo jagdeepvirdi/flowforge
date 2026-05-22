@@ -1,68 +1,20 @@
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { Pencil, Search } from 'lucide-react'
-import { getPipelines } from '../lib/api'
+import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { getBulkLoadConfigs, deleteBulkLoadConfig } from '../lib/api'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 import PageIntro from '../components/shared/PageIntro'
 
-interface BulkLoadRow {
-  pipelineId:   string
-  pipelineName: string
-  stepName:     string
-  stepOrder:    number
-  sourceDir:    string
-  filePrefix:   string
-  fileType:     string
-  targetTable:  string
-  loadMode:     string
-  archiveDir:   string
-  onNoFiles:    string
-  useSqlLoader: boolean
-  enabled:      boolean
-}
-
 export default function BulkLoads() {
-  const [search, setSearch] = useState('')
-
-  const { data: pipelines = [], isLoading } = useQuery({
-    queryKey: ['pipelines'],
-    queryFn: getPipelines,
+  const qc = useQueryClient()
+  const { data: configs = [], isLoading } = useQuery({
+    queryKey: ['bulk-load-configs'],
+    queryFn: getBulkLoadConfigs,
   })
-
-  const rows: BulkLoadRow[] = []
-  for (const p of pipelines) {
-    for (const s of p.steps) {
-      if (s.step_type !== 'bulk_load') continue
-      const cfg = s.config as Record<string, unknown>
-      rows.push({
-        pipelineId:   p.id,
-        pipelineName: p.name,
-        stepName:     s.name,
-        stepOrder:    s.step_order,
-        sourceDir:    String(cfg.source_directory ?? ''),
-        filePrefix:   String(cfg.file_prefix ?? ''),
-        fileType:     String(cfg.file_type ?? 'csv'),
-        targetTable:  String(cfg.target_table ?? ''),
-        loadMode:     String(cfg.load_mode ?? 'append'),
-        archiveDir:   String(cfg.archive_directory ?? ''),
-        onNoFiles:    String(cfg.on_no_files ?? 'skip'),
-        useSqlLoader: Boolean(cfg.use_sqlloader),
-        enabled:      s.enabled,
-      })
-    }
-  }
-
-  const filtered = rows.filter(r => {
-    if (!search) return true
-    const q = search.toLowerCase()
-    return (
-      r.stepName.toLowerCase().includes(q) ||
-      r.pipelineName.toLowerCase().includes(q) ||
-      r.sourceDir.toLowerCase().includes(q) ||
-      r.targetTable.toLowerCase().includes(q)
-    )
+  const { mutate: remove } = useMutation({
+    mutationFn: deleteBulkLoadConfig,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['bulk-load-configs'] }),
   })
 
   if (isLoading) return (
@@ -76,8 +28,8 @@ export default function BulkLoads() {
         crumbs={['Workspace', 'Bulk Loads']}
         helpTopic="pipelines"
         actions={
-          <Link to="/pipelines" className="btn btn-sm">
-            View Pipelines
+          <Link to="/bulk-loads/new" className="btn btn-primary btn-sm">
+            <Plus size={13} /> New Bulk Load
           </Link>
         }
       />
@@ -88,89 +40,75 @@ export default function BulkLoads() {
         <div className="page-h">
           <div>
             <h1>Bulk Loads</h1>
-            <p>{rows.length} bulk load step{rows.length !== 1 ? 's' : ''} across {pipelines.length} pipeline{pipelines.length !== 1 ? 's' : ''}</p>
+            <p>{configs.length} bulk load config{configs.length !== 1 ? 's' : ''}</p>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#1A1D27', border: '1px solid #2D3143', borderRadius: 8, padding: '0 12px', height: 34, flex: 1, maxWidth: 360 }}>
-            <Search size={14} style={{ color: '#64748B' }} />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{ background: 'transparent', border: 'none', outline: 'none', color: '#F1F5F9', fontSize: 13, fontFamily: 'inherit', flex: 1 }}
-              placeholder="Filter by step, pipeline, table…"
-            />
-          </div>
-        </div>
-
-        {filtered.length === 0 ? (
+        {configs.length === 0 ? (
           <div className="card ff-empty">
-            <p className="msg">
-              {search
-                ? 'No bulk load steps match your filter.'
-                : 'No bulk_load steps yet. Open a pipeline in the Pipeline Builder and add a Bulk Load step.'}
+            <p className="msg">No bulk load configs yet.</p>
+            <p style={{ fontSize: 12.5, color: '#64748B', margin: '0 0 14px' }}>
+              A bulk load config defines the source directory, file pattern, and target table.
+              Once created, reference it in a pipeline's Bulk Load step.
             </p>
-            {!search && (
-              <Link to="/pipelines" className="btn btn-primary">Go to Pipelines</Link>
-            )}
+            <Link to="/bulk-loads/new" className="btn btn-primary">Create first bulk load config</Link>
           </div>
         ) : (
           <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
             <table className="tbl">
               <thead>
                 <tr>
-                  <th>Step</th>
-                  <th>Pipeline</th>
+                  <th>Name</th>
                   <th>Source directory</th>
                   <th>Target table</th>
-                  <th style={{ width: 80 }}>Type</th>
+                  <th style={{ width: 70 }}>Type</th>
                   <th style={{ width: 80 }}>Mode</th>
-                  <th style={{ width: 44 }} />
+                  <th style={{ width: 80 }} />
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r, i) => (
-                  <tr key={i} style={{ opacity: r.enabled ? 1 : 0.5 }}>
+                {configs.map(c => (
+                  <tr key={c.id}>
                     <td>
-                      <div style={{ fontWeight: 500, color: '#F1F5F9' }}>{r.stepName}</div>
-                      {r.filePrefix && (
-                        <div className="mono" style={{ fontSize: 11, color: '#64748B', marginTop: 2 }}>
-                          prefix: {r.filePrefix}
+                      <div style={{ fontWeight: 500, color: '#F1F5F9' }}>
+                        <Link to={`/bulk-loads/${c.id}/edit`} style={{ color: '#F1F5F9', textDecoration: 'none' }}
+                          onMouseEnter={e => (e.currentTarget.style.color = '#FB923C')}
+                          onMouseLeave={e => (e.currentTarget.style.color = '#F1F5F9')}>
+                          {c.name}
+                        </Link>
+                      </div>
+                      {c.description && <div style={{ fontSize: 11.5, color: '#64748B', marginTop: 2 }}>{c.description}</div>}
+                      {c.file_prefix && (
+                        <div className="mono" style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>
+                          prefix: {c.file_prefix}
                         </div>
                       )}
                     </td>
-                    <td>
-                      <Link
-                        to={`/pipelines/${r.pipelineId}/edit`}
-                        style={{ color: '#94A3B8', textDecoration: 'none', fontSize: 13 }}
-                        onMouseEnter={e => (e.currentTarget.style.color = '#FB923C')}
-                        onMouseLeave={e => (e.currentTarget.style.color = '#94A3B8')}
-                      >
-                        {r.pipelineName}
-                      </Link>
+                    <td className="mono" style={{ fontSize: 12, color: '#94A3B8' }}>
+                      {c.source_directory || <span style={{ color: '#475569' }}>—</span>}
                     </td>
-                    <td className="mono" style={{ fontSize: 12, color: '#CBD5E1' }}>
-                      {r.sourceDir || <span style={{ color: '#475569' }}>—</span>}
-                    </td>
-                    <td className="mono" style={{ fontSize: 12, color: '#CBD5E1' }}>
-                      {r.targetTable || <span style={{ color: '#475569' }}>—</span>}
+                    <td className="mono" style={{ fontSize: 12, color: '#94A3B8' }}>
+                      {c.target_table || <span style={{ color: '#475569' }}>—</span>}
                     </td>
                     <td>
-                      <span className="tbadge tbadge-bulk" style={{ fontSize: 10 }}>
-                        {r.fileType.toUpperCase()}
-                        {r.useSqlLoader ? ' · sqlldr' : ''}
+                      <span className="tbadge tbadge-bulk">
+                        {(c.file_type || 'csv').toUpperCase()}
                       </span>
                     </td>
-                    <td style={{ color: '#94A3B8', fontSize: 12 }}>{r.loadMode}</td>
+                    <td style={{ color: '#94A3B8', fontSize: 12 }}>{c.load_mode}</td>
                     <td>
-                      <Link
-                        to={`/pipelines/${r.pipelineId}/edit`}
-                        className="btn btn-sm btn-ghost btn-icon"
-                        title="Edit pipeline"
-                      >
-                        <Pencil size={12} />
-                      </Link>
+                      <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                        <Link to={`/bulk-loads/${c.id}/edit`} className="btn btn-sm btn-ghost btn-icon"><Pencil size={12} /></Link>
+                        <button
+                          className="btn btn-sm btn-ghost btn-icon"
+                          style={{ color: '#64748B' }}
+                          onMouseEnter={e => (e.currentTarget.style.color = '#F87171')}
+                          onMouseLeave={e => (e.currentTarget.style.color = '#64748B')}
+                          onClick={() => window.confirm(`Delete "${c.name}"?`) && remove(c.id)}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

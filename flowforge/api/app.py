@@ -100,6 +100,7 @@ def _sweep_stuck_runs(app: Flask) -> None:
 
 def _register_blueprints(app: Flask) -> None:
     from flowforge.api.routes.auth import bp as auth_bp
+    from flowforge.api.routes.bulk_loads import bp as bulk_loads_bp
     from flowforge.api.routes.connections import bp as connections_bp
     from flowforge.api.routes.emails import bp as emails_bp
     from flowforge.api.routes.pipelines import bp as pipelines_bp
@@ -111,7 +112,7 @@ def _register_blueprints(app: Flask) -> None:
     from flowforge.api.routes.steps import bp as steps_bp
 
     for blueprint in (
-        auth_bp, connections_bp, emails_bp, pipelines_bp, providers_bp,
+        auth_bp, bulk_loads_bp, connections_bp, emails_bp, pipelines_bp, providers_bp,
         recipients_bp, reports_bp, runs_bp, setup_bp, steps_bp,
     ):
         app.register_blueprint(blueprint, url_prefix='/api')

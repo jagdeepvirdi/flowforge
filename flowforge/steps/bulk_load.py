@@ -26,7 +26,17 @@ class BulkLoadStep(BaseStep):
     def run(self, context: dict[str, Any]) -> StepResult:
         from flowforge.engine.context import render
 
-        cfg = self.config
+        step_cfg = self.config
+
+        # Resolve config: prefer bulk_load_config_id (standalone config), fall back to inline
+        bulk_load_config_id = step_cfg.get('bulk_load_config_id', '')
+        if bulk_load_config_id:
+            cfg = _load_bulk_load_config(bulk_load_config_id)
+            if cfg is None:
+                return StepResult(success=False, error=f'bulk_load: config not found: {bulk_load_config_id}')
+        else:
+            cfg = step_cfg
+
         connection_id       = cfg.get('connection_id', '')
         source_dir          = render(cfg.get('source_directory', ''), context)
         file_prefix         = cfg.get('file_prefix', '') or ''
@@ -146,6 +156,32 @@ class BulkLoadStep(BaseStep):
             records_failed=total_records_failed,
             duration_sec=duration_sec,
         )
+
+
+# ─── Config loader ────────────────────────────────────────────────────────────
+
+def _load_bulk_load_config(config_id: str) -> dict | None:
+    """Load a BulkLoadConfig row and return it as a plain dict for the runner."""
+    from flowforge.db.models import BulkLoadConfig, db
+    row = db.session.get(BulkLoadConfig, config_id)
+    if not row:
+        return None
+    return {
+        'connection_id':       row.connection_id or '',
+        'source_directory':    row.source_directory or '',
+        'file_prefix':         row.file_prefix or '',
+        'file_prefix_exclude': row.file_prefix_exclude or '',
+        'file_type':           row.file_type or 'csv',
+        'delimiter':           row.delimiter or ',',
+        'header_rows':         row.header_rows if row.header_rows is not None else 1,
+        'footer_rows':         row.footer_rows if row.footer_rows is not None else 0,
+        'target_table':        row.target_table or '',
+        'load_mode':           row.load_mode or 'append',
+        'column_mapping':      row.column_mapping or [],
+        'use_sqlloader':       bool(row.use_sqlloader),
+        'archive_directory':   row.archive_directory or '',
+        'on_no_files':         row.on_no_files or 'skip',
+    }
 
 
 # ─── Connection helpers ────────────────────────────────────────────────────────

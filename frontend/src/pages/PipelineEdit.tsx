@@ -11,7 +11,7 @@ import { Link } from 'react-router-dom'
 import {
   getPipeline, createPipeline, updatePipeline,
   addStep, updateStep, deleteStep,
-  getDbConnections, getReportConfigs, getEmailConfigs,
+  getDbConnections, getReportConfigs, getEmailConfigs, getBulkLoadConfigs,
   getCronNext,
 } from '../lib/api'
 import type { Pipeline, PipelineStep, StepType } from '../lib/types'
@@ -49,6 +49,7 @@ export default function PipelineEdit() {
   const { data: dbConns = [] } = useQuery({ queryKey: ['db-connections'], queryFn: getDbConnections })
   const { data: reportCfgs = [] } = useQuery({ queryKey: ['report-configs'], queryFn: getReportConfigs })
   const { data: emailCfgs = [] } = useQuery({ queryKey: ['email-configs'], queryFn: getEmailConfigs })
+  const { data: bulkLoadCfgs = [] } = useQuery({ queryKey: ['bulk-load-configs'], queryFn: getBulkLoadConfigs })
 
   const [name, setName]           = useState('')
   const [desc, setDesc]           = useState('')
@@ -225,6 +226,7 @@ export default function PipelineEdit() {
                   dbConnections={dbConns.map(c => ({ id: c.id, name: c.name }))}
                   reportConfigs={reportCfgs.map(r => ({ id: r.id, name: r.name, output_filename: r.output_filename }))}
                   emailConfigs={emailCfgs.map(e => ({ id: e.id, name: e.name }))}
+                  bulkLoadConfigs={bulkLoadCfgs.map(b => ({ id: b.id, name: b.name, source_directory: b.source_directory, target_table: b.target_table }))}
                 />
               ))}
             </SortableContext>

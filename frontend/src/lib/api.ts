@@ -55,6 +55,14 @@ export const updateStep = (id: string, data: Partial<import('./types').PipelineS
 export const deleteStep = (id: string) => del<{ deleted: string }>(`/pipeline-steps/${id}`)
 
 // Report configs
+// Bulk load configs
+export const getBulkLoadConfigs   = () => get<import('./types').BulkLoadConfig[]>('/bulk-load-configs')
+export const getBulkLoadConfig    = (id: string) => get<import('./types').BulkLoadConfig>(`/bulk-load-configs/${id}`)
+export const createBulkLoadConfig = (data: Partial<import('./types').BulkLoadConfig>) => post<import('./types').BulkLoadConfig>('/bulk-load-configs', data)
+export const updateBulkLoadConfig = (id: string, data: Partial<import('./types').BulkLoadConfig>) => put<import('./types').BulkLoadConfig>(`/bulk-load-configs/${id}`, data)
+export const deleteBulkLoadConfig = (id: string) => del<{ deleted: string }>(`/bulk-load-configs/${id}`)
+
+// Report configs
 export const getReportConfigs   = () => get<import('./types').ReportConfig[]>('/report-configs')
 export const getReportConfig    = (id: string) => get<import('./types').ReportConfig>(`/report-configs/${id}`)
 export const createReportConfig = (data: Partial<import('./types').ReportConfig>) => post<import('./types').ReportConfig>('/report-configs', data)

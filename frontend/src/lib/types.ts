@@ -122,6 +122,28 @@ export interface DbConnection {
   config?: Record<string, string>
 }
 
+export interface BulkLoadConfig {
+  id: string
+  name: string
+  description: string
+  connection_id: string | null
+  source_directory: string
+  file_prefix: string
+  file_prefix_exclude: string
+  file_type: string
+  delimiter: string
+  header_rows: number
+  footer_rows: number
+  target_table: string
+  load_mode: string
+  column_mapping: { source: string; target: string }[]
+  use_sqlloader: boolean
+  archive_directory: string
+  on_no_files: string
+  created_at: string
+  updated_at: string
+}
+
 export interface RecipientGroup {
   id: string
   name: string
