@@ -223,22 +223,53 @@ class DataLoadStep(BaseStep):
     # ── target loader ─────────────────────────────────────────────────────────
 
     def _table_exists(self, conn, table: str) -> bool:
-        """Return True if table is queryable — works on PostgreSQL and Oracle."""
+        """Check table existence via catalog queries.
+
+        Uses information_schema / catalog tables rather than a speculative SELECT
+        so that PostgreSQL never enters an aborted-transaction state on a miss.
+        """
+        db_type = getattr(conn, 'db_type', 'postgresql')
+        clean  = table.replace('"', '').replace("'", '')
+        parts  = clean.split('.')
+        tname  = parts[-1]
+        schema = parts[0] if len(parts) > 1 else None
+
         try:
-            conn.execute_query(f"SELECT * FROM {table} WHERE 1=0")
-            return True
+            if db_type == 'oracle':
+                if schema:
+                    rows = conn.execute_query(
+                        "SELECT 1 FROM all_tables "
+                        "WHERE table_name = UPPER(:1) AND owner = UPPER(:2)",
+                        (tname, schema),
+                    )
+                else:
+                    rows = conn.execute_query(
+                        "SELECT 1 FROM user_tables WHERE table_name = UPPER(:1)",
+                        (tname,),
+                    )
+            else:  # postgresql (and generic fallback)
+                rows = conn.execute_query(
+                    "SELECT 1 FROM information_schema.tables "
+                    "WHERE table_name = %s AND table_schema = %s",
+                    (tname, schema or 'public'),
+                )
+            return bool(rows)
         except Exception:
             return False
 
     def _create_table(self, conn, table: str, columns: list[str], rows: list[tuple]) -> None:
-        """CREATE TABLE with column types inferred from the data being loaded."""
+        """CREATE TABLE with column types inferred from the data being loaded.
+
+        Column names are left unquoted so they match the unquoted references in
+        _bulk_load's INSERT statement on both PostgreSQL and Oracle.
+        """
         db_type = getattr(conn, 'db_type', 'postgresql')
-        sample = rows[:1000]
+        sample  = rows[:1000]
         col_defs = []
         for i, col in enumerate(columns):
-            col_vals = [row[i] for row in sample if i < len(row)]
-            col_type = _infer_col_type(col_vals, db_type)
-            col_defs.append(f'"{col}" {col_type}')
+            col_vals  = [row[i] for row in sample if i < len(row)]
+            col_type  = _infer_col_type(col_vals, db_type)
+            col_defs.append(f'{col} {col_type}')
         conn.execute_write(f'CREATE TABLE {table} ({", ".join(col_defs)})')
         logger.debug(
             'Created %s with inferred types: %s',
