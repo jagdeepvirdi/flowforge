@@ -76,8 +76,8 @@ export default function BulkLoads() {
         crumbs={['Workspace', 'Bulk Loads']}
         helpTopic="pipelines"
         actions={
-          <Link to="/pipelines/new" className="btn btn-primary btn-sm">
-            + New Pipeline
+          <Link to="/pipelines" className="btn btn-sm">
+            View Pipelines
           </Link>
         }
       />
@@ -109,10 +109,10 @@ export default function BulkLoads() {
             <p className="msg">
               {search
                 ? 'No bulk load steps match your filter.'
-                : 'No bulk_load steps found. Add one to any pipeline via the Pipeline Builder.'}
+                : 'No bulk_load steps yet. Open a pipeline in the Pipeline Builder and add a Bulk Load step.'}
             </p>
             {!search && (
-              <Link to="/pipelines/new" className="btn btn-primary">Create a pipeline</Link>
+              <Link to="/pipelines" className="btn btn-primary">Go to Pipelines</Link>
             )}
           </div>
         ) : (
