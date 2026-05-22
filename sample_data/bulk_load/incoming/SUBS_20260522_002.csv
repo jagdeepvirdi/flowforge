@@ -1,0 +1,11 @@
+subscriber_id,first_name,last_name,email,plan,start_date,monthly_amount,status
+SUB-011,Karen,Thomas,karen.t@example.com,basic,2026-03-10,29.99,active
+SUB-012,Leo,Jackson,leo.j@example.com,premium,2026-04-15,99.99,active
+SUB-013,Maria,White,maria.w@example.com,standard,2026-01-25,59.99,active
+SUB-014,Nathan,Harris,nathan.h@example.com,basic,2026-02-07,29.99,active
+SUB-015,Olivia,Martin,olivia.m@example.com,premium,2026-03-18,99.99,active
+SUB-016,Paul,Garcia,paul.g@example.com,standard,2026-04-02,59.99,cancelled
+SUB-017,Quinn,Martinez,quinn.m@example.com,basic,2026-01-30,29.99,active
+SUB-018,Rachel,Robinson,rachel.r@example.com,premium,2026-02-20,99.99,active
+SUB-019,Sam,Clark,sam.c@example.com,standard,2026-03-08,59.99,active
+SUB-020,Tina,Rodriguez,tina.r@example.com,basic,2026-04-22,29.99,active

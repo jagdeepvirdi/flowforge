@@ -1,0 +1,4 @@
+order_id,subscriber_id,order_date,amount,status
+ORD-001,SUB-001,2026-05-01,99.99,paid
+ORD-002,SUB-002,2026-05-01,29.99,paid
+ORD-003,SUB-003,2026-05-01,99.99,paid
