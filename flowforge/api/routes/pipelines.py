@@ -175,6 +175,21 @@ def update_pipeline(pipeline_id):
         if field in data:
             setattr(pipeline, field, data[field])
 
+    if 'variables' in data:
+        # Full replace: delete existing vars and re-create from the incoming list
+        for v in pipeline.variables:
+            db.session.delete(v)
+        db.session.flush()
+        for var in data['variables']:
+            is_secret = var.get('is_secret', False)
+            raw_value = var.get('var_value', '')
+            db.session.add(PipelineVariable(
+                pipeline_id=pipeline.id,
+                var_key=var['var_key'],
+                var_value=encrypt_value(raw_value) if is_secret else raw_value,
+                is_secret=is_secret,
+            ))
+
     db.session.commit()
     return jsonify(_pipeline_dict(pipeline))
 

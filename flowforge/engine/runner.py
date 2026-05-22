@@ -56,6 +56,12 @@ def run_pipeline(
     """Execute an ordered list of steps, threading context between them."""
     from flowforge.engine.context import build
 
+    # Inject last-success timestamps so steps can do delta/incremental loads
+    if pipeline_id:
+        pipeline_vars = dict(pipeline_vars or {})
+        pipeline_vars.setdefault('last_success_at',   _get_last_success_ts(pipeline_id, '%Y%m%d%H%M%S'))
+        pipeline_vars.setdefault('last_success_date', _get_last_success_ts(pipeline_id, '%Y-%m-%d'))
+
     context = build(pipeline_name, pipeline_vars=pipeline_vars)
     context['triggered_by'] = triggered_by
     vars_log = _build_vars_log(context, secret_var_keys)
@@ -217,3 +223,24 @@ def _finish_run_record(run_record, success: bool, error_step: str = '', error_me
         db.session.commit()
     except SQLAlchemyError as e:
         logger.error("Failed to update pipeline_run record: %s", e)
+
+
+def _get_last_success_ts(pipeline_id: str, fmt: str) -> str:
+    """Return the finished_at of the most recent successful run in the given strftime format.
+
+    Returns an empty string if no successful run exists or DB is unavailable.
+    Used to populate {{ last_success_at }} and {{ last_success_date }} in context.
+    """
+    try:
+        from flowforge.db.models import PipelineRun, db
+        run = (
+            db.session.query(PipelineRun)
+            .filter_by(pipeline_id=pipeline_id, status='success')
+            .order_by(PipelineRun.finished_at.desc())
+            .first()
+        )
+        if run and run.finished_at:
+            return run.finished_at.strftime(fmt)
+        return ''
+    except Exception:
+        return ''

@@ -6,7 +6,7 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
-import { Plus, Save, ArrowLeft } from 'lucide-react'
+import { Plus, Save, ArrowLeft, Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import {
   getPipeline, createPipeline, updatePipeline,
@@ -57,6 +57,7 @@ export default function PipelineEdit() {
   const [enabled, setEnabled]     = useState(true)
   const [timeout, setTimeout_]    = useState(60)
   const [steps, setSteps]         = useState<PipelineStep[]>([])
+  const [vars, setVars]           = useState<{ key: string; value: string; is_secret: boolean }[]>([])
   const [saving, setSaving]       = useState(false)
   const [error, setError]         = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
@@ -69,6 +70,11 @@ export default function PipelineEdit() {
       setEnabled(existing.enabled)
       setTimeout_(existing.timeout_minutes)
       setSteps([...existing.steps].sort((a, b) => a.step_order - b.step_order))
+      setVars((existing.variables ?? []).map(v => ({
+        key: v.var_key,
+        value: v.is_secret ? '' : v.var_value,
+        is_secret: v.is_secret,
+      })))
     }
   }, [existing])
 
@@ -104,11 +110,15 @@ export default function PipelineEdit() {
     setSaving(true)
     setError('')
     try {
+      const validVars = vars
+        .filter(v => v.key.trim())
+        .map(v => ({ var_key: v.key.trim(), var_value: v.value, is_secret: v.is_secret }))
+
       let pipeline: Pipeline
       if (isNew) {
-        pipeline = await createPipeline({ name, description: desc, schedule: schedule || null, enabled, timeout_minutes: timeout })
+        pipeline = await createPipeline({ name, description: desc, schedule: schedule || null, enabled, timeout_minutes: timeout, variables: validVars })
       } else {
-        pipeline = await updatePipeline(id!, { name, description: desc, schedule: schedule || null, enabled, timeout_minutes: timeout })
+        pipeline = await updatePipeline(id!, { name, description: desc, schedule: schedule || null, enabled, timeout_minutes: timeout, variables: validVars })
       }
 
       // Sync steps: delete removed, update existing, add new
@@ -199,6 +209,78 @@ export default function PipelineEdit() {
               {fieldErrors.timeout && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{fieldErrors.timeout}</span>}
             </div>
           </div>
+        </div>
+
+        {/* Pipeline Variables */}
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Pipeline Variables</span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>
+                available as <code style={{ fontSize: 11, background: '#1A1D27', padding: '1px 5px', borderRadius: 3 }}>{'{{ var_name }}'}</code> in all step configs
+              </span>
+            </div>
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={() => setVars(v => [...v, { key: '', value: '', is_secret: false }])}
+            >
+              <Plus size={10} /> Add variable
+            </button>
+          </div>
+
+          {vars.length === 0 ? (
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
+              No variables. Add one to pass constants like currency codes, environment names, or date ranges to all steps.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {/* Header */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 8, paddingBottom: 4, borderBottom: '1px solid #2D3143' }}>
+                {(['Name', 'Value', 'Secret', ''] as const).map(h => (
+                  <span key={h} style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>{h}</span>
+                ))}
+              </div>
+              {vars.map((v, i) => (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 8, alignItems: 'center' }}>
+                  <input
+                    className="input mono-input"
+                    placeholder="currency"
+                    value={v.key}
+                    onChange={e => setVars(prev => prev.map((r, j) => j === i ? { ...r, key: e.target.value } : r))}
+                    style={{ fontSize: 12, height: 30 }}
+                  />
+                  <input
+                    className="input"
+                    placeholder={v.is_secret ? '(unchanged)' : 'USD'}
+                    value={v.value}
+                    type={v.is_secret ? 'password' : 'text'}
+                    onChange={e => setVars(prev => prev.map((r, j) => j === i ? { ...r, value: e.target.value } : r))}
+                    style={{ fontSize: 12, height: 30 }}
+                  />
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 12, color: 'var(--text-muted)' }}>
+                    <input
+                      type="checkbox"
+                      checked={v.is_secret}
+                      onChange={e => setVars(prev => prev.map((r, j) => j === i ? { ...r, is_secret: e.target.checked } : r))}
+                    />
+                    Secret
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setVars(prev => prev.filter((_, j) => j !== i))}
+                    style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', padding: 4 }}
+                    title="Remove variable"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              ))}
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '4px 0 0' }}>
+                Built-in date vars: <code style={{ fontSize: 11 }}>{'{{ current_date }}'}</code> <code style={{ fontSize: 11 }}>{'{{ month_start_ts }}'}</code> <code style={{ fontSize: 11 }}>{'{{ prev_month_start_ts }}'}</code> <code style={{ fontSize: 11 }}>{'{{ last_success_at }}'}</code>
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Steps */}
