@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] — 2026-05-22
+
+### Fixed
+
+- **Email provider `test()` missing** — The Test button on Connections always showed FAILED with `AttributeError` because `test()` was never implemented on any provider. Added `test()` to `EmailProvider` base class and all three providers: Gmail (token refresh), SMTP (connect + login with 10s timeout), Microsoft 365 (MSAL token acquisition). ([`flowforge/email_providers/base.py`](flowforge/email_providers/base.py), [`flowforge/email_providers/gmail.py`](flowforge/email_providers/gmail.py), [`flowforge/email_providers/smtp.py`](flowforge/email_providers/smtp.py), [`flowforge/email_providers/microsoft365.py`](flowforge/email_providers/microsoft365.py))
+- **Gmail `test()` scope error** — Initial implementation called `users().getProfile()` which requires `gmail.readonly`, exceeding the `gmail.send` scope. Replaced with a token refresh call that works within the existing scope and confirms credentials are valid. ([`flowforge/email_providers/gmail.py`](flowforge/email_providers/gmail.py))
+- **Test error message silently discarded in UI** — Email and DB provider test failures showed only "FAILED" with no detail. Error message from the API is now captured and displayed directly under the Failed badge. Browser console also receives a `console.error` log. ([`frontend/src/pages/Connections.tsx`](frontend/src/pages/Connections.tsx))
+- **Quick-attach invalid Jinja2 for step names with spaces** — Quick-attach buttons generated `{{ steps.my step.output_path }}` which is invalid Jinja2 dot notation. Now uses bracket notation `{{ steps['my step'].output_path }}` when the step name contains spaces. Applies to both email and data_load forms. ([`frontend/src/components/pipeline/StepEditor.tsx`](frontend/src/components/pipeline/StepEditor.tsx))
+- **Documentation links showed no content** — Settings page doc links pointed to `/docs/*.md` which nothing served. Added a Flask `/api/docs/<filename>` route that serves markdown files from the `docs/` directory as plain text; links updated to `/api/docs/` and open in a new tab. ([`flowforge/api/app.py`](flowforge/api/app.py), [`frontend/src/pages/Settings.tsx`](frontend/src/pages/Settings.tsx))
+- **`data load` step button hidden in pipeline builder** — With 6 step type buttons in a row, `data load` overflowed off the right edge on narrower screens. Fixed by adding `flexWrap: wrap` to the button container. ([`frontend/src/pages/PipelineEdit.tsx`](frontend/src/pages/PipelineEdit.tsx))
+
+### Added
+
+- **UI screenshots** — 9 screenshots added to `docs/screenshots/`: dashboard, pipeline-builder, run-detail-steps, pipeline-run-now-success, scheduler-auto-run-history, scheduler-pipeline-disabled, connection-test-success, report-preview-rows, email-setup. ([`docs/screenshots/`](docs/screenshots/))
+
 ## [0.1.3] — 2026-05-22
 
 ### Added
@@ -174,7 +189,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `flowforge[pdf]` — `weasyprint`
 - `flowforge[dev]` — `pytest`, `pytest-mock`, `responses`, `pytest-cov`
 
-[Unreleased]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.3...v0.1.4
+[0.1.3]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/jagdeepvirdi/flowforge/releases/tag/v0.1.0

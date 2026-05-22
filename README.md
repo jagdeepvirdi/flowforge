@@ -17,7 +17,7 @@ Designed for solo developers, data analysts, and small teams who need lightweigh
 ## Features
 
 - **No-YAML config** — pipelines, reports, email templates, and schedules are all managed via UI
-- **Step types**: `db_procedure`, `db_query`, `report`, `email`, `drive_upload`
+- **Step types**: `db_procedure`, `db_query`, `report`, `email`, `drive_upload`, `data_load`
 - **Database support**: PostgreSQL and Oracle (pluggable `BaseConnection` interface)
 - **Email providers**: Gmail (OAuth2), Microsoft 365 (MSAL + Graph API), SMTP (any server)
 - **Smart attachments**: files over a configurable size threshold are automatically uploaded to Google Drive; the email body gets a shareable link instead
@@ -57,9 +57,10 @@ Designed for solo developers, data analysts, and small teams who need lightweigh
 |---|---|
 | `db_procedure` | Call a stored procedure or Oracle package |
 | `db_query` | Run a SQL query and write results to a table; optionally capture a scalar into pipeline context |
-| `report` | Generate Excel / CSV / PDF from a SQL query |
+| `report` | Generate Excel / CSV / PDF / JSON from a SQL query |
 | `email` | Send email with smart attachment handling |
 | `drive_upload` | Upload a file to Google Drive |
+| `data_load` | Bulk-load data into any DB from a file (CSV/Excel) or SQL query; replace or append mode |
 | `ai_analyze` | Summarize query results with Claude or Ollama *(v2)* |
 
 ---
@@ -129,38 +130,38 @@ alembic upgrade head
 
 **Windows:**
 ```powershell
-.\server.ps1 start
+.\flowforge.ps1 start
 ```
 
 **macOS / Linux:**
 ```bash
-./server.sh start
+./flowforge.sh start
 ```
 
-Both scripts start the Flask API and Vite frontend together. Open `http://localhost:5173`.
+Both scripts start the Flask API, APScheduler, and Vite frontend together. Open `http://localhost:5173`.
 
 #### 6. Prod mode
 
 **Windows:**
 ```powershell
-.\server.ps1 start -Mode prod -UseWaitress
+.\flowforge.ps1 start -Mode prod
 ```
 
 **macOS / Linux:**
 ```bash
-./server.sh start prod --gunicorn
+./flowforge.sh start prod
 ```
 
 #### 7. Stop
 
 **Windows:**
 ```powershell
-.\server.ps1 stop
+.\flowforge.ps1 stop
 ```
 
 **macOS / Linux:**
 ```bash
-./server.sh stop
+./flowforge.sh stop
 ```
 
 ---
@@ -257,7 +258,9 @@ flowforge/
 ## Roadmap
 
 - **v0.1.0** ✅ — Pipeline engine, all step types, all email providers, reports, Drive, scheduler, React frontend, Docker, CI, Alembic migrations, AES-256 encryption, JWT auth
-- **v2**: Multi-user auth, Slack/Teams notifications, S3/Azure Blob, `ai_analyze` step, OneDrive upload
+- **v0.1.3** ✅ — Oracle Docker, `data_load` step, `python-oracledb` migration, JSON report format, scheduler sync, email provider fixes, UI screenshots
+- **v0.1.4** ✅ — Email provider test(), Gmail scope fix, error messages in UI, quick-attach Jinja2 fix, docs served from API, pipeline builder button wrap
+- **v2**: Multi-user auth, Slack/Teams notifications, S3/Azure Blob, `ai_analyze` step, OneDrive upload, `bulk_load` step
 
 ---
 

@@ -5,17 +5,17 @@
 
 ---
 
-## GitHub Release Score: 8.6 / 10 (updated 2026-05-22)
+## GitHub Release Score: 9.0 / 10 (updated 2026-05-22)
 ## Codebase Review Score: 6.0 / 10 (reviewed 2026-05-20 — see CODEBASE_REVIEW.md)
 
 | Dimension | Score |
 |---|---|
 | Code quality | 7/10 — Clean architecture, good separation of concerns |
-| Feature completeness | 9/10 — Scheduler sync, JSON format, quick-attach, all phase 9 items done |
+| Feature completeness | 10/10 — Email e2e verified, data_load visible, all step types working |
 | Security | 9/10 — Encryption, rate limiting, Alembic migrations all done |
-| Documentation | 7/10 — All docs updated, scheduler runbook added, screenshots in progress |
+| Documentation | 8/10 — All docs updated, screenshots committed, docs served from UI |
 | Deployment UX | 7/10 — Docker Compose + CI added |
-| GitHub readiness | 9/10 — Startup scripts solid, scheduler reliable, UX improvements shipped |
+| GitHub readiness | 10/10 — All manual tests passed, email verified end-to-end |
 
 ---
 
@@ -32,7 +32,7 @@
 - [x] Create DB connection → Test → verify "Connected" *(screenshot: connection-test-success.png — Connected · 20ms)*
 - [x] Create report config with simple `SELECT` → Preview → verify rows appear *(screenshot: report-preview-rows.png — 9 rows)*
 - [x] Create pipeline with one `report` step → Run Now → check Run History *(screenshot: pipeline-run-now-success.png — 20 runs, 0 failed)*
-- [ ] Add `email` step after report → run → verify email received
+- [x] Add `email` step after report → run → verify email received *(Gmail OAuth2 verified end-to-end)*
 - [x] Verify `{{ current_month }}` resolves in output filename *(screenshot: run-detail-steps.png — RunBook_Report_2026-05_...csv visible)*
 - [x] Verify `StepResult.output_path` flows from report step *(screenshot: run-detail-steps.png — output file and Download button visible)*
 - [x] Verify `rows_affected` written to `ff_step_runs` *(screenshot: run-detail-steps.png — "Rows affected: 9" visible)*
