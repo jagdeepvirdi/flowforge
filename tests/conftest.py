@@ -22,6 +22,20 @@ if 'FLOWFORGE_DB_URL' not in os.environ:
     )
     sys.exit(1)
 
+# Safety guard: refuse to wipe a database whose name doesn't contain "test".
+# This prevents accidentally running the test suite against the live app DB.
+_db_url = os.environ['FLOWFORGE_DB_URL']
+_db_name = _db_url.rstrip('/').rsplit('/', 1)[-1].split('?')[0]
+if 'test' not in _db_name.lower():
+    print(
+        f'\n[conftest] SAFETY ABORT: FLOWFORGE_DB_URL points to "{_db_name}".\n'
+        'The test suite drops and recreates all tables. It must target a\n'
+        'dedicated test database whose name contains "test" (e.g. flowforge_test).\n'
+        'Set FLOWFORGE_DB_URL to your test DB and retry.\n',
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
 # Safe dummy keys for test runs — 64 hex chars = 32 bytes
 os.environ.setdefault('FLOWFORGE_SECRET_KEY', 'a' * 64)
 os.environ.setdefault('FLOWFORGE_JWT_SECRET',  'b' * 64)
