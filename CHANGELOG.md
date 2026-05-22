@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] — 2026-05-23
+
+### Added
+
+- **Pipeline variables UI** — New "Pipeline Variables" card in the Pipeline Builder between the Details section and the Steps list. Add any number of key/value pairs (plain or secret). Secret vars are masked as `***` in the UI and API; stored AES-256 encrypted in the database, decrypted at runtime. Both `{{ key }}` and `{{ vars.key }}` Jinja2 notation work in all step configs. `PUT /api/pipelines/:id` now accepts a `variables` array and performs a full replace (delete + re-create), so adds/removes/edits all work in a single save. ([`frontend/src/pages/PipelineEdit.tsx`](frontend/src/pages/PipelineEdit.tsx), [`flowforge/api/routes/pipelines.py`](flowforge/api/routes/pipelines.py))
+
+- **Timestamp boundary built-ins** — Eight new Jinja2 variables in `YYYYMMDDHHmmSS` (14-digit) format for use directly in SQL `WHERE` clauses:
+
+  | Variable | Value |
+  |---|---|
+  | `{{ day_start_ts }}` | Today 00:00:00 |
+  | `{{ day_end_ts }}` | Today 23:59:59 |
+  | `{{ yesterday_start_ts }}` | Yesterday 00:00:00 |
+  | `{{ yesterday_end_ts }}` | Yesterday 23:59:59 |
+  | `{{ month_start_ts }}` | First of month 00:00:00 |
+  | `{{ month_end_ts }}` | Last of month 23:59:59 |
+  | `{{ prev_month_start_ts }}` | First of previous month 00:00:00 |
+  | `{{ prev_month_end_ts }}` | Last of previous month 23:59:59 |
+
+  Also added `{{ prev_month_start }}` and `{{ prev_month_end }}` (YYYY-MM-DD format) to complement the existing `{{ month_start }}` / `{{ month_end }}` vars. ([`flowforge/engine/context.py`](flowforge/engine/context.py))
+
+- **`{{ last_success_at }}` / `{{ last_success_date }}` delta variables** — Injected by the pipeline runner (not built-ins) immediately before each run. `last_success_at` contains the `YYYYMMDDHHmmSS` timestamp of the most recent successful run for this pipeline; `last_success_date` is the same in `YYYY-MM-DD` format. Both are empty strings when no successful run exists (first run). Use with a Jinja2 `{% if last_success_at %}` guard to build delta/incremental SQL queries that only extract data since the last run. ([`flowforge/engine/runner.py`](flowforge/engine/runner.py))
+
+- **`create_if_missing` for `data_load` step** — New boolean config field. When `true`, FlowForge checks the target table's existence via catalog queries (`information_schema.tables` for PostgreSQL, `user_tables`/`all_tables` for Oracle) before loading. If the table does not exist it is created automatically with column types inferred from the data. Type priority: bool → int → float → timestamp → date → text. Supports both Python-typed values (query source) and string values (file source). Step log shows `(table auto-created)` on creation; subsequent runs skip the create silently. Catalog-based check avoids the PostgreSQL aborted-transaction state that a speculative `SELECT` would cause. ([`flowforge/steps/data_load.py`](flowforge/steps/data_load.py))
+
+- **Type inference for auto-created tables** — `_infer_col_type()` maps values to appropriate SQL types per database:
+
+  | Python / string | PostgreSQL | Oracle |
+  |---|---|---|
+  | bool / "true"/"false" | `BOOLEAN` | `NUMBER(1)` |
+  | int / digit string | `BIGINT` | `NUMBER(18)` |
+  | float / decimal string | `NUMERIC` | `NUMBER` |
+  | datetime object / ISO timestamp string | `TIMESTAMP` | `TIMESTAMP` |
+  | date object / YYYY-MM-DD string | `DATE` | `DATE` |
+  | anything else / empty | `TEXT` | `VARCHAR2(4000)` |
+
+  Samples up to 1,000 rows; column names are left unquoted so they match the INSERT statement on both databases. ([`flowforge/steps/data_load.py`](flowforge/steps/data_load.py))
+
+- **`db_type` class attribute on connections** — `PostgreSQLConnection.db_type = 'postgresql'` and `OracleConnection.db_type = 'oracle'` allow step code to branch on database type without importing connection classes. ([`flowforge/connections/postgres.py`](flowforge/connections/postgres.py), [`flowforge/connections/oracle.py`](flowforge/connections/oracle.py))
+
+- **`bulk_load` step** — New pipeline step type for directory-scan bulk loading. Scans a source directory for files matching an optional `file_prefix` / `file_prefix_exclude` pattern; strips configurable `header_rows` and `footer_rows`; loads via PostgreSQL `COPY FROM STDIN` (fast path) or chunked `executemany` (Python fallback for any DB). Supports `replace` (TRUNCATE + load) and `append` modes. Archives loaded files to a configurable `archive_directory` (supports `{{ current_date }}`). On no files: configurable `on_no_files` behaviour (`skip` succeeds silently, `fail` marks the step failed). Output variables: `files_found`, `files_loaded`, `files_failed`, `records_loaded`, `records_failed`. Bulk load configs are stored in the `ff_bulk_load_configs` table and referenced by step config (like `report_config_id`), managed via the **Bulk Loads** UI page. ([`flowforge/steps/bulk_load.py`](flowforge/steps/bulk_load.py), [`flowforge/api/routes/steps.py`](flowforge/api/routes/steps.py))
+
+- **Bulk Loads UI page** — New sidebar nav item and page (`/bulk-loads`) for creating, editing, and deleting bulk load configs. Each config holds: connection, source directory, file type, prefix/exclude filter, header/footer rows, delimiter, target table, load mode, archive directory, column mapping, and `on_no_files` behaviour. ([`frontend/src/pages/BulkLoads.tsx`](frontend/src/pages/BulkLoads.tsx))
+
+### Fixed
+
+- **Test suite safety guard** — Running `pytest` against the live application database dropped all tables. Added a hard abort in `conftest.py` if `FLOWFORGE_DB_URL` does not contain `"test"` in the database name, preventing accidental data loss. Tests must target a dedicated `flowforge_test` database. ([`tests/conftest.py`](tests/conftest.py))
+
+### Tests
+
+- `tests/test_bulk_load_configs.py` — 13 tests for Bulk Load config API CRUD (create, read, update, delete, validation, defaults, column_mapping round-trip).
+- `tests/test_bulk_load_step.py` — 29 tests for bulk_load step execution (validation, file scanning, prefix filtering, Python fallback replace/append modes, StepResult fields, archive, config resolution, runner context propagation).
+- `tests/test_context.py` — 20 new tests for timestamp boundary vars (format, prefix cross-checks, Jinja2 renderability), `prev_month_start`/`end`, and confirmation that `last_success_at` is runner-injected (not a built-in).
+- `tests/test_pipeline_variables.py` — 7 new tests for PUT variable replace semantics (add, remove, modify, clear all), `_get_last_success_ts` empty-on-first-run and correct-value-after-success.
+- `tests/test_data_load_create.py` — 33 new tests for `_infer_col_type` (all type levels, both PostgreSQL and Oracle), `_table_exists` catalog queries (pg/oracle, with/without schema, exception handling), `_create_table` DDL generation (no double-quotes, type accuracy, 1,000-row sample cap), and end-to-end `create_if_missing` with mocked connection factory.
+
 ## [0.1.4] — 2026-05-22
 
 ### Fixed

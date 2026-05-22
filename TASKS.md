@@ -5,15 +5,15 @@
 
 ---
 
-## GitHub Release Score: 9.0 / 10 (updated 2026-05-22)
+## GitHub Release Score: 9.5 / 10 (updated 2026-05-23)
 ## Codebase Review Score: 6.0 / 10 (reviewed 2026-05-20 — see CODEBASE_REVIEW.md)
 
 | Dimension | Score |
 |---|---|
 | Code quality | 7/10 — Clean architecture, good separation of concerns |
-| Feature completeness | 10/10 — Email e2e verified, data_load visible, all step types working |
+| Feature completeness | 10/10 — bulk_load, pipeline variables, delta vars, create_if_missing all shipped |
 | Security | 9/10 — Encryption, rate limiting, Alembic migrations all done |
-| Documentation | 8/10 — All docs updated, screenshots committed, docs served from UI |
+| Documentation | 9/10 — CHANGELOG, step-types, getting-started, manual-testing-guide all updated |
 | Deployment UX | 7/10 — Docker Compose + CI added |
 | GitHub readiness | 10/10 — All manual tests passed, email verified end-to-end |
 
@@ -100,62 +100,8 @@
 - [ ] Parallel step execution
 - [ ] Step retry with exponential backoff
 - [ ] Pipeline YAML import/export from UI
-- [ ] **Pipeline run parameter UI** — A "Parameters" section on the pipeline edit page where you define named params and their computation rules (e.g., `week_start = start of current ISO week`, `week_end = end of current ISO week`). More flexible than built-in date vars; allows per-pipeline customization. Params become available as `{{ params.week_start }}` in all step configs. Pairs with the built-in smart date vars (ship those first).
-- [ ] **Bulk file loader step (`bulk_load`)** — Advanced successor to `data_load`. Replaces the Oracle SQL\*Loader shell script at `github.com/jagdeepvirdi/DayToDayOfficeOperations`. Adds: directory scanning (`file_prefix`, `file_prefix_exclude`), Oracle SQL\*Loader direct-path via subprocess (fastest), PostgreSQL `COPY FROM STDIN`, footer row stripping, `.bad` file surfacing in logs, archive-after-load, `files_found`/`records_loaded`/`records_failed` output variables. Full spec below.
-
-  **Step config (stored in `pipeline_steps.config` JSONB):**
-  ```json
-  {
-    "connection_id": "uuid",
-    "source_directory": "/data/incoming/",
-    "file_prefix": "SUBS_",
-    "file_prefix_exclude": null,
-    "file_type": "csv",
-    "delimiter": ",",
-    "header_rows": 1,
-    "footer_rows": 0,
-    "target_table": "STAGING.SUBSCRIPTIONS",
-    "load_mode": "append",
-    "column_mapping": [],
-    "use_sqlloader": true,
-    "archive_directory": "/data/archive/{{ current_date }}/",
-    "on_no_files": "skip"
-  }
-  ```
-
-  **Execution — three internal paths:**
-  1. **Oracle + `use_sqlloader: true`** — FlowForge generates a `.ctl` control file dynamically from the step config (delimiter, column mapping, date formats). Calls `sqlldr user/pass@dsn control=<tmp>.ctl log=<tmp>.log bad=<tmp>.bad` as a subprocess. Parses the `.log` file for "rows loaded" / "rows not loaded" counts. Surfaces `.bad` file content (rejected rows) in `step_runs.logs`. Fastest path — Oracle direct-path load, bypasses redo logging.
-  2. **PostgreSQL** — Uses psycopg2 `cursor.copy_expert("COPY table FROM STDIN CSV HEADER", file)`. Equivalent speed to SQL\*Loader for Postgres. Parse `copy_expert` counts for loaded/rejected rows.
-  3. **Python fallback** (any DB, or `use_sqlloader: false`)— Reads file in chunks of 10,000 rows, strips `header_rows` + `footer_rows`, inserts via `executemany()`. Slower but requires no external tooling.
-
-  **Control file auto-generation (Oracle path):**
-  FlowForge writes the `.ctl` to a temp directory — the user never touches it. Derives from: delimiter, `column_mapping`, any date-format hints on columns. After load: archive source files to `archive_directory`, delete temp `.ctl`/`.log`/`.bad`.
-
-  **Step output variables (available in subsequent steps via `{{ steps.<name>.x }}`):**
-  | Variable | Example |
-  |---|---|
-  | `files_found` | 3 |
-  | `files_loaded` | 3 |
-  | `files_failed` | 0 |
-  | `records_loaded` | 147,832 |
-  | `records_failed` | 14 |
-  | `duration_sec` | 8.3 |
-
-  Use these directly in an `email` step body to send a load confirmation — no new feature needed, standard pipeline step.
-
-  **Run History tracking:**
-  - `step_runs.rows_affected` = `records_loaded`
-  - `step_runs.logs` = full load summary + first 50 rejected rows from `.bad` file
-
-  **Code changes required:**
-  - `flowforge/steps/bulk_load.py` — new step class
-  - `flowforge/steps/base.py` — add `files_found`, `files_loaded`, `files_failed`, `records_loaded`, `records_failed`, `duration_sec` fields to `StepResult`
-  - `flowforge/engine/context.py` — propagate new `StepResult` fields into pipeline context (same pattern as `output_path` and `drive_url`)
-  - `frontend/src/components/pipeline/StepEditor.tsx` — add `bulk_load` step config panel
-  - `frontend/src/lib/helpContent.ts` — add `bulk_load` to step hints
-  - Alembic migration — add `bulk_load` to step type enum if constrained
-
-  **Implementation order:** Python fallback first (works immediately, no Oracle client needed for dev/test) → PostgreSQL COPY → Oracle SQL\*Loader.
+- [x] **Pipeline variables** — Variables card in Pipeline Builder; key/value/secret pairs; `{{ var_key }}` and `{{ vars.var_key }}` in all step configs; secrets encrypted at rest and masked in UI. *(Shipped 2026-05-23)*
+- [x] **Bulk file loader step (`bulk_load`)** — Directory scanning, `file_prefix`/`file_prefix_exclude`, PostgreSQL `COPY FROM STDIN`, chunked Python fallback, footer row stripping, archive-after-load, `on_no_files` behaviour, Bulk Loads UI page. *(Shipped 2026-05-23)*
 
 ### Platform
 - [ ] Multi-user auth with roles (v2)

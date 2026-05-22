@@ -151,17 +151,48 @@ flowforge import pipelines/example_pipeline.yaml
 
 ## Variable Reference
 
-| Variable | Example value |
+All step config fields are rendered as Jinja2 templates. Key variables:
+
+**Dates (YYYY-MM-DD)**
+
+| Variable | Example |
 |---|---|
-| `{{ current_date }}` | `2026-05-17` |
+| `{{ current_date }}` | `2026-05-23` |
+| `{{ yesterday }}` | `2026-05-22` |
+| `{{ month_start }}` / `{{ month_end }}` | `2026-05-01` / `2026-05-31` |
+| `{{ prev_month_start }}` / `{{ prev_month_end }}` | `2026-04-01` / `2026-04-30` |
+| `{{ quarter_start }}` / `{{ quarter_end }}` | `2026-04-01` / `2026-06-30` |
 | `{{ current_month }}` | `2026-05` |
 | `{{ current_year }}` | `2026` |
-| `{{ yesterday }}` | `2026-05-16` |
-| `{{ run_id }}` | UUID |
-| `{{ pipeline_name }}` | `Monthly Revenue Report` |
-| `{{ env.MY_VAR }}` | Any environment variable |
-| `{{ steps.my_step.output_path }}` | File path from a previous step |
-| `{{ steps.my_step.drive_url }}` | Drive URL from a previous step |
+
+**Timestamp boundaries (YYYYMMDDHHmmSS — for SQL `WHERE` clauses)**
+
+| Variable | Example |
+|---|---|
+| `{{ day_start_ts }}` / `{{ day_end_ts }}` | `20260523000000` / `20260523235959` |
+| `{{ yesterday_start_ts }}` / `{{ yesterday_end_ts }}` | `20260522000000` / `20260522235959` |
+| `{{ month_start_ts }}` / `{{ month_end_ts }}` | `20260501000000` / `20260531235959` |
+| `{{ prev_month_start_ts }}` / `{{ prev_month_end_ts }}` | `20260401000000` / `20260430235959` |
+
+**Delta**
+
+| Variable | Notes |
+|---|---|
+| `{{ last_success_at }}` | `YYYYMMDDHHmmSS` of the last successful run; empty on first run |
+| `{{ last_success_date }}` | Same in `YYYY-MM-DD` format |
+
+**Run metadata & pipeline variables**
+
+| Variable | Notes |
+|---|---|
+| `{{ run_id }}` | UUID of the current run |
+| `{{ pipeline_name }}` | Name of the running pipeline |
+| `{{ env.MY_VAR }}` | Any OS environment variable |
+| `{{ my_var }}` / `{{ vars.my_var }}` | Pipeline variable (set in Pipeline Builder → Variables card) |
+| `{{ steps.my_step.output_path }}` | File path from a previous `report` step |
+| `{{ steps.my_step.drive_url }}` | Drive URL from a previous `drive_upload` or `email` step |
+
+See [Step Types Reference](step-types.md#variable-reference) for the full variable list including `bulk_load` output variables.
 
 ## Smart Attachments
 

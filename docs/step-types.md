@@ -146,6 +146,118 @@ The email config (stored in `email_configs` table) contains:
 
 ---
 
+## data_load
+
+Loads data from a file or SQL query into any configured database table.
+
+```yaml
+step_type: data_load
+config:
+  target_connection_id: <uuid>
+  target_table: "staging.sales_{{ current_month }}"
+  mode: replace                 # replace | append
+  create_if_missing: true       # auto-create table if it doesn't exist
+  chunk_size: 1000              # rows per INSERT batch (default 1000)
+  column_map:                   # optional — rename source columns
+    SRC_COL: target_col
+  source:
+    type: file                  # file | query
+    file_path: "{{ steps.generate_report.output_path }}"
+    file_format: csv            # csv | excel — inferred from extension if omitted
+    sheet_name: Sheet1          # Excel only
+```
+
+Or with a SQL query source:
+
+```yaml
+source:
+  type: query
+  connection_id: <uuid>         # source connection (can differ from target)
+  query: >
+    SELECT id, name, amount
+    FROM source_table
+    WHERE month = '{{ current_month }}'
+```
+
+**Modes:**
+
+| Mode | Behaviour |
+|---|---|
+| `replace` | `TRUNCATE` the table, then bulk INSERT all rows |
+| `append` | Bulk INSERT only — existing rows untouched |
+
+**`create_if_missing`:** When `true`, FlowForge checks the target table's existence via catalog queries (`information_schema.tables` for PostgreSQL, `user_tables`/`all_tables` for Oracle). If the table is absent it is created automatically with column types inferred from the data (see table below). The step log shows `(table auto-created)`. Subsequent runs skip the create silently.
+
+**Type inference (column types for auto-created tables):**
+
+| Value | PostgreSQL | Oracle |
+|---|---|---|
+| bool / "true"/"false" | `BOOLEAN` | `NUMBER(1)` |
+| int / digit string | `BIGINT` | `NUMBER(18)` |
+| float / decimal string | `NUMERIC` | `NUMBER` |
+| datetime / ISO timestamp string | `TIMESTAMP` | `TIMESTAMP` |
+| date object / YYYY-MM-DD string | `DATE` | `DATE` |
+| anything else / empty | `TEXT` | `VARCHAR2(4000)` |
+
+Samples up to 1,000 rows per column. Column names are unquoted to match the INSERT statement on both databases.
+
+**Outputs:**
+- `{{ steps.<name>.rows_affected }}` — total rows inserted
+
+---
+
+## bulk_load
+
+Scans a source directory for matching files and bulk-loads them into a target database table. Designed for daily/scheduled file drop patterns (e.g. `SUBS_20260522.csv`). Bulk load configs are managed in the **Bulk Loads** UI page and referenced by `bulk_load_config_id` in the step config.
+
+```yaml
+step_type: bulk_load
+config:
+  bulk_load_config_id: <uuid>   # from Bulk Loads page (all settings live there)
+```
+
+Or inline (all fields):
+
+```yaml
+step_type: bulk_load
+config:
+  connection_id: <uuid>
+  source_directory: "/data/incoming/"
+  file_prefix: "SUBS_"          # only load files starting with this
+  file_prefix_exclude: "SUBS_TEST_"  # skip files starting with this
+  file_type: csv
+  delimiter: ","
+  header_rows: 1
+  footer_rows: 0
+  target_table: "staging.subscriptions"
+  load_mode: replace            # replace | append
+  column_mapping: []            # optional column rename list
+  archive_directory: "/data/archive/{{ current_date }}/"  # move loaded files here
+  on_no_files: skip             # skip (succeed) | fail
+```
+
+**Load paths:**
+
+| Database | Method |
+|---|---|
+| PostgreSQL | `COPY FROM STDIN` (fast path) |
+| Any other | Chunked `executemany` Python fallback |
+
+**Outputs:**
+
+| Variable | Example |
+|---|---|
+| `{{ steps.<name>.files_found }}` | `3` |
+| `{{ steps.<name>.files_loaded }}` | `3` |
+| `{{ steps.<name>.files_failed }}` | `0` |
+| `{{ steps.<name>.records_loaded }}` | `147832` |
+| `{{ steps.<name>.records_failed }}` | `14` |
+| `{{ steps.<name>.duration_sec }}` | `8.3` |
+
+Use these in a downstream `email` step body to send a load-confirmation message without any extra steps.
+
+---
+
 ## drive_upload
 
 Uploads a file to Google Drive and creates a shareable link.
@@ -175,25 +287,83 @@ The report is available here: {{ steps.upload_to_drive.drive_url }}
 
 All config string fields support Jinja2 variables. Available at runtime:
 
+### Date / time (YYYY-MM-DD)
+
+| Variable | Example | Notes |
+|---|---|---|
+| `{{ current_date }}` | `2026-05-23` | Today |
+| `{{ yesterday }}` | `2026-05-22` | |
+| `{{ week_start }}` | `2026-05-18` | Monday of current ISO week |
+| `{{ week_end }}` | `2026-05-24` | Sunday of current ISO week |
+| `{{ month_start }}` | `2026-05-01` | First of current month |
+| `{{ month_end }}` | `2026-05-31` | Last of current month |
+| `{{ prev_month_start }}` | `2026-04-01` | First of previous month |
+| `{{ prev_month_end }}` | `2026-04-30` | Last of previous month |
+| `{{ quarter_start }}` | `2026-04-01` | First of current quarter |
+| `{{ quarter_end }}` | `2026-06-30` | Last of current quarter |
+| `{{ current_month }}` | `2026-05` | YYYY-MM |
+| `{{ current_year }}` | `2026` | YYYY |
+
+### Timestamp boundaries (YYYYMMDDHHmmSS — 14 digits)
+
+Use these directly in SQL `BETWEEN` clauses for date-range extracts.
+
+| Variable | Value | Use case |
+|---|---|---|
+| `{{ day_start_ts }}` | `20260523000000` | Today start |
+| `{{ day_end_ts }}` | `20260523235959` | Today end |
+| `{{ yesterday_start_ts }}` | `20260522000000` | Yesterday start |
+| `{{ yesterday_end_ts }}` | `20260522235959` | Yesterday end |
+| `{{ month_start_ts }}` | `20260501000000` | Month start |
+| `{{ month_end_ts }}` | `20260531235959` | Month end |
+| `{{ prev_month_start_ts }}` | `20260401000000` | Previous month start |
+| `{{ prev_month_end_ts }}` | `20260430235959` | Previous month end |
+
+Example:
+```sql
+WHERE created_ts BETWEEN {{ month_start_ts }} AND {{ month_end_ts }}
+```
+
+### Delta / incremental
+
+| Variable | Format | Notes |
+|---|---|---|
+| `{{ last_success_at }}` | `YYYYMMDDHHmmSS` | `finished_at` of the most recent successful run; empty string on first run |
+| `{{ last_success_date }}` | `YYYY-MM-DD` | Same run, date-only format |
+
+Use with a Jinja2 guard for delta queries:
+```sql
+{% if last_success_at %}
+  WHERE updated_ts >= {{ last_success_at }}
+{% endif %}
+```
+
+### Run metadata
+
 | Variable | Example |
 |---|---|
-| `{{ current_date }}` | `2026-05-20` |
-| `{{ current_month }}` | `2026-05` |
-| `{{ current_year }}` | `2026` |
-| `{{ yesterday }}` | `2026-05-19` |
-| `{{ week_start }}` | `2026-05-18` (Monday of current ISO week) |
-| `{{ week_end }}` | `2026-05-24` (Sunday of current ISO week) |
-| `{{ month_start }}` | `2026-05-01` |
-| `{{ month_end }}` | `2026-05-31` |
-| `{{ quarter_start }}` | `2026-04-01` |
-| `{{ quarter_end }}` | `2026-06-30` |
-| `{{ timestamp }}` | `20052026143022` |
-| `{{ run_id }}` | UUID of the current run |
+| `{{ timestamp }}` | `23052026143022` (DDMMYYYYHHmmSS — unique per second, for filenames) |
+| `{{ run_id }}` | UUID of the current pipeline run |
 | `{{ pipeline_name }}` | Name of the running pipeline |
-| `{{ env.VAR_NAME }}` | Any environment variable |
-| `{{ steps.<name>.output_path }}` | File path from a previous report step |
-| `{{ steps.<name>.drive_url }}` | Drive URL from a previous drive_upload or email step |
-| `{{ steps.<name>.rows_affected }}` | Row count from a previous db_query step |
-| `{{ my_var }}` | Any pipeline variable (set in Pipeline Builder → Variables) |
+
+### Environment & pipeline variables
+
+| Variable | Notes |
+|---|---|
+| `{{ env.VAR_NAME }}` | Any OS environment variable |
+| `{{ my_var }}` | Pipeline variable (set in Pipeline Builder → Variables card) |
 | `{{ vars.my_var }}` | Same, explicit namespace |
-| `{{ subscription_count }}` | Scalar captured by `output_variable` in a db_query step |
+| `{{ subscription_count }}` | Scalar captured by `output_variable` on a db_query step |
+
+### Step outputs
+
+| Variable | Set by |
+|---|---|
+| `{{ steps.<name>.output_path }}` | `report` step |
+| `{{ steps.<name>.drive_url }}` | `drive_upload` or `email` step (smart attachment) |
+| `{{ steps.<name>.rows_affected }}` | `db_query`, `data_load` steps |
+| `{{ steps.<name>.files_found }}` | `bulk_load` step |
+| `{{ steps.<name>.files_loaded }}` | `bulk_load` step |
+| `{{ steps.<name>.records_loaded }}` | `bulk_load` step |
+| `{{ steps.<name>.records_failed }}` | `bulk_load` step |
+| `{{ steps.<name>.duration_sec }}` | `bulk_load` step |
