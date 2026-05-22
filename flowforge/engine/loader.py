@@ -14,6 +14,7 @@ _STEP_CLASSES: dict[str, str] = {
     'email':        'flowforge.steps.email_step.EmailStep',
     'drive_upload': 'flowforge.steps.drive_upload.DriveUploadStep',
     'data_load':    'flowforge.steps.data_load.DataLoadStep',
+    'bulk_load':    'flowforge.steps.bulk_load.BulkLoadStep',
 }
 
 

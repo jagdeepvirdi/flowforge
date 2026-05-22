@@ -14,6 +14,7 @@ const STEP_META: Record<StepType, { label: string; cls: string }> = {
   drive_upload: { label: 'Drive',  cls: 'tbadge-drive' },
   ai_analyze:   { label: 'AI',     cls: 'tbadge-transform' },
   data_load:    { label: 'Load',   cls: 'tbadge-load' },
+  bulk_load:    { label: 'Bulk',   cls: 'tbadge-bulk' },
 }
 
 interface Props {
@@ -246,6 +247,14 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
                 dbConnections={dbConnections}
               />
             )}
+
+            {step.step_type === 'bulk_load' && (
+              <BulkLoadForm
+                cfg={cfg}
+                setConfig={setConfig}
+                dbConnections={dbConnections}
+              />
+            )}
           </div>
         )}
       </div>
@@ -262,6 +271,129 @@ function Field({ label, children, tooltip }: { label: string; children: React.Re
       </label>
       {children}
     </div>
+  )
+}
+
+// ─── BulkLoadForm ─────────────────────────────────────────────────────────────
+
+interface BulkLoadFormProps {
+  cfg: Record<string, unknown>
+  setConfig: (key: string, value: unknown) => void
+  dbConnections: { id: string; name: string }[]
+}
+
+function BulkLoadForm({ cfg, setConfig, dbConnections }: BulkLoadFormProps) {
+  const [showAdvanced, setShowAdvanced] = useState(false)
+
+  return (
+    <>
+      <Field label="Connection">
+        <select className="input" value={String(cfg.connection_id ?? '')} onChange={e => setConfig('connection_id', e.target.value)} style={{ height: 34 }}>
+          <option value="">Select connection…</option>
+          {dbConnections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      </Field>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <Field label="Source directory">
+          <input className="input mono-input" value={String(cfg.source_directory ?? '')} onChange={e => setConfig('source_directory', e.target.value)} placeholder="/data/incoming/" />
+        </Field>
+        <Field label="File type">
+          <select className="input" value={String(cfg.file_type ?? 'csv')} onChange={e => setConfig('file_type', e.target.value)} style={{ height: 34 }}>
+            <option value="csv">CSV</option>
+            <option value="xlsx">Excel (.xlsx)</option>
+            <option value="txt">TXT</option>
+          </select>
+        </Field>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <Field label="File prefix (optional)">
+          <input className="input mono-input" value={String(cfg.file_prefix ?? '')} onChange={e => setConfig('file_prefix', e.target.value)} placeholder="SUBS_" />
+        </Field>
+        <Field label="Exclude prefix (optional)">
+          <input className="input mono-input" value={String(cfg.file_prefix_exclude ?? '')} onChange={e => setConfig('file_prefix_exclude', e.target.value)} placeholder="SUBS_OLD_" />
+        </Field>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'end' }}>
+        <Field label="Target table (supports {{ variables }})">
+          <input className="input mono-input" value={String(cfg.target_table ?? '')} onChange={e => setConfig('target_table', e.target.value)} placeholder="STAGING.SUBSCRIPTIONS" />
+        </Field>
+        <Field label="Load mode">
+          <select className="input" value={String(cfg.load_mode ?? 'append')} onChange={e => setConfig('load_mode', e.target.value)} style={{ height: 34, width: 110 }}>
+            <option value="append">Append</option>
+            <option value="replace">Replace</option>
+          </select>
+        </Field>
+      </div>
+
+      <Field label="Archive directory (optional, supports {{ variables }})">
+        <input className="input mono-input" value={String(cfg.archive_directory ?? '')} onChange={e => setConfig('archive_directory', e.target.value)} placeholder="/data/archive/{{ current_date }}/" />
+        <span style={{ fontSize: 11, color: '#64748B', marginTop: 3 }}>Loaded files are moved here. Leave blank to leave files in place.</span>
+      </Field>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <Field label="On no files">
+          <select className="input" value={String(cfg.on_no_files ?? 'skip')} onChange={e => setConfig('on_no_files', e.target.value)} style={{ height: 34 }}>
+            <option value="skip">Skip (succeed silently)</option>
+            <option value="fail">Fail</option>
+          </select>
+        </Field>
+        <Field label="Use SQL*Loader (Oracle only)">
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+            <input type="checkbox" checked={Boolean(cfg.use_sqlloader)} onChange={e => setConfig('use_sqlloader', e.target.checked)} />
+            <span style={{ fontSize: 12, color: '#94A3B8' }}>Enable direct-path SQL*Loader</span>
+          </label>
+        </Field>
+      </div>
+
+      {/* Advanced */}
+      <button
+        type="button"
+        onClick={() => setShowAdvanced(x => !x)}
+        style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none', color: '#64748B', fontSize: 11.5, cursor: 'pointer', padding: '2px 0', fontWeight: 500 }}
+      >
+        <Settings2 size={12} />
+        Advanced options
+        {showAdvanced ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+      </button>
+
+      {showAdvanced && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingLeft: 12, borderLeft: '2px solid #2D3143' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+            <Field label="Delimiter">
+              <input className="input mono-input" value={String(cfg.delimiter ?? ',')} onChange={e => setConfig('delimiter', e.target.value)} style={{ width: 60 }} maxLength={3} />
+            </Field>
+            <Field label="Header rows">
+              <input className="input" type="number" min={0} max={10} value={String(cfg.header_rows ?? 1)} onChange={e => setConfig('header_rows', parseInt(e.target.value) || 0)} style={{ width: 80 }} />
+            </Field>
+            <Field label="Footer rows">
+              <input className="input" type="number" min={0} max={10} value={String(cfg.footer_rows ?? 0)} onChange={e => setConfig('footer_rows', parseInt(e.target.value) || 0)} style={{ width: 80 }} />
+            </Field>
+          </div>
+          <Field label="Column mapping (JSON array) — optional">
+            <textarea
+              className="input mono-input"
+              rows={4}
+              value={JSON.stringify(cfg.column_mapping ?? [], null, 2)}
+              onChange={e => { try { setConfig('column_mapping', JSON.parse(e.target.value)) } catch {} }}
+              placeholder={'[\n  { "source": "SOURCE_COL", "target": "target_col" }\n]'}
+              style={{ height: 'auto', resize: 'none', fontSize: 12 }}
+            />
+            <span style={{ fontSize: 11, color: '#64748B', marginTop: 3 }}>Rename source columns to match the target schema.</span>
+          </Field>
+          <div style={{ fontSize: 11, color: '#475569', background: '#161922', borderRadius: 6, padding: '7px 10px', lineHeight: 1.7 }}>
+            <strong style={{ color: '#64748B' }}>Output variables (available in later steps):</strong><br />
+            <code style={{ color: '#94A3B8' }}>{'{{ steps.this_step.files_found }}'}</code> &nbsp;
+            <code style={{ color: '#94A3B8' }}>{'{{ steps.this_step.files_loaded }}'}</code> &nbsp;
+            <code style={{ color: '#94A3B8' }}>{'{{ steps.this_step.records_loaded }}'}</code> &nbsp;
+            <code style={{ color: '#94A3B8' }}>{'{{ steps.this_step.records_failed }}'}</code> &nbsp;
+            <code style={{ color: '#94A3B8' }}>{'{{ steps.this_step.duration_sec }}'}</code>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

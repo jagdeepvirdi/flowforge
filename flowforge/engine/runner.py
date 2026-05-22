@@ -90,9 +90,15 @@ def run_pipeline(
 
         # Expose this step's outputs to downstream steps via {{ steps.name.* }}
         context['steps'][step.name] = {
-            'output_path':   step_result.output_path,
-            'drive_url':     step_result.drive_url,
-            'rows_affected': step_result.rows_affected,
+            'output_path':    step_result.output_path,
+            'drive_url':      step_result.drive_url,
+            'rows_affected':  step_result.rows_affected,
+            'files_found':    step_result.files_found,
+            'files_loaded':   step_result.files_loaded,
+            'files_failed':   step_result.files_failed,
+            'records_loaded': step_result.records_loaded,
+            'records_failed': step_result.records_failed,
+            'duration_sec':   step_result.duration_sec,
         }
 
         # Scalar output variables go to top-level context; guard against overwriting built-ins

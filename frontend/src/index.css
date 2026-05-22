@@ -294,6 +294,7 @@ body {
 .tbadge-procedure { background: rgba(168,85,247,0.12);  color: #C084FC; border-color: rgba(168,85,247,0.25); }
 .tbadge-drive     { background: rgba(59,130,246,0.12);  color: #60A5FA; border-color: rgba(59,130,246,0.25); }
 .tbadge-load      { background: rgba(234,179,8,0.12);   color: #FACC15; border-color: rgba(234,179,8,0.25); }
+.tbadge-bulk      { background: rgba(251,146,60,0.12);  color: #FB923C; border-color: rgba(251,146,60,0.25); }
 
 /* ── Table ──────────────────────────────────────────── */
 .tbl {

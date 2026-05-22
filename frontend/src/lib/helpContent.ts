@@ -120,6 +120,19 @@ export const STEP_HINTS: Record<string, StepHint> = {
       'Column map: rename source columns to match the target table schema.',
     ],
   },
+  bulk_load: {
+    summary: 'Scans a directory for files and bulk-loads all matching files into a database table.',
+    tips: [
+      'file_prefix — only load files whose name starts with this string (e.g. SUBS_).',
+      'file_prefix_exclude — skip files that start with this string.',
+      'PostgreSQL: uses COPY FROM STDIN — fastest native path.',
+      'Oracle + use_sqlloader: generates a .ctl file and calls sqlldr subprocess — direct-path load.',
+      'Python fallback: works on any DB without external tools, loads in 10,000-row chunks.',
+      'archive_directory: loaded files are moved here after a successful load. Supports {{ variables }}.',
+      'on_no_files: "skip" succeeds silently when no matching files exist; "fail" stops the pipeline.',
+      'Output variables: {{ steps.this_step.files_found }}, {{ steps.this_step.files_loaded }}, {{ steps.this_step.records_loaded }} — use in a follow-up email step.',
+    ],
+  },
 }
 
 export interface TooltipContent {

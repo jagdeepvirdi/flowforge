@@ -5,7 +5,7 @@ from flowforge.db.models import Pipeline, PipelineStep, db
 
 bp = Blueprint('steps', __name__)
 
-_VALID_TYPES = {'db_procedure', 'db_query', 'report', 'email', 'drive_upload', 'ai_analyze', 'data_load'}
+_VALID_TYPES = {'db_procedure', 'db_query', 'report', 'email', 'drive_upload', 'ai_analyze', 'data_load', 'bulk_load'}
 
 
 def _step_dict(s: PipelineStep) -> dict:

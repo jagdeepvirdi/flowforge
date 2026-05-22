@@ -13,6 +13,13 @@ class StepResult:
     error: str = ''
     extra: dict[str, Any] = field(default_factory=dict)
     output_variables: dict[str, Any] = field(default_factory=dict)
+    # bulk_load output fields
+    files_found: int = 0
+    files_loaded: int = 0
+    files_failed: int = 0
+    records_loaded: int = 0
+    records_failed: int = 0
+    duration_sec: float = 0.0
 
 
 class BaseStep(ABC):

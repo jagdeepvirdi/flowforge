@@ -20,7 +20,7 @@ import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 import FieldTooltip from '../components/shared/FieldTooltip'
 
-const STEP_TYPES: StepType[] = ['db_procedure', 'db_query', 'report', 'email', 'drive_upload', 'data_load']
+const STEP_TYPES: StepType[] = ['db_procedure', 'db_query', 'report', 'email', 'drive_upload', 'data_load', 'bulk_load']
 
 function newStep(type: StepType, order: number): PipelineStep {
   return {
