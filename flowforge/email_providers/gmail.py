@@ -84,11 +84,13 @@ class GmailProvider(EmailProvider):
             return EmailResult(success=False, error=str(e))
 
     def test(self) -> tuple[bool, str]:
+        # Credentials were already refreshed in __init__. If we got here the
+        # token is valid. getProfile requires gmail.readonly which exceeds the
+        # gmail.send scope we request, so just confirm the token is live.
         try:
-            from googleapiclient.discovery import build as api_build
-            service = api_build('gmail', 'v1', credentials=self._creds)
-            profile = service.users().getProfile(userId='me').execute()
-            return True, f"Connected as {profile.get('emailAddress', 'unknown')}"
+            from google.auth.transport.requests import Request
+            self._creds.refresh(Request())
+            return True, f"Connected ({self.sender})"
         except Exception as e:
             logger.error("Gmail test failed: %s", e)
             return False, str(e)
