@@ -23,33 +23,6 @@
 
 ---
 
-## Phase 2 — Tests & Verification 🧪
-*Automated test coverage + manual pre-launch smoke tests.*
-
-### Manual Verification Checklist (do before launch)
-
-#### End-to-End Pipeline Test
-- [x] Create DB connection → Test → verify "Connected" *(screenshot: connection-test-success.png — Connected · 20ms)*
-- [x] Create report config with simple `SELECT` → Preview → verify rows appear *(screenshot: report-preview-rows.png — 9 rows)*
-- [x] Create pipeline with one `report` step → Run Now → check Run History *(screenshot: pipeline-run-now-success.png — 20 runs, 0 failed)*
-- [x] Add `email` step after report → run → verify email received *(Gmail OAuth2 verified end-to-end)*
-- [x] Verify `{{ current_month }}` resolves in output filename *(screenshot: run-detail-steps.png — RunBook_Report_2026-05_...csv visible)*
-- [x] Verify `StepResult.output_path` flows from report step *(screenshot: run-detail-steps.png — output file and Download button visible)*
-- [x] Verify `rows_affected` written to `ff_step_runs` *(screenshot: run-detail-steps.png — "Rows affected: 9" visible)*
-
-#### Scheduler Smoke Test
-- [x] Create pipeline with scheduled run → start scheduler → verify auto-run in history *(screenshot: scheduler-auto-run-history.png — 19 scheduler-triggered runs)*
-- [x] Disable pipeline → verify no more runs triggered *(screenshot: scheduler-pipeline-disabled.png)*
-
----
-
-## Phase 4 — Polish & Release Prep 🔵
-*Docs, GitHub presence, and final UX touches.*
-
-- [x] **README screenshots** — Dashboard ✓, Run Detail ✓, Pipeline Builder ✓, Email Setup ✓, Scheduler Disabled ✓ *(all in `docs/screenshots/`)*
-
----
-
 ## Backlog (Post v1)
 
 ### More Email Providers

@@ -3,6 +3,44 @@
 
 ---
 
+## Session — 2026-05-22 (v0.1.4) 🟢 *(COMPLETE)*
+
+### Bug Fixes
+- [x] **Email provider `test()` missing** — `AttributeError` on every provider test. Added `test()` to base class and all three providers: Gmail (token refresh), SMTP (connect + login), M365 (MSAL token). (`flowforge/email_providers/base.py`, `gmail.py`, `smtp.py`, `microsoft365.py`)
+- [x] **Gmail test scope error** — `getProfile` requires `gmail.readonly`, exceeding the `gmail.send` scope. Replaced with a token refresh call. (`flowforge/email_providers/gmail.py`)
+- [x] **Test error message silently discarded** — Connections UI showed only "FAILED" with no detail. Error now captured and displayed under the Failed badge; also logged to browser console. (`frontend/src/pages/Connections.tsx`)
+- [x] **Quick-attach invalid Jinja2 for step names with spaces** — Generated `{{ steps.my step.output_path }}` (invalid dot notation). Now uses `{{ steps['my step'].output_path }}` bracket notation for names with spaces. (`frontend/src/components/pipeline/StepEditor.tsx`)
+- [x] **Documentation links showed no content** — Settings page links pointed to `/docs/*.md` which nothing served. Added Flask `/api/docs/<filename>` route; links updated to `/api/docs/` and open in new tab. (`flowforge/api/app.py`, `frontend/src/pages/Settings.tsx`)
+- [x] **`data load` button hidden in pipeline builder** — 6 step-type buttons overflowed off the right edge. Fixed with `flexWrap: wrap`. (`frontend/src/pages/PipelineEdit.tsx`)
+
+### Verified End-to-End
+- [x] **Gmail email send verified** — Report → email pipeline ran successfully; email received with CSV attachment via Gmail OAuth2.
+
+---
+
+## Phase 4 — Polish & Release Prep 🔵 *(COMPLETE — 2026-05-22)*
+
+- [x] **README screenshots** — Dashboard ✓, Run Detail ✓, Pipeline Builder ✓, Email Setup ✓, Scheduler Disabled ✓ *(all 9 in `docs/screenshots/`)*
+
+---
+
+## Phase 2 — Tests & Verification 🧪 *(COMPLETE — 2026-05-22)*
+
+### End-to-End Pipeline Test
+- [x] Create DB connection → Test → verify "Connected" *(screenshot: connection-test-success.png — Connected · 20ms)*
+- [x] Create report config with simple `SELECT` → Preview → verify rows appear *(screenshot: report-preview-rows.png — 9 rows)*
+- [x] Create pipeline with one `report` step → Run Now → check Run History *(screenshot: pipeline-run-now-success.png — 20 runs, 0 failed)*
+- [x] Add `email` step after report → run → verify email received *(Gmail OAuth2 verified end-to-end)*
+- [x] Verify `{{ current_month }}` resolves in output filename *(screenshot: run-detail-steps.png)*
+- [x] Verify `StepResult.output_path` flows from report step *(screenshot: run-detail-steps.png)*
+- [x] Verify `rows_affected` written to `ff_step_runs` *(screenshot: run-detail-steps.png)*
+
+### Scheduler Smoke Test
+- [x] Create pipeline with scheduled run → start scheduler → verify auto-run in history *(screenshot: scheduler-auto-run-history.png — 19 scheduler-triggered runs)*
+- [x] Disable pipeline → verify no more runs triggered *(screenshot: scheduler-pipeline-disabled.png)*
+
+---
+
 ## Session — 2026-05-22 🟢 *(COMPLETE)*
 
 ### Infrastructure
