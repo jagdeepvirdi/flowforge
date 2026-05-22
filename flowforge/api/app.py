@@ -13,6 +13,7 @@ from flowforge.db.models import db
 limiter = Limiter(key_func=get_remote_address, default_limits=[])
 
 _DIST = Path(__file__).parent.parent.parent / 'frontend' / 'dist'
+_DOCS = Path(__file__).parent.parent.parent / 'docs'
 
 
 def create_app(config: dict | None = None) -> Flask:
@@ -118,6 +119,17 @@ def _register_blueprints(app: Flask) -> None:
     @app.get('/api/health')
     def health():
         return jsonify({'status': 'ok'})
+
+    @app.get('/api/docs/<path:filename>')
+    def serve_doc(filename):
+        if not _DOCS.is_dir():
+            return jsonify({'error': 'Docs not found'}), 404
+        file_path = (_DOCS / filename).resolve()
+        if not str(file_path).startswith(str(_DOCS.resolve())):
+            return jsonify({'error': 'Not found'}), 404
+        if not file_path.is_file():
+            return jsonify({'error': 'Not found'}), 404
+        return send_from_directory(_DOCS, filename, mimetype='text/plain; charset=utf-8')
 
     if _DIST.is_dir():
         @app.route('/', defaults={'path': ''})
