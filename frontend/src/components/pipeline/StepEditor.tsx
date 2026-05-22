@@ -176,7 +176,8 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
                     return (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
                         {precedingReports.map(rs => {
-                          const variable = `{{ steps.${rs.name}.output_path }}`
+                          const stepRef = rs.name.includes(' ') ? `steps['${rs.name}']` : `steps.${rs.name}`
+                          const variable = `{{ ${stepRef}.output_path }}`
                           const already = current.includes(variable)
                           const rc = reportConfigs.find(r => r.id === (rs.config as Record<string,unknown>).report_config_id)
                           const filename = rc?.output_filename ?? rs.name
@@ -328,7 +329,8 @@ function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnections }: DataLoa
             {precedingFileSteps.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
                 {precedingFileSteps.map(rs => {
-                  const variable = `{{ steps.${rs.name}.output_path }}`
+                  const stepRef = rs.name.includes(' ') ? `steps['${rs.name}']` : `steps.${rs.name}`
+                  const variable = `{{ ${stepRef}.output_path }}`
                   const already = String(src.file_path ?? '') === variable
                   return (
                     <button
