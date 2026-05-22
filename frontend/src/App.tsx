@@ -14,6 +14,7 @@ import Recipients from './pages/Recipients'
 import RunHistory from './pages/RunHistory'
 import RunDetail from './pages/RunDetail'
 import Settings from './pages/Settings'
+import BulkLoads from './pages/BulkLoads'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth()
@@ -46,6 +47,7 @@ export default function App() {
           <Route path="emails/:id/edit" element={<EmailEdit />} />
           <Route path="connections" element={<Connections />} />
           <Route path="recipients" element={<Recipients />} />
+          <Route path="bulk-loads" element={<BulkLoads />} />
           <Route path="runs" element={<RunHistory />} />
           <Route path="runs/:id" element={<RunDetail />} />
           <Route path="settings" element={<Settings />} />

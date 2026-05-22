@@ -10,6 +10,7 @@ const NAV_MAIN = [
   { to: '/pipelines',   label: 'Pipelines',        icon: 'pipeline' },
   { to: '/reports',     label: 'Reports',          icon: 'report' },
   { to: '/emails',      label: 'Email Templates',  icon: 'mail' },
+  { to: '/bulk-loads',  label: 'Bulk Loads',       icon: 'bulk' },
   { to: '/runs',        label: 'Run History',      icon: 'history' },
 ]
 const NAV_SYSTEM = [
@@ -26,6 +27,7 @@ function NavIcon({ name }: { name: string }) {
     report:    <><path d="M5 3h10l4 4v14H5z" {...stroke}/><path d="M14 3v5h5M8 13h8M8 17h6" {...stroke}/></>,
     mail:      <><rect x="3" y="5" width="18" height="14" rx="2" {...stroke}/><path d="M3 7l9 6 9-6" {...stroke}/></>,
     history:   <><path d="M3 12a9 9 0 109-9 9 9 0 00-7.7 4.3M3 4v4h4M12 7v5l3 2" {...stroke}/></>,
+    bulk:      <><path d="M4 6h16M4 10h16M4 14h10" {...stroke}/><path d="M16 16l3 3 3-3M19 19v-6" {...stroke}/></>,
     plug:      <><path d="M9 2v4M15 2v4M7 6h10v5a5 5 0 11-10 0V6zM12 16v4" {...stroke}/></>,
     users:     <><circle cx="9" cy="7" r="4" {...stroke}/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2M16 3.13a4 4 0 010 7.75M21 21v-2a4 4 0 00-3-3.87" {...stroke}/></>,
     cog:       <><circle cx="12" cy="12" r="3" {...stroke}/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8L4.2 7a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1A2 2 0 0119.8 7l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z" {...stroke}/></>,
