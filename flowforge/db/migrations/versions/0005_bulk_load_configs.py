@@ -8,7 +8,7 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 revision: str = '0005'
 down_revision: Union[str, None] = '0004'
@@ -19,10 +19,10 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.create_table(
         'ff_bulk_load_configs',
-        sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column('id', UUID(as_uuid=False), primary_key=True),
         sa.Column('name', sa.String(255), nullable=False),
         sa.Column('description', sa.Text()),
-        sa.Column('connection_id', sa.String(36), sa.ForeignKey('ff_db_connections.id', ondelete='SET NULL'), nullable=True),
+        sa.Column('connection_id', UUID(as_uuid=False), sa.ForeignKey('ff_db_connections.id', ondelete='SET NULL'), nullable=True),
         sa.Column('source_directory', sa.String(500), nullable=False),
         sa.Column('file_prefix', sa.String(255)),
         sa.Column('file_prefix_exclude', sa.String(255)),
