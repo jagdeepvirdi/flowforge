@@ -1,5 +1,7 @@
 import csv
 import logging
+import re
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +11,62 @@ logger = logging.getLogger(__name__)
 
 _VALID_MODES = {'replace', 'append'}
 _VALID_SOURCE_TYPES = {'file', 'query'}
+
+_DATE_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+_TS_RE   = re.compile(r'^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}')
+
+
+def _infer_col_type(values: list, db_type: str) -> str:
+    """Infer the best SQL column type from a sample of values.
+
+    Priority: bool → int → float → timestamp → date → text.
+    Empty/null-only columns default to text.
+    """
+    non_null = [v for v in values if v is not None and str(v).strip() != '']
+    if not non_null:
+        return 'TEXT' if db_type != 'oracle' else 'VARCHAR2(4000)'
+
+    # Already-typed Python objects (query source returns real types)
+    if all(isinstance(v, bool) for v in non_null):
+        return 'BOOLEAN' if db_type == 'postgresql' else 'NUMBER(1)'
+    if all(isinstance(v, int) and not isinstance(v, bool) for v in non_null):
+        return 'BIGINT' if db_type != 'oracle' else 'NUMBER(18)'
+    if all(isinstance(v, float) for v in non_null):
+        return 'NUMERIC' if db_type != 'oracle' else 'NUMBER'
+    if all(isinstance(v, datetime) for v in non_null):
+        return 'TIMESTAMP'
+    if all(isinstance(v, date) for v in non_null):
+        return 'DATE'
+
+    # String values from file sources — attempt cast
+    strs = [str(v).strip() for v in non_null]
+
+    _BOOL_WORDS = {'true', 'false', '1', '0', 'yes', 'no', 't', 'f'}
+    if all(s.lower() in _BOOL_WORDS for s in strs):
+        return 'BOOLEAN' if db_type == 'postgresql' else 'NUMBER(1)'
+
+    def _is_int(s: str) -> bool:
+        try:
+            int(s); return True
+        except ValueError:
+            return False
+
+    def _is_float(s: str) -> bool:
+        try:
+            float(s); return True
+        except ValueError:
+            return False
+
+    if all(_is_int(s) for s in strs):
+        return 'BIGINT' if db_type != 'oracle' else 'NUMBER(18)'
+    if all(_is_float(s) for s in strs):
+        return 'NUMERIC' if db_type != 'oracle' else 'NUMBER'
+    if all(_TS_RE.match(s) for s in strs):
+        return 'TIMESTAMP'
+    if all(_DATE_RE.match(s) for s in strs):
+        return 'DATE'
+
+    return 'TEXT' if db_type != 'oracle' else 'VARCHAR2(4000)'
 
 
 class DataLoadStep(BaseStep):
@@ -93,7 +151,7 @@ class DataLoadStep(BaseStep):
             with conn:
                 created = False
                 if create_if_missing and not self._table_exists(conn, target_table):
-                    self._create_table(conn, target_table, columns)
+                    self._create_table(conn, target_table, columns, rows)
                     created = True
                     logger.info("DataLoad: created table %s", target_table)
                 total = self._bulk_load(conn, target_table, mode, columns, rows, chunk_size)
@@ -172,12 +230,21 @@ class DataLoadStep(BaseStep):
         except Exception:
             return False
 
-    def _create_table(self, conn, table: str, columns: list[str]) -> None:
-        """CREATE TABLE with all columns as text — appropriate for staging tables."""
+    def _create_table(self, conn, table: str, columns: list[str], rows: list[tuple]) -> None:
+        """CREATE TABLE with column types inferred from the data being loaded."""
         db_type = getattr(conn, 'db_type', 'postgresql')
-        col_type = 'VARCHAR2(4000)' if db_type == 'oracle' else 'TEXT'
-        col_defs = ', '.join(f'"{c}" {col_type}' for c in columns)
-        conn.execute_write(f'CREATE TABLE {table} ({col_defs})')
+        sample = rows[:1000]
+        col_defs = []
+        for i, col in enumerate(columns):
+            col_vals = [row[i] for row in sample if i < len(row)]
+            col_type = _infer_col_type(col_vals, db_type)
+            col_defs.append(f'"{col}" {col_type}')
+        conn.execute_write(f'CREATE TABLE {table} ({", ".join(col_defs)})')
+        logger.debug(
+            'Created %s with inferred types: %s',
+            table,
+            ', '.join(f'{c}={d.split()[-1]}' for c, d in zip(columns, col_defs)),
+        )
 
     def _bulk_load(self, conn, table: str, mode: str, columns: list[str], rows: list[tuple], chunk_size: int) -> int:
         if mode == 'replace':

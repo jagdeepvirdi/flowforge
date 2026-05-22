@@ -511,7 +511,7 @@ function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnections }: DataLoa
         </label>
         {cfg.create_if_missing && (
           <span style={{ fontSize: 11, color: '#64748B', paddingLeft: 22 }}>
-            All columns created as TEXT / VARCHAR2. Use for staging tables where schema doesn't need to be pre-defined.
+            Column types are inferred from the data (INTEGER, NUMERIC, DATE, TIMESTAMP, TEXT). Samples up to 1,000 rows.
           </span>
         )}
       </div>
