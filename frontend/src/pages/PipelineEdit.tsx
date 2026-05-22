@@ -204,7 +204,7 @@ export default function PipelineEdit() {
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Steps <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', fontSize: 11 }}>({steps.length})</span></span>
-            <div style={{ display: 'flex', gap: 4 }}>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
               {STEP_TYPES.map(t => (
                 <button key={t} className="btn btn-sm" onClick={() => addNewStep(t)}>
                   <Plus size={10} /> {t.replace(/_/g, ' ')}
