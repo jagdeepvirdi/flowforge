@@ -57,6 +57,39 @@
 
 ---
 
+## Session — 2026-05-22 🟢 *(COMPLETE)*
+
+### Infrastructure
+- [x] **Oracle 23c Free in Docker** — Added `gvenzl/oracle-free:23-slim` service to `docker-compose.yml` with `APP_USER: oracle` / `APP_USER_PASSWORD: harpal123`. Docker project renamed to `flowforge-oracle`. Data persisted in `oracle_data` volume. (`docker-compose.yml`)
+- [x] **Oracle driver upgrade: `cx_Oracle` → `python-oracledb`** — Replaced deprecated driver with `python-oracledb` (thin mode — pure Python, no Oracle Instant Client required). Updated `pyproject.toml`, `requirements.txt`, and `flowforge/connections/oracle.py`. (`flowforge/connections/oracle.py`)
+- [x] **`credentials.local.md`** — Local dev credentials file for PostgreSQL and Oracle (gitignored, never committed). (`credentials.local.md`, `.gitignore`)
+
+### Features Added
+- [x] **DataLoader step (`data_load`)** — New pipeline step type for bulk-loading data into any configured DB connection (Oracle or PostgreSQL).
+  - Source types: `file` (CSV / Excel, supports `{{ steps.prev.output_path }}`) and `query` (SQL on any source connection — cross-DB ETL)
+  - Target modes: `replace` (TRUNCATE + bulk INSERT) and `append`
+  - PostgreSQL target uses `psycopg2.extras.execute_batch` for true bulk performance
+  - Oracle target uses positional bind vars (`:1, :2, ...`) via `oracledb.executemany`
+  - Chunked inserts with configurable `chunk_size` (default 1000)
+  - Optional `column_map` to rename source → target columns
+  - (`flowforge/steps/data_load.py`, `flowforge/connections/base.py`, `flowforge/connections/postgres.py`, `flowforge/connections/oracle.py`, `flowforge/engine/loader.py`, `flowforge/api/routes/steps.py`)
+- [x] **DataLoader frontend form** — `DataLoadForm` component in `StepEditor.tsx`:
+  - Source type toggle (File / SQL Query)
+  - File source: quick-attach buttons from preceding report steps, file_path input, format picker, optional sheet name
+  - Query source: source connection picker + SQL textarea
+  - Target section: connection picker, table input (Jinja2 vars), mode selector
+  - Advanced panel (collapsible): chunk size + column map JSON editor
+  - Amber `Load` badge (`.tbadge-load`) added to design system
+  - (`frontend/src/components/pipeline/StepEditor.tsx`, `frontend/src/pages/PipelineEdit.tsx`, `frontend/src/lib/types.ts`, `frontend/src/lib/helpContent.ts`, `frontend/src/index.css`)
+
+### Bug Fixes
+- [x] **TypeScript TS6133 errors in test files** — Removed unused `React`, `beforeEach`, and `vi` imports from `Dashboard.test.tsx`, `Pipelines.test.tsx`, and `TopBarSearch.test.tsx`. `npx tsc --noEmit` now exits clean. (`frontend/src/__tests__/`)
+
+### Scripts
+- [x] **`scripts/test_oracle.py`** — Oracle connection + DataLoader smoke test: waits for container readiness, prints Oracle version banner, exercises `execute_many` + `make_placeholders` via `OracleConnection`, verifies replace mode.
+
+---
+
 ## Remaining Work
 
 ---
@@ -125,7 +158,7 @@
 - [ ] Step retry with exponential backoff
 - [ ] Pipeline YAML import/export from UI
 - [ ] **Pipeline run parameter UI** — A "Parameters" section on the pipeline edit page where you define named params and their computation rules (e.g., `week_start = start of current ISO week`, `week_end = end of current ISO week`). More flexible than built-in date vars; allows per-pipeline customization. Params become available as `{{ params.week_start }}` in all step configs. Pairs with the built-in smart date vars (ship those first).
-- [ ] **Bulk file loader step (`bulk_load`)** — Replaces the Oracle SQL\*Loader shell script at `github.com/jagdeepvirdi/DayToDayOfficeOperations`. Full spec below.
+- [ ] **Bulk file loader step (`bulk_load`)** — Advanced successor to `data_load`. Replaces the Oracle SQL\*Loader shell script at `github.com/jagdeepvirdi/DayToDayOfficeOperations`. Adds: directory scanning (`file_prefix`, `file_prefix_exclude`), Oracle SQL\*Loader direct-path via subprocess (fastest), PostgreSQL `COPY FROM STDIN`, footer row stripping, `.bad` file surfacing in logs, archive-after-load, `files_found`/`records_loaded`/`records_failed` output variables. Full spec below.
 
   **Step config (stored in `pipeline_steps.config` JSONB):**
   ```json
@@ -193,7 +226,7 @@
 
 | Risk | Mitigation |
 |---|---|
-| cx_Oracle requires Oracle Instant Client | Document clearly; make Oracle optional: `pip install flowforge[oracle]` |
+| ~~cx_Oracle requires Oracle Instant Client~~ | ✅ Resolved — migrated to `python-oracledb` (thin mode, pure Python, no Instant Client needed) |
 | M365 requires Azure AD app registration | Step-by-step guide in docs/email-providers.md; flowforge setup microsoft365 wizard |
 | Gmail OAuth2 token expiry | Refresh token handling; re-auth wizard in settings |
 | Drive folder ID opaque to users | Folder picker in frontend fetches Drive tree via API |
