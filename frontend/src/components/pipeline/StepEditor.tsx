@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronUp, Trash2, GripVertical } from 'lucide-react'
+import { ChevronDown, ChevronUp, Trash2, GripVertical, Settings2 } from 'lucide-react'
 import type { PipelineStep, StepType } from '../../lib/types'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -13,6 +13,7 @@ const STEP_META: Record<StepType, { label: string; cls: string }> = {
   email:        { label: 'Email',  cls: 'tbadge-email' },
   drive_upload: { label: 'Drive',  cls: 'tbadge-drive' },
   ai_analyze:   { label: 'AI',     cls: 'tbadge-transform' },
+  data_load:    { label: 'Load',   cls: 'tbadge-load' },
 }
 
 interface Props {
@@ -234,6 +235,16 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
                 </div>
               </>
             )}
+
+            {step.step_type === 'data_load' && (
+              <DataLoadForm
+                cfg={cfg}
+                setConfig={setConfig}
+                allSteps={allSteps}
+                step={step}
+                dbConnections={dbConnections}
+              />
+            )}
           </div>
         )}
       </div>
@@ -250,5 +261,248 @@ function Field({ label, children, tooltip }: { label: string; children: React.Re
       </label>
       {children}
     </div>
+  )
+}
+
+// ─── DataLoadForm ─────────────────────────────────────────────────────────────
+
+interface DataLoadFormProps {
+  cfg: Record<string, unknown>
+  setConfig: (key: string, value: unknown) => void
+  allSteps: PipelineStep[]
+  step: PipelineStep
+  dbConnections: { id: string; name: string }[]
+}
+
+function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnections }: DataLoadFormProps) {
+  const [showAdvanced, setShowAdvanced] = useState(false)
+
+  const src = (cfg.source as Record<string, unknown>) ?? {}
+  const sourceType = String(src.type ?? 'file')
+
+  const setSrc = (key: string, value: unknown) =>
+    setConfig('source', { ...src, [key]: value })
+
+  const switchSourceType = (type: string) =>
+    setConfig('source', { type })
+
+  // Preceding steps that produce a file (report steps)
+  const precedingFileSteps = allSteps.filter(
+    s => s.step_type === 'report' && s.step_order < step.step_order
+  )
+
+  const columnMapRaw = cfg.column_map
+    ? JSON.stringify(cfg.column_map, null, 2)
+    : '{}'
+
+  return (
+    <>
+      {/* Source type toggle */}
+      <div style={{ display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid #3A3F52', width: 'fit-content' }}>
+        {(['file', 'query'] as const).map(t => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => switchSourceType(t)}
+            style={{
+              padding: '5px 16px',
+              fontSize: 12,
+              fontWeight: 600,
+              border: 'none',
+              cursor: 'pointer',
+              background: sourceType === t ? '#F97316' : 'transparent',
+              color: sourceType === t ? '#fff' : '#64748B',
+              transition: 'background 0.15s',
+            }}
+          >
+            {t === 'file' ? 'File source' : 'SQL Query source'}
+          </button>
+        ))}
+      </div>
+
+      {/* ── File source ───────────────────────────────────────────────────── */}
+      {sourceType === 'file' && (
+        <>
+          <Field label="File path (supports {{ variables }})">
+            {/* Quick-attach from preceding report steps */}
+            {precedingFileSteps.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                {precedingFileSteps.map(rs => {
+                  const variable = `{{ steps.${rs.name}.output_path }}`
+                  const already = String(src.file_path ?? '') === variable
+                  return (
+                    <button
+                      key={rs.id}
+                      type="button"
+                      onClick={() => { if (!already) setSrc('file_path', variable) }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        background: already ? '#1a2e1a' : '#1A1D27',
+                        border: `1px solid ${already ? '#22C55E' : '#3A3F52'}`,
+                        borderRadius: 6, padding: '4px 10px',
+                        cursor: already ? 'default' : 'pointer',
+                        fontSize: 11,
+                        color: already ? '#22C55E' : '#94A3B8',
+                      }}
+                    >
+                      <span style={{ fontWeight: 600, color: already ? '#22C55E' : '#F97316' }}>
+                        {already ? '✓' : '+'} {rs.name}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+            <input
+              className="input mono-input"
+              value={String(src.file_path ?? '')}
+              onChange={e => setSrc('file_path', e.target.value)}
+              placeholder="{{ steps.generate_report.output_path }}"
+            />
+          </Field>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <Field label="File format">
+              <select
+                className="input"
+                value={String(src.file_format ?? '')}
+                onChange={e => setSrc('file_format', e.target.value)}
+                style={{ height: 34 }}
+              >
+                <option value="">Auto-detect from extension</option>
+                <option value="csv">CSV</option>
+                <option value="excel">Excel (.xlsx)</option>
+              </select>
+            </Field>
+            <Field label="Sheet name (Excel only, optional)">
+              <input
+                className="input"
+                value={String(src.sheet_name ?? '')}
+                onChange={e => setSrc('sheet_name', e.target.value)}
+                placeholder="Sheet1"
+              />
+            </Field>
+          </div>
+        </>
+      )}
+
+      {/* ── SQL Query source ──────────────────────────────────────────────── */}
+      {sourceType === 'query' && (
+        <>
+          <Field label="Source connection">
+            <select
+              className="input"
+              value={String(src.connection_id ?? '')}
+              onChange={e => setSrc('connection_id', e.target.value)}
+              style={{ height: 34 }}
+            >
+              <option value="">Select source connection…</option>
+              {dbConnections.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="SQL Query">
+            <textarea
+              className="input mono-input"
+              rows={5}
+              value={String(src.query ?? '')}
+              onChange={e => setSrc('query', e.target.value)}
+              placeholder={`SELECT id, name, amount\nFROM orders\nWHERE month = '{{ current_month }}'`}
+              style={{ height: 'auto', resize: 'none' }}
+            />
+          </Field>
+        </>
+      )}
+
+      {/* ── Target ───────────────────────────────────────────────────────── */}
+      <div style={{ borderTop: '1px solid #2D3143', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <Field label="Target connection">
+          <select
+            className="input"
+            value={String(cfg.target_connection_id ?? '')}
+            onChange={e => setConfig('target_connection_id', e.target.value)}
+            style={{ height: 34 }}
+          >
+            <option value="">Select target connection…</option>
+            {dbConnections.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </Field>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'end' }}>
+          <Field label="Target table (supports {{ variables }})">
+            <input
+              className="input mono-input"
+              value={String(cfg.target_table ?? '')}
+              onChange={e => setConfig('target_table', e.target.value)}
+              placeholder="staging.sales_{{ current_month }}"
+            />
+          </Field>
+          <Field label="Mode">
+            <select
+              className="input"
+              value={String(cfg.mode ?? 'replace')}
+              onChange={e => setConfig('mode', e.target.value)}
+              style={{ height: 34, width: 120 }}
+            >
+              <option value="replace">Replace</option>
+              <option value="append">Append</option>
+            </select>
+          </Field>
+        </div>
+      </div>
+
+      {/* ── Advanced (collapsible) ────────────────────────────────────────── */}
+      <button
+        type="button"
+        onClick={() => setShowAdvanced(x => !x)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          background: 'transparent', border: 'none',
+          color: '#64748B', fontSize: 11.5, cursor: 'pointer',
+          padding: '2px 0', fontWeight: 500,
+        }}
+      >
+        <Settings2 size={12} />
+        Advanced options
+        {showAdvanced ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+      </button>
+
+      {showAdvanced && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingLeft: 12, borderLeft: '2px solid #2D3143' }}>
+          <Field label="Chunk size (rows per batch)">
+            <input
+              className="input"
+              type="number"
+              min={1}
+              max={10000}
+              value={String(cfg.chunk_size ?? 1000)}
+              onChange={e => setConfig('chunk_size', parseInt(e.target.value) || 1000)}
+              style={{ width: 120 }}
+            />
+            <span style={{ fontSize: 11, color: '#64748B', marginTop: 3 }}>
+              Rows sent per bulk insert call. Default 1000.
+            </span>
+          </Field>
+          <Field label="Column map (JSON) — optional">
+            <textarea
+              className="input mono-input"
+              rows={4}
+              value={columnMapRaw}
+              onChange={e => {
+                try { setConfig('column_map', JSON.parse(e.target.value)) } catch {}
+              }}
+              placeholder={'{\n  "SOURCE_COL": "target_col"\n}'}
+              style={{ height: 'auto', resize: 'none', fontSize: 12 }}
+            />
+            <span style={{ fontSize: 11, color: '#64748B', marginTop: 3 }}>
+              Rename source columns to match the target schema. Leave empty to use source names as-is.
+            </span>
+          </Field>
+        </div>
+      )}
+    </>
   )
 }

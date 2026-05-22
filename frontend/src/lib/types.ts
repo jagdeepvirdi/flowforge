@@ -1,5 +1,5 @@
 export type PipelineStatus = 'success' | 'failed' | 'running' | 'cancelled' | 'never run'
-export type StepType = 'db_procedure' | 'db_query' | 'report' | 'email' | 'drive_upload' | 'ai_analyze'
+export type StepType = 'db_procedure' | 'db_query' | 'report' | 'email' | 'drive_upload' | 'ai_analyze' | 'data_load'
 export type OnError = 'stop' | 'continue'
 export type ReportFormat = 'excel' | 'csv' | 'pdf' | 'json'
 export type ProviderType = 'gmail' | 'microsoft365' | 'smtp'

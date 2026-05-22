@@ -109,6 +109,17 @@ export const STEP_HINTS: Record<string, StepHint> = {
       'Rename to supports {{ variables }} — e.g. Report_{{ current_month }}.xlsx',
     ],
   },
+  data_load: {
+    summary: 'Bulk-loads data into a target database table from a file or SQL query.',
+    tips: [
+      'Source: File — attach a CSV or Excel from a preceding report step using the quick-attach buttons.',
+      'Source: SQL Query — run a query on any source connection and load its results into the target.',
+      'replace — truncates the target table then bulk inserts all rows.',
+      'append — inserts rows without touching existing data.',
+      'Target table supports {{ variables }} — e.g. staging.sales_{{ current_month }}.',
+      'Column map: rename source columns to match the target table schema.',
+    ],
+  },
 }
 
 export interface TooltipContent {
