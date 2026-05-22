@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] — 2026-05-22
+
+### Added
+
+- **Oracle 23c Free in Docker** — `gvenzl/oracle-free:23-slim` service added to `docker-compose.yml`. Docker project renamed to `flowforge-oracle`. App user `oracle` created automatically via `APP_USER` env var. Data persisted in `oracle_data` named volume. ([`docker-compose.yml`](docker-compose.yml))
+- **`data_load` step type** — New pipeline step for bulk-loading data into any configured database connection (Oracle or PostgreSQL).
+  - **File source** — reads CSV or Excel files; `file_path` supports Jinja2 variables (e.g. `{{ steps.generate_report.output_path }}`); format auto-detected from extension or set explicitly; optional `sheet_name` for Excel.
+  - **SQL Query source** — executes a query on any configured source connection and loads the result set into the target; enables cross-database ETL without intermediate files.
+  - **Target modes** — `replace` (TRUNCATE then bulk INSERT) and `append` (INSERT only).
+  - **Chunked bulk insert** — configurable `chunk_size` (default 1000); PostgreSQL uses `psycopg2.extras.execute_batch` for true multi-row batching; Oracle uses positional bind vars (`:1, :2, ...`) via `oracledb.executemany`.
+  - **Column mapping** — optional `column_map` JSON object to rename source columns to match target schema.
+  - ([`flowforge/steps/data_load.py`](flowforge/steps/data_load.py), [`flowforge/connections/base.py`](flowforge/connections/base.py), [`flowforge/connections/postgres.py`](flowforge/connections/postgres.py), [`flowforge/connections/oracle.py`](flowforge/connections/oracle.py), [`flowforge/engine/loader.py`](flowforge/engine/loader.py), [`flowforge/api/routes/steps.py`](flowforge/api/routes/steps.py))
+- **`data_load` pipeline builder form** — Source type toggle (File / SQL Query), quick-attach buttons for preceding report steps, target connection picker, table input with Jinja2 variable support, mode selector, and collapsible Advanced panel (chunk size + column map JSON editor). Amber `Load` badge added to the step type design system. ([`frontend/src/components/pipeline/StepEditor.tsx`](frontend/src/components/pipeline/StepEditor.tsx))
+- **`execute_many` and `make_placeholders`** added to `BaseConnection` (abstract), `PostgreSQLConnection`, and `OracleConnection` — shared interface for the DataLoader bulk insert path.
+- **`scripts/test_oracle.py`** — Smoke test script: waits for Oracle container readiness, prints version banner, exercises the full DataLoader path (`execute_many` + `make_placeholders`), verifies replace mode.
+
+### Changed
+
+- **Oracle driver: `cx_Oracle` → `python-oracledb`** — Migrated to the official successor driver. Thin mode enabled by default — pure Python, no Oracle Instant Client installation required. DSN format simplified to `host:port/service_name`. `pyproject.toml` and `requirements.txt` updated to `oracledb>=2.0`. ([`flowforge/connections/oracle.py`](flowforge/connections/oracle.py))
+
+### Fixed
+
+- **TypeScript TS6133 — unused imports in test files** — Removed unused `React`, `beforeEach`, and `vi` imports from `Dashboard.test.tsx`, `Pipelines.test.tsx`, and `TopBarSearch.test.tsx`. `npx tsc --noEmit` now exits with zero errors.
+
 ## [0.1.2] — 2026-05-22
 
 ### Fixed
