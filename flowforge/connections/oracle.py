@@ -10,24 +10,29 @@ logger = logging.getLogger(__name__)
 class OracleConnection(BaseConnection):
     def __init__(self, host: str, port: int, service_name: str, user: str, password: str):
         try:
-            import cx_Oracle
+            import oracledb
         except ImportError:
             raise ImportError(
-                "cx_Oracle is required for Oracle connections. "
-                "Install Oracle Instant Client first, then: pip install flowforge[oracle]"
+                "python-oracledb is required for Oracle connections. "
+                "Install with: pip install flowforge[oracle]"
             )
-        dsn = cx_Oracle.makedsn(host, port, service_name=service_name)
-        self._pool = cx_Oracle.SessionPool(
-            user=user, password=password, dsn=dsn,
-            min=1, max=5, increment=1, threaded=True,
+        # Thin mode: pure Python, no Oracle Instant Client required.
+        # To use thick mode (for advanced Oracle features), call
+        # oracledb.init_oracle_client() before creating the pool.
+        self._pool = oracledb.create_pool(
+            user=user,
+            password=password,
+            dsn=f"{host}:{port}/{service_name}",
+            min=1,
+            max=5,
+            increment=1,
         )
         self._conn = self._pool.acquire()
         self._conn.autocommit = False
         logger.debug("Oracle connection acquired for %s:%s/%s", host, port, service_name)
 
     def execute_procedure(self, name: str, params: dict[str, Any]) -> None:
-        # Supports Oracle package syntax: package.procedure
-        binds = ', '.join([f':{k}' for k in params])
+        binds = ", ".join([f":{k}" for k in params])
         sql = f"BEGIN {name}({binds}); END;"
         with self._conn.cursor() as cur:
             cur.arraysize = 1000
@@ -40,9 +45,8 @@ class OracleConnection(BaseConnection):
             cur.arraysize = 1000
             cur.execute(sql, params)
             rows = cur.fetchall()
-        # Read LOB values before cursor close
         return [
-            tuple(col.read() if hasattr(col, 'read') else col for col in row)
+            tuple(col.read() if hasattr(col, "read") else col for col in row)
             for row in rows
         ]
 
@@ -53,7 +57,7 @@ class OracleConnection(BaseConnection):
             columns = [desc[0] for desc in cur.description] if cur.description else []
             rows = cur.fetchall()
         return [
-            tuple(col.read() if hasattr(col, 'read') else col for col in row)
+            tuple(col.read() if hasattr(col, "read") else col for col in row)
             for row in rows
         ], columns
 
@@ -63,6 +67,14 @@ class OracleConnection(BaseConnection):
             rows = cur.rowcount
         self._conn.commit()
         return rows
+
+    def execute_many(self, sql: str, rows: list[tuple]) -> int:
+        """Bulk insert using executemany — used by DataLoader."""
+        with self._conn.cursor() as cur:
+            cur.executemany(sql, rows)
+            count = cur.rowcount
+        self._conn.commit()
+        return count
 
     def test(self) -> tuple[bool, int]:
         start = time.monotonic()

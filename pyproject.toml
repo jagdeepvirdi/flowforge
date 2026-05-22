@@ -73,7 +73,7 @@ pdf = [
     "weasyprint>=62.0",
 ]
 oracle = [
-    "cx_Oracle>=8.3",
+    "oracledb>=2.0",
 ]
 all = [
     "flowforge[gmail]",

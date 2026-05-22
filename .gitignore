@@ -28,6 +28,7 @@ Thumbs.db
 *.log
 
 # Credentials / secrets (should never be committed)
+credentials.local.md
 .env
 .env.test
 .claude/settings.local.json
