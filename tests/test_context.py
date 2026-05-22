@@ -104,3 +104,146 @@ def test_render_complex_template():
     result = render(tmpl, ctx)
     month = datetime.today().strftime('%Y-%m')
     assert result == f'Subject: Monthly Report - {month} - EMEA'
+
+
+# ── Previous-month date vars ───────────────────────────────────────────────
+
+def test_built_in_prev_month_start():
+    from flowforge.engine.context import build
+    ctx = build('test')
+    assert re.match(r'^\d{4}-\d{2}-01$', ctx['prev_month_start']), (
+        f"prev_month_start should be YYYY-MM-01, got {ctx['prev_month_start']}"
+    )
+
+
+def test_built_in_prev_month_end():
+    from flowforge.engine.context import build
+    import calendar
+    ctx = build('test')
+    val = ctx['prev_month_end']
+    assert re.match(r'^\d{4}-\d{2}-\d{2}$', val), f"Expected YYYY-MM-DD, got {val}"
+    # The day must equal the last day of that month
+    y, m, d = (int(x) for x in val.split('-'))
+    assert d == calendar.monthrange(y, m)[1]
+
+
+def test_prev_month_start_before_month_start():
+    """prev_month_start must be strictly before current month_start."""
+    from flowforge.engine.context import build
+    ctx = build('test')
+    assert ctx['prev_month_start'] < ctx['month_start']
+
+
+# ── Timestamp boundary vars (YYYYMMDDHHmmSS, 14 digits) ───────────────────
+
+_TS_PATTERN = re.compile(r'^\d{14}$')
+
+
+def test_day_start_ts_format():
+    from flowforge.engine.context import build
+    ctx = build('test')
+    assert _TS_PATTERN.match(ctx['day_start_ts']), ctx['day_start_ts']
+    assert ctx['day_start_ts'].endswith('000000')
+
+
+def test_day_end_ts_format():
+    from flowforge.engine.context import build
+    ctx = build('test')
+    assert _TS_PATTERN.match(ctx['day_end_ts']), ctx['day_end_ts']
+    assert ctx['day_end_ts'].endswith('235959')
+
+
+def test_yesterday_start_ts_format():
+    from flowforge.engine.context import build
+    ctx = build('test')
+    assert _TS_PATTERN.match(ctx['yesterday_start_ts']), ctx['yesterday_start_ts']
+    assert ctx['yesterday_start_ts'].endswith('000000')
+
+
+def test_yesterday_end_ts_format():
+    from flowforge.engine.context import build
+    ctx = build('test')
+    assert _TS_PATTERN.match(ctx['yesterday_end_ts']), ctx['yesterday_end_ts']
+    assert ctx['yesterday_end_ts'].endswith('235959')
+
+
+def test_month_start_ts_format():
+    from flowforge.engine.context import build
+    ctx = build('test')
+    assert _TS_PATTERN.match(ctx['month_start_ts']), ctx['month_start_ts']
+    assert ctx['month_start_ts'][6:8] == '01'   # day = 01
+    assert ctx['month_start_ts'].endswith('000000')
+
+
+def test_month_end_ts_format():
+    from flowforge.engine.context import build
+    ctx = build('test')
+    assert _TS_PATTERN.match(ctx['month_end_ts']), ctx['month_end_ts']
+    assert ctx['month_end_ts'].endswith('235959')
+
+
+def test_prev_month_start_ts_format():
+    from flowforge.engine.context import build
+    ctx = build('test')
+    assert _TS_PATTERN.match(ctx['prev_month_start_ts']), ctx['prev_month_start_ts']
+    assert ctx['prev_month_start_ts'][6:8] == '01'
+    assert ctx['prev_month_start_ts'].endswith('000000')
+
+
+def test_prev_month_end_ts_format():
+    from flowforge.engine.context import build
+    ctx = build('test')
+    assert _TS_PATTERN.match(ctx['prev_month_end_ts']), ctx['prev_month_end_ts']
+    assert ctx['prev_month_end_ts'].endswith('235959')
+
+
+def test_day_start_ts_date_prefix_matches_current_date():
+    """YYYYMMdd prefix of day_start_ts must equal current_date without dashes."""
+    from flowforge.engine.context import build
+    ctx = build('test')
+    expected_prefix = ctx['current_date'].replace('-', '')
+    assert ctx['day_start_ts'][:8] == expected_prefix
+
+
+def test_yesterday_ts_date_prefix_matches_yesterday():
+    from flowforge.engine.context import build
+    ctx = build('test')
+    expected_prefix = ctx['yesterday'].replace('-', '')
+    assert ctx['yesterday_start_ts'][:8] == expected_prefix
+    assert ctx['yesterday_end_ts'][:8] == expected_prefix
+
+
+def test_timestamp_boundary_vars_renderable():
+    """All timestamp vars must render without error in a Jinja2 template."""
+    from flowforge.engine.context import build, render
+    ctx = build('test')
+    tmpl = (
+        'WHERE ts BETWEEN {{ month_start_ts }} AND {{ month_end_ts }} '
+        'OR ts BETWEEN {{ prev_month_start_ts }} AND {{ prev_month_end_ts }}'
+    )
+    result = render(tmpl, ctx)
+    # All placeholders should be replaced with 14-digit numbers
+    assert '{{' not in result
+    for part in result.replace('WHERE ts BETWEEN ', '').replace(' OR ts BETWEEN ', ' ').replace(' AND ', ' ').split():
+        assert _TS_PATTERN.match(part), f"Unexpected token: {part}"
+
+
+# ── last_success_at is NOT a built-in (injected by runner) ────────────────
+
+def test_last_success_at_not_in_built_ins():
+    """last_success_at must not appear in build() output without runner injection."""
+    from flowforge.engine.context import build
+    ctx = build('test')
+    assert 'last_success_at' not in ctx
+    assert 'last_success_date' not in ctx
+
+
+def test_last_success_at_available_when_injected():
+    """When runner passes last_success_at as a pipeline var it must render."""
+    from flowforge.engine.context import build, render
+    ctx = build('test', pipeline_vars={
+        'last_success_at': '20260501120000',
+        'last_success_date': '2026-05-01',
+    })
+    assert render('{{ last_success_at }}', ctx) == '20260501120000'
+    assert render('{{ last_success_date }}', ctx) == '2026-05-01'

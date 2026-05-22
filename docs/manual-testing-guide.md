@@ -414,7 +414,164 @@ Repeat tests 6a and 6b using the M365 provider instead of Gmail.
 
 ---
 
-## 10. Scheduling
+## 10. Pipeline Variables
+
+Pipeline variables let you define constants once at the pipeline level and reference them in
+every step via `{{ var_key }}` or `{{ vars.var_key }}`.
+
+### 10a. Constant value (currency / region filter)
+
+1. Open any pipeline (e.g. `Query Test`) → **Variables** card → **Add variable**
+2. Set:
+
+   | Key | Value | Secret |
+   |---|---|---|
+   | `currency` | `USD` | No |
+
+3. Edit the DB Query step to use it:
+   ```sql
+   SELECT * FROM public.bulk_test_subscribers
+   WHERE plan = '{{ currency }}'
+   ```
+   *(or substitute a real column for your data)*
+4. Save and run
+
+- [ ] Variable resolved — query does not contain the literal `{{ currency }}`
+- [ ] Step log shows results filtered to the variable value
+
+### 10b. Date-range constants (timestamp boundaries)
+
+1. Add two variables to the pipeline:
+
+   | Key | Value | Secret |
+   |---|---|---|
+   | `from_ts` | `{{ month_start_ts }}` | No |
+   | `to_ts` | `{{ month_end_ts }}` | No |
+
+   *(These reference built-in timestamp variables — `YYYYMMDDHHmmSS` format)*
+2. In the query step use:
+   ```sql
+   SELECT * FROM public.bulk_test_subscribers
+   WHERE CAST(created_at AS TEXT) BETWEEN '{{ from_ts }}' AND '{{ to_ts }}'
+   ```
+3. Run and check step log for the resolved values
+
+Available timestamp built-ins (all 14-digit `YYYYMMDDHHmmSS`):
+
+| Variable | Meaning |
+|---|---|
+| `{{ day_start_ts }}` | Today 00:00:00 |
+| `{{ day_end_ts }}` | Today 23:59:59 |
+| `{{ yesterday_start_ts }}` | Yesterday 00:00:00 |
+| `{{ yesterday_end_ts }}` | Yesterday 23:59:59 |
+| `{{ month_start_ts }}` | First of month 00:00:00 |
+| `{{ month_end_ts }}` | Last of month 23:59:59 |
+| `{{ prev_month_start_ts }}` | First of previous month 00:00:00 |
+| `{{ prev_month_end_ts }}` | Last of previous month 23:59:59 |
+
+- [ ] `{{ month_start_ts }}` resolves to a 14-digit timestamp (e.g. `20260501000000`)
+- [ ] `{{ prev_month_end_ts }}` resolves to last day of previous month at 23:59:59
+
+### 10c. Delta extraction (last_success_at)
+
+`{{ last_success_at }}` is injected automatically by the runner: it holds the
+`finished_at` timestamp of the most recent successful run for this pipeline
+(or empty string on the first run).
+
+1. Use this query in a DB Query step:
+   ```sql
+   {% if last_success_at %}
+   SELECT * FROM public.bulk_test_subscribers
+   WHERE updated_at >= '{{ last_success_at }}'
+   {% else %}
+   SELECT * FROM public.bulk_test_subscribers
+   {% endif %}
+   ```
+2. Run the pipeline twice:
+   - First run: `last_success_at` is empty → full extract
+   - Second run: `last_success_at` = first run's finish time → delta extract
+
+- [ ] First run: full extract (no date filter in logs)
+- [ ] Second run: delta filter applied (`last_success_at` value appears in logs)
+
+Also available: `{{ last_success_date }}` — same run, YYYY-MM-DD format.
+
+### 10d. Secret variable (credential)
+
+1. Add a variable:
+
+   | Key | Value | Secret |
+   |---|---|---|
+   | `api_key` | `my-secret-value` | Yes (ticked) |
+
+2. Save the pipeline
+3. GET the pipeline via API or reload the page
+
+- [ ] Secret var shows `***` in the UI — plaintext never returned
+- [ ] Variable is still usable in step configs (resolved at runtime)
+
+---
+
+## 11. Data Load — create_if_missing
+
+### 11a. Auto-create with type inference
+
+1. Create a pipeline: `Data Load Auto-Create Test`
+2. Add a **Data Load** step:
+
+   | Field | Value |
+   |---|---|
+   | Source type | `File` |
+   | File path | `D:\Project\flowforge\sample_data\bulk_load\incoming\SUBS_20260522_001.csv` |
+   | Target connection | `FlowForge DB` |
+   | Target table | `public.dl_auto_{{ current_date }}` |
+   | Mode | `Append` |
+   | Create table if missing | Ticked |
+
+3. Run the pipeline
+4. Open pgAdmin or a SQL client and inspect:
+
+   ```sql
+   SELECT column_name, data_type
+   FROM information_schema.columns
+   WHERE table_schema = 'public'
+     AND table_name LIKE 'dl_auto_%'
+   ORDER BY ordinal_position;
+   ```
+
+Expected column types (based on SUBS CSV):
+
+| Column | Expected type |
+|---|---|
+| `subscriber_id` | text |
+| `plan` | text |
+| `status` | text |
+| `monthly_amount` | numeric |
+| `start_date` | date |
+
+- [ ] Run succeeds — step log shows "(table auto-created)"
+- [ ] Table exists in DB with the correct columns
+- [ ] Numeric column is `numeric`, not `text`
+- [ ] Date column is `date`, not `text`
+
+### 11b. Re-run — table already exists
+
+Run the same pipeline again (without dropping the table).
+
+- [ ] Run succeeds — no "table auto-created" note in step log
+- [ ] Rows appended correctly (no error about existing table)
+
+### 11c. Replace mode with auto-create
+
+Edit the step to use mode `Replace` instead of `Append`, then run on a table
+that doesn't exist yet (rename `target_table` to `public.dl_replace_test`).
+
+- [ ] Table auto-created AND truncated on first run
+- [ ] Second run: table truncated, same row count (not doubled)
+
+---
+
+## 12. Scheduling
 
 1. Open a pipeline → set a schedule (e.g. every 5 minutes: `*/5 * * * *`)
 2. Enable the schedule and wait
@@ -426,7 +583,7 @@ Repeat tests 6a and 6b using the M365 provider instead of Gmail.
 
 ---
 
-## 11. OneDrive Upload
+## 13. OneDrive Upload
 
 *(Not yet built — backlog item. Skip.)*
 
