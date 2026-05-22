@@ -74,3 +74,20 @@ class SMTPProvider(EmailProvider):
         except Exception as e:
             logger.error("SMTP send failed: %s", e)
             return EmailResult(success=False, error=str(e))
+
+    def test(self) -> tuple[bool, str]:
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS)
+        try:
+            if self.use_ssl:
+                server = smtplib.SMTP_SSL(self.host, self.port, timeout=10)
+            else:
+                server = smtplib.SMTP(self.host, self.port, timeout=10)
+                if self.use_tls:
+                    server.starttls(context=ctx)
+            if self.username:
+                server.login(self.username, self.password)
+            server.quit()
+            return True, f"Connected to {self.host}:{self.port}"
+        except Exception as e:
+            logger.error("SMTP test failed: %s", e)
+            return False, str(e)

@@ -82,3 +82,13 @@ class GmailProvider(EmailProvider):
         except Exception as e:
             logger.error("Gmail API send failed: %s", e)
             return EmailResult(success=False, error=str(e))
+
+    def test(self) -> tuple[bool, str]:
+        try:
+            from googleapiclient.discovery import build as api_build
+            service = api_build('gmail', 'v1', credentials=self._creds)
+            profile = service.users().getProfile(userId='me').execute()
+            return True, f"Connected as {profile.get('emailAddress', 'unknown')}"
+        except Exception as e:
+            logger.error("Gmail test failed: %s", e)
+            return False, str(e)

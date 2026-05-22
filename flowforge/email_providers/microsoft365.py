@@ -92,3 +92,11 @@ class Microsoft365Provider(EmailProvider):
         except Exception as e:
             logger.error("Microsoft 365 send failed: %s", e)
             return EmailResult(success=False, error=str(e))
+
+    def test(self) -> tuple[bool, str]:
+        try:
+            self._get_token()
+            return True, f"Connected ({self.sender})"
+        except Exception as e:
+            logger.error("Microsoft 365 test failed: %s", e)
+            return False, str(e)

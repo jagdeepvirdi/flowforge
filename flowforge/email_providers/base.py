@@ -21,3 +21,7 @@ class EmailProvider(ABC):
         html_body: str,
         attachments: list[Path],
     ) -> EmailResult: ...
+
+    def test(self) -> tuple[bool, str]:
+        """Verify credentials/connectivity. Returns (ok, message)."""
+        return True, 'Connected'
