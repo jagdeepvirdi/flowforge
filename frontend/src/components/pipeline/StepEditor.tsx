@@ -498,6 +498,22 @@ function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnections }: DataLoa
             </select>
           </Field>
         </div>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}>
+          <input
+            type="checkbox"
+            checked={Boolean(cfg.create_if_missing)}
+            onChange={e => setConfig('create_if_missing', e.target.checked)}
+          />
+          <span style={{ fontSize: 12.5, color: '#CBD5E1' }}>
+            Create table if it doesn't exist
+          </span>
+        </label>
+        {cfg.create_if_missing && (
+          <span style={{ fontSize: 11, color: '#64748B', paddingLeft: 22 }}>
+            All columns created as TEXT / VARCHAR2. Use for staging tables where schema doesn't need to be pre-defined.
+          </span>
+        )}
       </div>
 
       {/* ── Advanced (collapsible) ────────────────────────────────────────── */}

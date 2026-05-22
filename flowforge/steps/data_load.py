@@ -62,6 +62,7 @@ class DataLoadStep(BaseStep):
         chunk_size = int(self.config.get('chunk_size', 1000))
         column_map: dict[str, str] = self.config.get('column_map', {})
         source_cfg: dict = self.config.get('source', {})
+        create_if_missing: bool = bool(self.config.get('create_if_missing', False))
 
         if not target_connection_id:
             return StepResult(success=False, error='target_connection_id is required')
@@ -90,16 +91,22 @@ class DataLoadStep(BaseStep):
             from flowforge.connections.factory import get_connection
             conn = get_connection(target_connection_id)
             with conn:
+                created = False
+                if create_if_missing and not self._table_exists(conn, target_table):
+                    self._create_table(conn, target_table, columns)
+                    created = True
+                    logger.info("DataLoad: created table %s", target_table)
                 total = self._bulk_load(conn, target_table, mode, columns, rows, chunk_size)
         except Exception as e:
             logger.error("DataLoad: insert into %s failed: %s", target_table, e)
             return StepResult(success=False, error=str(e))
 
-        logger.info("DataLoad: %d rows → %s (mode=%s)", total, target_table, mode)
+        created_note = ' (table auto-created)' if create_if_missing and created else ''
+        logger.info("DataLoad: %d rows → %s (mode=%s)%s", total, target_table, mode, created_note)
         return StepResult(
             success=True,
             rows_affected=total,
-            logs=f"Loaded {total:,} rows into {target_table} (mode={mode})",
+            logs=f"Loaded {total:,} rows into {target_table} (mode={mode}){created_note}",
         )
 
     # ── source readers ────────────────────────────────────────────────────────
@@ -156,6 +163,21 @@ class DataLoadStep(BaseStep):
         return columns, rows
 
     # ── target loader ─────────────────────────────────────────────────────────
+
+    def _table_exists(self, conn, table: str) -> bool:
+        """Return True if table is queryable — works on PostgreSQL and Oracle."""
+        try:
+            conn.execute_query(f"SELECT * FROM {table} WHERE 1=0")
+            return True
+        except Exception:
+            return False
+
+    def _create_table(self, conn, table: str, columns: list[str]) -> None:
+        """CREATE TABLE with all columns as text — appropriate for staging tables."""
+        db_type = getattr(conn, 'db_type', 'postgresql')
+        col_type = 'VARCHAR2(4000)' if db_type == 'oracle' else 'TEXT'
+        col_defs = ', '.join(f'"{c}" {col_type}' for c in columns)
+        conn.execute_write(f'CREATE TABLE {table} ({col_defs})')
 
     def _bulk_load(self, conn, table: str, mode: str, columns: list[str], rows: list[tuple], chunk_size: int) -> int:
         if mode == 'replace':

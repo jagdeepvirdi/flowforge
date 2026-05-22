@@ -14,6 +14,8 @@ _pools: dict[tuple, pool.ThreadedConnectionPool] = {}
 
 
 class PostgreSQLConnection(BaseConnection):
+    db_type = 'postgresql'
+
     def __init__(self, host: str, database: str, user: str, password: str, port: int = 5432):
         key = (host, port, database, user)
         if key not in _pools:

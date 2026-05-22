@@ -8,6 +8,8 @@ logger = logging.getLogger(__name__)
 
 
 class OracleConnection(BaseConnection):
+    db_type = 'oracle'
+
     def __init__(self, host: str, port: int, service_name: str, user: str, password: str):
         try:
             import oracledb
