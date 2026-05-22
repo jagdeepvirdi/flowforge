@@ -39,14 +39,14 @@
 
 #### Scheduler Smoke Test
 - [x] Create pipeline with scheduled run → start scheduler → verify auto-run in history *(screenshot: scheduler-auto-run-history.png — 19 scheduler-triggered runs)*
-- [ ] Disable pipeline → verify no more runs triggered
+- [x] Disable pipeline → verify no more runs triggered *(screenshot: scheduler-pipeline-disabled.png)*
 
 ---
 
 ## Phase 4 — Polish & Release Prep 🔵
 *Docs, GitHub presence, and final UX touches.*
 
-- [ ] **README screenshots** — ~~Dashboard~~ ✓, ~~Run Detail~~ ✓, **Pipeline Builder still needed**. Highest-impact item for GitHub stars.
+- [x] **README screenshots** — Dashboard ✓, Run Detail ✓, Pipeline Builder ✓, Email Setup ✓, Scheduler Disabled ✓ *(all in `docs/screenshots/`)*
 
 ---
 
