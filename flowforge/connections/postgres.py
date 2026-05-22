@@ -50,6 +50,16 @@ class PostgreSQLConnection(BaseConnection):
         self._conn.commit()
         return rows
 
+    def execute_many(self, sql: str, rows: list[tuple]) -> int:
+        from psycopg2.extras import execute_batch
+        with self._conn.cursor() as cur:
+            execute_batch(cur, sql, rows, page_size=1000)
+        self._conn.commit()
+        return len(rows)
+
+    def make_placeholders(self, n: int) -> str:
+        return ', '.join(['%s'] * n)
+
     def test(self) -> tuple[bool, int]:
         start = time.monotonic()
         try:

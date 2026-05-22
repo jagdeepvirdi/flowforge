@@ -13,6 +13,7 @@ _STEP_CLASSES: dict[str, str] = {
     'report':       'flowforge.steps.report.ReportStep',
     'email':        'flowforge.steps.email_step.EmailStep',
     'drive_upload': 'flowforge.steps.drive_upload.DriveUploadStep',
+    'data_load':    'flowforge.steps.data_load.DataLoadStep',
 }
 
 

@@ -69,12 +69,14 @@ class OracleConnection(BaseConnection):
         return rows
 
     def execute_many(self, sql: str, rows: list[tuple]) -> int:
-        """Bulk insert using executemany — used by DataLoader."""
         with self._conn.cursor() as cur:
             cur.executemany(sql, rows)
             count = cur.rowcount
         self._conn.commit()
         return count
+
+    def make_placeholders(self, n: int) -> str:
+        return ', '.join([f':{i + 1}' for i in range(n)])
 
     def test(self) -> tuple[bool, int]:
         start = time.monotonic()
