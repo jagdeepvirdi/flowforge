@@ -74,6 +74,7 @@ export default function Connections() {
   const qc = useQueryClient()
   const [tab, setTab] = useState<Tab>('db')
   const [testStatuses, setTestStatuses] = useState<Record<string, 'testing' | 'ok' | 'fail'>>({})
+  const [testErrors, setTestErrors]     = useState<Record<string, string>>({})
   const [showModal, setShowModal] = useState(false)
   const [editId, setEditId]       = useState<string | null>(null)
   const [dbForm, setDbForm]       = useState<DbForm>(emptyDb())
@@ -172,15 +173,25 @@ export default function Connections() {
 
   const testDb = (id: string) => {
     setTestStatuses(s => ({ ...s, [id]: 'testing' }))
+    setTestErrors(e => ({ ...e, [id]: '' }))
     testDbConnection(id)
       .then(() => setTestStatuses(s => ({ ...s, [id]: 'ok' })))
-      .catch(() => setTestStatuses(s => ({ ...s, [id]: 'fail' })))
+      .catch((err: Error) => {
+        console.error('DB connection test failed:', err.message)
+        setTestStatuses(s => ({ ...s, [id]: 'fail' }))
+        setTestErrors(e => ({ ...e, [id]: err.message }))
+      })
   }
   const testEmail = (id: string) => {
     setTestStatuses(s => ({ ...s, [id]: 'testing' }))
+    setTestErrors(e => ({ ...e, [id]: '' }))
     testEmailProvider(id)
       .then(() => setTestStatuses(s => ({ ...s, [id]: 'ok' })))
-      .catch(() => setTestStatuses(s => ({ ...s, [id]: 'fail' })))
+      .catch((err: Error) => {
+        console.error('Email provider test failed:', err.message)
+        setTestStatuses(s => ({ ...s, [id]: 'fail' }))
+        setTestErrors(e => ({ ...e, [id]: err.message }))
+      })
   }
 
   const TABS = [
@@ -307,6 +318,9 @@ export default function Connections() {
                         {ts === 'fail' && <StatusBadge status="failed"  label="Failed" />}
                       </div>
                       <div className="mono" style={{ fontSize: 11.5, color: '#64748B' }}>{p.provider_type} · {p.is_default ? 'default' : 'not default'}</div>
+                      {ts === 'fail' && testErrors[p.id] && (
+                        <div className="mono" style={{ fontSize: 11, color: '#EF4444', marginTop: 4, wordBreak: 'break-all' }}>{testErrors[p.id]}</div>
+                      )}
                     </div>
                     <div style={{ display: 'flex', gap: 24, fontSize: 11.5, flexShrink: 0 }}>
                       <StatCol label="Type"    value={p.provider_type} />
