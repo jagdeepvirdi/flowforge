@@ -573,7 +573,7 @@ function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnections }: DataLoa
             Create table if it doesn't exist
           </span>
         </label>
-        {cfg.create_if_missing && (
+        {!!cfg.create_if_missing && (
           <span style={{ fontSize: 11, color: '#64748B', paddingLeft: 22 }}>
             Column types are inferred from the data (INTEGER, NUMERIC, DATE, TIMESTAMP, TEXT). Samples up to 1,000 rows.
           </span>

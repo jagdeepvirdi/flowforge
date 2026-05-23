@@ -42,7 +42,7 @@ export interface PipelineStep {
 }
 
 export interface PipelineVariable {
-  id: string
+  id?: string
   var_key: string
   var_value: string
   is_secret: boolean

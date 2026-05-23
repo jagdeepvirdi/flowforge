@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "flowforge"
-version = "0.1.0"
+version = "1.0.0"
 description = "Database-driven pipeline orchestrator. Configure everything from the UI — no YAML required."
 readme = "README.md"
 license = { file = "LICENSE" }
