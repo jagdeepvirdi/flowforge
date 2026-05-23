@@ -17,13 +17,18 @@ async function request<T>(
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
 
+  const data = await res.json().catch(() => ({}))
+
   if (res.status === 401) {
     useAuth.getState().clearToken()
-    window.location.href = '/login'
-    throw new Error('Unauthorized')
+    // Don't redirect if already on /login — just surface the error message so the
+    // login form can display it (a full reload would wipe React state before render).
+    if (window.location.pathname !== '/login') {
+      window.location.href = '/login'
+    }
+    throw new Error(data.error ?? 'Unauthorized')
   }
 
-  const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
   return data as T
 }

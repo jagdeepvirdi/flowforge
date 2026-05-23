@@ -56,6 +56,7 @@ export default function Login() {
               <input
                 className="input"
                 type="text"
+                data-testid="username"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 autoFocus
@@ -68,6 +69,7 @@ export default function Login() {
               <input
                 className="input"
                 type="password"
+                data-testid="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required

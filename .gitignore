@@ -43,6 +43,13 @@ node_modules/
 frontend/dist/
 frontend/.env.local
 
+# Playwright E2E
+frontend/e2e/.auth.json
+frontend/e2e/playwright-report/
+frontend/e2e/test-results/
+frontend/playwright-report/
+frontend/test-results/
+
 # FlowForge runtime
 .flowforge/
 output/
