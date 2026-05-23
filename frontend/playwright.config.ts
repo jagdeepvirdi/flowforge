@@ -59,5 +59,11 @@ export default defineConfig({
       },
       dependencies: ['setup'],
     },
+    // Delete all "E2E *" pipelines (and their run history) after every run
+    {
+      name: 'teardown',
+      testMatch: /global\.teardown\.ts/,
+      dependencies: ['chromium'],
+    },
   ],
 })
