@@ -1,9 +1,14 @@
 from flask import Blueprint, jsonify, request
 
 from flowforge.api.auth import require_auth
-from flowforge.db.models import RecipientGroup, db
+from flowforge.db.models import DEFAULT_PROJECT_ID, Project, RecipientGroup, db
 
 bp = Blueprint('recipients', __name__)
+
+
+def _default_project_id() -> str:
+    p = db.session.query(Project).filter_by(is_default=True).first()
+    return p.id if p else DEFAULT_PROJECT_ID
 
 
 def _group_dict(g: RecipientGroup) -> dict:
@@ -12,6 +17,7 @@ def _group_dict(g: RecipientGroup) -> dict:
         'name': g.name,
         'description': g.description,
         'addresses': g.addresses or [],
+        'project_id': g.project_id,
         'created_at': g.created_at.isoformat() if g.created_at else None,
     }
 
@@ -19,8 +25,11 @@ def _group_dict(g: RecipientGroup) -> dict:
 @bp.get('/recipient-groups')
 @require_auth
 def list_groups():
-    groups = db.session.query(RecipientGroup).order_by(RecipientGroup.name).all()
-    return jsonify([_group_dict(g) for g in groups])
+    query = db.session.query(RecipientGroup).order_by(RecipientGroup.name)
+    project_id = request.args.get('project_id')
+    if project_id:
+        query = query.filter(RecipientGroup.project_id == project_id)
+    return jsonify([_group_dict(g) for g in query.all()])
 
 
 @bp.post('/recipient-groups')
@@ -36,6 +45,7 @@ def create_group():
         name=data['name'],
         description=data.get('description', ''),
         addresses=data['addresses'],
+        project_id=data.get('project_id') or _default_project_id(),
     )
     db.session.add(group)
     db.session.commit()
@@ -59,7 +69,7 @@ def update_group(group_id):
         return jsonify({'error': 'Group not found'}), 404
 
     data = request.get_json() or {}
-    for field in ('name', 'description', 'addresses'):
+    for field in ('name', 'description', 'addresses', 'project_id'):
         if field in data:
             setattr(group, field, data[field])
 

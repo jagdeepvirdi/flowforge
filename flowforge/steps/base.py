@@ -20,6 +20,10 @@ class StepResult:
     records_loaded: int = 0
     records_failed: int = 0
     duration_sec: float = 0.0
+    # db_query capture_rows output fields
+    rows: list[dict] = field(default_factory=list)
+    table_html: str = ''
+    kv_html: str = ''
 
 
 class BaseStep(ABC):

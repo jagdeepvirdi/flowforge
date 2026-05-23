@@ -7,6 +7,7 @@ import {
   getDbConnections,
 } from '../lib/api'
 import type { ReportFormat } from '../lib/types'
+import { useProjectStore } from '../lib/store'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 
@@ -18,6 +19,7 @@ export default function ReportEdit() {
   const isNew = !id
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const { activeProjectId } = useProjectStore()
 
   const { data: existing, isLoading } = useQuery({ queryKey: ['report-config', id], queryFn: () => getReportConfig(id!), enabled: !isNew })
   const { data: dbConns = [] } = useQuery({ queryKey: ['db-connections'], queryFn: getDbConnections })
@@ -57,7 +59,7 @@ export default function ReportEdit() {
     setFieldErrors({})
     setSaving(true); setError('')
     try {
-      const payload = { name, description: desc, connection_id: connId || null, query, format, output_filename: filename, sheet_name: sheetName, title }
+      const payload = { name, description: desc, connection_id: connId || null, query, format, output_filename: filename, sheet_name: sheetName, title, ...(isNew && activeProjectId ? { project_id: activeProjectId } : {}) }
       isNew ? await createReportConfig(payload) : await updateReportConfig(id!, payload)
       qc.invalidateQueries({ queryKey: ['report-configs'] })
       navigate('/reports')

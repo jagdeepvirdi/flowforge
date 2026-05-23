@@ -83,6 +83,8 @@ export const STEP_HINTS: Record<string, StepHint> = {
       'truncate_insert — same as replace but explicit.',
       'Leave output table blank to run the query without writing results.',
       'Output variable: captures the first column of the first row as a named variable — e.g. set "subscription_count" then use {{ subscription_count }} in later steps.',
+      'Capture rows for email: tick this to make all result rows available to downstream email steps. Use {{ steps.NAME.table_html }} for an HTML table, {{ steps.NAME.kv_html }} for a key-value summary of the first row, or {% for row in steps.NAME.rows %}{{ row.col_name }}{% endfor %} for a custom layout.',
+      'Row limit: caps how many rows are captured (default 100). rows_affected always reflects the full query count.',
     ],
   },
   report: {
@@ -99,6 +101,7 @@ export const STEP_HINTS: Record<string, StepHint> = {
       'Attachments field: one path per line. Supports {{ variables }}.',
       'Use {{ steps.report_step.output_path }} to attach a file from a previous report step.',
       'Smart attachment: if the file exceeds the size threshold it\'s uploaded to Drive automatically.',
+      'To embed query results in the email body, enable "Capture rows for email" on an upstream db_query step — the Pipeline Builder will show you the exact snippets to paste into your email body template.',
     ],
   },
   drive_upload: {

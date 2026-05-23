@@ -5,7 +5,7 @@ from flask import Blueprint, jsonify, request
 
 from flowforge.api.auth import require_auth
 from flowforge.crypto import decrypt_value, encrypt_value
-from flowforge.db.models import Pipeline, PipelineRun, PipelineVariable, db
+from flowforge.db.models import DEFAULT_PROJECT_ID, Pipeline, PipelineRun, PipelineVariable, Project, db
 
 bp = Blueprint('pipelines', __name__)
 
@@ -46,6 +46,11 @@ def _next_run_iso(schedule: str | None) -> str | None:
         return None
 
 
+def _default_project_id() -> str:
+    p = db.session.query(Project).filter_by(is_default=True).first()
+    return p.id if p else DEFAULT_PROJECT_ID
+
+
 def _pipeline_dict(p: Pipeline) -> dict:
     return {
         'id': p.id,
@@ -55,6 +60,7 @@ def _pipeline_dict(p: Pipeline) -> dict:
         'next_run': _next_run_iso(p.schedule),
         'enabled': p.enabled,
         'timeout_minutes': p.timeout_minutes,
+        'project_id': p.project_id,
         'created_at': p.created_at.isoformat() if p.created_at else None,
         'updated_at': p.updated_at.isoformat() if p.updated_at else None,
         'steps': [
@@ -84,8 +90,11 @@ def _pipeline_dict(p: Pipeline) -> dict:
 @bp.get('/pipelines')
 @require_auth
 def list_pipelines():
-    pipelines = db.session.query(Pipeline).order_by(Pipeline.name).all()
-    return jsonify([_pipeline_dict(p) for p in pipelines])
+    query = db.session.query(Pipeline).order_by(Pipeline.name)
+    project_id = request.args.get('project_id')
+    if project_id:
+        query = query.filter(Pipeline.project_id == project_id)
+    return jsonify([_pipeline_dict(p) for p in query.all()])
 
 
 @bp.get('/pipelines/cron-next')
@@ -131,6 +140,7 @@ def create_pipeline():
         schedule=data.get('schedule'),
         enabled=data.get('enabled', True),
         timeout_minutes=data.get('timeout_minutes', 60),
+        project_id=data.get('project_id') or _default_project_id(),
     )
     db.session.add(pipeline)
     db.session.flush()
@@ -171,7 +181,7 @@ def update_pipeline(pipeline_id):
         if err:
             return jsonify({'error': f'Invalid cron expression: {err}'}), 400
 
-    for field in ('name', 'description', 'schedule', 'enabled', 'timeout_minutes'):
+    for field in ('name', 'description', 'schedule', 'enabled', 'timeout_minutes', 'project_id'):
         if field in data:
             setattr(pipeline, field, data[field])
 

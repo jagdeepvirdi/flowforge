@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { getReportConfigs, deleteReportConfig } from '../lib/api'
+import { useProjectStore } from '../lib/store'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 import PageIntro from '../components/shared/PageIntro'
@@ -14,7 +15,11 @@ const FORMAT_META: Record<string, { cls: string }> = {
 
 export default function Reports() {
   const qc = useQueryClient()
-  const { data: configs = [], isLoading } = useQuery({ queryKey: ['report-configs'], queryFn: getReportConfigs })
+  const { activeProjectId } = useProjectStore()
+  const { data: configs = [], isLoading } = useQuery({
+    queryKey: ['report-configs', activeProjectId],
+    queryFn: () => getReportConfigs(activeProjectId ? { project_id: activeProjectId } : undefined),
+  })
   const { mutate: remove } = useMutation({
     mutationFn: deleteReportConfig,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['report-configs'] }),

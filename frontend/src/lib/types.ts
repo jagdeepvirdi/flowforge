@@ -1,3 +1,13 @@
+export interface Project {
+  id: string
+  name: string
+  description: string
+  color: string
+  is_default: boolean
+  created_at: string
+  resource_counts?: { pipelines: number; reports: number; emails: number; recipients: number }
+}
+
 export type PipelineStatus = 'success' | 'failed' | 'running' | 'cancelled' | 'never run'
 export type StepType = 'db_procedure' | 'db_query' | 'report' | 'email' | 'drive_upload' | 'ai_analyze' | 'data_load' | 'bulk_load'
 export type OnError = 'stop' | 'continue'
@@ -13,6 +23,7 @@ export interface Pipeline {
   next_run: string | null
   enabled: boolean
   timeout_minutes: number
+  project_id: string | null
   created_at: string
   updated_at: string
   steps: PipelineStep[]
@@ -80,6 +91,7 @@ export interface ReportConfig {
   title: string | null
   sheet_name: string | null
   columns: string[]
+  project_id: string | null
   created_at: string
   updated_at: string
 }
@@ -100,6 +112,7 @@ export interface EmailConfig {
   attachment_max_mb: number
   drive_folder_id: string | null
   drive_share_message: string | null
+  project_id: string | null
   created_at: string
   updated_at: string
 }
@@ -149,5 +162,6 @@ export interface RecipientGroup {
   name: string
   description: string
   addresses: string[]
+  project_id: string | null
   created_at: string
 }

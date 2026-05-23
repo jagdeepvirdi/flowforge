@@ -19,11 +19,7 @@
 
 ---
 
-## Remaining Work
-
----
-
-### Query Results in Email (`db_query` → `email` data display)
+## Remaining Work — Query Results in Email (`db_query` → `email` data display)
 
 **Goal:** When a `db_query` step runs (e.g. a post-load audit query returning success/fail counts), subsequent `email` steps can display those results inside the email body — without the user writing raw Jinja2.
 
@@ -33,7 +29,7 @@
 3. In the email body editor, a new **"Insert step data"** button lists all `db_query` steps in the pipeline that have capture enabled. User picks one and a display format → the correct Jinja2 snippet is inserted into the body.
 4. Email renders: `{{ steps.load_check.table_html }}` expands to an HTML table inside the sent email.
 
-**Display format presets (the "limited options"):**
+**Display format presets:**
 | Preset | Variable inserted | Output |
 |---|---|---|
 | HTML table | `{{ steps.NAME.table_html }}` | Styled `<table>` with all columns |
@@ -41,39 +37,105 @@
 | Counts only | `{{ steps.NAME.rows_affected }}` | Plain number — same as existing `rows_affected` |
 | Custom Jinja2 | `{% for row in steps.NAME.rows %}{{ row.status }}: {{ row.count }}<br>{% endfor %}` | User writes own markup with column-name access |
 
----
-
-**Backend changes:**
-
-- [ ] `flowforge/steps/base.py` — add `rows: list[dict]` to `StepResult` (default `[]`)
-- [ ] `flowforge/steps/db_query.py`
-  - Read `capture_rows: bool` (default `False`) and `row_limit: int` (default 100) from step config
-  - When `capture_rows=True`: fetch results as list-of-dicts; truncate to `row_limit`; store in `step_result.rows`; render `table_html` and `kv_html` into `step_result.output_variables` so they land in context
-  - `table_html` renderer: simple inline-styled `<table>` (no external CSS dependency, works in email clients)
-  - `kv_html` renderer: `<dl>` from first row only — for single-row summary queries
-- [ ] `flowforge/engine/runner.py` — add `'rows': step_result.rows` to the `context['steps'][step.name]` dict (same pattern as `files_found` etc.)
-
-**Frontend changes:**
-
-- [ ] `frontend/src/components/pipeline/StepEditor.tsx` — db_query form section:
-  - Add **"Capture rows for email"** toggle (`capture_rows`)
-  - When toggled on, show **"Row limit"** number input (1–1000, default 100)
-  - Hint text: _"Makes query results available in downstream email steps as `{{ steps.NAME.table_html }}`"_
-- [ ] `frontend/src/pages/EmailDesigner.tsx` (or email body CodeMirror toolbar):
-  - Add **"Insert step data"** button in the body editor toolbar
-  - Opens a small popover: shows all `db_query` steps in the current pipeline that have `capture_rows=true`
-  - User picks a step → picks a format preset → the correct snippet is inserted at cursor position
-  - If no capturing steps exist, show: _"Enable 'Capture rows for email' on a DB Query step first."_
-- [ ] `frontend/src/lib/helpContent.ts` — add `capture_rows` / `row_limit` hints to `db_query` step tips; add email template variable examples (`{{ steps.NAME.table_html }}`, `{% for row in steps.NAME.rows %}`)
-
 **No migration required** — `capture_rows` and `row_limit` are stored in `pipeline_steps.config` JSONB; `table_html`/`kv_html` live only in the in-memory pipeline context.
 
-**Implementation order:**
-1. `StepResult.rows` field + `db_query.py` capture logic + `table_html`/`kv_html` renderers
-2. Runner context propagation
-3. `StepEditor.tsx` capture toggle + row_limit field
-4. Email designer "Insert step data" helper
-5. Tests: `test_db_query_capture.py` (capture=True stores rows, renders HTML, respects row_limit, capture=False leaves rows empty); update `test_runner.py` to assert `rows` key in context
+---
+
+### Phase 1 — Backend Core
+*Foundation. Nothing else works without this.*
+
+- [x] `flowforge/steps/base.py` — add `rows: list[dict]`, `table_html: str`, `kv_html: str` fields to `StepResult`
+- [x] `flowforge/steps/db_query.py` — read `capture_rows: bool` (default `False`) and `row_limit: int` (default 100) from step config
+- [x] `flowforge/steps/db_query.py` — implement `table_html` renderer: inline-styled `<table>` (no external CSS, email-client safe), HTML-escaped
+- [x] `flowforge/steps/db_query.py` — implement `kv_html` renderer: `<dl>` from first row only (single-row summary queries), HTML-escaped
+- [x] `flowforge/steps/db_query.py` — when `capture_rows=True`, use `execute_query_with_columns`, zip into list-of-dicts, store rows + rendered HTML in StepResult
+- [x] `flowforge/engine/runner.py` — add `'rows'`, `'table_html'`, `'kv_html'` to `context['steps'][step.name]` (same pattern as `files_found` etc.)
+
+---
+
+### Phase 2 — Frontend: Step Config
+*Lets users opt in to row capture on a per-step basis.*
+
+- [x] `frontend/src/components/pipeline/StepEditor.tsx` — add **"Capture rows for email"** toggle (`capture_rows`) to the `db_query` form
+- [x] `frontend/src/components/pipeline/StepEditor.tsx` — show **"Row limit"** number input (1–1000, default 100) when toggle is on
+- [x] `frontend/src/components/pipeline/StepEditor.tsx` — add hint text showing the exact `{{ steps.NAME.table_html }}` snippet for the step name
+
+---
+
+### Phase 3 — Frontend: Email Designer
+*The payoff — lets users insert captured data into email bodies.*
+
+- [x] `frontend/src/components/pipeline/StepEditor.tsx` — email step shows **"Query data"** section listing upstream `db_query` steps with `capture_rows=true`, with copyable snippets for `table_html`, `kv_html`, and custom loop
+- [x] `frontend/src/pages/EmailEdit.tsx` — added `{{ steps.step_name.table_html }}`, `{{ steps.step_name.kv_html }}`, and `{% for row in steps.step_name.rows %}` to the Available Variables reference card
+
+---
+
+### Phase 4 — Help Content & Tests
+*Correctness verification and discoverability.*
+
+- [x] `frontend/src/lib/helpContent.ts` — added `capture_rows` / `row_limit` hints to `db_query` step tips
+- [x] `frontend/src/lib/helpContent.ts` — added embed-query-data hint to `email` step tips
+- [x] `tests/test_db_query_capture.py` — `capture=True`: rows stored, HTML rendered, `row_limit` respected; `capture=False`: rows empty, no HTML rendered; HTML renderer unit tests incl. XSS escaping
+- [x] `tests/test_runner.py` — assert `rows`, `table_html`, `kv_html` keys are in `context['steps']` for both capturing and non-capturing steps
+
+---
+
+## Multi-Project Support
+
+**Goal:** Organize all FlowForge resources (pipelines, reports, email configs, recipient groups) into named projects — so teams can manage Finance, HR, Marketing Ops, etc. in one FlowForge instance without everything living in a flat list.
+
+**Design decisions:**
+- `db_connections` and `email_providers` stay **global** — infrastructure configured once, shared across projects
+- A **"Default"** project is seeded on migration — all existing rows assigned to it, zero data loss
+- Project switcher lives at the top of the sidebar (Vercel/Linear style)
+- "All Projects" admin view for cross-project run history
+
+**Data model — new `project_id` FK on:**
+`pipelines`, `report_configs`, `email_configs`, `recipient_groups`
+
+---
+
+### Phase 1 — Database & Backend
+*Migration is the critical path. Everything else builds on it.*
+
+- [x] `flowforge/db/models.py` — add `Project` model: `id`, `name`, `description`, `color`, `created_at`
+- [x] `flowforge/db/models.py` — add `project_id` FK (nullable → non-null after backfill) to `Pipeline`, `ReportConfig`, `EmailConfig`, `RecipientGroup`
+- [x] `flowforge/db/migrations/` — Alembic migration: create `projects` table, add `project_id` columns, seed "Default" project, backfill all existing rows
+- [x] `flowforge/api/routes/projects.py` — CRUD endpoints: `GET /projects`, `POST /projects`, `PATCH /projects/:id`, `DELETE /projects/:id`
+- [x] All existing list/get routes — filter by `project_id` query param (e.g. `GET /pipelines?project_id=...`)
+- [x] `flowforge/api/routes/runs.py` — "All Projects" run history: `GET /runs` with optional `project_id` filter
+
+---
+
+### Phase 2 — Frontend: Project Switcher & Projects Page
+*The core navigation change.*
+
+- [x] `frontend/src/components/shared/ProjectSwitcher.tsx` — dropdown at top of sidebar: current project name, list of all projects, "All Projects" link, "+ New Project" action
+- [x] `frontend/src/lib/store.ts` (Zustand) — add `activeProjectId` global state; persisted to `localStorage`
+- [x] `frontend/src/pages/Projects.tsx` — projects list as cards: name, color tag, pipeline count, last run status; create/edit/delete actions
+- [x] `frontend/src/lib/api.ts` — pass `project_id` on all scoped API calls (pipelines, reports, email, recipients)
+
+---
+
+### Phase 3 — Frontend: Scoped Pages & All Projects View
+*Filter all existing pages by active project; add the admin overview.*
+
+- [x] `frontend/src/pages/Dashboard.tsx` — scope pipeline cards to active project; show project name in header
+- [x] `frontend/src/pages/PipelineEdit.tsx` — set `project_id` on create
+- [x] `frontend/src/pages/ReportEdit.tsx` — scope to active project on create
+- [x] `frontend/src/pages/EmailEdit.tsx` — scope to active project on create; recipient groups filtered by project
+- [x] `frontend/src/pages/Recipients.tsx` — scope to active project on list and create
+- [x] `frontend/src/pages/RunHistory.tsx` — scope to active project by default; pipeline filter list scoped to active project
+
+---
+
+### Phase 4 — Tests & Migration Safety
+*Verify the migration is safe and scoping is airtight.*
+
+- [x] `tests/test_projects.py` — CRUD for projects; confirm resources are correctly scoped per project
+- [x] `tests/test_projects.py` — confirm pipelines/groups created without `project_id` are assigned to Default project
+- [x] `tests/test_projects.py` — confirm `GET /pipelines?project_id=X` returns only X's pipelines, not cross-project leakage
+- [ ] Manual migration test: run on a populated DB, verify all rows backfilled, Default project present
 
 ---
 

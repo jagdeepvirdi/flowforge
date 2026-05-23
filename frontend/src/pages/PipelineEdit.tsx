@@ -15,6 +15,7 @@ import {
   getCronNext,
 } from '../lib/api'
 import type { Pipeline, PipelineStep, StepType } from '../lib/types'
+import { useProjectStore } from '../lib/store'
 import StepEditor from '../components/pipeline/StepEditor'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
@@ -40,6 +41,7 @@ export default function PipelineEdit() {
   const isNew = !id
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const { activeProjectId } = useProjectStore()
 
   const { data: existing, isLoading } = useQuery({
     queryKey: ['pipeline', id],
@@ -47,8 +49,8 @@ export default function PipelineEdit() {
     enabled: !isNew,
   })
   const { data: dbConns = [] } = useQuery({ queryKey: ['db-connections'], queryFn: getDbConnections })
-  const { data: reportCfgs = [] } = useQuery({ queryKey: ['report-configs'], queryFn: getReportConfigs })
-  const { data: emailCfgs = [] } = useQuery({ queryKey: ['email-configs'], queryFn: getEmailConfigs })
+  const { data: reportCfgs = [] } = useQuery({ queryKey: ['report-configs'], queryFn: () => getReportConfigs() })
+  const { data: emailCfgs = [] } = useQuery({ queryKey: ['email-configs'], queryFn: () => getEmailConfigs() })
   const { data: bulkLoadCfgs = [] } = useQuery({ queryKey: ['bulk-load-configs'], queryFn: getBulkLoadConfigs })
 
   const [name, setName]           = useState('')
@@ -116,7 +118,7 @@ export default function PipelineEdit() {
 
       let pipeline: Pipeline
       if (isNew) {
-        pipeline = await createPipeline({ name, description: desc, schedule: schedule || null, enabled, timeout_minutes: timeout, variables: validVars })
+        pipeline = await createPipeline({ name, description: desc, schedule: schedule || null, enabled, timeout_minutes: timeout, variables: validVars, project_id: activeProjectId ?? undefined })
       } else {
         pipeline = await updatePipeline(id!, { name, description: desc, schedule: schedule || null, enabled, timeout_minutes: timeout, variables: validVars })
       }

@@ -191,3 +191,60 @@ def test_pipeline_name_in_result():
          patch('flowforge.engine.runner._finish_run_record'):
         result = run_pipeline('My Report Pipeline', [make_step('x')])
     assert result.pipeline_name == 'My Report Pipeline'
+
+
+# ── capture_rows context threading ───────────────────────────────────────────
+
+def test_rows_threaded_to_context():
+    """rows, table_html, kv_html must land in context['steps'] after a capturing step."""
+    received = {}
+
+    class CapturingStep(BaseStep):
+        def run(self, ctx):
+            return StepResult(
+                success=True,
+                rows=[{'count': 5, 'status': 'ok'}],
+                table_html='<table>...</table>',
+                kv_html='<dl>...</dl>',
+            )
+
+    class NextStep(BaseStep):
+        def run(self, ctx):
+            received.update(ctx)
+            return StepResult(success=True)
+
+    with patch('flowforge.engine.runner._create_run_record', return_value=None), \
+         patch('flowforge.engine.runner._write_step_run'), \
+         patch('flowforge.engine.runner._finish_run_record'):
+        from flowforge.engine.runner import run_pipeline
+        run_pipeline('Test', [
+            CapturingStep('query_step', {'on_error': 'stop'}),
+            NextStep('email_step', {'on_error': 'stop'}),
+        ])
+
+    assert received['steps']['query_step']['rows'] == [{'count': 5, 'status': 'ok'}]
+    assert received['steps']['query_step']['table_html'] == '<table>...</table>'
+    assert received['steps']['query_step']['kv_html'] == '<dl>...</dl>'
+
+
+def test_rows_key_present_for_non_capturing_step():
+    """rows key must exist in context even when step produces no rows."""
+    received = {}
+
+    class NextStep(BaseStep):
+        def run(self, ctx):
+            received.update(ctx)
+            return StepResult(success=True)
+
+    with patch('flowforge.engine.runner._create_run_record', return_value=None), \
+         patch('flowforge.engine.runner._write_step_run'), \
+         patch('flowforge.engine.runner._finish_run_record'):
+        from flowforge.engine.runner import run_pipeline
+        run_pipeline('Test', [
+            make_step('plain_step'),
+            NextStep('consumer', {'on_error': 'stop'}),
+        ])
+
+    assert received['steps']['plain_step']['rows'] == []
+    assert received['steps']['plain_step']['table_html'] == ''
+    assert received['steps']['plain_step']['kv_html'] == ''

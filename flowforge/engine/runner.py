@@ -105,6 +105,9 @@ def run_pipeline(
             'records_loaded': step_result.records_loaded,
             'records_failed': step_result.records_failed,
             'duration_sec':   step_result.duration_sec,
+            'rows':           step_result.rows,
+            'table_html':     step_result.table_html,
+            'kv_html':        step_result.kv_html,
         }
 
         # Scalar output variables go to top-level context; guard against overwriting built-ins

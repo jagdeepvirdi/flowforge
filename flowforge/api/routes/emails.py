@@ -1,9 +1,14 @@
 from flask import Blueprint, jsonify, request
 
 from flowforge.api.auth import require_auth
-from flowforge.db.models import EmailConfig, db
+from flowforge.db.models import DEFAULT_PROJECT_ID, EmailConfig, Project, db
 
 bp = Blueprint('emails', __name__)
+
+
+def _default_project_id() -> str:
+    p = db.session.query(Project).filter_by(is_default=True).first()
+    return p.id if p else DEFAULT_PROJECT_ID
 
 
 def _email_dict(e: EmailConfig) -> dict:
@@ -23,6 +28,7 @@ def _email_dict(e: EmailConfig) -> dict:
         'attachment_max_mb': e.attachment_max_mb,
         'drive_folder_id': e.drive_folder_id,
         'drive_share_message': e.drive_share_message,
+        'project_id': e.project_id,
         'created_at': e.created_at.isoformat() if e.created_at else None,
         'updated_at': e.updated_at.isoformat() if e.updated_at else None,
     }
@@ -31,8 +37,11 @@ def _email_dict(e: EmailConfig) -> dict:
 @bp.get('/email-configs')
 @require_auth
 def list_email_configs():
-    configs = db.session.query(EmailConfig).order_by(EmailConfig.name).all()
-    return jsonify([_email_dict(e) for e in configs])
+    query = db.session.query(EmailConfig).order_by(EmailConfig.name)
+    project_id = request.args.get('project_id')
+    if project_id:
+        query = query.filter(EmailConfig.project_id == project_id)
+    return jsonify([_email_dict(e) for e in query.all()])
 
 
 @bp.post('/email-configs')
@@ -59,6 +68,7 @@ def create_email_config():
         attachment_max_mb=data.get('attachment_max_mb', 10),
         drive_folder_id=data.get('drive_folder_id'),
         drive_share_message=data.get('drive_share_message'),
+        project_id=data.get('project_id') or _default_project_id(),
     )
     db.session.add(config)
     db.session.commit()
@@ -86,6 +96,7 @@ def update_email_config(config_id):
         'name', 'description', 'provider_id', 'from_name', 'subject', 'header_text',
         'body_template', 'recipient_group_id', 'to_addresses', 'cc_addresses',
         'bcc_addresses', 'attachment_max_mb', 'drive_folder_id', 'drive_share_message',
+        'project_id',
     )
     for field in fields:
         if field in data:

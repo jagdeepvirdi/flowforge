@@ -3,6 +3,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Search, ChevronRight, Clock, User } from 'lucide-react'
 import { getRuns, getPipelines } from '../lib/api'
+import { useProjectStore } from '../lib/store'
 import StatusBadge from '../components/shared/StatusBadge'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
@@ -24,20 +25,25 @@ export default function RunHistory() {
   const [filterStatus, setFilterStatus]     = useState('')
   const [search, setSearch] = useState('')
   const [limit, setLimit]   = useState(PAGE_SIZE)
+  const { activeProjectId } = useProjectStore()
 
-  useEffect(() => { setLimit(PAGE_SIZE) }, [filterPipeline, filterStatus])
+  useEffect(() => { setLimit(PAGE_SIZE) }, [filterPipeline, filterStatus, activeProjectId])
 
   const { data: runs = [], isLoading, isFetching } = useQuery({
-    queryKey: ['runs', filterPipeline, filterStatus, limit],
+    queryKey: ['runs', filterPipeline, filterStatus, limit, activeProjectId],
     queryFn: () => getRuns({
       pipeline_id: filterPipeline || undefined,
       status:      filterStatus   || undefined,
+      project_id:  activeProjectId ?? undefined,
       limit,
     }),
     placeholderData: keepPreviousData,
     refetchInterval: 10_000,
   })
-  const { data: pipelines = [] } = useQuery({ queryKey: ['pipelines'], queryFn: getPipelines })
+  const { data: pipelines = [] } = useQuery({
+    queryKey: ['pipelines', activeProjectId],
+    queryFn: () => getPipelines(activeProjectId ? { project_id: activeProjectId } : undefined),
+  })
 
   const filtered = runs.filter(r =>
     (!search || r.pipeline_name.toLowerCase().includes(search.toLowerCase()) || r.id.includes(search))

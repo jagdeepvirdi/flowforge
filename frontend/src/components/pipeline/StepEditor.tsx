@@ -147,6 +147,35 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
                     Captures the first column of the first row as <code style={{ color: '#94A3B8' }}>{'{{ subscription_count }}'}</code> in downstream steps.
                   </span>
                 </Field>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(cfg.capture_rows)}
+                    onChange={e => setConfig('capture_rows', e.target.checked)}
+                  />
+                  <span style={{ fontSize: 12.5, color: '#CBD5E1' }}>Capture rows for email</span>
+                </label>
+                {cfg.capture_rows && (
+                  <div style={{ paddingLeft: 22, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <Field label="Row limit">
+                      <input
+                        className="input"
+                        type="number"
+                        min={1}
+                        max={1000}
+                        value={String(cfg.row_limit ?? 100)}
+                        onChange={e => setConfig('row_limit', parseInt(e.target.value) || 100)}
+                        style={{ width: 120 }}
+                      />
+                    </Field>
+                    <span style={{ fontSize: 11, color: '#64748B' }}>
+                      Makes query results available in downstream email steps as{' '}
+                      <code style={{ color: '#94A3B8', fontFamily: 'JetBrains Mono, monospace' }}>
+                        {`{{ steps.${step.name || 'this_step'}.table_html }}`}
+                      </code>
+                    </span>
+                  </div>
+                )}
               </>
             )}
 
@@ -167,6 +196,41 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
                     {emailConfigs.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                   </select>
                 </Field>
+                {/* Query data snippets from upstream capturing db_query steps */}
+                {(() => {
+                  const capturingSteps = allSteps.filter(
+                    s => s.step_type === 'db_query'
+                      && s.step_order < step.step_order
+                      && Boolean((s.config as Record<string, unknown>).capture_rows)
+                  )
+                  if (capturingSteps.length === 0) return null
+                  return (
+                    <Field label="Query data — available in email body">
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {capturingSteps.map(qs => {
+                          const ref = qs.name.includes(' ') ? `steps['${qs.name}']` : `steps.${qs.name}`
+                          const snippets: [string, string][] = [
+                            [`{{ ${ref}.table_html }}`, 'HTML table (all rows)'],
+                            [`{{ ${ref}.kv_html }}`, 'Key-value list (first row)'],
+                            [`{% for row in ${ref}.rows %}{{ row.col }}{% endfor %}`, 'Custom loop'],
+                          ]
+                          return (
+                            <div key={qs.id} style={{ background: '#161922', borderRadius: 6, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                              <span style={{ fontSize: 11, color: '#F97316', fontWeight: 600 }}>{qs.name}</span>
+                              {snippets.map(([snippet, label]) => (
+                                <div key={snippet} style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                                  <code style={{ fontSize: 10.5, color: '#94A3B8', fontFamily: 'JetBrains Mono, monospace', flex: 1, wordBreak: 'break-all' }}>{snippet}</code>
+                                  <span style={{ fontSize: 10, color: '#475569', whiteSpace: 'nowrap' }}>{label}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )
+                        })}
+                        <span style={{ fontSize: 11, color: '#64748B' }}>Copy these snippets into your email config body template.</span>
+                      </div>
+                    </Field>
+                  )
+                })()}
                 <Field label="Attachments">
                   {/* Quick-add buttons for preceding report steps */}
                   {(() => {

@@ -1,9 +1,14 @@
 from flask import Blueprint, jsonify, request
 
 from flowforge.api.auth import require_auth
-from flowforge.db.models import ReportConfig, db
+from flowforge.db.models import DEFAULT_PROJECT_ID, Project, ReportConfig, db
 
 bp = Blueprint('reports', __name__)
+
+
+def _default_project_id() -> str:
+    p = db.session.query(Project).filter_by(is_default=True).first()
+    return p.id if p else DEFAULT_PROJECT_ID
 
 
 def _report_dict(r: ReportConfig) -> dict:
@@ -19,6 +24,7 @@ def _report_dict(r: ReportConfig) -> dict:
         'title': r.title,
         'sheet_name': r.sheet_name,
         'columns': r.columns or [],
+        'project_id': r.project_id,
         'created_at': r.created_at.isoformat() if r.created_at else None,
         'updated_at': r.updated_at.isoformat() if r.updated_at else None,
     }
@@ -27,8 +33,11 @@ def _report_dict(r: ReportConfig) -> dict:
 @bp.get('/report-configs')
 @require_auth
 def list_report_configs():
-    configs = db.session.query(ReportConfig).order_by(ReportConfig.name).all()
-    return jsonify([_report_dict(r) for r in configs])
+    query = db.session.query(ReportConfig).order_by(ReportConfig.name)
+    project_id = request.args.get('project_id')
+    if project_id:
+        query = query.filter(ReportConfig.project_id == project_id)
+    return jsonify([_report_dict(r) for r in query.all()])
 
 
 @bp.post('/report-configs')
@@ -53,6 +62,7 @@ def create_report_config():
         title=data.get('title'),
         sheet_name=data.get('sheet_name'),
         columns=data.get('columns'),
+        project_id=data.get('project_id') or _default_project_id(),
     )
     db.session.add(config)
     db.session.commit()
@@ -77,7 +87,7 @@ def update_report_config(config_id):
 
     data = request.get_json() or {}
     fields = ('name', 'description', 'connection_id', 'query', 'format',
-              'template_path', 'output_filename', 'title', 'sheet_name', 'columns')
+              'template_path', 'output_filename', 'title', 'sheet_name', 'columns', 'project_id')
     for field in fields:
         if field in data:
             setattr(config, field, data[field])

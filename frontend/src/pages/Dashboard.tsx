@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Plus, Clock, Calendar, History, Pencil, Play } from 'lucide-react'
 import { getPipelines, getPipelineRuns, runPipeline, getRuns } from '../lib/api'
 import type { Pipeline, PipelineRun } from '../lib/types'
+import { useProjectStore } from '../lib/store'
 import StatusBadge from '../components/shared/StatusBadge'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
@@ -131,10 +132,16 @@ function MetaCol({ label, value, icon, mono }: { label: string; value: string; i
 }
 
 export default function Dashboard() {
-  const { data: pipelines = [], isLoading } = useQuery({ queryKey: ['pipelines'], queryFn: getPipelines })
+  const { activeProjectId } = useProjectStore()
+  const projectParam = activeProjectId ? { project_id: activeProjectId } : undefined
+
+  const { data: pipelines = [], isLoading } = useQuery({
+    queryKey: ['pipelines', activeProjectId],
+    queryFn: () => getPipelines(projectParam),
+  })
   const { data: recentRuns = [] } = useQuery({
-    queryKey: ['runs'],
-    queryFn: () => getRuns({ limit: 50 }),
+    queryKey: ['runs', activeProjectId],
+    queryFn: () => getRuns({ limit: 50, project_id: activeProjectId ?? undefined }),
     refetchInterval: 5000,
   })
 

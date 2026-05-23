@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Plus, Play, Pencil, Trash2, Search, ChevronDown } from 'lucide-react'
 import { getPipelines, deletePipeline, runPipeline } from '../lib/api'
+import { useProjectStore } from '../lib/store'
 import StatusBadge from '../components/shared/StatusBadge'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
@@ -58,8 +59,12 @@ export default function Pipelines() {
   const [statusFilter, setStatusFilter]     = useState('All')
   const [scheduleFilter, setScheduleFilter] = useState('Any')
   const qc = useQueryClient()
+  const { activeProjectId } = useProjectStore()
 
-  const { data: pipelines = [], isLoading } = useQuery({ queryKey: ['pipelines'], queryFn: getPipelines })
+  const { data: pipelines = [], isLoading } = useQuery({
+    queryKey: ['pipelines', activeProjectId],
+    queryFn: () => getPipelines(activeProjectId ? { project_id: activeProjectId } : undefined),
+  })
   const { mutate: remove } = useMutation({
     mutationFn: deletePipeline,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['pipelines'] }),

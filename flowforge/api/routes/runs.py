@@ -4,7 +4,7 @@ import os
 from flask import Blueprint, jsonify, request, send_file
 
 from flowforge.api.auth import require_auth
-from flowforge.db.models import PipelineRun, StepRun, db
+from flowforge.db.models import Pipeline, PipelineRun, StepRun, db
 
 bp = Blueprint('runs', __name__)
 
@@ -52,12 +52,19 @@ def list_runs():
     query = db.session.query(PipelineRun).order_by(PipelineRun.started_at.desc())
 
     pipeline_id = request.args.get('pipeline_id')
+    project_id  = request.args.get('project_id')
     status      = request.args.get('status')
     limit       = min(int(request.args.get('limit', 100)), 500)
     offset      = max(int(request.args.get('offset', 0)), 0)
 
     if pipeline_id:
         query = query.filter(PipelineRun.pipeline_id == pipeline_id)
+    if project_id:
+        query = (
+            query
+            .join(Pipeline, PipelineRun.pipeline_id == Pipeline.id)
+            .filter(Pipeline.project_id == project_id)
+        )
     if status:
         query = query.filter(PipelineRun.status == status)
 

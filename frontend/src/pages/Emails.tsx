@@ -2,13 +2,18 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { getEmailConfigs, deleteEmailConfig, getEmailProviders } from '../lib/api'
+import { useProjectStore } from '../lib/store'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 import PageIntro from '../components/shared/PageIntro'
 
 export default function Emails() {
   const qc = useQueryClient()
-  const { data: configs = [], isLoading } = useQuery({ queryKey: ['email-configs'], queryFn: getEmailConfigs })
+  const { activeProjectId } = useProjectStore()
+  const { data: configs = [], isLoading } = useQuery({
+    queryKey: ['email-configs', activeProjectId],
+    queryFn: () => getEmailConfigs(activeProjectId ? { project_id: activeProjectId } : undefined),
+  })
   const { data: providers = [] } = useQuery({ queryKey: ['email-providers'], queryFn: getEmailProviders })
   const { mutate: remove } = useMutation({
     mutationFn: deleteEmailConfig,

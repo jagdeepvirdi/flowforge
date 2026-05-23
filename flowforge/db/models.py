@@ -12,6 +12,8 @@ from sqlalchemy.orm import relationship
 
 db = SQLAlchemy()
 
+DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000001'
+
 
 def _uuid():
     return str(uuid.uuid4())
@@ -19,6 +21,22 @@ def _uuid():
 
 def _utcnow():
     return datetime.now(timezone.utc)
+
+
+class Project(db.Model):
+    __tablename__ = 'ff_projects'
+
+    id          = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    name        = Column(String(100), nullable=False)
+    description = Column(Text)
+    color       = Column(String(20), default='#6366f1')
+    is_default  = Column(Boolean, default=False, nullable=False)
+    created_at  = Column(DateTime(timezone=True), default=_utcnow)
+
+    pipelines        = relationship('Pipeline',       back_populates='project')
+    report_configs   = relationship('ReportConfig',   back_populates='project')
+    email_configs    = relationship('EmailConfig',    back_populates='project')
+    recipient_groups = relationship('RecipientGroup', back_populates='project')
 
 
 class User(db.Model):
@@ -37,9 +55,11 @@ class RecipientGroup(db.Model):
     name        = Column(String(100), nullable=False)
     description = Column(Text)
     addresses   = Column(ARRAY(Text), nullable=False)
+    project_id  = Column(UUID(as_uuid=False), ForeignKey('ff_projects.id', ondelete='SET NULL'), nullable=True)
     created_at  = Column(DateTime, default=_utcnow)
 
     email_configs = relationship('EmailConfig', back_populates='recipient_group')
+    project       = relationship('Project', back_populates='recipient_groups')
 
 
 class EmailProvider(db.Model):
@@ -118,10 +138,12 @@ class ReportConfig(db.Model):
     title           = Column(String(255))
     sheet_name      = Column(String(100))
     columns         = Column(ARRAY(Text))
+    project_id      = Column(UUID(as_uuid=False), ForeignKey('ff_projects.id', ondelete='SET NULL'), nullable=True)
     created_at      = Column(DateTime(timezone=True), default=_utcnow)
     updated_at      = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
     connection = relationship('DbConnection', back_populates='report_configs')
+    project    = relationship('Project', back_populates='report_configs')
 
 
 class EmailConfig(db.Model):
@@ -142,11 +164,13 @@ class EmailConfig(db.Model):
     attachment_max_mb   = Column(Integer, default=10)
     drive_folder_id     = Column(String(255))
     drive_share_message = Column(Text)
+    project_id          = Column(UUID(as_uuid=False), ForeignKey('ff_projects.id', ondelete='SET NULL'), nullable=True)
     created_at          = Column(DateTime, default=_utcnow)
     updated_at          = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
-    provider         = relationship('EmailProvider', back_populates='email_configs')
-    recipient_group  = relationship('RecipientGroup', back_populates='email_configs')
+    provider         = relationship('EmailProvider',    back_populates='email_configs')
+    recipient_group  = relationship('RecipientGroup',  back_populates='email_configs')
+    project          = relationship('Project',         back_populates='email_configs')
 
 
 class Pipeline(db.Model):
@@ -158,6 +182,7 @@ class Pipeline(db.Model):
     schedule        = Column(String(100))
     enabled         = Column(Boolean, default=True)
     timeout_minutes = Column(Integer, default=60)
+    project_id      = Column(UUID(as_uuid=False), ForeignKey('ff_projects.id', ondelete='SET NULL'), nullable=True)
     created_at      = Column(DateTime(timezone=True), default=_utcnow)
     updated_at      = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
@@ -166,6 +191,7 @@ class Pipeline(db.Model):
     variables = relationship('PipelineVariable', back_populates='pipeline',
                              cascade='all, delete-orphan')
     runs      = relationship('PipelineRun', back_populates='pipeline')
+    project   = relationship('Project', back_populates='pipelines')
 
 
 class PipelineStep(db.Model):

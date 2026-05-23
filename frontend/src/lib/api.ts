@@ -37,8 +37,18 @@ const del  = <T>(path: string)             => request<T>('DELETE', path)
 export const login = (username: string, password: string) =>
   post<{ token: string }>('/auth/login', { username, password })
 
+// Projects
+export const getProjects    = () => get<import('./types').Project[]>('/projects')
+export const getProject     = (id: string) => get<import('./types').Project>(`/projects/${id}`)
+export const createProject  = (data: { name: string; description?: string; color?: string }) => post<import('./types').Project>('/projects', data)
+export const updateProject  = (id: string, data: { name?: string; description?: string; color?: string }) => request<import('./types').Project>('PATCH', `/projects/${id}`, data)
+export const deleteProject  = (id: string) => del<{ deleted: string }>(`/projects/${id}`)
+
 // Pipelines
-export const getPipelines    = () => get<import('./types').Pipeline[]>('/pipelines')
+export const getPipelines    = (params?: { project_id?: string }) => {
+  const qs = params?.project_id ? `?project_id=${params.project_id}` : ''
+  return get<import('./types').Pipeline[]>(`/pipelines${qs}`)
+}
 export const getCronNext     = (expr: string) => get<{ next_runs: string[] }>(`/pipelines/cron-next?expr=${encodeURIComponent(expr)}`)
 export const getPipeline     = (id: string) => get<import('./types').Pipeline>(`/pipelines/${id}`)
 export const createPipeline  = (data: Partial<import('./types').Pipeline>) => post<import('./types').Pipeline>('/pipelines', data)
@@ -54,7 +64,6 @@ export const updateStep = (id: string, data: Partial<import('./types').PipelineS
   put<import('./types').PipelineStep>(`/pipeline-steps/${id}`, data)
 export const deleteStep = (id: string) => del<{ deleted: string }>(`/pipeline-steps/${id}`)
 
-// Report configs
 // Bulk load configs
 export const getBulkLoadConfigs   = () => get<import('./types').BulkLoadConfig[]>('/bulk-load-configs')
 export const getBulkLoadConfig    = (id: string) => get<import('./types').BulkLoadConfig>(`/bulk-load-configs/${id}`)
@@ -63,7 +72,10 @@ export const updateBulkLoadConfig = (id: string, data: Partial<import('./types')
 export const deleteBulkLoadConfig = (id: string) => del<{ deleted: string }>(`/bulk-load-configs/${id}`)
 
 // Report configs
-export const getReportConfigs   = () => get<import('./types').ReportConfig[]>('/report-configs')
+export const getReportConfigs   = (params?: { project_id?: string }) => {
+  const qs = params?.project_id ? `?project_id=${params.project_id}` : ''
+  return get<import('./types').ReportConfig[]>(`/report-configs${qs}`)
+}
 export const getReportConfig    = (id: string) => get<import('./types').ReportConfig>(`/report-configs/${id}`)
 export const createReportConfig = (data: Partial<import('./types').ReportConfig>) => post<import('./types').ReportConfig>('/report-configs', data)
 export const updateReportConfig = (id: string, data: Partial<import('./types').ReportConfig>) => put<import('./types').ReportConfig>(`/report-configs/${id}`, data)
@@ -71,7 +83,10 @@ export const deleteReportConfig = (id: string) => del<{ deleted: string }>(`/rep
 export const previewReport      = (id: string) => post<{ columns: string[]; rows: unknown[][] }>(`/report-configs/${id}/preview`)
 
 // Email configs
-export const getEmailConfigs   = () => get<import('./types').EmailConfig[]>('/email-configs')
+export const getEmailConfigs   = (params?: { project_id?: string }) => {
+  const qs = params?.project_id ? `?project_id=${params.project_id}` : ''
+  return get<import('./types').EmailConfig[]>(`/email-configs${qs}`)
+}
 export const getEmailConfig    = (id: string) => get<import('./types').EmailConfig>(`/email-configs/${id}`)
 export const createEmailConfig = (data: Partial<import('./types').EmailConfig>) => post<import('./types').EmailConfig>('/email-configs', data)
 export const updateEmailConfig = (id: string, data: Partial<import('./types').EmailConfig>) => put<import('./types').EmailConfig>(`/email-configs/${id}`, data)
@@ -96,15 +111,19 @@ export const testDbConnectionRaw = (db_type: string, config: Record<string, unkn
   post<{ success: boolean; latency_ms?: number; error?: string }>('/db-connections/test-raw', { db_type, config })
 
 // Recipient groups
-export const getRecipientGroups   = () => get<import('./types').RecipientGroup[]>('/recipient-groups')
+export const getRecipientGroups   = (params?: { project_id?: string }) => {
+  const qs = params?.project_id ? `?project_id=${params.project_id}` : ''
+  return get<import('./types').RecipientGroup[]>(`/recipient-groups${qs}`)
+}
 export const createRecipientGroup = (data: Partial<import('./types').RecipientGroup>) => post<import('./types').RecipientGroup>('/recipient-groups', data)
 export const updateRecipientGroup = (id: string, data: Partial<import('./types').RecipientGroup>) => put<import('./types').RecipientGroup>(`/recipient-groups/${id}`, data)
 export const deleteRecipientGroup = (id: string) => del<{ deleted: string }>(`/recipient-groups/${id}`)
 
 // Runs
-export const getRuns = (params?: { pipeline_id?: string; status?: string; limit?: number; offset?: number }) => {
+export const getRuns = (params?: { pipeline_id?: string; project_id?: string; status?: string; limit?: number; offset?: number }) => {
   const qs = new URLSearchParams()
   if (params?.pipeline_id) qs.set('pipeline_id', params.pipeline_id)
+  if (params?.project_id)  qs.set('project_id',  params.project_id)
   if (params?.status)      qs.set('status', params.status)
   if (params?.limit)       qs.set('limit', String(params.limit))
   if (params?.offset)      qs.set('offset', String(params.offset))

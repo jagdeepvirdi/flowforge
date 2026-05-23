@@ -3,6 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Save, ArrowLeft, X } from 'lucide-react'
 import { getEmailConfig, createEmailConfig, updateEmailConfig, getEmailProviders, getRecipientGroups } from '../lib/api'
+import { useProjectStore } from '../lib/store'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 import FieldTooltip from '../components/shared/FieldTooltip'
@@ -38,6 +39,8 @@ const TEMPLATE_VARS = [
   '{{ current_month }}', '{{ current_date }}', '{{ current_year }}',
   '{{ yesterday }}', '{{ run_id }}', '{{ pipeline_name }}',
   '{{ steps.step_name.output_path }}', '{{ steps.step_name.drive_url }}',
+  '{{ steps.step_name.table_html }}', '{{ steps.step_name.kv_html }}',
+  '{% for row in steps.step_name.rows %}{{ row.col }}{% endfor %}',
 ]
 
 export default function EmailEdit() {
@@ -45,10 +48,14 @@ export default function EmailEdit() {
   const isNew = !id
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const { activeProjectId } = useProjectStore()
 
   const { data: existing, isLoading } = useQuery({ queryKey: ['email-config', id], queryFn: () => getEmailConfig(id!), enabled: !isNew })
   const { data: providers = [] } = useQuery({ queryKey: ['email-providers'], queryFn: getEmailProviders })
-  const { data: groups = [] }    = useQuery({ queryKey: ['recipient-groups'], queryFn: getRecipientGroups })
+  const { data: groups = [] }    = useQuery({
+    queryKey: ['recipient-groups', activeProjectId],
+    queryFn: () => getRecipientGroups(activeProjectId ? { project_id: activeProjectId } : undefined),
+  })
 
   const [name, setName]               = useState('')
   const [desc, setDesc]               = useState('')
@@ -96,6 +103,7 @@ export default function EmailEdit() {
         to_addresses: to, cc_addresses: cc, bcc_addresses: bcc,
         attachment_max_mb: maxMb, drive_folder_id: folderId || null,
         drive_share_message: driveMsg || null,
+        ...(isNew && activeProjectId ? { project_id: activeProjectId } : {}),
       }
       isNew ? await createEmailConfig(payload) : await updateEmailConfig(id!, payload)
       qc.invalidateQueries({ queryKey: ['email-configs'] })

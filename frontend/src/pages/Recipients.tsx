@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react'
 import { getRecipientGroups, createRecipientGroup, updateRecipientGroup, deleteRecipientGroup } from '../lib/api'
 import type { RecipientGroup } from '../lib/types'
+import { useProjectStore } from '../lib/store'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 import PageIntro from '../components/shared/PageIntro'
@@ -78,7 +79,11 @@ function GroupRow({ group, onSaved, onDelete }: { group: RecipientGroup; onSaved
 
 export default function Recipients() {
   const qc = useQueryClient()
-  const { data: groups = [], isLoading } = useQuery({ queryKey: ['recipient-groups'], queryFn: getRecipientGroups })
+  const { activeProjectId } = useProjectStore()
+  const { data: groups = [], isLoading } = useQuery({
+    queryKey: ['recipient-groups', activeProjectId],
+    queryFn: () => getRecipientGroups(activeProjectId ? { project_id: activeProjectId } : undefined),
+  })
   const [showNew, setShowNew]   = useState(false)
   const [newName, setNewName]   = useState('')
   const [newDesc, setNewDesc]   = useState('')
@@ -86,7 +91,7 @@ export default function Recipients() {
 
   const { mutate: remove }   = useMutation({ mutationFn: deleteRecipientGroup, onSuccess: () => qc.invalidateQueries({ queryKey: ['recipient-groups'] }) })
   const { mutate: add, isPending } = useMutation({
-    mutationFn: () => createRecipientGroup({ name: newName, description: newDesc, addresses: newAddrs }),
+    mutationFn: () => createRecipientGroup({ name: newName, description: newDesc, addresses: newAddrs, project_id: activeProjectId ?? undefined }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['recipient-groups'] }); setShowNew(false); setNewName(''); setNewDesc(''); setNewAddrs([]) },
   })
 
