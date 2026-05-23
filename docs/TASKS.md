@@ -71,6 +71,55 @@
 
 ---
 
+## AI Features Track — Ollama-Only (Zero Cost, Data Stays Local)
+
+*All features in this track route exclusively through Ollama running locally.  
+No data is sent to any external API. Each feature is independently opt-in.*
+
+### Authoring Intelligence (highest ROI — works on SQL text, never row data)
+
+- [ ] **SQL Explainer** — "What does this query do?" button in the Report Designer SQL editor.  
+  Sends the SQL text (no data) to Ollama; returns a plain-English summary of joins, filters, and aggregations.  
+  Also flags obvious problems: missing WHERE on large tables, cartesian joins, column name typos.  
+  *No privacy concern — only the query string is sent, never query results.*
+
+- [ ] **SQL Optimizer** — "Optimize for PostgreSQL / Oracle" button alongside the Explainer.  
+  Ollama rewrites the query using CTEs, window functions, or index-friendly predicates where applicable.  
+  User sees a diff of original vs. suggested; accepts or dismisses.
+
+- [ ] **Pipeline Failure Diagnosis** — When a step fails, show an "Explain this error" button in the run detail page next to the raw error message.  
+  Sends the error text, step type, and step config (no row data) to Ollama; returns a human-readable explanation and suggested fix.  
+  Example: `ORA-01555: snapshot too old` → "Your query ran longer than the undo retention window. Try adding a PARALLEL hint or scheduling during off-peak hours."
+
+### Data Intelligence (works on preview sample — local Ollama only, explicitly opt-in)
+
+- [ ] **Data Profiler** — "Summarize" button on the Report Preview panel (after the user runs a preview query and sees 20 rows).  
+  Sends column names + sample rows to Ollama; returns a short narrative:  
+  - Value ranges, null counts, obvious outliers  
+  - Duplicate key suspicion ("customer_id 00482 appears 4 times")  
+  - Data quality warnings before the report is attached to a pipeline  
+  *Opt-in per session. A clear banner states "Sample rows will be sent to your local Ollama instance."*
+
+- [ ] **AI Chart Generator** — "Visualize" button on the Report Preview panel.  
+  Sends column names + up to 50 rows to Ollama; Ollama returns a JSON chart config (type, x-axis column, y-axis column(s), title, color scheme).  
+  FlowForge renders it instantly using Recharts (already installed in the frontend) — no external rendering service.  
+  Supported chart types: bar, line, area, pie, scatter.  
+  User can tweak the suggestion (swap axes, change chart type) and optionally embed the chart in an email body as a static PNG via `html2canvas`.  
+  *This is zero-cost visualisation: the AI picks the config, Recharts draws it, data never leaves the machine.*
+
+- [ ] **Run History Anomaly Alerts** — No LLM needed for detection; statistical outlier on `rows_affected` and `duration_ms` per step across the last 30 runs.  
+  When a step is >2σ outside its normal range, surface a warning badge in the run detail page.  
+  Ollama (optional) generates a one-sentence narrative: "Load Customer Extract wrote 847 rows — 94% below its 30-run average of 13,200. Check upstream data load."
+
+### Implementation Notes
+
+- Ollama endpoint configured via `OLLAMA_URL` env var (default: `http://localhost:11434`) — already in `.env.example`.
+- Recommended model: `llama3.2` (4B) or `mistral` for SQL tasks; `phi3-mini` if RAM is constrained.
+- All AI calls are best-effort: if Ollama is unreachable, the button shows "AI unavailable — is Ollama running?" and the rest of the UI is unaffected.
+- The Chart Generator is the most self-contained feature to build first: it requires only a new React component calling `/api/ai/chart-config` (POST with columns + rows), a Flask endpoint that calls Ollama, and a Recharts render. No new DB schema needed.
+
+---
+
 ## v2 Track — Multi-User Support
 
 *Required before FlowForge can be used by teams where more than one person logs in.*
