@@ -6,17 +6,22 @@ Usage:
     python scripts/test_oracle.py
 
 Expects Oracle running via docker-compose (docker compose up oracle).
-Default connection: oracle/harpal123@localhost:1521/FREEPDB1
+Default connection: oracle/<ORACLE_PASSWORD>@localhost:1521/FREEPDB1
+Set ORACLE_PASSWORD and optionally ORACLE_USER, ORACLE_HOST, ORACLE_PORT,
+ORACLE_SERVICE in the environment (or source .env first).
 """
 
+import os
 import sys
 import time
 
-HOST = "localhost"
-PORT = 1521
-SERVICE = "FREEPDB1"
-USER = "oracle"
-PASSWORD = "harpal123"
+HOST    = os.environ.get("ORACLE_HOST",    "localhost")
+PORT    = int(os.environ.get("ORACLE_PORT", "1521"))
+SERVICE = os.environ.get("ORACLE_SERVICE", "FREEPDB1")
+USER    = os.environ.get("ORACLE_USER",    "oracle")
+PASSWORD = os.environ.get("ORACLE_PASSWORD") or sys.exit(
+    "ERROR: ORACLE_PASSWORD env var is not set. Source .env or set it manually."
+)
 
 SOURCE_TABLE = "ff_source_data"
 TARGET_TABLE = "ff_loaded_data"

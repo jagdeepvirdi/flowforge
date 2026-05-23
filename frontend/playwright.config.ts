@@ -25,7 +25,7 @@ loadEnv({ path: path.resolve(__dirname, '../.env.test') })
  * Environment variables (all optional, shown with defaults):
  *   E2E_BASE_URL   http://localhost:5173
  *   E2E_USERNAME   admin        (set in .env.test)
- *   E2E_PASSWORD   H@rpal123    (set in .env.test)
+ *   E2E_PASSWORD   (set in .env.test — never hardcode here)
  */
 export default defineConfig({
   testDir: './e2e',

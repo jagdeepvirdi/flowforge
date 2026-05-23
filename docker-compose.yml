@@ -57,9 +57,9 @@ services:
     image: gvenzl/oracle-free:23-slim
     restart: unless-stopped
     environment:
-      ORACLE_PASSWORD: harpal123
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD:?Set ORACLE_PASSWORD in .env}
       APP_USER: oracle
-      APP_USER_PASSWORD: harpal123
+      APP_USER_PASSWORD: ${APP_USER_PASSWORD:?Set APP_USER_PASSWORD in .env}
     ports:
       - "1521:1521"
     volumes:

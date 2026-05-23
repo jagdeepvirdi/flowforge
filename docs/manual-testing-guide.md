@@ -35,7 +35,7 @@ These are required by almost every test below. Set them up first.
    | Port | `5434` |
    | Database | `flowforge` |
    | Username | `flowforge` |
-   | Password | `harpal123` |
+   | Password | *(your local DB password from `.env`)* |
 
 3. Click **Test connection** — expect green / latency shown
 4. Save
@@ -86,7 +86,7 @@ Run once in any SQL client (pgAdmin, DBeaver, or the one-liner below):
 ```powershell
 python -c "
 import psycopg2
-conn = psycopg2.connect('postgresql://flowforge:harpal123@localhost:5434/flowforge')
+conn = psycopg2.connect(os.environ['FLOWFORGE_DB_URL'])
 cur = conn.cursor()
 cur.execute(open('sample_data/bulk_load/setup_table.sql').read())
 conn.commit(); conn.close()

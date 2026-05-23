@@ -237,7 +237,7 @@ createdb flowforge_test
 Default test DB URL (set in `tests/conftest.py`):
 
 ```
-postgresql://flowforge:harpal123@localhost:5434/flowforge_test
+postgresql://flowforge:<your-db-password>@localhost:5434/flowforge_test
 ```
 
 Override by setting `FLOWFORGE_DB_URL` before running pytest — `conftest.py` picks it up via `os.environ.setdefault`.

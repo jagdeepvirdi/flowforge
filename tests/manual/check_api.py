@@ -5,9 +5,10 @@ Runs against the live FlowForge server.
 
 Usage:
     python tests/manual/check_api.py
-    python tests/manual/check_api.py --url http://localhost:5000 --user admin --pass harpal123
+    python tests/manual/check_api.py --url http://localhost:5000 --user admin --pass <your-password>
 """
 import argparse
+import os
 import sys
 import json
 import urllib.request
@@ -106,7 +107,7 @@ def run(base_url, username, password):
         'name': '[smoke-test] FlowForge DB',
         'db_type': 'postgresql',
         'config': {'host': 'localhost', 'port': 5434, 'database': 'flowforge',
-                   'username': 'flowforge', 'password': 'harpal123'},
+                   'username': 'flowforge', 'password': os.environ.get('DB_PASSWORD', '')},
     }
     status, data = request('POST', f'{base_url}/api/db-connections', conn_payload, token)
     if status == 201:
@@ -120,7 +121,7 @@ def run(base_url, username, password):
         status, data = request('POST', f'{base_url}/api/db-connections/test-raw', {
             'db_type': 'postgresql',
             'config': {'host': 'localhost', 'port': 5434, 'database': 'flowforge',
-                       'username': 'flowforge', 'password': 'harpal123'},
+                       'username': 'flowforge', 'password': os.environ.get('DB_PASSWORD', '')},
         }, token)
         if status == 200 and data.get('success'):
             ok(f'Test-raw connection ({data.get("latency_ms")}ms)')
@@ -222,7 +223,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='FlowForge API smoke test')
     parser.add_argument('--url',  default='http://localhost:5000', help='Base URL of the API')
     parser.add_argument('--user', default='admin',     help='Username')
-    parser.add_argument('--pass', dest='password', default='harpal123', help='Password')
+    parser.add_argument('--pass', dest='password', default=os.environ.get('FLOWFORGE_PASSWORD', ''), help='Password (or set FLOWFORGE_PASSWORD env var)')
     args = parser.parse_args()
 
     success = run(args.url, args.user, args.password)

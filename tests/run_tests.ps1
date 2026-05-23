@@ -10,7 +10,7 @@ param(
     [switch]$Manual,
     [string]$ApiUrl  = 'http://localhost:5000',
     [string]$ApiUser = 'admin',
-    [string]$ApiPass = 'harpal123'
+    [string]$ApiPass = $env:FLOWFORGE_PASSWORD
 )
 
 $root = Split-Path $PSScriptRoot -Parent

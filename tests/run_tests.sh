@@ -11,7 +11,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODE='full'
 API_URL='http://localhost:5000'
 API_USER='admin'
-API_PASS='harpal123'
+API_PASS="${FLOWFORGE_PASSWORD:-}"
 
 for arg in "$@"; do
     case $arg in
