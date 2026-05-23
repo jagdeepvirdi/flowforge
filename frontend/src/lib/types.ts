@@ -60,7 +60,7 @@ export interface WebhookToken {
 
 export interface PipelineRun {
   id: string
-  pipeline_id: string
+  pipeline_id: string | null   // null when the pipeline has been deleted
   pipeline_name: string
   status: PipelineStatus
   started_at: string

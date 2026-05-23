@@ -49,7 +49,7 @@ export default function Reports() {
         {configs.length === 0 ? (
           <div className="card ff-empty">
             <p className="msg">No report configs yet.</p>
-            <p style={{ fontSize: 12.5, color: '#64748B', margin: '0 0 14px' }}>A report config pairs a SQL query with an output format (Excel, PDF, CSV). Once created, reference it in a pipeline's report step.</p>
+            <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: '0 0 14px' }}>A report config pairs a SQL query with an output format (Excel, PDF, CSV). Once created, reference it in a pipeline's report step.</p>
             <Link to="/reports/new" className="btn btn-primary">Create first report config</Link>
           </div>
         ) : (
@@ -69,17 +69,17 @@ export default function Reports() {
                   return (
                     <tr key={c.id}>
                       <td>
-                        <div style={{ fontWeight: 500, color: '#F1F5F9' }}>
-                          <Link to={`/reports/${c.id}/edit`} style={{ color: '#F1F5F9', textDecoration: 'none' }}
-                            onMouseEnter={e => (e.currentTarget.style.color = '#FB923C')}
-                            onMouseLeave={e => (e.currentTarget.style.color = '#F1F5F9')}>
+                        <div style={{ fontWeight: 500, color: 'var(--text)' }}>
+                          <Link to={`/reports/${c.id}/edit`} style={{ color: 'var(--text)', textDecoration: 'none' }}
+                            onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent-text)')}
+                            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text)')}>
                             {c.name}
                           </Link>
                         </div>
-                        {c.description && <div style={{ fontSize: 11.5, color: '#64748B', marginTop: 2 }}>{c.description}</div>}
+                        {c.description && <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>{c.description}</div>}
                       </td>
                       <td><span className={`tbadge ${m.cls}`}>{c.format.toUpperCase()}</span></td>
-                      <td className="mono" style={{ fontSize: 11.5, color: '#94A3B8' }}>{c.output_filename}</td>
+                      <td className="mono" style={{ fontSize: 11.5, color: 'var(--text-3)' }}>{c.output_filename}</td>
                       <td>
                         <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
                           <Link to={`/reports/${c.id}/edit`} className="btn btn-sm btn-ghost btn-icon"><Pencil size={12} /></Link>

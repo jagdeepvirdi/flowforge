@@ -3,13 +3,21 @@
 Records login attempts and pipeline run outcomes. Runs outside the Flask
 request context (background threads) so it uses a plain file handler rather
 than the Flask logger.
+
+Rotation: 10 MB per file, 5 backups (logs/audit.log → audit.log.1 … .5).
+Log level: controlled by LOG_LEVEL env var (default INFO). The audit log is a
+security record so WARNING or higher will suppress all events — leave at INFO
+in production.
 """
 import logging
 import os
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 _LOG_DIR = Path(os.environ.get('FLOWFORGE_LOG_DIR', 'logs'))
 _logger: logging.Logger | None = None
+
+_LEVEL = getattr(logging, os.environ.get('LOG_LEVEL', 'INFO').upper(), logging.INFO)
 
 
 def _get_logger() -> logging.Logger:
@@ -18,12 +26,17 @@ def _get_logger() -> logging.Logger:
         _LOG_DIR.mkdir(parents=True, exist_ok=True)
         logger = logging.getLogger('flowforge.audit')
         if not logger.handlers:
-            handler = logging.FileHandler(_LOG_DIR / 'audit.log')
+            handler = RotatingFileHandler(
+                _LOG_DIR / 'audit.log',
+                maxBytes=10 * 1024 * 1024,
+                backupCount=5,
+                encoding='utf-8',
+            )
             handler.setFormatter(
                 logging.Formatter('%(asctime)sZ  %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
             )
             logger.addHandler(handler)
-        logger.setLevel(logging.INFO)
+        logger.setLevel(_LEVEL)
         logger.propagate = False
         _logger = logger
     return _logger

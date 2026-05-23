@@ -17,7 +17,7 @@ function ColorDot({ color }: { color: string }) {
       width: 8,
       height: 8,
       borderRadius: '50%',
-      background: color || '#F97316',
+      background: color || 'var(--accent)',
       flexShrink: 0,
     }} />
   )
@@ -60,7 +60,7 @@ export default function ProjectSwitcher({ compact = false }: { compact?: boolean
           alignItems: 'center',
           gap: 8,
           padding: compact ? '4px 8px' : '7px 10px',
-          background: open ? '#21252F' : 'transparent',
+          background: open ? 'var(--surface-2)' : 'transparent',
           border: '1px solid',
           borderColor: open ? '#3D4460' : 'transparent',
           borderRadius: 6,
@@ -71,7 +71,7 @@ export default function ProjectSwitcher({ compact = false }: { compact?: boolean
           transition: 'border-color 0.15s, background 0.15s',
           whiteSpace: 'nowrap',
         }}
-        onMouseEnter={e => { if (!open) (e.currentTarget.style.background = '#1E2130') }}
+        onMouseEnter={e => { if (!open) (e.currentTarget.style.background = 'var(--surface-hover)') }}
         onMouseLeave={e => { if (!open) (e.currentTarget.style.background = 'transparent') }}
       >
         {color ? <ColorDot color={color} /> : (
@@ -89,8 +89,8 @@ export default function ProjectSwitcher({ compact = false }: { compact?: boolean
           top: 'calc(100% + 4px)',
           left: 0,
           right: compact ? undefined : 0,
-          background: '#21252F',
-          border: '1px solid #2D3143',
+          background: 'var(--surface-2)',
+          border: '1px solid var(--border)',
           borderRadius: 8,
           boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
           zIndex: 100,
@@ -105,7 +105,7 @@ export default function ProjectSwitcher({ compact = false }: { compact?: boolean
               alignItems: 'center',
               gap: 8,
               padding: '8px 12px',
-              background: activeProjectId === null ? '#2D3143' : 'transparent',
+              background: activeProjectId === null ? 'var(--border)' : 'transparent',
               border: 'none',
               cursor: 'pointer',
               color: activeProjectId === null ? 'var(--text)' : 'var(--text-muted)',
@@ -119,7 +119,7 @@ export default function ProjectSwitcher({ compact = false }: { compact?: boolean
           </button>
 
           {projects.length > 0 && (
-            <div style={{ borderTop: '1px solid #2D3143' }}>
+            <div style={{ borderTop: '1px solid var(--border)' }}>
               {projects.map(p => (
                 <button
                   key={p.id}
@@ -130,7 +130,7 @@ export default function ProjectSwitcher({ compact = false }: { compact?: boolean
                     alignItems: 'center',
                     gap: 8,
                     padding: '8px 12px',
-                    background: activeProjectId === p.id ? '#2D3143' : 'transparent',
+                    background: activeProjectId === p.id ? 'var(--border)' : 'transparent',
                     border: 'none',
                     cursor: 'pointer',
                     color: activeProjectId === p.id ? 'var(--text)' : 'var(--text-muted)',
@@ -146,7 +146,7 @@ export default function ProjectSwitcher({ compact = false }: { compact?: boolean
             </div>
           )}
 
-          <div style={{ borderTop: '1px solid #2D3143' }}>
+          <div style={{ borderTop: '1px solid var(--border)' }}>
             <Link
               to="/projects"
               onClick={() => setOpen(false)}

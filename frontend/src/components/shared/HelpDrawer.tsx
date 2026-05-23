@@ -11,13 +11,13 @@ function GlossaryTab() {
       {GLOSSARY.map(entry => (
         <div key={entry.term} style={{
           padding: '10px 0',
-          borderBottom: '1px solid #2D3143',
+          borderBottom: '1px solid var(--border)',
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#F1F5F9' }}>{entry.term}</span>
-            <span style={{ fontSize: 10, color: '#475569', flexShrink: 0, fontStyle: 'italic' }}>{entry.where}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{entry.term}</span>
+            <span style={{ fontSize: 10, color: 'var(--text-dim)', flexShrink: 0, fontStyle: 'italic' }}>{entry.where}</span>
           </div>
-          <p style={{ fontSize: 12.5, color: '#94A3B8', margin: 0, lineHeight: 1.55 }}>{entry.def}</p>
+          <p style={{ fontSize: 12.5, color: 'var(--text-3)', margin: 0, lineHeight: 1.55 }}>{entry.def}</p>
         </div>
       ))}
     </div>
@@ -32,23 +32,23 @@ function HelpTab({ topic }: { topic: string }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       {card && (
         <div style={{
-          background: '#21252F',
-          border: '1px solid #2D3143',
+          background: 'var(--surface-2)',
+          border: '1px solid var(--border)',
           borderRadius: 8,
           padding: '14px 16px',
         }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#F97316', marginBottom: 6 }}>{card.title}</div>
-          <p style={{ fontSize: 13, color: '#94A3B8', margin: 0, lineHeight: 1.6 }}>{card.body}</p>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)', marginBottom: 6 }}>{card.title}</div>
+          <p style={{ fontSize: 13, color: 'var(--text-3)', margin: 0, lineHeight: 1.6 }}>{card.body}</p>
         </div>
       )}
 
       {stepHint && (
         <div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Step Tips</div>
-          <p style={{ fontSize: 13, color: '#94A3B8', margin: '0 0 10px', lineHeight: 1.6 }}>{stepHint.summary}</p>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Step Tips</div>
+          <p style={{ fontSize: 13, color: 'var(--text-3)', margin: '0 0 10px', lineHeight: 1.6 }}>{stepHint.summary}</p>
           <ul style={{ margin: 0, padding: '0 0 0 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
             {stepHint.tips.map((tip, i) => (
-              <li key={i} style={{ fontSize: 12.5, color: '#94A3B8', lineHeight: 1.5 }}>{tip}</li>
+              <li key={i} style={{ fontSize: 12.5, color: 'var(--text-3)', lineHeight: 1.5 }}>{tip}</li>
             ))}
           </ul>
         </div>
@@ -57,14 +57,14 @@ function HelpTab({ topic }: { topic: string }) {
       {/* Step reference */}
       {topic === 'pipeline_builder' && (
         <div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Step Types</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Step Types</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {STEP_TYPES.map(type => {
               const hint = STEP_HINTS[type]
               return (
-                <div key={type} style={{ background: '#21252F', border: '1px solid #2D3143', borderRadius: 7, padding: '10px 12px' }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: '#F1F5F9', fontFamily: 'JetBrains Mono, monospace', marginBottom: 4 }}>{type}</div>
-                  <p style={{ fontSize: 12, color: '#64748B', margin: 0 }}>{hint.summary}</p>
+                <div key={type} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 7, padding: '10px 12px' }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', fontFamily: 'JetBrains Mono, monospace', marginBottom: 4 }}>{type}</div>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>{hint.summary}</p>
                 </div>
               )
             })}
@@ -73,7 +73,7 @@ function HelpTab({ topic }: { topic: string }) {
       )}
 
       {!card && !stepHint && (
-        <p style={{ fontSize: 13, color: '#64748B', margin: 0 }}>Select a page to see contextual help.</p>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>Select a page to see contextual help.</p>
       )}
     </div>
   )
@@ -114,8 +114,8 @@ export default function HelpDrawer() {
         style={{
           position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 201,
           width: 400,
-          background: '#1A1D27',
-          borderLeft: '1px solid #2D3143',
+          background: 'var(--surface)',
+          borderLeft: '1px solid var(--border)',
           display: 'flex', flexDirection: 'column',
           transform: open ? 'translateX(0)' : 'translateX(100%)',
           transition: 'transform 220ms cubic-bezier(0.4,0,0.2,1)',
@@ -126,16 +126,16 @@ export default function HelpDrawer() {
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '14px 16px',
-          borderBottom: '1px solid #2D3143',
+          borderBottom: '1px solid var(--border)',
           flexShrink: 0,
         }}>
-          <BookOpen size={15} style={{ color: '#F97316' }} />
-          <span style={{ fontSize: 14, fontWeight: 600, color: '#F1F5F9', flex: 1 }}>Help</span>
+          <BookOpen size={15} style={{ color: 'var(--accent)' }} />
+          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', flex: 1 }}>Help</span>
           <button
             onClick={closeHelp}
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748B', display: 'flex', padding: 4, borderRadius: 4 }}
-            onMouseEnter={e => (e.currentTarget.style.color = '#F1F5F9')}
-            onMouseLeave={e => (e.currentTarget.style.color = '#64748B')}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: 4, borderRadius: 4 }}
+            onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
           >
             <X size={16} />
           </button>
@@ -144,7 +144,7 @@ export default function HelpDrawer() {
         {/* Tabs */}
         <div style={{
           display: 'flex',
-          borderBottom: '1px solid #2D3143',
+          borderBottom: '1px solid var(--border)',
           flexShrink: 0,
         }}>
           {(['help', 'glossary'] as const).map(t => (
@@ -155,8 +155,8 @@ export default function HelpDrawer() {
                 flex: 1, background: 'transparent', border: 'none', cursor: 'pointer',
                 padding: '10px 0',
                 fontSize: 12.5, fontWeight: 500,
-                color: tab === t ? '#F97316' : '#64748B',
-                borderBottom: tab === t ? '2px solid #F97316' : '2px solid transparent',
+                color: tab === t ? 'var(--accent)' : 'var(--text-muted)',
+                borderBottom: tab === t ? '2px solid var(--accent)' : '2px solid transparent',
                 transition: 'color 150ms',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}

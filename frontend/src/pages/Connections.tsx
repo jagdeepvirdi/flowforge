@@ -9,6 +9,7 @@ import {
 import StatusBadge from '../components/shared/StatusBadge'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
+import Sk from '../components/shared/Skeleton'
 import PageIntro from '../components/shared/PageIntro'
 import FieldTooltip from '../components/shared/FieldTooltip'
 
@@ -20,8 +21,8 @@ const DB_LABELS: Record<string, string>  = { postgresql: 'PostgreSQL', oracle: '
 function StatCol({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minWidth: 70 }}>
-      <span style={{ fontSize: 10, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: 3 }}>{label}</span>
-      <span className="mono" style={{ fontSize: 12, color: '#CBD5E1', fontWeight: 500 }}>{value}</span>
+      <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: 3 }}>{label}</span>
+      <span className="mono" style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 500 }}>{value}</span>
     </div>
   )
 }
@@ -219,13 +220,13 @@ export default function Connections() {
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', borderBottom: '1px solid #2D3143', marginBottom: 20 }}>
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 20 }}>
           {TABS.map(t => {
             const active = tab === t.id
             return (
               <button key={t.id} onClick={() => setTab(t.id)} style={{
                 background: 'transparent', border: 'none',
-                color: active ? 'var(--accent)' : '#94A3B8',
+                color: active ? 'var(--accent)' : 'var(--text-3)',
                 padding: '10px 16px', fontSize: 13,
                 fontWeight: active ? 600 : 500,
                 cursor: 'pointer',
@@ -246,9 +247,35 @@ export default function Connections() {
         {/* DB connections */}
         {tab === 'db' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {dbLoading && <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner /></div>}
+            {dbLoading && [0,1,2].map(i => (
+              <div key={i} className="card" style={{ padding: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <Sk h={40} r={9} style={{ width: 40, flexShrink: 0 }} />
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <Sk h={14} style={{ width: 160 }} />
+                      <Sk h={14} r={4} style={{ width: 70 }} />
+                    </div>
+                    <Sk h={11} style={{ width: 130 }} />
+                  </div>
+                  <div style={{ display: 'flex', gap: 24, flexShrink: 0 }}>
+                    {[55, 30].map(w => (
+                      <div key={w} style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 70 }}>
+                        <Sk h={10} style={{ width: 40 }} />
+                        <Sk h={12} style={{ width: w }} />
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                    <Sk h={28} r={6} style={{ width: 62 }} />
+                    <Sk h={28} r={6} style={{ width: 30 }} />
+                    <Sk h={28} r={6} style={{ width: 30 }} />
+                  </div>
+                </div>
+              </div>
+            ))}
             {dbConns.map(c => {
-              const color = DB_COLORS[c.db_type] ?? '#64748B'
+              const color = DB_COLORS[c.db_type] ?? 'var(--text-muted)'
               const label = DB_LABELS[c.db_type] ?? c.db_type
               const ts = testStatuses[c.id]
               return (
@@ -262,11 +289,11 @@ export default function Connections() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
                         <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{c.name}</span>
-                        <span className="mono" style={{ fontSize: 10.5, padding: '1px 6px', borderRadius: 4, background: 'var(--surface-2)', color: '#94A3B8' }}>{label}</span>
+                        <span className="mono" style={{ fontSize: 10.5, padding: '1px 6px', borderRadius: 4, background: 'var(--surface-2)', color: 'var(--text-3)' }}>{label}</span>
                         {ts === 'ok'   && <StatusBadge status="success" label="Healthy" />}
                         {ts === 'fail' && <StatusBadge status="failed"  label="Unreachable" />}
                       </div>
-                      <div className="mono" style={{ fontSize: 11.5, color: '#64748B' }}>{c.db_type} · {c.is_default ? 'default' : 'not default'}</div>
+                      <div className="mono" style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{c.db_type} · {c.is_default ? 'default' : 'not default'}</div>
                     </div>
                     <div style={{ display: 'flex', gap: 24, fontSize: 11.5, flexShrink: 0 }}>
                       <StatCol label="Type"    value={label} />
@@ -274,7 +301,7 @@ export default function Connections() {
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                       <button className="btn btn-sm" onClick={() => testDb(c.id)} disabled={ts === 'testing'}>
-                        {ts === 'testing' ? <Spinner size={11} /> : <span style={{ width: 6, height: 6, borderRadius: '50%', background: ts === 'ok' ? '#4ADE80' : '#64748B' }} />}
+                        {ts === 'testing' ? <Spinner size={11} /> : <span style={{ width: 6, height: 6, borderRadius: '50%', background: ts === 'ok' ? 'var(--success-text)' : 'var(--text-muted)' }} />}
                         Test
                       </button>
                       <button className="btn btn-sm btn-ghost btn-icon" onClick={() => openEdit(c.id)}><Pencil size={12} /></button>
@@ -289,7 +316,7 @@ export default function Connections() {
             {!dbLoading && dbConns.length === 0 && (
               <div className="card ff-empty">
                 <p className="msg">No database connections yet.</p>
-                <p style={{ fontSize: 12.5, color: '#64748B', margin: '0 0 14px' }}>Add a PostgreSQL or Oracle connection. Credentials are encrypted at rest with AES-256.</p>
+                <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: '0 0 14px' }}>Add a PostgreSQL or Oracle connection. Credentials are encrypted at rest with AES-256.</p>
                 <button className="btn btn-primary btn-sm" onClick={openModal}>Add connection</button>
               </div>
             )}
@@ -299,13 +326,39 @@ export default function Connections() {
         {/* Email providers */}
         {tab === 'mail' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {mailLoading && <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner /></div>}
+            {mailLoading && [0,1,2].map(i => (
+              <div key={i} className="card" style={{ padding: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <Sk h={40} r={9} style={{ width: 40, flexShrink: 0 }} />
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <Sk h={14} style={{ width: 160 }} />
+                      <Sk h={14} r={4} style={{ width: 80 }} />
+                    </div>
+                    <Sk h={11} style={{ width: 130 }} />
+                  </div>
+                  <div style={{ display: 'flex', gap: 24, flexShrink: 0 }}>
+                    {[70, 30].map(w => (
+                      <div key={w} style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 70 }}>
+                        <Sk h={10} style={{ width: 40 }} />
+                        <Sk h={12} style={{ width: w }} />
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                    <Sk h={28} r={6} style={{ width: 62 }} />
+                    <Sk h={28} r={6} style={{ width: 30 }} />
+                    <Sk h={28} r={6} style={{ width: 30 }} />
+                  </div>
+                </div>
+              </div>
+            ))}
             {providers.map(p => {
               const ts = testStatuses[p.id]
               return (
                 <div key={p.id} className="card" style={{ padding: 16 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 9, background: 'rgba(249,115,22,0.14)', border: '1px solid rgba(249,115,22,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FB923C', flexShrink: 0 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 9, background: 'rgba(249,115,22,0.14)', border: '1px solid rgba(249,115,22,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-text)', flexShrink: 0 }}>
                       <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>
                       </svg>
@@ -313,13 +366,13 @@ export default function Connections() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
                         <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{p.name}</span>
-                        <span className="mono" style={{ fontSize: 10.5, padding: '1px 6px', borderRadius: 4, background: 'var(--surface-2)', color: '#94A3B8' }}>{p.provider_type}</span>
+                        <span className="mono" style={{ fontSize: 10.5, padding: '1px 6px', borderRadius: 4, background: 'var(--surface-2)', color: 'var(--text-3)' }}>{p.provider_type}</span>
                         {ts === 'ok'   && <StatusBadge status="success" label="Verified" />}
                         {ts === 'fail' && <StatusBadge status="failed"  label="Failed" />}
                       </div>
-                      <div className="mono" style={{ fontSize: 11.5, color: '#64748B' }}>{p.provider_type} · {p.is_default ? 'default' : 'not default'}</div>
+                      <div className="mono" style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{p.provider_type} · {p.is_default ? 'default' : 'not default'}</div>
                       {ts === 'fail' && testErrors[p.id] && (
-                        <div className="mono" style={{ fontSize: 11, color: '#EF4444', marginTop: 4, wordBreak: 'break-all' }}>{testErrors[p.id]}</div>
+                        <div className="mono" style={{ fontSize: 11, color: 'var(--failure)', marginTop: 4, wordBreak: 'break-all' }}>{testErrors[p.id]}</div>
                       )}
                     </div>
                     <div style={{ display: 'flex', gap: 24, fontSize: 11.5, flexShrink: 0 }}>
@@ -328,7 +381,7 @@ export default function Connections() {
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                       <button className="btn btn-sm" onClick={() => testEmail(p.id)} disabled={ts === 'testing'}>
-                        {ts === 'testing' ? <Spinner size={11} /> : <span style={{ width: 6, height: 6, borderRadius: '50%', background: ts === 'ok' ? '#4ADE80' : '#64748B' }} />}
+                        {ts === 'testing' ? <Spinner size={11} /> : <span style={{ width: 6, height: 6, borderRadius: '50%', background: ts === 'ok' ? 'var(--success-text)' : 'var(--text-muted)' }} />}
                         Test
                       </button>
                       <button className="btn btn-sm btn-ghost btn-icon" onClick={() => openEdit(p.id)}><Pencil size={12} /></button>
@@ -343,7 +396,7 @@ export default function Connections() {
             {!mailLoading && providers.length === 0 && (
               <div className="card ff-empty">
                 <p className="msg">No email providers configured yet.</p>
-                <p style={{ fontSize: 12.5, color: '#64748B', margin: '0 0 14px' }}>Add a Gmail, Microsoft 365, or SMTP provider. One provider can be shared across many email configs.</p>
+                <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: '0 0 14px' }}>Add a Gmail, Microsoft 365, or SMTP provider. One provider can be shared across many email configs.</p>
                 <button className="btn btn-primary btn-sm" onClick={openModal}>Add email provider</button>
               </div>
             )}
@@ -368,7 +421,7 @@ export default function Connections() {
               {(['db', 'mail'] as Tab[]).map(t => (
                 <button key={t} onClick={() => setTab(t)} className="btn btn-sm" style={{
                   background: tab === t ? 'rgba(249,115,22,0.15)' : 'transparent',
-                  color: tab === t ? 'var(--accent)' : '#94A3B8',
+                  color: tab === t ? 'var(--accent)' : 'var(--text-3)',
                   border: `1px solid ${tab === t ? 'rgba(249,115,22,0.4)' : 'var(--border)'}`,
                 }}>
                   {t === 'db' ? 'Database' : 'Email Provider'}
@@ -412,15 +465,15 @@ export default function Connections() {
                   </Field>
                 </div>
 
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#94A3B8', cursor: 'pointer' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-3)', cursor: 'pointer' }}>
                   <input type="checkbox" checked={dbForm.is_default} onChange={e => setDbForm(f => ({ ...f, is_default: e.target.checked }))} />
                   Set as default connection
                 </label>
 
-                {formError && <div style={{ fontSize: 12.5, color: '#F87171', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, padding: '8px 12px' }}>{formError}</div>}
+                {formError && <div style={{ fontSize: 12.5, color: 'var(--failure-text)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, padding: '8px 12px' }}>{formError}</div>}
 
                 {modalTest.status !== 'idle' && (
-                  <div style={{ fontSize: 12, padding: '7px 12px', borderRadius: 6, background: modalTest.status === 'ok' ? 'rgba(34,197,94,0.08)' : modalTest.status === 'fail' ? 'rgba(239,68,68,0.08)' : '#21252F', border: `1px solid ${modalTest.status === 'ok' ? 'rgba(34,197,94,0.3)' : modalTest.status === 'fail' ? 'rgba(239,68,68,0.2)' : '#2D3143'}`, color: modalTest.status === 'ok' ? '#4ADE80' : modalTest.status === 'fail' ? '#F87171' : '#94A3B8' }}>
+                  <div style={{ fontSize: 12, padding: '7px 12px', borderRadius: 6, background: modalTest.status === 'ok' ? 'rgba(34,197,94,0.08)' : modalTest.status === 'fail' ? 'rgba(239,68,68,0.08)' : 'var(--surface-2)', border: `1px solid ${modalTest.status === 'ok' ? 'rgba(34,197,94,0.3)' : modalTest.status === 'fail' ? 'rgba(239,68,68,0.2)' : 'var(--border)'}`, color: modalTest.status === 'ok' ? 'var(--success-text)' : modalTest.status === 'fail' ? 'var(--failure-text)' : 'var(--text-3)' }}>
                     {modalTest.status === 'testing' ? 'Testing connection…' : modalTest.msg}
                   </div>
                 )}
@@ -428,7 +481,7 @@ export default function Connections() {
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
                   <button type="button" className="btn btn-sm" onClick={closeModal}>Cancel</button>
                   <button type="button" className="btn btn-sm" onClick={runModalTest} disabled={modalTest.status === 'testing'}>
-                    {modalTest.status === 'testing' ? <Spinner size={11} /> : <span style={{ width: 6, height: 6, borderRadius: '50%', background: modalTest.status === 'ok' ? '#4ADE80' : modalTest.status === 'fail' ? '#EF4444' : '#64748B' }} />}
+                    {modalTest.status === 'testing' ? <Spinner size={11} /> : <span style={{ width: 6, height: 6, borderRadius: '50%', background: modalTest.status === 'ok' ? 'var(--success-text)' : modalTest.status === 'fail' ? 'var(--failure)' : 'var(--text-muted)' }} />}
                     Test
                   </button>
                   <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>
@@ -475,7 +528,7 @@ export default function Connections() {
                         <input className="input" type="password" value={mailForm.password} onChange={e => setMailForm(f => ({ ...f, password: e.target.value }))} />
                       </Field>
                     </div>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#94A3B8', cursor: 'pointer' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-3)', cursor: 'pointer' }}>
                       <input type="checkbox" checked={mailForm.use_tls} onChange={e => setMailForm(f => ({ ...f, use_tls: e.target.checked }))} />
                       Use TLS
                     </label>
@@ -499,20 +552,20 @@ export default function Connections() {
                       <Field label="Refresh Token">
                         <input className="input" type="password" value={mailForm.refresh_token} onChange={e => setMailForm(f => ({ ...f, refresh_token: e.target.value }))}
                           placeholder="Paste refresh token from OAuth2 setup" required />
-                        <span style={{ fontSize: 11, color: '#64748B', marginTop: 3 }}>
-                          Run <code style={{ color: '#94A3B8' }}>flowforge setup gmail</code> in the terminal to generate this token.
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
+                          Run <code style={{ color: 'var(--text-3)' }}>flowforge setup gmail</code> in the terminal to generate this token.
                         </span>
                       </Field>
                     )}
                   </>
                 )}
 
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#94A3B8', cursor: 'pointer' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-3)', cursor: 'pointer' }}>
                   <input type="checkbox" checked={mailForm.is_default} onChange={e => setMailForm(f => ({ ...f, is_default: e.target.checked }))} />
                   Set as default provider
                 </label>
 
-                {formError && <div style={{ fontSize: 12.5, color: '#F87171', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, padding: '8px 12px' }}>{formError}</div>}
+                {formError && <div style={{ fontSize: 12.5, color: 'var(--failure-text)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, padding: '8px 12px' }}>{formError}</div>}
 
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
                   <button type="button" className="btn btn-sm" onClick={closeModal}>Cancel</button>

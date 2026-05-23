@@ -47,9 +47,9 @@ function FilterChip({ label, value, options, onChange }: {
   const next = () => onChange(options[(options.indexOf(value) + 1) % options.length])
   return (
     <button className="btn btn-sm" style={{ gap: 4 }} onClick={next}>
-      <span style={{ color: '#64748B' }}>{label}</span>
+      <span style={{ color: 'var(--text-muted)' }}>{label}</span>
       <span>{value}</span>
-      <ChevronDown size={11} style={{ color: '#64748B' }} />
+      <ChevronDown size={11} style={{ color: 'var(--text-muted)' }} />
     </button>
   )
 }
@@ -109,12 +109,12 @@ export default function Pipelines() {
 
         {/* Filter bar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#1A1D27', border: '1px solid #2D3143', borderRadius: 8, padding: '0 12px', height: 34, flex: 1, maxWidth: 360 }}>
-            <Search size={14} style={{ color: '#64748B' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '0 12px', height: 34, flex: 1, maxWidth: 360 }}>
+            <Search size={14} style={{ color: 'var(--text-muted)' }} />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              style={{ background: 'transparent', border: 'none', outline: 'none', color: '#F1F5F9', fontSize: 13, fontFamily: 'inherit', flex: 1 }}
+              style={{ background: 'transparent', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 13, fontFamily: 'inherit', flex: 1 }}
               placeholder="Filter pipelines…"
             />
           </div>
@@ -143,27 +143,27 @@ export default function Pipelines() {
                 {filtered.map(p => (
                   <tr key={p.id}>
                     <td>
-                      <div style={{ fontWeight: 500, color: '#F1F5F9' }}>
-                        <Link to={`/pipelines/${p.id}/edit`} style={{ color: '#F1F5F9', textDecoration: 'none' }}
-                          onMouseEnter={e => (e.currentTarget.style.color = '#FB923C')}
-                          onMouseLeave={e => (e.currentTarget.style.color = '#F1F5F9')}>
+                      <div style={{ fontWeight: 500, color: 'var(--text)' }}>
+                        <Link to={`/pipelines/${p.id}/edit`} style={{ color: 'var(--text)', textDecoration: 'none' }}
+                          onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent-text)')}
+                          onMouseLeave={e => (e.currentTarget.style.color = 'var(--text)')}>
                           {p.name}
                         </Link>
                       </div>
-                      {p.description && <div style={{ fontSize: 11.5, color: '#64748B', marginTop: 2 }}>{p.description}</div>}
+                      {p.description && <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>{p.description}</div>}
                     </td>
                     <td><StatusBadge status={p.enabled ? 'active' : 'paused'} label={p.enabled ? 'Active' : 'Disabled'} /></td>
                     <td>
                       {p.schedule ? (
                         <>
-                          <div style={{ fontSize: 12, color: '#CBD5E1' }}>{describeCron(p.schedule)}</div>
-                          <div className="mono" style={{ fontSize: 10.5, color: '#64748B', marginTop: 2 }}>{p.schedule}</div>
+                          <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{describeCron(p.schedule)}</div>
+                          <div className="mono" style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 2 }}>{p.schedule}</div>
                         </>
                       ) : (
-                        <span style={{ color: '#475569' }}>Manual only</span>
+                        <span style={{ color: 'var(--text-dim)' }}>Manual only</span>
                       )}
                     </td>
-                    <td className="mono" style={{ color: '#CBD5E1' }}>{p.steps.length}</td>
+                    <td className="mono" style={{ color: 'var(--text-2)' }}>{p.steps.length}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
                         <button className="btn btn-sm btn-ghost btn-icon" onClick={() => trigger(p.id)} title="Run now" disabled={!p.enabled}>
@@ -174,9 +174,9 @@ export default function Pipelines() {
                         </Link>
                         <button
                           className="btn btn-sm btn-ghost btn-icon"
-                          style={{ color: '#64748B' }}
-                          onMouseEnter={e => (e.currentTarget.style.color = '#F87171')}
-                          onMouseLeave={e => (e.currentTarget.style.color = '#64748B')}
+                          style={{ color: 'var(--text-muted)' }}
+                          onMouseEnter={e => (e.currentTarget.style.color = 'var(--failure-text)')}
+                          onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
                           onClick={() => window.confirm(`Delete "${p.name}"?`) && remove(p.id)}
                           title="Delete"
                         >

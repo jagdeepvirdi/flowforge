@@ -20,7 +20,9 @@ import { useProjectStore } from '../lib/store'
 import StepEditor from '../components/pipeline/StepEditor'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
+import Sk from '../components/shared/Skeleton'
 import FieldTooltip from '../components/shared/FieldTooltip'
+import RouteErrorBoundary from '../components/shared/RouteErrorBoundary'
 
 const STEP_TYPES: StepType[] = ['db_procedure', 'db_query', 'report', 'email', 'drive_upload', 'data_load', 'bulk_load']
 
@@ -155,8 +157,46 @@ export default function PipelineEdit() {
   const crumbs = isNew ? ['Workspace', 'Pipelines', 'New Pipeline'] : ['Workspace', 'Pipelines', name || 'Edit Pipeline']
 
   if (!isNew && isLoading) return (
-    <><TopBar crumbs={crumbs} />
-    <div className="scroll" style={{ display: 'flex', justifyContent: 'center' }}><Spinner /></div></>
+    <>
+      <TopBar crumbs={crumbs} actions={
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Sk h={28} r={6} style={{ width: 68 }} />
+          <Sk h={28} r={6} style={{ width: 68 }} />
+        </div>
+      } />
+      <div className="scroll">
+        <div className="card" style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <Sk h={13} style={{ width: 55 }} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {[0,1,2,3].map(i => (
+              <div key={i} className="field">
+                <Sk h={12} style={{ width: 70, marginBottom: 6 }} />
+                <Sk h={34} r={6} />
+              </div>
+            ))}
+          </div>
+          <div className="field">
+            <Sk h={12} style={{ width: 80, marginBottom: 6 }} />
+            <Sk h={64} r={6} />
+          </div>
+        </div>
+        <div className="card" style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <Sk h={13} style={{ width: 100 }} />
+          {[0,1].map(i => (
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 10, alignItems: 'center' }}>
+              <Sk h={34} r={6} />
+              <Sk h={34} r={6} />
+              <Sk h={28} r={6} style={{ width: 28 }} />
+            </div>
+          ))}
+        </div>
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <Sk h={13} style={{ width: 80 }} />
+          <Sk h={64} r={6} />
+          <Sk h={64} r={6} />
+        </div>
+      </div>
+    </>
   )
 
   return (
@@ -175,7 +215,7 @@ export default function PipelineEdit() {
 
       <div className="scroll">
         {error && (
-          <div style={{ marginBottom: 14, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 7, fontSize: 12.5, color: '#F87171' }}>{error}</div>
+          <div style={{ marginBottom: 14, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 7, fontSize: 12.5, color: 'var(--failure-text)' }}>{error}</div>
         )}
 
         {/* Basic info */}
@@ -220,7 +260,7 @@ export default function PipelineEdit() {
             <div>
               <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Pipeline Variables</span>
               <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>
-                available as <code style={{ fontSize: 11, background: '#1A1D27', padding: '1px 5px', borderRadius: 3 }}>{'{{ var_name }}'}</code> in all step configs
+                available as <code style={{ fontSize: 11, background: 'var(--surface)', padding: '1px 5px', borderRadius: 3 }}>{'{{ var_name }}'}</code> in all step configs
               </span>
             </div>
             <button
@@ -239,7 +279,7 @@ export default function PipelineEdit() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {/* Header */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 8, paddingBottom: 4, borderBottom: '1px solid #2D3143' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 8, paddingBottom: 4, borderBottom: '1px solid var(--border)' }}>
                 {(['Name', 'Value', 'Secret', ''] as const).map(h => (
                   <span key={h} style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>{h}</span>
                 ))}
@@ -272,7 +312,7 @@ export default function PipelineEdit() {
                   <button
                     type="button"
                     onClick={() => setVars(prev => prev.filter((_, j) => j !== i))}
-                    style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', padding: 4 }}
+                    style={{ background: 'transparent', border: 'none', color: 'var(--failure)', cursor: 'pointer', padding: 4 }}
                     title="Remove variable"
                   >
                     <Trash2 size={13} />
@@ -302,23 +342,25 @@ export default function PipelineEdit() {
             </div>
           </div>
 
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={steps.map(s => s.id)} strategy={verticalListSortingStrategy}>
-              {steps.map(step => (
-                <StepEditor
-                  key={step.id}
-                  step={step}
-                  onChange={handleStepChange}
-                  onDelete={handleStepDelete}
-                  allSteps={steps}
-                  dbConnections={dbConns.map(c => ({ id: c.id, name: c.name }))}
-                  reportConfigs={reportCfgs.map(r => ({ id: r.id, name: r.name, output_filename: r.output_filename }))}
-                  emailConfigs={emailCfgs.map(e => ({ id: e.id, name: e.name }))}
-                  bulkLoadConfigs={bulkLoadCfgs.map(b => ({ id: b.id, name: b.name, source_directory: b.source_directory, target_table: b.target_table }))}
-                />
-              ))}
-            </SortableContext>
-          </DndContext>
+          <RouteErrorBoundary label="Step editor">
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={steps.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                {steps.map(step => (
+                  <StepEditor
+                    key={step.id}
+                    step={step}
+                    onChange={handleStepChange}
+                    onDelete={handleStepDelete}
+                    allSteps={steps}
+                    dbConnections={dbConns.map(c => ({ id: c.id, name: c.name }))}
+                    reportConfigs={reportCfgs.map(r => ({ id: r.id, name: r.name, output_filename: r.output_filename }))}
+                    emailConfigs={emailCfgs.map(e => ({ id: e.id, name: e.name }))}
+                    bulkLoadConfigs={bulkLoadCfgs.map(b => ({ id: b.id, name: b.name, source_directory: b.source_directory, target_table: b.target_table }))}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
+          </RouteErrorBoundary>
 
           {steps.length === 0 && (
             <div className="card ff-empty" style={{ borderStyle: 'dashed', padding: '24px 0' }}>
@@ -387,7 +429,7 @@ function WebhookCard({ pipelineId }: { pipelineId: string }) {
 
       <p style={{ ...muted, marginBottom: 12, marginTop: 0 }}>
         Trigger this pipeline from external systems using{' '}
-        <code style={{ fontSize: 11, background: '#1A1D27', padding: '1px 5px', borderRadius: 3 }}>
+        <code style={{ fontSize: 11, background: 'var(--surface)', padding: '1px 5px', borderRadius: 3 }}>
           POST /api/pipelines/{pipelineId.slice(0, 8)}…/trigger?token=&lt;token&gt;
         </code>
       </p>
@@ -395,14 +437,14 @@ function WebhookCard({ pipelineId }: { pipelineId: string }) {
       {/* New token after creation — show URL once */}
       {justCreated && (
         <div style={{ marginBottom: 12, padding: '10px 12px', background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 6 }}>
-          <div style={{ fontSize: 11.5, color: '#4ADE80', fontWeight: 600, marginBottom: 6 }}>
+          <div style={{ fontSize: 11.5, color: 'var(--success-text)', fontWeight: 600, marginBottom: 6 }}>
             Token created — copy the URL now. It will not be shown again.
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             <input
               readOnly
               value={triggerUrl}
-              style={{ flex: 1, background: '#0F1117', border: '1px solid #2D3143', borderRadius: 5, padding: '5px 8px', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text)', outline: 'none' }}
+              style={{ flex: 1, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 5, padding: '5px 8px', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text)', outline: 'none' }}
             />
             <button className="btn btn-sm" onClick={handleCopy} title="Copy URL">
               <Copy size={11} /> {copied ? 'Copied!' : 'Copy'}
@@ -427,7 +469,7 @@ function WebhookCard({ pipelineId }: { pipelineId: string }) {
       ) : (
         <div style={{ marginBottom: 12 }}>
           {tokens.map(t => (
-            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid #2D3143' }}>
+            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
               <span style={{ flex: 1, fontSize: 12, color: 'var(--text)' }}>{t.label || <em style={{ color: 'var(--text-muted)' }}>unlabelled</em>}</span>
               <span style={{ ...muted, fontFamily: 'var(--font-mono)', fontSize: 10.5 }}>
                 {t.last_used_at ? `last used ${new Date(t.last_used_at).toLocaleDateString()}` : 'never used'}
@@ -436,7 +478,7 @@ function WebhookCard({ pipelineId }: { pipelineId: string }) {
                 className="btn btn-sm"
                 onClick={() => handleRevoke(t.id)}
                 title="Revoke token"
-                style={{ color: '#F87171' }}
+                style={{ color: 'var(--failure-text)' }}
               >
                 <Trash2 size={11} /> Revoke
               </button>
@@ -534,7 +576,7 @@ function CronBuilder({ defaultValue, onChange }: { defaultValue: string; onChang
   })
 
   const upd = (key: keyof CronState, val: number) => setCronState(s => ({ ...s, [key]: val }))
-  const muted: React.CSSProperties = { fontSize: 12.5, color: '#94A3B8' }
+  const muted: React.CSSProperties = { fontSize: 12.5, color: 'var(--text-3)' }
   const row:   React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }
 
   return (

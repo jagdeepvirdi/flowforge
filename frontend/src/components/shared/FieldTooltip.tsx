@@ -38,12 +38,12 @@ export default function FieldTooltip({ field }: Props) {
         onClick={handleToggle}
         style={{
           background: 'transparent', border: 'none', cursor: 'pointer',
-          color: open ? '#F97316' : '#475569',
+          color: open ? 'var(--accent)' : 'var(--text-dim)',
           display: 'flex', alignItems: 'center', padding: 2,
           transition: 'color 150ms',
         }}
-        onMouseEnter={e => { if (!open) e.currentTarget.style.color = '#94A3B8' }}
-        onMouseLeave={e => { if (!open) e.currentTarget.style.color = '#475569' }}
+        onMouseEnter={e => { if (!open) e.currentTarget.style.color = 'var(--text-3)' }}
+        onMouseLeave={e => { if (!open) e.currentTarget.style.color = 'var(--text-dim)' }}
         aria-label={`Help for ${field}`}
       >
         <HelpCircle size={13} />
@@ -59,8 +59,8 @@ export default function FieldTooltip({ field }: Props) {
           transform: 'translateX(-50%)',
           zIndex: 300,
           width: 280,
-          background: '#21252F',
-          border: '1px solid #3A3F52',
+          background: 'var(--surface-2)',
+          border: '1px solid var(--border-strong)',
           borderRadius: 8,
           padding: '10px 12px',
           boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
@@ -69,21 +69,21 @@ export default function FieldTooltip({ field }: Props) {
           <div style={{
             position: 'absolute',
             ...(popDown
-              ? { bottom: '100%', borderBottom: '6px solid #3A3F52', borderTop: undefined }
-              : { top: '100%', borderTop: '6px solid #3A3F52', borderBottom: undefined }),
+              ? { bottom: '100%', borderBottom: '6px solid var(--border-strong)', borderTop: undefined }
+              : { top: '100%', borderTop: '6px solid var(--border-strong)', borderBottom: undefined }),
             left: '50%', transform: 'translateX(-50%)',
             width: 0, height: 0,
             borderLeft: '6px solid transparent',
             borderRight: '6px solid transparent',
           }} />
 
-          <p style={{ fontSize: 12.5, color: '#94A3B8', margin: tip.example ? '0 0 8px' : 0, lineHeight: 1.55 }}>
+          <p style={{ fontSize: 12.5, color: 'var(--text-3)', margin: tip.example ? '0 0 8px' : 0, lineHeight: 1.55 }}>
             {tip.text}
           </p>
           {tip.example && (
             <pre style={{
-              fontSize: 11, color: '#CBD5E1',
-              background: '#161922', borderRadius: 5,
+              fontSize: 11, color: 'var(--text-2)',
+              background: 'var(--bg-code)', borderRadius: 5,
               padding: '6px 8px', margin: '6px 0 0',
               overflowX: 'auto', whiteSpace: 'pre-wrap',
               fontFamily: 'JetBrains Mono, monospace',

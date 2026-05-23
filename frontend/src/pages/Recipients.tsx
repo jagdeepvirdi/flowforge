@@ -43,8 +43,8 @@ function GroupRow({ group, onSaved, onDelete }: { group: RecipientGroup; onSaved
   if (!editing) {
     return (
       <tr>
-        <td style={{ fontWeight: 500, color: '#F1F5F9' }}>{group.name}</td>
-        <td style={{ color: '#94A3B8', fontSize: 12 }}>{group.description}</td>
+        <td style={{ fontWeight: 500, color: 'var(--text)' }}>{group.name}</td>
+        <td style={{ color: 'var(--text-3)', fontSize: 12 }}>{group.description}</td>
         <td>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
             {group.addresses.map(a => <span key={a} className="chip" style={{ height: 20, fontSize: 11 }}>{a}</span>)}
@@ -67,7 +67,7 @@ function GroupRow({ group, onSaved, onDelete }: { group: RecipientGroup; onSaved
       <td><ChipInput values={addresses} onChange={setAddresses} /></td>
       <td>
         <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-          <button className="btn btn-sm btn-ghost btn-icon" onClick={() => save()} disabled={isPending} style={{ color: '#4ADE80' }}>
+          <button className="btn btn-sm btn-ghost btn-icon" onClick={() => save()} disabled={isPending} style={{ color: 'var(--success-text)' }}>
             {isPending ? <Spinner size={12} /> : <Check size={13} />}
           </button>
           <button className="btn btn-sm btn-ghost btn-icon" onClick={() => setEditing(false)}><X size={13} /></button>
@@ -118,7 +118,7 @@ export default function Recipients() {
 
         {showNew && (
           <div className="card" style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12, borderColor: 'rgba(249,115,22,0.3)' }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#F1F5F9' }}>New Group</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>New Group</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="field"><label>Name *</label><input className="input" value={newName} onChange={e => setNewName(e.target.value)} /></div>
               <div className="field"><label>Description</label><input className="input" value={newDesc} onChange={e => setNewDesc(e.target.value)} /></div>
@@ -144,7 +144,7 @@ export default function Recipients() {
               </tr>
             </thead>
             <tbody>
-              {groups.length === 0 && <tr><td colSpan={4} style={{ textAlign: 'center', padding: '40px 0', color: '#64748B' }}>No recipient groups yet. Create a named list of addresses — "Finance Team", "Management" — and assign it to an email config.</td></tr>}
+              {groups.length === 0 && <tr><td colSpan={4} style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>No recipient groups yet. Create a named list of addresses — "Finance Team", "Management" — and assign it to an email config.</td></tr>}
               {groups.map(g => <GroupRow key={g.id} group={g} onSaved={() => qc.invalidateQueries({ queryKey: ['recipient-groups'] })} onDelete={() => remove(g.id)} />)}
             </tbody>
           </table>

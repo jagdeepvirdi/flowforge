@@ -138,7 +138,7 @@ export default function BulkLoadEdit() {
           </div>
 
           {error && (
-            <div style={{ padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 7, fontSize: 12.5, color: '#F87171' }}>
+            <div style={{ padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 7, fontSize: 12.5, color: 'var(--failure-text)' }}>
               {error}
             </div>
           )}
@@ -186,7 +186,7 @@ export default function BulkLoadEdit() {
                 <input type="checkbox" checked={useSqlLoader} onChange={e => setUseSqlLoader(e.target.checked)} />
                 Use SQL*Loader (Oracle only)
               </label>
-              <span style={{ fontSize: 11, color: '#64748B', marginTop: 3 }}>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
                 Direct-path load via sqlldr subprocess. Fastest for Oracle bulk inserts.
               </span>
             </div>
@@ -211,12 +211,12 @@ export default function BulkLoadEdit() {
               <div className="field">
                 <label>File prefix (optional)</label>
                 <input className="input mono-input" value={filePrefix} onChange={e => setFilePrefix(e.target.value)} placeholder="SUBS_" />
-                <span style={{ fontSize: 11, color: '#64748B', marginTop: 3 }}>Only load files starting with this.</span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>Only load files starting with this.</span>
               </div>
               <div className="field">
                 <label>Exclude prefix (optional)</label>
                 <input className="input mono-input" value={filePrefixExclude} onChange={e => setFilePrefixExclude(e.target.value)} placeholder="SUBS_OLD_" />
-                <span style={{ fontSize: 11, color: '#64748B', marginTop: 3 }}>Skip files starting with this.</span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>Skip files starting with this.</span>
               </div>
             </div>
 
@@ -271,7 +271,7 @@ export default function BulkLoadEdit() {
                   </button>
                 ))}
               </div>
-              <span style={{ fontSize: 11, color: '#64748B', marginTop: 3 }}>Loaded files are moved here. Leave blank to leave files in place.</span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>Loaded files are moved here. Leave blank to leave files in place.</span>
             </div>
 
             <div className="field">
@@ -284,23 +284,23 @@ export default function BulkLoadEdit() {
                 placeholder={'[\n  { "source": "SOURCE_COL", "target": "target_col" }\n]'}
                 style={{ height: 'auto', resize: 'vertical', fontSize: 12 }}
               />
-              <span style={{ fontSize: 11, color: '#64748B', marginTop: 3 }}>
-                Rename source columns to match the target table schema. Leave as <code style={{ color: '#94A3B8' }}>[]</code> to use source column names as-is.
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
+                Rename source columns to match the target table schema. Leave as <code style={{ color: 'var(--text-3)' }}>[]</code> to use source column names as-is.
               </span>
             </div>
           </div>
 
           {/* Output variable hint card */}
           <div className="card" style={{ background: 'rgba(251,146,60,0.04)', border: '1px solid rgba(251,146,60,0.15)' }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#FB923C', marginBottom: 8 }}>Output variables</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: '#94A3B8', lineHeight: 1.6 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent-text)', marginBottom: 8 }}>Output variables</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-3)', lineHeight: 1.6 }}>
               <div>After this step runs, downstream steps can reference:</div>
-              <code className="mono" style={{ fontSize: 11, color: '#CBD5E1' }}>{'{{ steps.step_name.files_found }}'}</code>
-              <code className="mono" style={{ fontSize: 11, color: '#CBD5E1' }}>{'{{ steps.step_name.files_loaded }}'}</code>
-              <code className="mono" style={{ fontSize: 11, color: '#CBD5E1' }}>{'{{ steps.step_name.records_loaded }}'}</code>
-              <code className="mono" style={{ fontSize: 11, color: '#CBD5E1' }}>{'{{ steps.step_name.records_failed }}'}</code>
-              <code className="mono" style={{ fontSize: 11, color: '#CBD5E1' }}>{'{{ steps.step_name.duration_sec }}'}</code>
-              <div style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>Use these in a follow-up email step to send a load summary.</div>
+              <code className="mono" style={{ fontSize: 11, color: 'var(--text-2)' }}>{'{{ steps.step_name.files_found }}'}</code>
+              <code className="mono" style={{ fontSize: 11, color: 'var(--text-2)' }}>{'{{ steps.step_name.files_loaded }}'}</code>
+              <code className="mono" style={{ fontSize: 11, color: 'var(--text-2)' }}>{'{{ steps.step_name.records_loaded }}'}</code>
+              <code className="mono" style={{ fontSize: 11, color: 'var(--text-2)' }}>{'{{ steps.step_name.records_failed }}'}</code>
+              <code className="mono" style={{ fontSize: 11, color: 'var(--text-2)' }}>{'{{ steps.step_name.duration_sec }}'}</code>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Use these in a follow-up email step to send a load summary.</div>
             </div>
           </div>
         </div>

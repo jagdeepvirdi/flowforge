@@ -24,10 +24,10 @@ const TYPE_META: Record<string, { cls: string; label: string }> = {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  success: '#22C55E',
-  failed:  '#EF4444',
-  running: '#3B82F6',
-  skipped: '#475569',
+  success: 'var(--success)',
+  failed:  'var(--failure)',
+  running: 'var(--running)',
+  skipped: 'var(--text-dim)',
 }
 
 function TimelineStep({ s, last }: { s: StepRun; last: boolean }) {
@@ -46,7 +46,7 @@ function TimelineStep({ s, last }: { s: StepRun; last: boolean }) {
     }
   }
   const typeMeta = TYPE_META[s.step_type] ?? { cls: 'tbadge-query', label: s.step_type }
-  const statusColor = STATUS_COLOR[s.status] ?? '#475569'
+  const statusColor = STATUS_COLOR[s.status] ?? 'var(--text-dim)'
 
   return (
     <div style={{ display: 'flex', gap: 14, position: 'relative' }}>
@@ -54,7 +54,7 @@ function TimelineStep({ s, last }: { s: StepRun; last: boolean }) {
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, width: 24, paddingTop: 14 }}>
         <div style={{
           width: 24, height: 24, borderRadius: '50%',
-          background: '#1A1D27',
+          background: 'var(--surface)',
           border: `2px solid ${statusColor}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: statusColor,
@@ -67,14 +67,14 @@ function TimelineStep({ s, last }: { s: StepRun; last: boolean }) {
             : s.status === 'running' ? <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor, animation: 'ff-pulse 1.4s infinite' }} />
             : <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700 }}>{s.step_order}</span>}
         </div>
-        {!last && <div style={{ flex: 1, width: 2, background: '#2D3143', marginTop: 2 }} />}
+        {!last && <div style={{ flex: 1, width: 2, background: 'var(--border)', marginTop: 2 }} />}
       </div>
 
       {/* Card */}
       <div style={{
         flex: 1, marginBottom: 6,
-        background: open ? '#1A1D27' : '#161922',
-        border: `1px solid ${open ? '#3A3F52' : '#2D3143'}`,
+        background: open ? 'var(--surface)' : 'var(--bg-code)',
+        border: `1px solid ${open ? 'var(--border-strong)' : 'var(--border)'}`,
         borderRadius: 10,
         overflow: 'hidden',
         opacity: s.status === 'skipped' ? 0.5 : 1,
@@ -84,28 +84,28 @@ function TimelineStep({ s, last }: { s: StepRun; last: boolean }) {
           style={{ width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', textAlign: 'left' }}
         >
           <span className={`tbadge ${typeMeta.cls}`}>{typeMeta.label}</span>
-          <span className="mono" style={{ fontSize: 13, fontWeight: 500, color: '#F1F5F9' }}>{s.step_name}</span>
-          <span style={{ flex: 1, fontSize: 11.5, color: '#64748B', display: 'flex', alignItems: 'center', gap: 16 }}>
+          <span className="mono" style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{s.step_name}</span>
+          <span style={{ flex: 1, fontSize: 11.5, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 16 }}>
             {s.rows_affected != null && <span>{s.rows_affected.toLocaleString()} rows</span>}
           </span>
-          <span className="mono" style={{ fontSize: 11.5, color: s.status === 'success' ? '#4ADE80' : s.status === 'running' ? '#60A5FA' : '#475569', minWidth: 50, textAlign: 'right' }}>
+          <span className="mono" style={{ fontSize: 11.5, color: s.status === 'success' ? 'var(--success-text)' : s.status === 'running' ? 'var(--running-text)' : 'var(--text-dim)', minWidth: 50, textAlign: 'right' }}>
             {fmtDur(s.duration_ms)}
           </span>
-          {open ? <ChevronUp size={14} style={{ color: '#64748B' }} /> : <ChevronDown size={14} style={{ color: '#64748B' }} />}
+          {open ? <ChevronUp size={14} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />}
         </button>
 
         {open && (
-          <div style={{ borderTop: '1px solid #2D3143', background: '#0F1117' }}>
+          <div style={{ borderTop: '1px solid var(--border)', background: 'var(--bg)' }}>
             {/* Tabs */}
-            <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #2D3143', padding: '0 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--border)', padding: '0 16px' }}>
               {['Logs', 'Output', 'Info'].map((t, i) => (
                 <button key={t} onClick={() => setActiveTab(i)} style={{
                   background: 'transparent', border: 'none',
-                  color: activeTab === i ? '#F97316' : '#64748B',
+                  color: activeTab === i ? 'var(--accent)' : 'var(--text-muted)',
                   padding: '9px 14px', fontSize: 12,
                   fontWeight: activeTab === i ? 600 : 500,
                   cursor: 'pointer',
-                  borderBottom: activeTab === i ? '2px solid #F97316' : '2px solid transparent',
+                  borderBottom: activeTab === i ? '2px solid var(--accent)' : '2px solid transparent',
                   fontFamily: 'inherit',
                 }}>{t}</button>
               ))}
@@ -115,19 +115,19 @@ function TimelineStep({ s, last }: { s: StepRun; last: boolean }) {
             <div style={{ padding: '12px 16px', fontFamily: 'JetBrains Mono, monospace', fontSize: 11.5, lineHeight: 1.7 }}>
               {activeTab === 0 && (<>
                 {s.error_message && (
-                  <div style={{ marginBottom: 10, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, color: '#F87171', whiteSpace: 'pre-wrap' }}>
+                  <div style={{ marginBottom: 10, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, color: 'var(--failure-text)', whiteSpace: 'pre-wrap' }}>
                     {s.error_message}
                   </div>
                 )}
                 {s.logs
-                  ? <pre style={{ color: '#CBD5E1', background: '#0F1117', margin: 0, whiteSpace: 'pre-wrap', maxHeight: 240, overflow: 'auto' }}>{s.logs}</pre>
-                  : !s.error_message && <span style={{ color: '#475569' }}>No logs for this step.</span>}
+                  ? <pre style={{ color: 'var(--text-2)', background: 'var(--bg)', margin: 0, whiteSpace: 'pre-wrap', maxHeight: 240, overflow: 'auto' }}>{s.logs}</pre>
+                  : !s.error_message && <span style={{ color: 'var(--text-dim)' }}>No logs for this step.</span>}
               </>)}
 
               {activeTab === 1 && (<>
                 {s.output_path && (
                   <div style={{ marginBottom: 10 }}>
-                    <div style={{ color: '#64748B', fontSize: 11, marginBottom: 6 }}>
+                    <div style={{ color: 'var(--text-muted)', fontSize: 11, marginBottom: 6 }}>
                       {s.output_path.split(/[\\/]/).pop()}
                     </div>
                     <button
@@ -135,9 +135,9 @@ function TimelineStep({ s, last }: { s: StepRun; last: boolean }) {
                       disabled={downloading}
                       style={{
                         display: 'inline-flex', alignItems: 'center', gap: 6,
-                        padding: '6px 12px', borderRadius: 6, border: '1px solid #3A3F52',
-                        background: downloading ? '#1A1D27' : '#21252F',
-                        color: downloading ? '#475569' : '#F1F5F9',
+                        padding: '6px 12px', borderRadius: 6, border: '1px solid var(--border-strong)',
+                        background: downloading ? 'var(--surface)' : 'var(--surface-2)',
+                        color: downloading ? 'var(--text-dim)' : 'var(--text)',
                         fontSize: 12, cursor: downloading ? 'default' : 'pointer',
                         fontFamily: 'inherit',
                       }}
@@ -148,33 +148,33 @@ function TimelineStep({ s, last }: { s: StepRun; last: boolean }) {
                   </div>
                 )}
                 {s.drive_url && (
-                  <a href={s.drive_url} target="_blank" rel="noreferrer" style={{ color: '#60A5FA', display: 'inline-flex', alignItems: 'center', gap: 5, marginBottom: 6, fontSize: 12 }}>
+                  <a href={s.drive_url} target="_blank" rel="noreferrer" style={{ color: 'var(--running-text)', display: 'inline-flex', alignItems: 'center', gap: 5, marginBottom: 6, fontSize: 12 }}>
                     View in Drive <ExternalLink size={11} />
                   </a>
                 )}
                 {s.email_sent_to.length > 0 && (
-                  <div style={{ color: '#94A3B8', marginBottom: 6 }}>
+                  <div style={{ color: 'var(--text-3)', marginBottom: 6 }}>
                     Sent to: {s.email_sent_to.map(addr => (
                       <span key={addr} className="chip" style={{ marginLeft: 6, height: 20, fontSize: 11 }}>{addr}</span>
                     ))}
                   </div>
                 )}
                 {s.rows_affected != null && (
-                  <div style={{ color: '#94A3B8' }}>Rows affected: <span style={{ color: '#CBD5E1' }}>{s.rows_affected.toLocaleString()}</span></div>
+                  <div style={{ color: 'var(--text-3)' }}>Rows affected: <span style={{ color: 'var(--text-2)' }}>{s.rows_affected.toLocaleString()}</span></div>
                 )}
                 {!s.output_path && !s.drive_url && s.email_sent_to.length === 0 && s.rows_affected == null && (
-                  <span style={{ color: '#475569' }}>No output recorded.</span>
+                  <span style={{ color: 'var(--text-dim)' }}>No output recorded.</span>
                 )}
               </>)}
 
               {activeTab === 2 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, color: '#94A3B8' }}>
-                  <div>Type: <span style={{ color: '#CBD5E1' }}>{s.step_type}</span></div>
-                  <div>Order: <span style={{ color: '#CBD5E1' }}>#{s.step_order}</span></div>
-                  <div>Status: <span style={{ color: '#CBD5E1' }}>{s.status}</span></div>
-                  <div>Started: <span style={{ color: '#CBD5E1' }}>{new Date(s.started_at).toLocaleTimeString()}</span></div>
-                  {s.finished_at && <div>Finished: <span style={{ color: '#CBD5E1' }}>{new Date(s.finished_at).toLocaleTimeString()}</span></div>}
-                  {s.duration_ms != null && <div>Duration: <span style={{ color: '#CBD5E1' }}>{s.duration_ms}ms</span></div>}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, color: 'var(--text-3)' }}>
+                  <div>Type: <span style={{ color: 'var(--text-2)' }}>{s.step_type}</span></div>
+                  <div>Order: <span style={{ color: 'var(--text-2)' }}>#{s.step_order}</span></div>
+                  <div>Status: <span style={{ color: 'var(--text-2)' }}>{s.status}</span></div>
+                  <div>Started: <span style={{ color: 'var(--text-2)' }}>{new Date(s.started_at).toLocaleTimeString()}</span></div>
+                  {s.finished_at && <div>Finished: <span style={{ color: 'var(--text-2)' }}>{new Date(s.finished_at).toLocaleTimeString()}</span></div>}
+                  {s.duration_ms != null && <div>Duration: <span style={{ color: 'var(--text-2)' }}>{s.duration_ms}ms</span></div>}
                 </div>
               )}
             </div>
@@ -224,15 +224,15 @@ export default function RunDetail() {
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 18 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-              <h1 style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.02em', margin: 0, color: '#F1F5F9' }}>{run.pipeline_name}</h1>
+              <h1 style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.02em', margin: 0, color: 'var(--text)' }}>{run.pipeline_name}</h1>
               <StatusBadge status={run.status} animate />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 12, color: '#64748B', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 12, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
               <span className="mono">{run.id}</span>
               <span>·</span>
-              <span>Started <span style={{ color: '#CBD5E1' }}>{new Date(run.started_at).toLocaleString()}</span></span>
+              <span>Started <span style={{ color: 'var(--text-2)' }}>{new Date(run.started_at).toLocaleString()}</span></span>
               <span>·</span>
-              <span>Triggered by <span style={{ color: '#CBD5E1' }}>{run.triggered_by}</span></span>
+              <span>Triggered by <span style={{ color: 'var(--text-2)' }}>{run.triggered_by}</span></span>
             </div>
           </div>
         </div>
@@ -246,22 +246,22 @@ export default function RunDetail() {
             { label: 'Trigger',   value: run.triggered_by,              mono: false },
           ].map(s => (
             <div key={s.label} className="card" style={{ padding: '14px 16px' }}>
-              <div style={{ fontSize: 11, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: 6 }}>{s.label}</div>
-              <div className={s.mono ? 'mono' : ''} style={{ fontSize: 18, fontWeight: 600, color: '#F1F5F9', letterSpacing: s.mono ? '-0.02em' : 'normal' }}>{s.value}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: 6 }}>{s.label}</div>
+              <div className={s.mono ? 'mono' : ''} style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', letterSpacing: s.mono ? '-0.02em' : 'normal' }}>{s.value}</div>
             </div>
           ))}
         </div>
 
         {/* Progress bar */}
         <div style={{ marginBottom: 20 }}>
-          <div style={{ display: 'flex', gap: 2, height: 6, borderRadius: 4, overflow: 'hidden', background: '#21252F' }}>
+          <div style={{ display: 'flex', gap: 2, height: 6, borderRadius: 4, overflow: 'hidden', background: 'var(--surface-2)' }}>
             {steps.map((s, i) => {
               return (
                 <div key={i} style={{
                   flex: s.status === 'success' || s.status === 'running' ? (s.duration_ms ?? 1) : 1,
-                  background: s.status === 'success' ? '#22C55E'
-                    : s.status === 'running' ? 'linear-gradient(90deg,#3B82F6,#60A5FA)'
-                    : s.status === 'failed' ? '#EF4444' : '#21252F',
+                  background: s.status === 'success' ? 'var(--success)'
+                    : s.status === 'running' ? 'linear-gradient(90deg,var(--running),var(--running-text))'
+                    : s.status === 'failed' ? 'var(--failure)' : 'var(--surface-2)',
                   position: 'relative',
                   overflow: 'hidden',
                 }}>
@@ -277,8 +277,8 @@ export default function RunDetail() {
 
         {/* Error banner */}
         {run.error_message && (
-          <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, fontSize: 12.5, color: '#F87171' }}>
-            <strong style={{ color: '#F87171' }}>Failed at step:</strong> {run.error_step}<br />
+          <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, fontSize: 12.5, color: 'var(--failure-text)' }}>
+            <strong style={{ color: 'var(--failure-text)' }}>Failed at step:</strong> {run.error_step}<br />
             {run.error_message}
           </div>
         )}

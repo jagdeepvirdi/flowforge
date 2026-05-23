@@ -20,10 +20,13 @@ target_metadata = db.metadata
 
 
 def _db_url() -> str:
-    return os.environ.get(
-        'FLOWFORGE_DB_URL',
-        'postgresql://flowforge:flowforge@localhost:5432/flowforge',
-    )
+    url = os.environ.get('FLOWFORGE_DB_URL')
+    if not url:
+        raise RuntimeError(
+            'FLOWFORGE_DB_URL is not set. '
+            'Copy .env.example to .env and set FLOWFORGE_DB_URL before running migrations.'
+        )
+    return url
 
 
 def run_migrations_offline() -> None:

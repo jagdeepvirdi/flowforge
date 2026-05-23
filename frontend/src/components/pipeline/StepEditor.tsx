@@ -42,25 +42,25 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
   return (
     <div ref={setNodeRef} style={{ ...style, marginBottom: 6 }}>
       <div style={{
-        background: expanded ? '#1A1D27' : '#161922',
-        border: `1px solid ${expanded ? '#3A3F52' : '#2D3143'}`,
+        background: expanded ? 'var(--surface)' : 'var(--bg-code)',
+        border: `1px solid ${expanded ? 'var(--border-strong)' : 'var(--border)'}`,
         borderRadius: 10,
         overflow: 'hidden',
       }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px' }}>
-          <button {...attributes} {...listeners} style={{ background: 'transparent', border: 'none', color: '#475569', cursor: 'grab', padding: '2px', display: 'flex' }}>
+          <button {...attributes} {...listeners} style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', cursor: 'grab', padding: '2px', display: 'flex' }}>
             <GripVertical size={14} />
           </button>
 
-          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#475569', fontWeight: 700, width: 20, textAlign: 'center', flexShrink: 0 }}>
+          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--text-dim)', fontWeight: 700, width: 20, textAlign: 'center', flexShrink: 0 }}>
             {step.step_order}
           </span>
 
           <span className={`tbadge ${meta.cls}`}>{meta.label}</span>
 
           <input
-            style={{ background: 'transparent', border: 'none', outline: 'none', color: '#F1F5F9', fontSize: 13, fontWeight: 500, flex: 1, fontFamily: 'inherit', cursor: 'text' }}
+            style={{ background: 'transparent', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 13, fontWeight: 500, flex: 1, fontFamily: 'inherit', cursor: 'text' }}
             value={step.name}
             onChange={e => onChange(step.id, { name: e.target.value })}
             placeholder="Step name"
@@ -82,18 +82,18 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
           <button onClick={() => setExpanded(x => !x)} className="btn btn-sm btn-ghost btn-icon">
             {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
           </button>
-          <button onClick={() => onDelete(step.id)} className="btn btn-sm btn-ghost btn-icon" style={{ color: '#64748B' }}
-            onMouseEnter={e => (e.currentTarget.style.color = '#F87171')}
-            onMouseLeave={e => (e.currentTarget.style.color = '#64748B')}>
+          <button onClick={() => onDelete(step.id)} className="btn btn-sm btn-ghost btn-icon" style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={e => (e.currentTarget.style.color = 'var(--failure-text)')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>
             <Trash2 size={13} />
           </button>
         </div>
 
         {expanded && (
-          <div style={{ padding: '0 14px 14px', borderTop: '1px solid #2D3143', display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 12 }}>
+          <div style={{ padding: '0 14px 14px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 12 }}>
             {/* Contextual hint banner */}
             {STEP_HINTS[step.step_type] && (
-              <div style={{ fontSize: 12, color: '#64748B', background: '#161922', borderRadius: 6, padding: '7px 10px', lineHeight: 1.5 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', background: 'var(--bg-code)', borderRadius: 6, padding: '7px 10px', lineHeight: 1.5 }}>
                 {STEP_HINTS[step.step_type].summary}
               </div>
             )}
@@ -143,8 +143,8 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
                 </div>
                 <Field label="Output variable (optional)">
                   <input className="input mono-input" value={String(cfg.output_variable ?? '')} onChange={e => setConfig('output_variable', e.target.value)} placeholder="e.g. subscription_count" />
-                  <span style={{ fontSize: 11, color: '#64748B', marginTop: 3 }}>
-                    Captures the first column of the first row as <code style={{ color: '#94A3B8' }}>{'{{ subscription_count }}'}</code> in downstream steps.
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
+                    Captures the first column of the first row as <code style={{ color: 'var(--text-3)' }}>{'{{ subscription_count }}'}</code> in downstream steps.
                   </span>
                 </Field>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}>
@@ -153,7 +153,7 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
                     checked={Boolean(cfg.capture_rows)}
                     onChange={e => setConfig('capture_rows', e.target.checked)}
                   />
-                  <span style={{ fontSize: 12.5, color: '#CBD5E1' }}>Capture rows for email</span>
+                  <span style={{ fontSize: 12.5, color: 'var(--text-2)' }}>Capture rows for email</span>
                 </label>
                 {cfg.capture_rows && (
                   <div style={{ paddingLeft: 22, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -168,9 +168,9 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
                         style={{ width: 120 }}
                       />
                     </Field>
-                    <span style={{ fontSize: 11, color: '#64748B' }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                       Makes query results available in downstream email steps as{' '}
-                      <code style={{ color: '#94A3B8', fontFamily: 'JetBrains Mono, monospace' }}>
+                      <code style={{ color: 'var(--text-3)', fontFamily: 'JetBrains Mono, monospace' }}>
                         {`{{ steps.${step.name || 'this_step'}.table_html }}`}
                       </code>
                     </span>
@@ -215,18 +215,18 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
                             [`{% for row in ${ref}.rows %}{{ row.col }}{% endfor %}`, 'Custom loop'],
                           ]
                           return (
-                            <div key={qs.id} style={{ background: '#161922', borderRadius: 6, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 5 }}>
-                              <span style={{ fontSize: 11, color: '#F97316', fontWeight: 600 }}>{qs.name}</span>
+                            <div key={qs.id} style={{ background: 'var(--bg-code)', borderRadius: 6, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                              <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 600 }}>{qs.name}</span>
                               {snippets.map(([snippet, label]) => (
                                 <div key={snippet} style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                                  <code style={{ fontSize: 10.5, color: '#94A3B8', fontFamily: 'JetBrains Mono, monospace', flex: 1, wordBreak: 'break-all' }}>{snippet}</code>
-                                  <span style={{ fontSize: 10, color: '#475569', whiteSpace: 'nowrap' }}>{label}</span>
+                                  <code style={{ fontSize: 10.5, color: 'var(--text-3)', fontFamily: 'JetBrains Mono, monospace', flex: 1, wordBreak: 'break-all' }}>{snippet}</code>
+                                  <span style={{ fontSize: 10, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{label}</span>
                                 </div>
                               ))}
                             </div>
                           )
                         })}
-                        <span style={{ fontSize: 11, color: '#64748B' }}>Copy these snippets into your email config body template.</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Copy these snippets into your email config body template.</span>
                       </div>
                     </Field>
                   )
@@ -256,16 +256,16 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
                               }}
                               style={{
                                 display: 'flex', alignItems: 'center', gap: 6,
-                                background: already ? '#1a2e1a' : '#1A1D27',
-                                border: `1px solid ${already ? '#22C55E' : '#3A3F52'}`,
+                                background: already ? '#1a2e1a' : 'var(--surface)',
+                                border: `1px solid ${already ? 'var(--success)' : 'var(--border-strong)'}`,
                                 borderRadius: 6, padding: '4px 10px', cursor: already ? 'default' : 'pointer',
-                                fontSize: 11, color: already ? '#22C55E' : '#94A3B8',
+                                fontSize: 11, color: already ? 'var(--success)' : 'var(--text-3)',
                               }}
                             >
-                              <span style={{ fontWeight: 600, color: already ? '#22C55E' : '#F97316' }}>
+                              <span style={{ fontWeight: 600, color: already ? 'var(--success)' : 'var(--accent)' }}>
                                 {already ? '✓' : '+'} {rs.name}
                               </span>
-                              <span style={{ color: '#475569', fontFamily: 'JetBrains Mono, monospace' }}>
+                              <span style={{ color: 'var(--text-dim)', fontFamily: 'JetBrains Mono, monospace' }}>
                                 {filename}
                               </span>
                             </button>
@@ -280,7 +280,7 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
                     placeholder="{{ steps.my_report.output_path }}"
                     style={{ height: 'auto', resize: 'none', fontSize: 12 }}
                   />
-                  <span style={{ fontSize: 11, color: '#64748B', marginTop: 3 }}>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
                     Click a report above to attach it, or type a path manually. One path per line.
                   </span>
                 </Field>
@@ -358,15 +358,15 @@ function BulkLoadForm({ cfg, setConfig, bulkLoadConfigs }: BulkLoadFormProps) {
         </select>
       </Field>
       {selected && (
-        <div style={{ fontSize: 11.5, color: '#64748B', background: '#161922', borderRadius: 6, padding: '7px 10px', lineHeight: 1.7 }}>
-          <span className="mono" style={{ color: '#94A3B8' }}>{selected.source_directory}</span>
-          <span style={{ color: '#475569' }}> → </span>
-          <span className="mono" style={{ color: '#94A3B8' }}>{selected.target_table}</span>
+        <div style={{ fontSize: 11.5, color: 'var(--text-muted)', background: 'var(--bg-code)', borderRadius: 6, padding: '7px 10px', lineHeight: 1.7 }}>
+          <span className="mono" style={{ color: 'var(--text-3)' }}>{selected.source_directory}</span>
+          <span style={{ color: 'var(--text-dim)' }}> → </span>
+          <span className="mono" style={{ color: 'var(--text-3)' }}>{selected.target_table}</span>
         </div>
       )}
       {bulkLoadConfigs.length === 0 && (
-        <div style={{ fontSize: 12, color: '#64748B' }}>
-          No bulk load configs yet. <a href="/bulk-loads/new" style={{ color: '#FB923C' }}>Create one</a> on the Bulk Loads page first.
+        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+          No bulk load configs yet. <a href="/bulk-loads/new" style={{ color: 'var(--accent-text)' }}>Create one</a> on the Bulk Loads page first.
         </div>
       )}
     </>
@@ -407,7 +407,7 @@ function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnections }: DataLoa
   return (
     <>
       {/* Source type toggle */}
-      <div style={{ display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid #3A3F52', width: 'fit-content' }}>
+      <div style={{ display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border-strong)', width: 'fit-content' }}>
         {(['file', 'query'] as const).map(t => (
           <button
             key={t}
@@ -419,8 +419,8 @@ function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnections }: DataLoa
               fontWeight: 600,
               border: 'none',
               cursor: 'pointer',
-              background: sourceType === t ? '#F97316' : 'transparent',
-              color: sourceType === t ? '#fff' : '#64748B',
+              background: sourceType === t ? 'var(--accent)' : 'transparent',
+              color: sourceType === t ? '#fff' : 'var(--text-muted)',
               transition: 'background 0.15s',
             }}
           >
@@ -447,15 +447,15 @@ function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnections }: DataLoa
                       onClick={() => { if (!already) setSrc('file_path', variable) }}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 6,
-                        background: already ? '#1a2e1a' : '#1A1D27',
-                        border: `1px solid ${already ? '#22C55E' : '#3A3F52'}`,
+                        background: already ? '#1a2e1a' : 'var(--surface)',
+                        border: `1px solid ${already ? 'var(--success)' : 'var(--border-strong)'}`,
                         borderRadius: 6, padding: '4px 10px',
                         cursor: already ? 'default' : 'pointer',
                         fontSize: 11,
-                        color: already ? '#22C55E' : '#94A3B8',
+                        color: already ? 'var(--success)' : 'var(--text-3)',
                       }}
                     >
-                      <span style={{ fontWeight: 600, color: already ? '#22C55E' : '#F97316' }}>
+                      <span style={{ fontWeight: 600, color: already ? 'var(--success)' : 'var(--accent)' }}>
                         {already ? '✓' : '+'} {rs.name}
                       </span>
                     </button>
@@ -526,7 +526,7 @@ function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnections }: DataLoa
       )}
 
       {/* ── Target ───────────────────────────────────────────────────────── */}
-      <div style={{ borderTop: '1px solid #2D3143', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
         <Field label="Target connection">
           <select
             className="input"
@@ -569,12 +569,12 @@ function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnections }: DataLoa
             checked={Boolean(cfg.create_if_missing)}
             onChange={e => setConfig('create_if_missing', e.target.checked)}
           />
-          <span style={{ fontSize: 12.5, color: '#CBD5E1' }}>
+          <span style={{ fontSize: 12.5, color: 'var(--text-2)' }}>
             Create table if it doesn't exist
           </span>
         </label>
         {!!cfg.create_if_missing && (
-          <span style={{ fontSize: 11, color: '#64748B', paddingLeft: 22 }}>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 22 }}>
             Column types are inferred from the data (INTEGER, NUMERIC, DATE, TIMESTAMP, TEXT). Samples up to 1,000 rows.
           </span>
         )}
@@ -587,7 +587,7 @@ function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnections }: DataLoa
         style={{
           display: 'flex', alignItems: 'center', gap: 6,
           background: 'transparent', border: 'none',
-          color: '#64748B', fontSize: 11.5, cursor: 'pointer',
+          color: 'var(--text-muted)', fontSize: 11.5, cursor: 'pointer',
           padding: '2px 0', fontWeight: 500,
         }}
       >
@@ -597,7 +597,7 @@ function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnections }: DataLoa
       </button>
 
       {showAdvanced && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingLeft: 12, borderLeft: '2px solid #2D3143' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingLeft: 12, borderLeft: '2px solid var(--border)' }}>
           <Field label="Chunk size (rows per batch)">
             <input
               className="input"
@@ -608,7 +608,7 @@ function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnections }: DataLoa
               onChange={e => setConfig('chunk_size', parseInt(e.target.value) || 1000)}
               style={{ width: 120 }}
             />
-            <span style={{ fontSize: 11, color: '#64748B', marginTop: 3 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
               Rows sent per bulk insert call. Default 1000.
             </span>
           </Field>
@@ -623,7 +623,7 @@ function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnections }: DataLoa
               placeholder={'{\n  "SOURCE_COL": "target_col"\n}'}
               style={{ height: 'auto', resize: 'none', fontSize: 12 }}
             />
-            <span style={{ fontSize: 11, color: '#64748B', marginTop: 3 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
               Rename source columns to match the target schema. Leave empty to use source names as-is.
             </span>
           </Field>

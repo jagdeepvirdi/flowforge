@@ -25,10 +25,19 @@
   --warn:         #F59E0B;
   --warn-soft:    rgba(245,158,11,0.14);
 
-  --text:      #F1F5F9;
-  --text-2:    #CBD5E1;
-  --text-muted:#64748B;
-  --text-dim:  #475569;
+  --text:         #F1F5F9;
+  --text-2:       #CBD5E1;
+  --text-3:       #94A3B8;   /* slate-400 — mid-muted text & icons */
+  --text-muted:   #64748B;
+  --text-dim:     #475569;
+
+  --failure-text:  #F87171;   /* red-400   — failure label/text */
+  --success-text:  #4ADE80;   /* green-400 — success label/text */
+  --running-text:  #60A5FA;   /* blue-400  — running label/text */
+  --accent-text:   #FB923C;   /* orange-400 — accent as text/icon */
+
+  --bg-code:       #161922;   /* SQL / log panel background */
+  --surface-hover: #1E2130;   /* hover / selected surface tint */
 
   --font-ui:   'Inter', -apple-system, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;

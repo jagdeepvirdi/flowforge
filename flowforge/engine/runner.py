@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy.exc import SQLAlchemyError
 
 from flowforge import audit
+from flowforge.engine import shutdown
 from flowforge.steps.base import BaseStep, StepResult
 
 logger = logging.getLogger(__name__)
@@ -73,79 +74,84 @@ def run_pipeline(
     if run_record:
         result.run_id = run_record.id
         context['run_id'] = run_record.id  # overwrite uuid4() placeholder with real DB run ID
+        shutdown.register_run(run_record.id)
 
     audit.log_pipeline_run(pipeline_name, triggered_by, result.run_id or context['run_id'], 'STARTED')
 
     step_order = 0
-    for step in steps:
-        step_order += 1
-        logger.info("[%s] Starting step: %s", pipeline_name, step.name)
+    try:
+        for step in steps:
+            step_order += 1
+            logger.info("[%s] Starting step: %s", pipeline_name, step.name)
 
-        step_start = datetime.now(timezone.utc)
-        try:
-            step_result = step.run(context)
-        except Exception as e:
-            logger.error("[%s] Step '%s' raised uncaught exception: %s", pipeline_name, step.name, e)
-            step_result = StepResult(success=False, error=str(e))
+            step_start = datetime.now(timezone.utc)
+            try:
+                step_result = step.run(context)
+            except Exception as e:
+                logger.error("[%s] Step '%s' raised uncaught exception: %s", pipeline_name, step.name, e)
+                step_result = StepResult(success=False, error=str(e))
 
-        step_end = datetime.now(timezone.utc)
-        duration_ms = int((step_end - step_start).total_seconds() * 1000)
+            step_end = datetime.now(timezone.utc)
+            duration_ms = int((step_end - step_start).total_seconds() * 1000)
 
-        result.step_results[step.name] = step_result
-        result.steps_run += 1
+            result.step_results[step.name] = step_result
+            result.steps_run += 1
 
-        # Expose this step's outputs to downstream steps via {{ steps.name.* }}
-        context['steps'][step.name] = {
-            'output_path':    step_result.output_path,
-            'drive_url':      step_result.drive_url,
-            'rows_affected':  step_result.rows_affected,
-            'files_found':    step_result.files_found,
-            'files_loaded':   step_result.files_loaded,
-            'files_failed':   step_result.files_failed,
-            'records_loaded': step_result.records_loaded,
-            'records_failed': step_result.records_failed,
-            'duration_sec':   step_result.duration_sec,
-            'rows':           step_result.rows,
-            'table_html':     step_result.table_html,
-            'kv_html':        step_result.kv_html,
-        }
+            # Expose this step's outputs to downstream steps via {{ steps.name.* }}
+            context['steps'][step.name] = {
+                'output_path':    step_result.output_path,
+                'drive_url':      step_result.drive_url,
+                'rows_affected':  step_result.rows_affected,
+                'files_found':    step_result.files_found,
+                'files_loaded':   step_result.files_loaded,
+                'files_failed':   step_result.files_failed,
+                'records_loaded': step_result.records_loaded,
+                'records_failed': step_result.records_failed,
+                'duration_sec':   step_result.duration_sec,
+                'rows':           step_result.rows,
+                'table_html':     step_result.table_html,
+                'kv_html':        step_result.kv_html,
+            }
 
-        # Scalar output variables go to top-level context; guard against overwriting built-ins
-        if step_result.output_variables:
-            collisions = _CONTEXT_META_KEYS & step_result.output_variables.keys()
-            if collisions:
+            # Scalar output variables go to top-level context; guard against overwriting built-ins
+            if step_result.output_variables:
+                collisions = _CONTEXT_META_KEYS & step_result.output_variables.keys()
+                if collisions:
+                    logger.warning(
+                        "[%s] Step '%s' tried to overwrite reserved variable(s): %s — skipping.",
+                        pipeline_name, step.name, sorted(collisions),
+                    )
+                context.update({k: v for k, v in step_result.output_variables.items()
+                                if k not in _CONTEXT_META_KEYS})
+
+            _write_step_run(run_record, step, step_order, step_result, step_start, step_end, duration_ms, vars_log)
+
+            if not step_result.success:
+                result.steps_failed += 1
+                result.success = False
+                if step.on_error == 'stop':
+                    logger.error(
+                        "[%s] Step '%s' failed (on_error=stop). Error: %s",
+                        pipeline_name, step.name, step_result.error,
+                    )
+                    result.error = step_result.error
+                    _finish_run_record(run_record, success=False, error_step=step.name,
+                                       error_message=step_result.error)
+                    break
                 logger.warning(
-                    "[%s] Step '%s' tried to overwrite reserved variable(s): %s — skipping.",
-                    pipeline_name, step.name, sorted(collisions),
-                )
-            context.update({k: v for k, v in step_result.output_variables.items()
-                            if k not in _CONTEXT_META_KEYS})
-
-        _write_step_run(run_record, step, step_order, step_result, step_start, step_end, duration_ms, vars_log)
-
-        if not step_result.success:
-            result.steps_failed += 1
-            result.success = False
-            if step.on_error == 'stop':
-                logger.error(
-                    "[%s] Step '%s' failed (on_error=stop). Error: %s",
+                    "[%s] Step '%s' failed (on_error=continue). Error: %s",
                     pipeline_name, step.name, step_result.error,
                 )
-                result.error = step_result.error
-                _finish_run_record(run_record, success=False, error_step=step.name,
-                                   error_message=step_result.error)
-                break
-            logger.warning(
-                "[%s] Step '%s' failed (on_error=continue). Error: %s",
-                pipeline_name, step.name, step_result.error,
-            )
-            if not result.error:
-                result.error = step_result.error
-    else:
-        # Loop completed without break — all steps attempted
-        if result.success:
-            logger.info("[%s] Pipeline completed (%d steps)", pipeline_name, result.steps_run)
-        _finish_run_record(run_record, success=result.success)
+                if not result.error:
+                    result.error = step_result.error
+        else:
+            # Loop completed without break — all steps attempted
+            if result.success:
+                logger.info("[%s] Pipeline completed (%d steps)", pipeline_name, result.steps_run)
+            _finish_run_record(run_record, success=result.success)
+    finally:
+        if run_record:
+            shutdown.unregister_run(run_record.id)
 
     if not result.success and result.steps_run < len(steps):
         logger.error("[%s] Pipeline failed after %d/%d steps", pipeline_name, result.steps_run, len(steps))

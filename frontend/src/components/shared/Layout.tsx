@@ -69,7 +69,7 @@ export default function Layout() {
               <defs>
                 <linearGradient id="ff-flame" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%"   stopColor="#FDBA74" />
-                  <stop offset="55%"  stopColor="#F97316" />
+                  <stop offset="55%"  stopColor="var(--accent)" />
                   <stop offset="100%" stopColor="#C2410C" />
                 </linearGradient>
               </defs>
@@ -140,7 +140,7 @@ export default function Layout() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Today</span>
             {runsCount > 0 && (
-              <span style={{ fontSize: 10.5, color: '#4ADE80', fontWeight: 600 }}>
+              <span style={{ fontSize: 10.5, color: 'var(--success-text)', fontWeight: 600 }}>
                 {successCount}/{runsCount} ok
               </span>
             )}

@@ -190,6 +190,7 @@ ExecStart=/opt/flowforge/app/.venv/bin/gunicorn \
     wsgi:app
 Restart=on-failure
 RestartSec=5
+TimeoutStopSec=90
 
 [Install]
 WantedBy=multi-user.target
@@ -214,6 +215,7 @@ EnvironmentFile=/opt/flowforge/app/.env
 ExecStart=/opt/flowforge/app/.venv/bin/flowforge schedule
 Restart=on-failure
 RestartSec=10
+TimeoutStopSec=90
 
 [Install]
 WantedBy=multi-user.target

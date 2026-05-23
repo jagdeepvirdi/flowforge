@@ -75,7 +75,7 @@ function ProjectModal({
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200,
     }}>
       <div style={{
-        background: '#1A1D27', border: '1px solid #2D3143', borderRadius: 12,
+        background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12,
         padding: 24, width: 400, maxWidth: '90vw',
       }}>
         <h2 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 600 }}>
@@ -109,7 +109,7 @@ function ProjectModal({
         </div>
 
         {error && (
-          <div style={{ marginTop: 12, padding: '8px 12px', background: 'rgba(239,68,68,0.1)', borderRadius: 6, color: '#F87171', fontSize: 12.5 }}>
+          <div style={{ marginTop: 12, padding: '8px 12px', background: 'rgba(239,68,68,0.1)', borderRadius: 6, color: 'var(--failure-text)', fontSize: 12.5 }}>
             {error}
           </div>
         )}
@@ -183,7 +183,7 @@ function ProjectCard({ project, onEdit }: { project: Project; onEdit: (p: Projec
               <button
                 className="btn btn-sm btn-ghost btn-icon"
                 style={{ color: 'var(--text-muted)' }}
-                onMouseEnter={e => (e.currentTarget.style.color = '#F87171')}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--failure-text)')}
                 onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
                 onClick={e => {
                   e.stopPropagation()

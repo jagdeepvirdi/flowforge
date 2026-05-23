@@ -7,6 +7,7 @@ import { useProjectStore } from '../lib/store'
 import StatusBadge from '../components/shared/StatusBadge'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
+import Sk from '../components/shared/Skeleton'
 import PageIntro from '../components/shared/PageIntro'
 
 function fmtDur(ms: number | null): string {
@@ -66,25 +67,25 @@ function PipelineCard({ pipeline }: { pipeline: Pipeline }) {
     return 'idle'
   })
 
-  const barColor = (b: string) => b === 'ok' ? '#22C55E' : b === 'fail' ? '#EF4444' : b === 'run' ? '#3B82F6' : '#2D3143'
+  const barColor = (b: string) => b === 'ok' ? 'var(--success)' : b === 'fail' ? 'var(--failure)' : b === 'run' ? 'var(--running)' : 'var(--border)'
 
   return (
     <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 16 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#F1F5F9', letterSpacing: '-0.01em', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.01em', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {pipeline.name}
           </div>
           {pipeline.description && (
-            <div style={{ fontSize: 11.5, color: '#64748B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pipeline.description}</div>
+            <div style={{ fontSize: 11.5, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pipeline.description}</div>
           )}
         </div>
         <StatusBadge status={lastRun?.status ?? 'idle'} animate />
       </div>
 
       {/* Meta row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, padding: '12px 0', borderTop: '1px solid #2D3143', borderBottom: '1px solid #2D3143' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, padding: '12px 0', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
         <MetaCol label="Last run" icon={<Clock size={10} />} value={lastRun ? fmtRel(lastRun.started_at) : '—'} />
         <MetaCol label="Duration" value={fmtDur(lastRun?.duration_ms ?? null)} mono />
         <MetaCol label="Next run" icon={<Calendar size={10} />} value={pipeline.schedule ? fmtNext(pipeline.next_run) : '—'} />
@@ -122,9 +123,9 @@ function PipelineCard({ pipeline }: { pipeline: Pipeline }) {
 function MetaCol({ label, value, icon, mono }: { label: string; value: string; icon?: React.ReactNode; mono?: boolean }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <span style={{ fontSize: 10.5, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 500 }}>{label}</span>
-      <span style={{ fontSize: 12.5, color: '#CBD5E1', display: 'flex', alignItems: 'center', gap: 4, fontFamily: mono ? 'JetBrains Mono, monospace' : 'inherit' }}>
-        {icon && <span style={{ color: '#64748B' }}>{icon}</span>}
+      <span style={{ fontSize: 10.5, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 500 }}>{label}</span>
+      <span style={{ fontSize: 12.5, color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: 4, fontFamily: mono ? 'JetBrains Mono, monospace' : 'inherit' }}>
+        {icon && <span style={{ color: 'var(--text-muted)' }}>{icon}</span>}
         {value}
       </span>
     </div>
@@ -160,8 +161,60 @@ export default function Dashboard() {
   ]
 
   if (isLoading) return (
-    <><TopBar crumbs={['Workspace', 'Dashboard']} />
-    <div className="scroll" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}><Spinner /></div></>
+    <>
+      <TopBar crumbs={['Workspace', 'Dashboard']} />
+      <div className="scroll">
+        <div className="page-h">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <Sk h={28} r={6} style={{ width: 140 }} />
+            <Sk h={14} style={{ width: 260 }} />
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 28 }}>
+          {[0,1,2,3].map(i => (
+            <div key={i} className="card" style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <Sk h={11} style={{ width: 80 }} />
+              <Sk h={28} r={6} style={{ width: 60 }} />
+            </div>
+          ))}
+        </div>
+        <div className="sec-h" style={{ marginBottom: 14 }}>
+          <Sk h={18} r={4} style={{ width: 80 }} />
+          <Sk h={14} r={4} style={{ width: 60 }} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+          {[0,1,2].map(i => (
+            <div key={i} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <Sk h={14} style={{ width: '55%' }} />
+                  <Sk h={11} style={{ width: '40%' }} />
+                </div>
+                <Sk h={20} r={4} style={{ width: 60, flexShrink: 0 }} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, padding: '12px 0', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
+                {[0,1,2].map(j => (
+                  <div key={j} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <Sk h={10} style={{ width: '60%' }} />
+                    <Sk h={12} style={{ width: '80%' }} />
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 2 }}>
+                {Array.from({ length: 14 }).map((_, j) => (
+                  <div key={j} style={{ flex: 1, height: 22, borderRadius: 2, background: 'var(--border)', opacity: 0.5 }} />
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <Sk h={28} r={6} style={{ flex: 1, width: 'auto' }} />
+                <Sk h={28} r={6} style={{ flex: 1, width: 'auto' }} />
+                <Sk h={28} r={6} style={{ flex: 1.4, width: 'auto' }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
   )
 
   return (
@@ -185,8 +238,8 @@ export default function Dashboard() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 28 }}>
           {stats.map((s, i) => (
             <div key={i} className="card" style={{ padding: '16px 18px' }}>
-              <div style={{ fontSize: 11, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: 8 }}>{s.label}</div>
-              <div style={{ fontSize: 28, fontWeight: 600, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '-0.02em', color: s.danger ? '#F87171' : '#F1F5F9' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: 8 }}>{s.label}</div>
+              <div style={{ fontSize: 28, fontWeight: 600, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '-0.02em', color: s.danger ? 'var(--failure-text)' : 'var(--text)' }}>
                 {s.value}
               </div>
             </div>
@@ -196,7 +249,7 @@ export default function Dashboard() {
         {/* Pipeline grid */}
         <div className="sec-h">
           <h2>Pipelines</h2>
-          <Link to="/pipelines" style={{ fontSize: 12, color: '#94A3B8', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Link to="/pipelines" style={{ fontSize: 12, color: 'var(--text-3)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
             View all →
           </Link>
         </div>
@@ -217,7 +270,7 @@ export default function Dashboard() {
           <>
             <div className="sec-h">
               <h2>Recent failures</h2>
-              <Link to="/runs?status=failed" style={{ fontSize: 12, color: '#94A3B8', textDecoration: 'none' }}>View all failures →</Link>
+              <Link to="/runs?status=failed" style={{ fontSize: 12, color: 'var(--text-3)', textDecoration: 'none' }}>View all failures →</Link>
             </div>
             <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
               <table className="tbl">
@@ -233,13 +286,13 @@ export default function Dashboard() {
                 <tbody>
                   {failedToday.slice(0, 5).map(r => (
                     <tr key={r.id}>
-                      <td><span style={{ width: 6, height: 6, display: 'inline-block', borderRadius: '50%', background: '#EF4444' }} /></td>
+                      <td><span style={{ width: 6, height: 6, display: 'inline-block', borderRadius: '50%', background: 'var(--failure)' }} /></td>
                       <td>
-                        <div style={{ fontWeight: 500, color: '#F1F5F9' }}>{r.pipeline_name}</div>
-                        {r.error_step && <div className="mono" style={{ fontSize: 11, color: '#64748B', marginTop: 2 }}>→ {r.error_step}</div>}
+                        <div style={{ fontWeight: 500, color: 'var(--text)' }}>{r.pipeline_name}</div>
+                        {r.error_step && <div className="mono" style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>→ {r.error_step}</div>}
                       </td>
-                      <td style={{ color: '#94A3B8', fontSize: 12, maxWidth: 360 }}>{r.error_message ?? '—'}</td>
-                      <td className="mono" style={{ color: '#64748B', fontSize: 11.5 }}>{fmtRel(r.started_at)}</td>
+                      <td style={{ color: 'var(--text-3)', fontSize: 12, maxWidth: 360 }}>{r.error_message ?? '—'}</td>
+                      <td className="mono" style={{ color: 'var(--text-muted)', fontSize: 11.5 }}>{fmtRel(r.started_at)}</td>
                       <td style={{ textAlign: 'right' }}>
                         <Link to={`/runs/${r.id}`} className="btn btn-sm btn-ghost">View</Link>
                       </td>

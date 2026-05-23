@@ -7,10 +7,13 @@ import click
 
 @click.group()
 @click.version_option(package_name='flowforge')
-@click.option('--debug', is_flag=True, help='Enable debug logging.')
+@click.option('--debug', is_flag=True, help='Enable debug logging (overrides LOG_LEVEL).')
 def cli(debug: bool):
     """FlowForge — database-driven pipeline orchestrator."""
-    level = logging.DEBUG if debug else logging.INFO
+    if debug:
+        level = logging.DEBUG
+    else:
+        level = getattr(logging, os.environ.get('LOG_LEVEL', 'INFO').upper(), logging.INFO)
     logging.basicConfig(level=level, format='%(asctime)s %(levelname)s %(name)s — %(message)s')
 
 
@@ -89,17 +92,25 @@ def web():
     """Start the FlowForge web server."""
     port = int(os.environ.get('FLOWFORGE_PORT', 5000))
     app = _create_app()
+    from flowforge.engine import shutdown
+    shutdown.install_handler(app)
     click.echo(f"Starting FlowForge on http://localhost:{port}")
     app.run(host='0.0.0.0', port=port, debug=False)
+    shutdown.graceful_exit(app)
 
 
 @cli.command()
 def schedule():
     """Start the FlowForge scheduler daemon."""
     app = _create_app()
+    from flowforge.engine import shutdown
     from flowforge.engine.scheduler import start_scheduler
+    shutdown.install_handler(app)
     click.echo('Starting scheduler...')
     start_scheduler(app)
+    # Reached here after Ctrl+C or SIGTERM (APScheduler absorbs SystemExit internally).
+    # Drain any still-running jobs; no-op if SIGTERM handler already cleaned up.
+    shutdown.graceful_exit(app)
 
 
 @cli.command()

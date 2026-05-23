@@ -10,7 +10,7 @@ function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 5,
       fontSize: 12, fontWeight: 500,
-      color: ok ? '#22C55E' : '#64748B',
+      color: ok ? 'var(--success)' : 'var(--text-muted)',
     }}>
       {ok
         ? <CheckCircle2 size={13} />
@@ -25,8 +25,8 @@ function CodeBlock({ children }: { children: string }) {
   return (
     <code className="mono" style={{
       display: 'block', fontSize: 12,
-      background: '#21252F', border: '1px solid #2D3143',
-      borderRadius: 7, padding: '10px 12px', color: '#CBD5E1',
+      background: 'var(--surface-2)', border: '1px solid var(--border)',
+      borderRadius: 7, padding: '10px 12px', color: 'var(--text-2)',
     }}>
       {children}
     </code>
@@ -35,7 +35,7 @@ function CodeBlock({ children }: { children: string }) {
 
 function InlineCode({ children }: { children: string }) {
   return (
-    <code className="mono" style={{ fontSize: 11, background: '#21252F', padding: '1px 5px', borderRadius: 3 }}>
+    <code className="mono" style={{ fontSize: 11, background: 'var(--surface-2)', padding: '1px 5px', borderRadius: 3 }}>
       {children}
     </code>
   )
@@ -62,7 +62,7 @@ export default function Settings() {
           {/* Gmail + Drive */}
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#F1F5F9' }}>Google OAuth2 (Gmail + Drive)</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Google OAuth2 (Gmail + Drive)</div>
               {isLoading
                 ? <Spinner size={14} />
                 : status && (
@@ -81,7 +81,7 @@ export default function Settings() {
                 )
               }
             </div>
-            <p style={{ fontSize: 13, color: '#64748B', margin: 0 }}>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
               Run the setup wizard from the CLI to authorize Gmail sending and Google Drive uploads.
             </p>
             <CodeBlock>flowforge setup gmail</CodeBlock>
@@ -90,7 +90,7 @@ export default function Settings() {
           {/* Microsoft 365 */}
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#F1F5F9' }}>Microsoft 365 OAuth2</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Microsoft 365 OAuth2</div>
               {isLoading
                 ? <Spinner size={14} />
                 : status && (
@@ -103,7 +103,7 @@ export default function Settings() {
                 )
               }
             </div>
-            <p style={{ fontSize: 13, color: '#64748B', margin: 0 }}>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
               Requires an Azure AD app registration with <InlineCode>Mail.Send</InlineCode> permission.
             </p>
             <CodeBlock>flowforge setup microsoft365</CodeBlock>
@@ -111,22 +111,22 @@ export default function Settings() {
 
           {/* YAML export/import */}
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#F1F5F9' }}>Pipeline YAML Export / Import</div>
-            <p style={{ fontSize: 13, color: '#64748B', margin: 0 }}>Export or import pipeline definitions as YAML.</p>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Pipeline YAML Export / Import</div>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>Export or import pipeline definitions as YAML.</p>
             <CodeBlock>flowforge export "My Pipeline" --output pipeline.yaml</CodeBlock>
             <CodeBlock>flowforge import pipeline.yaml</CodeBlock>
           </div>
 
           {/* Docs */}
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#F1F5F9' }}>Documentation</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Documentation</div>
             {([
               ['Getting Started', '/api/docs/getting-started.md'],
               ['Step Types Reference', '/api/docs/step-types.md'],
               ['Email Providers', '/api/docs/email-providers.md'],
             ] as [string, string][]).map(([label, href]) => (
               <a key={href} href={href} target="_blank" rel="noreferrer"
-                style={{ color: '#FB923C', fontSize: 13, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                style={{ color: 'var(--accent-text)', fontSize: 13, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
                 onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                 onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}>
                 {label} <ExternalLink size={12} />

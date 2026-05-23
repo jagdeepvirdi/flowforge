@@ -1,11 +1,15 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useForm, Controller } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { Save, ArrowLeft, X, Eye } from 'lucide-react'
 import { getEmailConfig, createEmailConfig, updateEmailConfig, getEmailProviders, getRecipientGroups, previewEmailConfig } from '../lib/api'
 import { useProjectStore } from '../lib/store'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
+import Sk from '../components/shared/Skeleton'
 import FieldTooltip from '../components/shared/FieldTooltip'
 
 function ChipInput({ values, onChange, placeholder }: { values: string[]; onChange: (v: string[]) => void; placeholder?: string }) {
@@ -20,7 +24,7 @@ function ChipInput({ values, onChange, placeholder }: { values: string[]; onChan
       {values.map(v => (
         <span key={v} className="badge-muted flex items-center gap-1">
           {v}
-          <button onClick={() => onChange(values.filter(x => x !== v))}><X size={10}/></button>
+          <button type="button" onClick={() => onChange(values.filter(x => x !== v))}><X size={10}/></button>
         </span>
       ))}
       <input
@@ -43,6 +47,27 @@ const TEMPLATE_VARS = [
   '{% for row in steps.step_name.rows %}{{ row.col }}{% endfor %}',
 ]
 
+const schema = z.object({
+  name:       z.string().min(1, 'Name is required'),
+  desc:       z.string(),
+  providerId: z.string(),
+  fromName:   z.string(),
+  subject:    z.string().min(1, 'Subject is required'),
+  headerText: z.string(),
+  body:       z.string(),
+  groupId:    z.string(),
+  to:         z.array(z.string()),
+  cc:         z.array(z.string()),
+  bcc:        z.array(z.string()),
+  maxMb:      z.number().min(1).max(50),
+  folderId:   z.string(),
+  driveMsg:   z.string(),
+}).refine(
+  data => data.groupId !== '' || data.to.length > 0,
+  { message: 'Add at least one recipient address or select a group', path: ['to'] }
+)
+type FormValues = z.infer<typeof schema>
+
 export default function EmailEdit() {
   const { id } = useParams()
   const isNew = !id
@@ -57,39 +82,43 @@ export default function EmailEdit() {
     queryFn: () => getRecipientGroups(activeProjectId ? { project_id: activeProjectId } : undefined),
   })
 
-  const [name, setName]               = useState('')
-  const [desc, setDesc]               = useState('')
-  const [providerId, setProviderId]   = useState('')
-  const [fromName, setFromName]       = useState('')
-  const [subject, setSubject]         = useState('')
-  const [headerText, setHeaderText]   = useState('')
-  const [body, setBody]               = useState('')
-  const [groupId, setGroupId]         = useState('')
-  const [to, setTo]                   = useState<string[]>([])
-  const [cc, setCc]                   = useState<string[]>([])
-  const [bcc, setBcc]                 = useState<string[]>([])
-  const [maxMb, setMaxMb]             = useState(10)
-  const [folderId, setFolderId]       = useState('')
-  const [driveMsg, setDriveMsg]       = useState('')
-  const [saving, setSaving]           = useState(false)
+  const { register, handleSubmit, control, watch, reset, formState: { errors, isSubmitting } } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      name: '', desc: '', providerId: '', fromName: '',
+      subject: '', headerText: '', body: '',
+      groupId: '', to: [], cc: [], bcc: [],
+      maxMb: 10, folderId: '', driveMsg: '',
+    },
+  })
+
   const [error, setError]             = useState('')
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [previewing, setPreviewing]   = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewData, setPreviewData] = useState<{ subject: string; html: string } | null>(null)
   const [previewError, setPreviewError] = useState('')
 
+  const maxMb  = watch('maxMb')
+  const groupId = watch('groupId')
+
   useEffect(() => {
-    if (existing) {
-      setName(existing.name); setDesc(existing.description ?? '')
-      setProviderId(existing.provider_id ?? ''); setFromName(existing.from_name ?? '')
-      setSubject(existing.subject); setHeaderText(existing.header_text ?? '')
-      setBody(existing.body_template); setGroupId(existing.recipient_group_id ?? '')
-      setTo(existing.to_addresses); setCc(existing.cc_addresses); setBcc(existing.bcc_addresses)
-      setMaxMb(existing.attachment_max_mb); setFolderId(existing.drive_folder_id ?? '')
-      setDriveMsg(existing.drive_share_message ?? '')
-    }
-  }, [existing])
+    if (existing) reset({
+      name:       existing.name,
+      desc:       existing.description ?? '',
+      providerId: existing.provider_id ?? '',
+      fromName:   existing.from_name ?? '',
+      subject:    existing.subject,
+      headerText: existing.header_text ?? '',
+      body:       existing.body_template,
+      groupId:    existing.recipient_group_id ?? '',
+      to:         existing.to_addresses,
+      cc:         existing.cc_addresses,
+      bcc:        existing.bcc_addresses,
+      maxMb:      existing.attachment_max_mb,
+      folderId:   existing.drive_folder_id ?? '',
+      driveMsg:   existing.drive_share_message ?? '',
+    })
+  }, [existing, reset])
 
   const handlePreview = async () => {
     if (!id) return
@@ -105,22 +134,21 @@ export default function EmailEdit() {
     }
   }
 
-  const handleSave = async () => {
-    const errs: Record<string, string> = {}
-    if (!name.trim()) errs.name = 'Name is required'
-    if (!subject.trim()) errs.subject = 'Subject is required'
-    if (!groupId && to.length === 0) errs.recipients = 'Add at least one recipient address or select a group'
-    if (Object.keys(errs).length) { setFieldErrors(errs); return }
-    setFieldErrors({})
-    setSaving(true); setError('')
+  const onSubmit = async (values: FormValues) => {
+    setError('')
     try {
       const payload = {
-        name, description: desc, provider_id: providerId || null,
-        from_name: fromName || null, subject, header_text: headerText || null,
-        body_template: body, recipient_group_id: groupId || null,
-        to_addresses: to, cc_addresses: cc, bcc_addresses: bcc,
-        attachment_max_mb: maxMb, drive_folder_id: folderId || null,
-        drive_share_message: driveMsg || null,
+        name: values.name, description: values.desc,
+        provider_id: values.providerId || null,
+        from_name: values.fromName || null,
+        subject: values.subject,
+        header_text: values.headerText || null,
+        body_template: values.body,
+        recipient_group_id: values.groupId || null,
+        to_addresses: values.to, cc_addresses: values.cc, bcc_addresses: values.bcc,
+        attachment_max_mb: values.maxMb,
+        drive_folder_id: values.folderId || null,
+        drive_share_message: values.driveMsg || null,
         ...(isNew && activeProjectId ? { project_id: activeProjectId } : {}),
       }
       isNew ? await createEmailConfig(payload) : await updateEmailConfig(id!, payload)
@@ -128,18 +156,45 @@ export default function EmailEdit() {
       navigate('/emails')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed')
-    } finally {
-      setSaving(false)
     }
   }
 
   const crumbs = isNew
     ? ['Workspace', 'Email Templates', 'New Email Config']
-    : ['Workspace', 'Email Templates', name || 'Edit Email Config']
+    : ['Workspace', 'Email Templates', watch('name') || 'Edit Email Config']
 
   if (!isNew && isLoading) return (
-    <><TopBar crumbs={crumbs} />
-    <div className="scroll" style={{ display: 'flex', justifyContent: 'center' }}><Spinner /></div></>
+    <>
+      <TopBar crumbs={crumbs} />
+      <div className="scroll">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 16, alignItems: 'start' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {[['Details', 4], ['Recipients', 2], ['Body template', 1]].map(([label, rows]) => (
+              <div key={label as string} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <Sk h={13} style={{ width: 70 }} />
+                {Array.from({ length: rows as number }).map((_, i) => (
+                  <div key={i} className="field">
+                    <Sk h={12} style={{ width: 80, marginBottom: 6 }} />
+                    <Sk h={34} r={6} />
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <Sk h={13} style={{ width: 120 }} />
+              {[0,1,2].map(i => (
+                <div key={i} className="field">
+                  <Sk h={12} style={{ width: 90, marginBottom: 6 }} />
+                  <Sk h={34} r={6} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
   )
 
   return (
@@ -150,12 +205,12 @@ export default function EmailEdit() {
           <div style={{ display: 'flex', gap: 8 }}>
             <Link to="/emails" className="btn btn-sm"><ArrowLeft size={12} /> Back</Link>
             {!isNew && (
-              <button className="btn btn-sm" onClick={handlePreview} disabled={previewing} title="Preview rendered email">
+              <button className="btn btn-sm" type="button" onClick={handlePreview} disabled={previewing} title="Preview rendered email">
                 {previewing ? <Spinner size={12} /> : <Eye size={12} />} Preview
               </button>
             )}
-            <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
-              {saving ? <Spinner size={12} /> : <Save size={12} />} Save
+            <button className="btn btn-primary btn-sm" type="button" onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
+              {isSubmitting ? <Spinner size={12} /> : <Save size={12} />} Save
             </button>
           </div>
         }
@@ -163,10 +218,10 @@ export default function EmailEdit() {
 
       <div className="scroll">
         {error && (
-          <div style={{ marginBottom: 14, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 7, fontSize: 12.5, color: '#F87171' }}>{error}</div>
+          <div style={{ marginBottom: 14, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 7, fontSize: 12.5, color: 'var(--failure-text)' }}>{error}</div>
         )}
         {previewError && (
-          <div style={{ marginBottom: 14, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 7, fontSize: 12.5, color: '#F87171' }}>Preview: {previewError}</div>
+          <div style={{ marginBottom: 14, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 7, fontSize: 12.5, color: 'var(--failure-text)' }}>Preview: {previewError}</div>
         )}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 16, alignItems: 'start' }}>
@@ -180,12 +235,12 @@ export default function EmailEdit() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div className="field">
                   <label>Name *</label>
-                  <input className="input" value={name} onChange={e => { setName(e.target.value); if (fieldErrors.name) setFieldErrors(f => ({ ...f, name: '' })) }} />
-                  {fieldErrors.name && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{fieldErrors.name}</span>}
+                  <input className="input" {...register('name')} />
+                  {errors.name && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{errors.name.message}</span>}
                 </div>
                 <div className="field">
                   <label>Provider</label>
-                  <select className="input" value={providerId} onChange={e => setProviderId(e.target.value)}>
+                  <select className="input" {...register('providerId')}>
                     <option value="">Select provider…</option>
                     {providers.map(p => <option key={p.id} value={p.id}>{p.name} ({p.provider_type})</option>)}
                   </select>
@@ -194,21 +249,21 @@ export default function EmailEdit() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div className="field">
                   <label>From name</label>
-                  <input className="input" value={fromName} onChange={e => setFromName(e.target.value)} />
+                  <input className="input" {...register('fromName')} />
                 </div>
                 <div className="field">
                   <label>Description</label>
-                  <input className="input" value={desc} onChange={e => setDesc(e.target.value)} />
+                  <input className="input" {...register('desc')} />
                 </div>
               </div>
               <div className="field">
                 <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Subject<FieldTooltip field="variables" /></label>
-                <input className="input" value={subject} onChange={e => { setSubject(e.target.value); if (fieldErrors.subject) setFieldErrors(f => ({ ...f, subject: '' })) }} placeholder="Monthly Report — {{ current_month }}" />
-                {fieldErrors.subject && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{fieldErrors.subject}</span>}
+                <input className="input" {...register('subject')} placeholder="Monthly Report — {{ current_month }}" />
+                {errors.subject && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{errors.subject.message}</span>}
               </div>
               <div className="field">
                 <label>Header text</label>
-                <input className="input" value={headerText} onChange={e => setHeaderText(e.target.value)} placeholder="Banner shown at the top of the email" />
+                <input className="input" {...register('headerText')} placeholder="Banner shown at the top of the email" />
               </div>
             </div>
 
@@ -217,7 +272,7 @@ export default function EmailEdit() {
               <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Recipients</div>
               <div className="field">
                 <label>Recipient group <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(overrides To addresses)</span></label>
-                <select className="input" value={groupId} onChange={e => setGroupId(e.target.value)}>
+                <select className="input" {...register('groupId')}>
                   <option value="">Use direct addresses</option>
                   {groups.map(g => <option key={g.id} value={g.id}>{g.name} ({g.addresses.length} recipients)</option>)}
                 </select>
@@ -225,28 +280,41 @@ export default function EmailEdit() {
               {!groupId && (
                 <div className="field">
                   <label>To addresses <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(Enter or comma to add)</span></label>
-                  <ChipInput values={to} onChange={v => { setTo(v); if (fieldErrors.recipients) setFieldErrors(f => ({ ...f, recipients: '' })) }} placeholder="recipient@example.com" />
-                  {fieldErrors.recipients && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{fieldErrors.recipients}</span>}
+                  <Controller
+                    control={control}
+                    name="to"
+                    render={({ field }) => (
+                      <ChipInput values={field.value} onChange={field.onChange} placeholder="recipient@example.com" />
+                    )}
+                  />
+                  {errors.to && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{errors.to.message}</span>}
                 </div>
               )}
               <div className="field">
                 <label>CC</label>
-                <ChipInput values={cc} onChange={setCc} placeholder="cc@example.com" />
+                <Controller
+                  control={control}
+                  name="cc"
+                  render={({ field }) => <ChipInput values={field.value} onChange={field.onChange} placeholder="cc@example.com" />}
+                />
               </div>
               <div className="field">
                 <label>BCC</label>
-                <ChipInput values={bcc} onChange={setBcc} placeholder="bcc@example.com" />
+                <Controller
+                  control={control}
+                  name="bcc"
+                  render={({ field }) => <ChipInput values={field.value} onChange={field.onChange} placeholder="bcc@example.com" />}
+                />
               </div>
             </div>
 
             {/* Body */}
             <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>Body template <span style={{ color: '#64748B', fontWeight: 400, fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }}>HTML + Jinja2</span><FieldTooltip field="body_template" /></div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>Body template <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }}>HTML + Jinja2</span><FieldTooltip field="body_template" /></div>
               <textarea
                 className="input mono-input"
                 rows={28}
-                value={body}
-                onChange={e => setBody(e.target.value)}
+                {...register('body')}
                 placeholder={"<p>Hi {{ name }},</p>\n<p>Please find the attached report.</p>"}
                 style={{ resize: 'vertical', fontSize: 12.5, lineHeight: 1.6, minHeight: 420 }}
               />
@@ -268,25 +336,24 @@ export default function EmailEdit() {
                   <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{maxMb} MB</span>
                 </label>
                 <input
-                  type="range" min={1} max={50} value={maxMb}
-                  onChange={e => setMaxMb(+e.target.value)}
+                  type="range" min={1} max={50}
+                  {...register('maxMb', { valueAsNumber: true })}
                   style={{ width: '100%', accentColor: 'var(--accent)', cursor: 'pointer' }}
                 />
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#475569', marginTop: 2 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-dim)', marginTop: 2 }}>
                   <span>1 MB</span><span>50 MB</span>
                 </div>
               </div>
               <div className="field">
                 <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Google Drive folder ID<FieldTooltip field="drive_folder_id" /></label>
-                <input className="input" value={folderId} onChange={e => setFolderId(e.target.value)} placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs" />
+                <input className="input" {...register('folderId')} placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs" />
               </div>
               <div className="field">
                 <label>Drive share message template</label>
                 <textarea
                   className="input mono-input"
                   rows={5}
-                  value={driveMsg}
-                  onChange={e => setDriveMsg(e.target.value)}
+                  {...register('driveMsg')}
                   placeholder={"{% for link in drive_links %}\n• {{ link.filename }} — {{ link.url }}\n{% endfor %}"}
                   style={{ resize: 'vertical', fontSize: 11.5 }}
                 />
@@ -299,7 +366,7 @@ export default function EmailEdit() {
               <p style={{ fontSize: 11.5, color: 'var(--text-muted)', margin: 0 }}>Use in subject, header text, and body template.</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {TEMPLATE_VARS.map(v => (
-                  <code key={v} className="mono" style={{ fontSize: 11, color: '#94A3B8', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 4, padding: '3px 8px', display: 'block' }}>
+                  <code key={v} className="mono" style={{ fontSize: 11, color: 'var(--text-3)', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 4, padding: '3px 8px', display: 'block' }}>
                     {v}
                   </code>
                 ))}
@@ -315,7 +382,6 @@ export default function EmailEdit() {
           onClick={e => { if (e.target === e.currentTarget) setPreviewOpen(false) }}
         >
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, width: '100%', maxWidth: 760, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            {/* Modal header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Email Preview</span>
@@ -325,7 +391,6 @@ export default function EmailEdit() {
                 <X size={12} />
               </button>
             </div>
-            {/* Rendered email in an iframe for style isolation */}
             <iframe
               title="Email preview"
               srcDoc={previewData.html}

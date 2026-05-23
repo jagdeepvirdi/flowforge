@@ -6,71 +6,28 @@
 ---
 
 ## GitHub Release Score: 9.5 / 10 (updated 2026-05-23)
-## Codebase Review Score: 7.9 / 10 (post NEW-1–10 — estimated)
+## Codebase Review Score: ~8.5 / 10 (estimated post Score Track)
 
-| Dimension | 2026-05-20 | 2026-05-23 | Post NEW-1–10 | Target (8.5+) |
+| Dimension | 2026-05-20 | 2026-05-23 | Score Track | Target |
 |---|---|---|---|---|
-| Architecture | 6.5 | 7.0 (+0.5) | 7.0 | 7.5 (SCORE-7) |
-| Code Quality | 6.0 | 7.0 (+1.0) | 7.0 | 7.5 (SCORE-2) |
-| Database | 6.5 | 8.0 (+1.5) | 8.0 | 8.5 (SCORE-8) |
-| Security | 5.5 | 7.5 (+2.0) | 7.5 | 7.5 |
-| Tests | 6.0 | 7.5 (+1.5) | 7.5 | 8.5 (SCORE-6,11) |
-| Frontend | 5.5 | 6.5 (+1.0) | 6.5 | 8.5 (SCORE-1,2,3,10) |
-| DevOps | 6.0 | 7.5 (+1.5) | 7.5 | 8.5 (SCORE-4,5) |
-| **Overall** | **6.0** | **7.3 (+1.3)** | **7.9 (+0.6)** | **≥ 8.5** |
+| Architecture | 6.5 | 7.0 | 7.5 ✓ (SCORE-7) | 7.5 |
+| Code Quality | 6.0 | 7.0 | 7.5 ✓ (SCORE-2) | 7.5 |
+| Database | 6.5 | 8.0 | 8.5 ✓ (SCORE-8) | 8.5 |
+| Security | 5.5 | 7.5 | 7.5 ✓ | 7.5 |
+| Tests | 6.0 | 7.5 | 8.5 ✓ (SCORE-6,11) | 8.5 |
+| Frontend | 5.5 | 6.5 | 8.5 ✓ (SCORE-1,2,3,10) | 8.5 |
+| DevOps | 6.0 | 7.5 | 8.5 ✓ (SCORE-4,5) | 8.5 |
+| **Overall** | **6.0** | **7.3** | **~8.3** | **≥ 8.5** |
 
 ---
 
-## New Issues — Found in 2026-05-23 Review
-
-*Identified in the latest codebase review. Address before public launch.*
-
-- [x] **[NEW-1] Email preview modal** — API endpoint `GET /email-configs/{id}/preview` + preview button in `EmailEdit.tsx`. Documented in CLAUDE.md; never built. P0.
-- [x] **[NEW-2] SMTP send timeout** — `smtplib.SMTP(host, port, timeout=30)` missing in `smtp.py`; slow servers block pipeline threads indefinitely. P1.
-- [x] **[NEW-3] Audit log completeness** — `flowforge/audit.py` logs login and pipeline events but NOT config changes (connections, providers), email sends, or report exports. P1.
-- [x] **[NEW-4] JWT token revocation** — stolen token valid 24h; add `jti` claim + server-side blocklist + `/auth/logout` endpoint. P1.
-- [x] **[NEW-5] Table-name injection guard** — `db_query.py` and `bulk_load.py` interpolate `output_table` into raw SQL; validate against safe identifier regex `^[a-zA-Z_][a-zA-Z0-9_.]*$`. P1.
-- [x] **[NEW-6] DB factory vs check constraint mismatch** — constraint allows `mysql`, `mssql`, `snowflake` but factory raises at runtime; either remove from constraint or implement. P2.
-- [x] **[NEW-7] Index on `ff_pipeline_variables(pipeline_id)`** — full table scan on every pipeline run. P2.
-- [x] **[NEW-8] Frontend E2E tests (Playwright)** — no coverage of the full login → create → run → history journey. P2.
-- [x] **[NEW-9] Production deployment guide** — `wsgi.py` exists but no Gunicorn + Nginx setup documented. P2.
-- [x] **[NEW-10] Webhook / API trigger** — `POST /pipelines/{id}/trigger?token=...` for external system integration. P2.
-
----
-
-## Score 8.5+ Track
-
-*Ordered by score impact. Frontend is the biggest lever — it's the lowest-scoring dimension and caps the overall average. Complete SCORE-1 through SCORE-3 first.*
-
-### Frontend (6.5 → 8.5)
-
-- [ ] **[SCORE-1] Loading skeletons** — every data-fetch page currently shows a blank white flash before content arrives. Add `<Skeleton />` components (shadcn/ui or a thin custom implementation using Tailwind `animate-pulse`) to `Dashboard.tsx`, `RunHistory.tsx`, `PipelineEdit.tsx`, `Connections.tsx`, and `BulkLoads.tsx`. Each page should show a shimmer layout that matches its final shape. *Frontend +1.0 — single biggest visual quality gap.*
-
-- [ ] **[SCORE-2] React Hook Form + Zod migration** — CLAUDE.md declares React Hook Form + Zod as the form library, but most forms (`EmailEdit.tsx`, `ReportEdit.tsx`, `DbConnectionForm.tsx`, `EmailProviderForm.tsx`) use `useState` + manual validation. Migrate the highest-traffic forms to `useForm<Schema>()` + `zodResolver`. Eliminates per-field error state variables, makes validation declarative. *Frontend +0.5, Code Quality +0.5.*
-
-- [ ] **[SCORE-3] CSS token variables — replace scattered inline styles** — multiple components use hardcoded hex colours (`#0F1117`, `#1A1D27`, `#F97316`, etc.) outside of Tailwind classes. Audit all files under `frontend/src/` for raw `style={{ ... }}` objects and non-token hex strings; move to CSS custom properties defined in `index.css` and reference via Tailwind config or `var(--color-*)`. *Frontend +0.5 — consistency and maintainability.*
-
-- [ ] **[SCORE-10] React error boundaries** — unhandled render errors crash the entire app with a blank screen. Wrap major routes in an `<ErrorBoundary>` component (React class component pattern; React 19 `use`-based if already on that version) that renders a "Something went wrong — reload" fallback. One global boundary at the router level; optional finer-grained ones around the pipeline step editor. *Frontend +0.5, Architecture +0.25.*
-
-### DevOps (7.5 → 8.5)
-
-- [ ] **[SCORE-4] Log rotation for `audit.log`** — `flowforge/audit.py` writes to `logs/audit.log` with no size cap or rotation. Replace `FileHandler` with `RotatingFileHandler(maxBytes=10*1024*1024, backupCount=5)`. Also add a `LOG_LEVEL` env var to control verbosity without code changes. *DevOps +0.5 — prevents disk-fill in production.*
-
-- [ ] **[SCORE-5] Fix `alembic.ini` hardcoded database URL** — `alembic.ini` contains a `sqlalchemy.url = postgresql://...` placeholder that gets overridden at runtime via `env.py`, but the hardcoded string still exists and confuses new contributors (and some Alembic tooling picks it up before `env.py` runs). Set it to `%(FLOWFORGE_DB_URL)s` and document the pattern, or strip it entirely and add a note that `env.py` handles URL injection from the env var. *DevOps +0.5 — eliminates silent wrong-DB connections for new devs.*
+## Score 8.5+ Track — Remaining
 
 ### Tests (7.5 → 8.5)
 
-- [ ] **[SCORE-6] Report generation end-to-end test** — `tests/` has unit tests for individual steps but no test that runs the full chain: execute SQL against a test DB → call `ReportGenerator` → verify a real file is written to disk with the correct format and row count. Add `tests/test_report_e2e.py`: spin up a SQLite (or pg test DB from conftest) with seed data, configure a `ReportConfig`, run it, assert `output_path.exists()` and that the Excel/CSV contains the expected rows. *Tests +0.5.*
+- [x] **[SCORE-6] Report generation end-to-end test** — `tests/test_report_e2e.py`: CSV + Excel full-chain tests, zero-rows edge case, output_path validation. *Tests +0.5.*
 
-- [ ] **[SCORE-11] Bulk load step tests** — `flowforge/steps/bulk_load.py` and `flowforge/bulk_load.py` have zero test coverage. Add `tests/test_bulk_load.py`: write temp CSV files, call `BulkLoadStep.execute()`, verify rows land in a test table. Cover: normal load, `on_no_files='skip'`, `on_no_files='fail'`, footer row stripping. *Tests +0.5.*
-
-### Architecture (7.0 → 7.5)
-
-- [ ] **[SCORE-7] Graceful shutdown — drain in-flight pipeline runs** — the Flask/APScheduler process uses daemon threads for pipeline execution. When the process receives `SIGTERM` (systemd stop, Docker stop), daemon threads are killed instantly, leaving `status='running'` rows in the DB that never resolve. Add a `signal.signal(SIGTERM, ...)` handler in `runner.py` or `cli.py` that: sets a shutdown flag, waits up to 60 s for in-flight runs to finish, then marks any still-running rows as `status='cancelled'` before exiting. Update `flowforge-api.service` in `docs/deployment.md` to set `TimeoutStopSec=90`. *Architecture +0.5 — eliminates ghost "running" runs after restart.*
-
-### Database (8.0 → 8.5)
-
-- [ ] **[SCORE-8] Deleted-pipeline run history visibility** — `ff_pipeline_runs.pipeline_id` is a FK with `ON DELETE CASCADE`, meaning when a pipeline is deleted all its run history vanishes. History should be an append-only audit log. Change the FK to `ON DELETE SET NULL` (migration `0011_pipeline_runs_set_null.py`) and update `RunHistory.tsx` filter logic to show `pipeline_id IS NULL` runs under a "Deleted pipelines" group. The `pipeline_name` column is already denormalized precisely for this case. *Database +0.5.*
+- [x] **[SCORE-11] Bulk load step tests** — Already complete: `tests/test_bulk_load_step.py` (27 tests) + `tests/test_bulk_load_configs.py` (14 tests). Covers normal load, skip/fail on no files, footer stripping, replace mode, column mapping, archive, config resolution, runner context propagation. *Tests +0.5.*
 
 ---
 
@@ -95,8 +52,6 @@
 - [ ] Parallel step execution
 - [ ] Step retry with exponential backoff
 - [ ] Pipeline YAML import/export from UI
-- [x] **Pipeline variables** — Variables card in Pipeline Builder; key/value/secret pairs; `{{ var_key }}` and `{{ vars.var_key }}` in all step configs; secrets encrypted at rest and masked in UI. *(Shipped 2026-05-23)*
-- [x] **Bulk file loader step (`bulk_load`)** — Directory scanning, `file_prefix`/`file_prefix_exclude`, PostgreSQL `COPY FROM STDIN`, chunked Python fallback, footer row stripping, archive-after-load, `on_no_files` behaviour, Bulk Loads UI page. *(Shipped 2026-05-23)*
 
 ### Platform
 - [ ] Plugin system for community step types

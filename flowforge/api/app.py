@@ -1,4 +1,5 @@
 """Flask application factory."""
+import logging
 import os
 from pathlib import Path
 
@@ -17,6 +18,10 @@ _DOCS = Path(__file__).parent.parent.parent / 'docs'
 
 
 def create_app(config: dict | None = None) -> Flask:
+    # Configure root logger from LOG_LEVEL env var — no-op if CLI already called basicConfig.
+    _level = getattr(logging, os.environ.get('LOG_LEVEL', 'INFO').upper(), logging.INFO)
+    logging.basicConfig(level=_level, format='%(asctime)s %(levelname)s %(name)s — %(message)s')
+
     app = Flask(__name__)
 
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
