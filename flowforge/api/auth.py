@@ -1,5 +1,6 @@
 """JWT authentication — single-user v1."""
 import os
+import uuid as _uuid_mod
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 
@@ -7,7 +8,7 @@ import bcrypt
 import jwt
 from flask import current_app, jsonify, request
 
-from flowforge.db.models import User, db
+from flowforge.db.models import TokenBlocklist, User, db
 
 
 def _algorithm() -> str:
@@ -26,6 +27,7 @@ def _expiry_hours() -> int:
 def generate_token(username: str) -> str:
     payload = {
         'sub': username,
+        'jti': str(_uuid_mod.uuid4()),
         'iat': datetime.now(timezone.utc),
         'exp': datetime.now(timezone.utc) + timedelta(hours=_expiry_hours()),
     }
@@ -33,12 +35,34 @@ def generate_token(username: str) -> str:
 
 
 def verify_token(token: str) -> str | None:
-    """Return the username if the token is valid, else None."""
+    """Return the username if the token is valid and not revoked, else None."""
     try:
         payload = jwt.decode(token, _secret(), algorithms=[_algorithm()])
+        jti = payload.get('jti')
+        if jti and db.session.get(TokenBlocklist, jti) is not None:
+            return None
         return payload['sub']
     except jwt.PyJWTError:
         return None
+
+
+def revoke_token(token: str) -> str | None:
+    """Add the token's jti to the blocklist. Returns the username on success, None if invalid.
+
+    Tokens issued before jti was added (no jti claim) are not blocklisted — the client
+    must still clear its local storage; the token will expire naturally within 24h.
+    """
+    try:
+        payload = jwt.decode(token, _secret(), algorithms=[_algorithm()])
+    except jwt.PyJWTError:
+        return None
+    jti = payload.get('jti')
+    exp = payload.get('exp')
+    if jti:
+        expires_at = datetime.fromtimestamp(exp, tz=timezone.utc) if exp else datetime.now(timezone.utc)
+        db.session.merge(TokenBlocklist(jti=jti, expires_at=expires_at))
+        db.session.commit()
+    return payload.get('sub')
 
 
 def login(username: str, password: str) -> str | None:

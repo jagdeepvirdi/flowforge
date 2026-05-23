@@ -34,6 +34,10 @@ def log_login(username: str, success: bool, remote_addr: str = '') -> None:
     _get_logger().info('LOGIN     %-7s  user=%-20s  ip=%s', outcome, username, remote_addr or 'unknown')
 
 
+def log_logout(username: str, remote_addr: str = '') -> None:
+    _get_logger().info('LOGOUT             user=%-20s  ip=%s', username, remote_addr or 'unknown')
+
+
 def log_pipeline_run(
     pipeline_name: str,
     triggered_by: str,

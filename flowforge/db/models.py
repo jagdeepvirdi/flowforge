@@ -253,6 +253,15 @@ class PipelineRun(db.Model):
     step_runs = relationship('StepRun', back_populates='pipeline_run', cascade='all, delete-orphan')
 
 
+class TokenBlocklist(db.Model):
+    """Revoked JWT IDs. Entries older than their expires_at are dead weight and can be pruned."""
+    __tablename__ = 'ff_token_blocklist'
+
+    jti        = Column(String(36), primary_key=True)
+    revoked_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+
+
 class StepRun(db.Model):
     __tablename__ = 'ff_step_runs'
     __table_args__ = (

@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../lib/auth'
-import { getRuns } from '../../lib/api'
+import { getRuns, logout as apiLogout } from '../../lib/api'
 import HelpDrawer from './HelpDrawer'
 import RouteErrorBoundary from './RouteErrorBoundary'
 
@@ -121,7 +121,7 @@ export default function Layout() {
               </NavLink>
             ))}
             <button
-              onClick={() => { clearToken(); navigate('/login') }}
+              onClick={() => { apiLogout().catch(() => {}).finally(() => { clearToken(); navigate('/login') }) }}
               className="ff-nav-item"
               style={{ border: 'none', background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer', fontSize: 13, color: 'var(--text-muted)' }}
             >

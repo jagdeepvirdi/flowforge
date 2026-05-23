@@ -34,8 +34,9 @@ const put  = <T>(path: string, body?: unknown) => request<T>('PUT',    path, bod
 const del  = <T>(path: string)             => request<T>('DELETE', path)
 
 // Auth
-export const login = (username: string, password: string) =>
+export const login  = (username: string, password: string) =>
   post<{ token: string }>('/auth/login', { username, password })
+export const logout = () => post<{ message: string }>('/auth/logout')
 
 // Projects
 export const getProjects    = () => get<import('./types').Project[]>('/projects')
