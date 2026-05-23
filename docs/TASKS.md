@@ -6,16 +6,35 @@
 ---
 
 ## GitHub Release Score: 9.5 / 10 (updated 2026-05-23)
-## Codebase Review Score: 6.0 / 10 (reviewed 2026-05-20 — see CODEBASE_REVIEW.md)
+## Codebase Review Score: 7.3 / 10 (reviewed 2026-05-23 — see CODEBASE_REVIEW.md)
 
-| Dimension | Score |
-|---|---|
-| Code quality | 7/10 — Clean architecture, good separation of concerns |
-| Feature completeness | 10/10 — bulk_load, pipeline variables, delta vars, create_if_missing all shipped |
-| Security | 9/10 — Encryption, rate limiting, Alembic migrations all done |
-| Documentation | 9/10 — CHANGELOG, step-types, getting-started, manual-testing-guide all updated |
-| Deployment UX | 7/10 — Docker Compose + CI added |
-| GitHub readiness | 10/10 — All manual tests passed, email verified end-to-end |
+| Dimension | 2026-05-20 | 2026-05-23 |
+|---|---|---|
+| Architecture | 6.5 | 7.0 (+0.5) |
+| Code Quality | 6.0 | 7.0 (+1.0) |
+| Database | 6.5 | 8.0 (+1.5) |
+| Security | 5.5 | 7.5 (+2.0) |
+| Tests | 6.0 | 7.5 (+1.5) |
+| Frontend | 5.5 | 6.5 (+1.0) |
+| DevOps | 6.0 | 7.5 (+1.5) |
+| **Overall** | **6.0** | **7.3 (+1.3)** |
+
+---
+
+## New Issues — Found in 2026-05-23 Review
+
+*Identified in the latest codebase review. Address before public launch.*
+
+- [ ] **[NEW-1] Email preview modal** — API endpoint `GET /email-configs/{id}/preview` + preview button in `EmailEdit.tsx`. Documented in CLAUDE.md; never built. P0.
+- [ ] **[NEW-2] SMTP send timeout** — `smtplib.SMTP(host, port, timeout=30)` missing in `smtp.py`; slow servers block pipeline threads indefinitely. P1.
+- [ ] **[NEW-3] Audit log completeness** — `flowforge/audit.py` logs login and pipeline events but NOT config changes (connections, providers), email sends, or report exports. P1.
+- [ ] **[NEW-4] JWT token revocation** — stolen token valid 24h; add `jti` claim + server-side blocklist + `/auth/logout` endpoint. P1.
+- [ ] **[NEW-5] Table-name injection guard** — `db_query.py` and `bulk_load.py` interpolate `output_table` into raw SQL; validate against safe identifier regex `^[a-zA-Z_][a-zA-Z0-9_.]*$`. P1.
+- [ ] **[NEW-6] DB factory vs check constraint mismatch** — constraint allows `mysql`, `mssql`, `snowflake` but factory raises at runtime; either remove from constraint or implement. P2.
+- [ ] **[NEW-7] Index on `ff_pipeline_variables(pipeline_id)`** — full table scan on every pipeline run. P2.
+- [ ] **[NEW-8] Frontend E2E tests (Playwright)** — no coverage of the full login → create → run → history journey. P2.
+- [ ] **[NEW-9] Production deployment guide** — `wsgi.py` exists but no Gunicorn + Nginx setup documented. P2.
+- [ ] **[NEW-10] Webhook / API trigger** — `POST /pipelines/{id}/trigger?token=...` for external system integration. P2.
 
 ---
 

@@ -17,19 +17,23 @@ Designed for solo developers, data analysts, and small teams who need lightweigh
 ## Features
 
 - **No-YAML config** — pipelines, reports, email templates, and schedules are all managed via UI
-- **Step types**: `db_procedure`, `db_query`, `report`, `email`, `drive_upload`, `data_load`
+- **Multi-project workspace** — organize pipelines, reports, and email templates by team or department in one instance
+- **Step types**: `db_procedure`, `db_query`, `report`, `email`, `drive_upload`, `data_load`, `bulk_load`
 - **Database support**: PostgreSQL and Oracle (pluggable `BaseConnection` interface)
 - **Email providers**: Gmail (OAuth2), Microsoft 365 (MSAL + Graph API), SMTP (any server)
 - **Smart attachments**: files over a configurable size threshold are automatically uploaded to Google Drive; the email body gets a shareable link instead
-- **Report formats**: Excel (openpyxl, optional template), CSV, PDF (WeasyPrint)
+- **Query results in email**: embed live SQL query results (HTML table, key-value list, or custom Jinja2) directly in email bodies — no attachment required
+- **Report formats**: Excel (openpyxl, optional template), CSV, PDF (WeasyPrint), JSON
 - **Google Drive**: upload files, create shareable links, smart attachment fallback
-- **Jinja2 variable system**: date/range helpers, run context, step outputs, env vars, pipeline vars — available in every config field
+- **Jinja2 variable system**: 30+ built-in date/range helpers, run context, step outputs, env vars, pipeline variables — available in every config field
+- **Pipeline variables**: define key/value pairs (including secrets, encrypted at rest) reusable across all steps
+- **Bulk file loader**: scan a directory, load CSV/Excel files to any database, archive after load
 - **Scheduling**: APScheduler with cron expressions and hot reload, managed from the UI
 - **Visual cron builder**: frequency presets, live expression preview, next-5-runs display
 - **Run history**: step-level logs, timing, Drive links, and email recipients per run
 - **In-app help**: context-sensitive help drawer, page intro cards, field tooltips, concept glossary
-- **Security**: AES-256-GCM credential encryption, bcrypt admin password, JWT auth, login rate limiting
-- **Docker Compose**: one-command local stack (API + frontend + PostgreSQL)
+- **Security**: AES-256-GCM credential encryption, bcrypt admin password, separate JWT secret, login rate limiting, audit log
+- **Docker Compose**: one-command local stack (API + frontend + PostgreSQL + scheduler)
 - **GitHub Actions CI**: full pytest suite on every push and PR
 - **Output cleanup**: CLI command + daily scheduler job to prune old report files
 
@@ -233,8 +237,8 @@ flowforge/
 ├── docs/                    # Guides: getting-started, step-types, email-providers
 ├── tests/
 ├── .github/workflows/       # GitHub Actions CI
-├── server.ps1               # Windows dev/prod server script
-├── server.sh                # macOS/Linux dev/prod server script
+├── flowforge.ps1            # Windows dev/prod server script
+├── flowforge.sh             # macOS/Linux dev/prod server script
 ├── docker-compose.yml
 ├── Dockerfile
 ├── alembic.ini
@@ -250,6 +254,8 @@ flowforge/
 - [`docs/getting-started.md`](docs/getting-started.md) — end-to-end setup walkthrough
 - [`docs/step-types.md`](docs/step-types.md) — full config reference for all step types
 - [`docs/email-providers.md`](docs/email-providers.md) — SMTP, M365, and Gmail setup
+- [`docs/RUNBOOK.md`](docs/RUNBOOK.md) — database migrations, startup, production ops
+- [`docs/INDEX.md`](docs/INDEX.md) — index of all documentation files
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — dev setup, running tests, PR process
 - [`CHANGELOG.md`](CHANGELOG.md) — version history
 
@@ -260,7 +266,9 @@ flowforge/
 - **v0.1.0** ✅ — Pipeline engine, all step types, all email providers, reports, Drive, scheduler, React frontend, Docker, CI, Alembic migrations, AES-256 encryption, JWT auth
 - **v0.1.3** ✅ — Oracle Docker, `data_load` step, `python-oracledb` migration, JSON report format, scheduler sync, email provider fixes, UI screenshots
 - **v0.1.4** ✅ — Email provider test(), Gmail scope fix, error messages in UI, quick-attach Jinja2 fix, docs served from API, pipeline builder button wrap
-- **v2**: Multi-user auth, Slack/Teams notifications, S3/Azure Blob, `ai_analyze` step, OneDrive upload, `bulk_load` step
+- **v1.0.0** ✅ — Pipeline variables (with secrets), `bulk_load` step, multi-project support, query results in email, project switcher in topbar, full test coverage expansion
+- **v1.x**: Email preview modal, webhook trigger, production deployment guide, JWT revocation, E2E tests
+- **v2**: Multi-user auth with roles, Slack/Teams notifications, S3/Azure Blob, OneDrive/SharePoint upload, `ai_analyze` step, MySQL/MSSQL support, parallel step execution
 
 ---
 
