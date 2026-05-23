@@ -41,7 +41,7 @@ def create_connection():
     data = request.get_json() or {}
     if not data.get('name'):
         return jsonify({'error': 'name is required'}), 400
-    _VALID_TYPES = {'postgresql', 'oracle', 'mysql', 'mssql', 'snowflake'}
+    _VALID_TYPES = {'postgresql', 'oracle'}
     if data.get('db_type') not in _VALID_TYPES:
         return jsonify({'error': f'db_type must be one of: {", ".join(sorted(_VALID_TYPES))}'}), 400
     if not data.get('config'):

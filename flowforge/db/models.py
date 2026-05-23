@@ -81,7 +81,7 @@ class EmailProvider(db.Model):
 class DbConnection(db.Model):
     __tablename__ = 'ff_db_connections'
     __table_args__ = (
-        CheckConstraint("db_type IN ('postgresql', 'oracle', 'mysql', 'mssql', 'snowflake')", name='ck_db_connection_type'),
+        CheckConstraint("db_type IN ('postgresql', 'oracle')", name='ck_db_connection_type'),
     )
 
     id         = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
