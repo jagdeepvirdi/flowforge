@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Save, ArrowLeft, X } from 'lucide-react'
-import { getEmailConfig, createEmailConfig, updateEmailConfig, getEmailProviders, getRecipientGroups } from '../lib/api'
+import { Save, ArrowLeft, X, Eye } from 'lucide-react'
+import { getEmailConfig, createEmailConfig, updateEmailConfig, getEmailProviders, getRecipientGroups, previewEmailConfig } from '../lib/api'
 import { useProjectStore } from '../lib/store'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
@@ -74,6 +74,10 @@ export default function EmailEdit() {
   const [saving, setSaving]           = useState(false)
   const [error, setError]             = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [previewing, setPreviewing]   = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewData, setPreviewData] = useState<{ subject: string; html: string } | null>(null)
+  const [previewError, setPreviewError] = useState('')
 
   useEffect(() => {
     if (existing) {
@@ -86,6 +90,20 @@ export default function EmailEdit() {
       setDriveMsg(existing.drive_share_message ?? '')
     }
   }, [existing])
+
+  const handlePreview = async () => {
+    if (!id) return
+    setPreviewing(true); setPreviewError('')
+    try {
+      const data = await previewEmailConfig(id)
+      setPreviewData(data)
+      setPreviewOpen(true)
+    } catch (err) {
+      setPreviewError(err instanceof Error ? err.message : 'Preview failed')
+    } finally {
+      setPreviewing(false)
+    }
+  }
 
   const handleSave = async () => {
     const errs: Record<string, string> = {}
@@ -131,6 +149,11 @@ export default function EmailEdit() {
         actions={
           <div style={{ display: 'flex', gap: 8 }}>
             <Link to="/emails" className="btn btn-sm"><ArrowLeft size={12} /> Back</Link>
+            {!isNew && (
+              <button className="btn btn-sm" onClick={handlePreview} disabled={previewing} title="Preview rendered email">
+                {previewing ? <Spinner size={12} /> : <Eye size={12} />} Preview
+              </button>
+            )}
             <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
               {saving ? <Spinner size={12} /> : <Save size={12} />} Save
             </button>
@@ -141,6 +164,9 @@ export default function EmailEdit() {
       <div className="scroll">
         {error && (
           <div style={{ marginBottom: 14, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 7, fontSize: 12.5, color: '#F87171' }}>{error}</div>
+        )}
+        {previewError && (
+          <div style={{ marginBottom: 14, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 7, fontSize: 12.5, color: '#F87171' }}>Preview: {previewError}</div>
         )}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 16, alignItems: 'start' }}>
@@ -282,6 +308,33 @@ export default function EmailEdit() {
           </div>
         </div>
       </div>
+
+      {previewOpen && previewData && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+          onClick={e => { if (e.target === e.currentTarget) setPreviewOpen(false) }}
+        >
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, width: '100%', maxWidth: 760, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {/* Modal header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Email Preview</span>
+                <span style={{ fontSize: 11.5, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>Subject: {previewData.subject}</span>
+              </div>
+              <button className="btn btn-sm" onClick={() => setPreviewOpen(false)} style={{ padding: '4px 8px' }}>
+                <X size={12} />
+              </button>
+            </div>
+            {/* Rendered email in an iframe for style isolation */}
+            <iframe
+              title="Email preview"
+              srcDoc={previewData.html}
+              style={{ flex: 1, border: 'none', background: '#ffffff', minHeight: 400 }}
+              sandbox="allow-same-origin"
+            />
+          </div>
+        </div>
+      )}
     </>
   )
 }

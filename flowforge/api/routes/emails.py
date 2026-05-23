@@ -115,3 +115,22 @@ def delete_email_config(config_id):
     db.session.delete(config)
     db.session.commit()
     return jsonify({'deleted': str(config_id)})
+
+
+@bp.get('/email-configs/<uuid:config_id>/preview')
+@require_auth
+def preview_email_config(config_id):
+    config = db.session.get(EmailConfig, str(config_id))
+    if not config:
+        return jsonify({'error': 'Email config not found'}), 404
+
+    from flowforge.engine.context import build, render
+    ctx = build(pipeline_name='Sample Pipeline')
+
+    try:
+        rendered_subject = render(config.subject or '', ctx)
+        rendered_html = render(config.body_template or '', ctx)
+    except Exception as e:
+        return jsonify({'error': f'Template render error: {e}'}), 422
+
+    return jsonify({'subject': rendered_subject, 'html': rendered_html})

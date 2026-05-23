@@ -90,7 +90,8 @@ export const getEmailConfigs   = (params?: { project_id?: string }) => {
 export const getEmailConfig    = (id: string) => get<import('./types').EmailConfig>(`/email-configs/${id}`)
 export const createEmailConfig = (data: Partial<import('./types').EmailConfig>) => post<import('./types').EmailConfig>('/email-configs', data)
 export const updateEmailConfig = (id: string, data: Partial<import('./types').EmailConfig>) => put<import('./types').EmailConfig>(`/email-configs/${id}`, data)
-export const deleteEmailConfig = (id: string) => del<{ deleted: string }>(`/email-configs/${id}`)
+export const deleteEmailConfig  = (id: string) => del<{ deleted: string }>(`/email-configs/${id}`)
+export const previewEmailConfig = (id: string) => get<{ subject: string; html: string }>(`/email-configs/${id}/preview`)
 
 // Email providers
 export const getEmailProviders  = () => get<import('./types').EmailProvider[]>('/email-providers')
