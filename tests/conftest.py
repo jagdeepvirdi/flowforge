@@ -61,7 +61,7 @@ def apply_migrations():
             'ff_pipeline_steps', 'ff_pipelines', 'ff_email_configs',
             'ff_report_configs', 'ff_bulk_load_configs', 'ff_db_connections',
             'ff_email_providers', 'ff_recipient_groups', 'ff_projects',
-            'ff_users', 'alembic_version',
+            'ff_users', 'ff_token_blocklist', 'alembic_version',
         ]:
             conn.execute(text(f'DROP TABLE IF EXISTS {table} CASCADE'))
     engine.dispose()

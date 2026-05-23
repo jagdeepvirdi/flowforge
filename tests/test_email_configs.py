@@ -98,3 +98,56 @@ def test_delete_email_config(client, headers):
 def test_get_nonexistent_email_config(client, headers):
     resp = client.get('/api/email-configs/00000000-0000-0000-0000-000000000000', headers=headers)
     assert resp.status_code == 404
+
+
+# ── Email preview endpoint (NEW-1) ────────────────────────────────────────────
+
+def test_preview_email_config_returns_200(client, headers, email_id):
+    resp = client.get(f'/api/email-configs/{email_id}/preview', headers=headers)
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert 'subject' in data
+    assert 'html' in data
+
+
+def test_preview_renders_jinja2_variables(client, headers, email_id):
+    """Jinja2 date variables in subject and body must be resolved, not passed through."""
+    resp = client.get(f'/api/email-configs/{email_id}/preview', headers=headers)
+    assert resp.status_code == 200
+    data = resp.get_json()
+    # The fixture subject is 'Monthly Report - {{ current_month }}'
+    assert '{{' not in data['subject'], 'Jinja2 tag still present — rendering failed'
+    assert '}}' not in data['subject']
+    # The fixture body is '<p>Hello {{ pipeline_name }}</p>'
+    assert '{{' not in data['html']
+
+
+def test_preview_nonexistent_email_config(client, headers):
+    resp = client.get(
+        '/api/email-configs/00000000-0000-0000-0000-000000000000/preview',
+        headers=headers,
+    )
+    assert resp.status_code == 404
+
+
+def test_preview_invalid_template_returns_422(client, headers):
+    """A syntactically broken Jinja2 template must result in a 422 with an error message."""
+    resp = client.post('/api/email-configs', json={
+        'name': '__bad_template_preview__',
+        'subject': 'OK',
+        'body_template': '{% if %}broken{% endif %}',
+    }, headers=headers)
+    assert resp.status_code == 201
+    eid = resp.get_json()['id']
+
+    try:
+        preview_resp = client.get(f'/api/email-configs/{eid}/preview', headers=headers)
+        assert preview_resp.status_code == 422
+        assert 'error' in preview_resp.get_json()
+    finally:
+        client.delete(f'/api/email-configs/{eid}', headers=headers)
+
+
+def test_preview_requires_auth(client, email_id):
+    resp = client.get(f'/api/email-configs/{email_id}/preview')
+    assert resp.status_code == 401

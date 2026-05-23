@@ -230,3 +230,85 @@ def test_postgres_test_returns_true_on_success():
 
     assert ok is True
     assert latency >= 0
+
+
+# ── validate_identifier unit tests (NEW-5) ────────────────────────────────────
+
+@pytest.mark.parametrize('name', [
+    'staging.out',
+    'my_table',
+    '_temp',
+    'schema123.table_name',
+    'A',
+])
+def test_validate_identifier_accepts_valid_names(name):
+    from flowforge.steps.base import validate_identifier
+    validate_identifier(name)  # must not raise
+
+
+@pytest.mark.parametrize('bad_name', [
+    "'; DROP TABLE users; --",
+    '123table',
+    'table name',
+    'table-name',
+    '',
+    'schema."table"',
+    'table;SELECT 1',
+])
+def test_validate_identifier_rejects_invalid_names(bad_name):
+    from flowforge.steps.base import validate_identifier
+    with pytest.raises(ValueError):
+        validate_identifier(bad_name)
+
+
+def test_query_step_rejects_sql_injection_in_output_table():
+    """DbQueryStep must return failure when output_table contains unsafe characters."""
+    result = run_query_step({
+        'query': 'SELECT 1',
+        'output_table': "staging.out; DROP TABLE ff_pipelines; --",
+        'mode': 'replace',
+    })
+    assert result.success is False
+    assert 'Invalid' in result.error or 'output_table' in result.error
+
+
+def test_query_step_rejects_output_table_leading_digit():
+    result = run_query_step({
+        'query': 'SELECT 1',
+        'output_table': '1bad',
+        'mode': 'replace',
+    })
+    assert result.success is False
+
+
+def test_query_step_accepts_dotted_output_table():
+    """schema.table is a valid dotted identifier and must not be rejected."""
+    rows = [(1,)]
+    conn = make_mock_conn(rows=rows)
+    result = run_query_step(
+        {'query': 'SELECT 1', 'output_table': 'myschema.my_table', 'mode': 'replace'},
+        mock_conn=conn,
+    )
+    assert result.success is True
+
+
+def test_bulk_load_step_rejects_invalid_target_table(tmp_path):
+    """BulkLoadStep must return failure when target_table fails validate_identifier.
+
+    validate_identifier is called after the connection_id / source_dir / target_table
+    presence checks, so all three must be non-empty to reach the validation.
+    connection_id is a fake UUID — the step returns before attempting to resolve it.
+    """
+    from flowforge.steps.bulk_load import BulkLoadStep
+
+    step = BulkLoadStep('bulk', {
+        'connection_id': '00000000-0000-0000-0000-000000000099',
+        'source_directory': str(tmp_path),
+        'file_type': 'csv',
+        'target_table': "'; DROP TABLE ff_pipelines --",
+        'load_mode': 'append',
+    })
+    result = step.run({})
+
+    assert result.success is False
+    assert 'target_table' in result.error or 'Invalid' in result.error

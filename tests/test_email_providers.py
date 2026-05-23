@@ -253,3 +253,39 @@ def test_smtp_cc_bcc_included_in_recipients():
         )
 
     assert set(result.recipients) == {'a@x.com', 'b@x.com', 'c@x.com'}
+
+
+# ── SMTP timeout on send() (NEW-2) ────────────────────────────────────────────
+
+def test_smtp_send_passes_timeout_to_constructor():
+    """send() must pass timeout=30 to SMTP() so blocked connections don't hang threads."""
+    from flowforge.email_providers.smtp import SMTPProvider
+
+    provider = SMTPProvider('smtp.example.com', 587, 'u', 'p', use_tls=False)
+    mock_server = MagicMock()
+
+    with patch('smtplib.SMTP', return_value=mock_server) as mock_smtp:
+        provider.send(to=['r@example.com'], cc=[], bcc=[],
+                      subject='S', html_body='B', attachments=[])
+
+    _, kwargs = mock_smtp.call_args
+    assert kwargs.get('timeout') == 30, (
+        'smtplib.SMTP was not called with timeout=30 — slow servers will block pipeline threads'
+    )
+
+
+def test_smtp_ssl_send_passes_timeout_to_constructor():
+    """send() with use_ssl=True must pass timeout=30 to SMTP_SSL()."""
+    from flowforge.email_providers.smtp import SMTPProvider
+
+    provider = SMTPProvider('smtp.example.com', 465, 'u', 'p', use_ssl=True)
+    mock_server = MagicMock()
+
+    with patch('smtplib.SMTP_SSL', return_value=mock_server) as mock_smtp_ssl:
+        provider.send(to=['r@example.com'], cc=[], bcc=[],
+                      subject='S', html_body='B', attachments=[])
+
+    _, kwargs = mock_smtp_ssl.call_args
+    assert kwargs.get('timeout') == 30, (
+        'smtplib.SMTP_SSL was not called with timeout=30'
+    )
