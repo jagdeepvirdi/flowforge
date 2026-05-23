@@ -1,11 +1,15 @@
+import hashlib
 import os
+import secrets
 import threading
 
 from flask import Blueprint, jsonify, request
 
+from flowforge.api.app import limiter
 from flowforge.api.auth import require_auth
+from flowforge import audit
 from flowforge.crypto import decrypt_value, encrypt_value
-from flowforge.db.models import DEFAULT_PROJECT_ID, Pipeline, PipelineRun, PipelineVariable, Project, db
+from flowforge.db.models import DEFAULT_PROJECT_ID, Pipeline, PipelineRun, PipelineVariable, Project, WebhookToken, db
 
 bp = Blueprint('pipelines', __name__)
 
@@ -215,40 +219,36 @@ def delete_pipeline(pipeline_id):
     return jsonify({'deleted': str(pipeline_id)})
 
 
-@bp.post('/pipelines/<uuid:pipeline_id>/run')
-@require_auth
-def trigger_run(pipeline_id):
+def _launch_run(pipeline: Pipeline, triggered_by: str):
+    """Shared run-dispatch logic used by both UI trigger and webhook trigger.
+
+    Returns a Flask response tuple (json, status_code).
+    """
     import concurrent.futures
     from datetime import datetime, timezone
     from flask import current_app
     from flowforge.engine.loader import load_pipeline
     from flowforge.engine.runner import run_pipeline
 
-    pipeline = db.session.get(Pipeline, str(pipeline_id))
-    if not pipeline:
-        return jsonify({'error': 'Pipeline not found'}), 404
     if not pipeline.enabled:
         return jsonify({'error': 'Pipeline is disabled'}), 400
 
-    # ARCH-1a: reject when concurrency limit is reached
     sem = _get_semaphore()
     if not sem.acquire(blocking=False):
         return jsonify({'error': 'Too many concurrent pipeline runs. Try again later.'}), 429
 
-    # Pre-create the run record so we can return run_id immediately (202 response).
     run = PipelineRun(
-        pipeline_id=str(pipeline_id),
+        pipeline_id=pipeline.id,
         pipeline_name=pipeline.name,
         status='running',
-        triggered_by='web_ui',
+        triggered_by=triggered_by,
     )
     db.session.add(run)
     db.session.commit()
     run_id = run.id
 
-    # ARCH-3: if load fails, mark the pre-created run as failed before returning 500
     try:
-        steps, pipeline_vars, secret_keys = load_pipeline(str(pipeline_id))
+        steps, pipeline_vars, secret_keys = load_pipeline(pipeline.id)
     except Exception as e:
         run.status = 'failed'
         run.error_message = f'Failed to load pipeline: {e}'
@@ -258,7 +258,7 @@ def trigger_run(pipeline_id):
         return jsonify({'error': f'Failed to load pipeline: {e}'}), 500
 
     app = current_app._get_current_object()
-    pid = str(pipeline_id)
+    pid = pipeline.id
     pname = pipeline.name
     timeout_minutes = pipeline.timeout_minutes or 60
 
@@ -271,7 +271,7 @@ def trigger_run(pipeline_id):
                     pipeline_name=pname,
                     steps=steps,
                     pipeline_vars=pipeline_vars,
-                    triggered_by='web_ui',
+                    triggered_by=triggered_by,
                     pipeline_id=pid,
                     existing_run_id=run_id,
                     secret_var_keys=secret_keys,
@@ -283,7 +283,6 @@ def trigger_run(pipeline_id):
                 try:
                     future.result(timeout=timeout_secs)
                 except concurrent.futures.TimeoutError:
-                    # Mark run as timed out; underlying thread may still run briefly
                     with app.app_context():
                         timed_out = db.session.get(PipelineRun, run_id)
                         if timed_out and timed_out.status == 'running':
@@ -296,6 +295,15 @@ def trigger_run(pipeline_id):
 
     threading.Thread(target=_run_in_background, daemon=True).start()
     return jsonify({'run_id': run_id, 'status': 'running', 'pipeline_name': pname}), 202
+
+
+@bp.post('/pipelines/<uuid:pipeline_id>/run')
+@require_auth
+def trigger_run(pipeline_id):
+    pipeline = db.session.get(Pipeline, str(pipeline_id))
+    if not pipeline:
+        return jsonify({'error': 'Pipeline not found'}), 404
+    return _launch_run(pipeline, triggered_by='web_ui')
 
 
 @bp.get('/pipelines/<uuid:pipeline_id>/runs')
@@ -325,3 +333,108 @@ def _run_dict(r) -> dict:
         'error_step': r.error_step,
         'error_message': r.error_message,
     }
+
+
+# ── Webhook / API trigger ──────────────────────────────────────────────────────
+
+def _token_hash(raw: str) -> str:
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def _webhook_token_dict(t: WebhookToken, *, raw: str | None = None) -> dict:
+    d = {
+        'id': t.id,
+        'pipeline_id': t.pipeline_id,
+        'label': t.label,
+        'enabled': t.enabled,
+        'last_used_at': t.last_used_at.isoformat() if t.last_used_at else None,
+        'created_at': t.created_at.isoformat() if t.created_at else None,
+    }
+    if raw is not None:
+        d['token'] = raw   # returned only at creation, never stored
+    return d
+
+
+@bp.post('/pipelines/<uuid:pipeline_id>/trigger')
+@limiter.limit('30 per minute')
+def trigger_via_webhook(pipeline_id):
+    """Public endpoint — no JWT; authenticated by a per-pipeline webhook token."""
+    raw = request.args.get('token', '').strip()
+    if not raw:
+        return jsonify({'error': 'token query parameter is required'}), 401
+
+    incoming_hash = _token_hash(raw)
+    wt = (
+        db.session.query(WebhookToken)
+        .filter_by(pipeline_id=str(pipeline_id), token_hash=incoming_hash, enabled=True)
+        .first()
+    )
+    if not wt:
+        return jsonify({'error': 'Invalid or revoked token'}), 401
+
+    pipeline = db.session.get(Pipeline, str(pipeline_id))
+    if not pipeline:
+        return jsonify({'error': 'Pipeline not found'}), 404
+
+    # Record last use (best-effort — don't fail the trigger if this errors)
+    try:
+        from datetime import datetime, timezone
+        wt.last_used_at = datetime.now(timezone.utc)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    resp, status = _launch_run(pipeline, triggered_by='api')
+    if status == 202:
+        run_id = resp.get_json().get('run_id', '')
+        audit.log_webhook_trigger(pipeline.name, run_id, remote_addr=request.remote_addr or '')
+    return resp, status
+
+
+@bp.get('/pipelines/<uuid:pipeline_id>/webhook-tokens')
+@require_auth
+def list_webhook_tokens(pipeline_id):
+    pipeline = db.session.get(Pipeline, str(pipeline_id))
+    if not pipeline:
+        return jsonify({'error': 'Pipeline not found'}), 404
+    tokens = (
+        db.session.query(WebhookToken)
+        .filter_by(pipeline_id=str(pipeline_id))
+        .order_by(WebhookToken.created_at)
+        .all()
+    )
+    return jsonify([_webhook_token_dict(t) for t in tokens])
+
+
+@bp.post('/pipelines/<uuid:pipeline_id>/webhook-tokens')
+@require_auth
+def create_webhook_token(pipeline_id):
+    pipeline = db.session.get(Pipeline, str(pipeline_id))
+    if not pipeline:
+        return jsonify({'error': 'Pipeline not found'}), 404
+
+    data = request.get_json(silent=True) or {}
+    label = str(data.get('label', '')).strip()[:100]
+
+    raw = 'flwf_' + secrets.token_urlsafe(32)
+    wt = WebhookToken(
+        pipeline_id=str(pipeline_id),
+        label=label,
+        token_hash=_token_hash(raw),
+    )
+    db.session.add(wt)
+    db.session.commit()
+    return jsonify(_webhook_token_dict(wt, raw=raw)), 201
+
+
+@bp.delete('/pipelines/<uuid:pipeline_id>/webhook-tokens/<uuid:token_id>')
+@require_auth
+def revoke_webhook_token(pipeline_id, token_id):
+    wt = db.session.query(WebhookToken).filter_by(
+        id=str(token_id), pipeline_id=str(pipeline_id)
+    ).first()
+    if not wt:
+        return jsonify({'error': 'Token not found'}), 404
+    db.session.delete(wt)
+    db.session.commit()
+    return jsonify({'deleted': str(token_id)})

@@ -63,6 +63,11 @@ export const deletePipeline  = (id: string) => del<{ deleted: string }>(`/pipeli
 export const runPipeline     = (id: string) => post<{ run_id: string; status: string; pipeline_name: string }>(`/pipelines/${id}/run`)
 export const getPipelineRuns = (id: string) => get<import('./types').PipelineRun[]>(`/pipelines/${id}/runs`)
 
+// Webhook tokens
+export const getWebhookTokens    = (pipelineId: string) => get<import('./types').WebhookToken[]>(`/pipelines/${pipelineId}/webhook-tokens`)
+export const createWebhookToken  = (pipelineId: string, label: string) => post<import('./types').WebhookToken>(`/pipelines/${pipelineId}/webhook-tokens`, { label })
+export const revokeWebhookToken  = (pipelineId: string, tokenId: string) => del<{ deleted: string }>(`/pipelines/${pipelineId}/webhook-tokens/${tokenId}`)
+
 // Steps
 export const addStep    = (pipelineId: string, data: Partial<import('./types').PipelineStep>) =>
   post<import('./types').PipelineStep>(`/pipelines/${pipelineId}/steps`, data)

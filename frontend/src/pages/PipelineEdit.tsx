@@ -6,15 +6,16 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
-import { Plus, Save, ArrowLeft, Trash2 } from 'lucide-react'
+import { Plus, Save, ArrowLeft, Trash2, Copy, Link, RefreshCw } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import {
   getPipeline, createPipeline, updatePipeline,
   addStep, updateStep, deleteStep,
   getDbConnections, getReportConfigs, getEmailConfigs, getBulkLoadConfigs,
   getCronNext,
+  getWebhookTokens, createWebhookToken, revokeWebhookToken,
 } from '../lib/api'
-import type { Pipeline, PipelineStep, StepType } from '../lib/types'
+import type { Pipeline, PipelineStep, StepType, WebhookToken } from '../lib/types'
 import { useProjectStore } from '../lib/store'
 import StepEditor from '../components/pipeline/StepEditor'
 import TopBar from '../components/shared/TopBar'
@@ -285,6 +286,9 @@ export default function PipelineEdit() {
           )}
         </div>
 
+        {/* Webhook tokens — only shown when editing an existing pipeline */}
+        {!isNew && id && <WebhookCard pipelineId={id} />}
+
         {/* Steps */}
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -326,6 +330,144 @@ export default function PipelineEdit() {
     </>
   )
 }
+
+// ─── WebhookCard ─────────────────────────────────────────────────────────────
+
+function WebhookCard({ pipelineId }: { pipelineId: string }) {
+  const qc = useQueryClient()
+  const [newLabel, setNewLabel] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [justCreated, setJustCreated] = useState<WebhookToken | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  const { data: tokens = [], isLoading } = useQuery({
+    queryKey: ['webhook-tokens', pipelineId],
+    queryFn: () => getWebhookTokens(pipelineId),
+  })
+
+  const baseUrl = window.location.origin
+  const triggerUrl = justCreated
+    ? `${baseUrl}/api/pipelines/${pipelineId}/trigger?token=${justCreated.token}`
+    : ''
+
+  const handleCreate = async () => {
+    setCreating(true)
+    try {
+      const created = await createWebhookToken(pipelineId, newLabel.trim())
+      setJustCreated(created)
+      setNewLabel('')
+      qc.invalidateQueries({ queryKey: ['webhook-tokens', pipelineId] })
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const handleRevoke = async (tokenId: string) => {
+    if (!confirm('Revoke this token? Any integrations using it will stop working.')) return
+    await revokeWebhookToken(pipelineId, tokenId)
+    qc.invalidateQueries({ queryKey: ['webhook-tokens', pipelineId] })
+  }
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(triggerUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const muted: React.CSSProperties = { fontSize: 11.5, color: 'var(--text-muted)' }
+
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Link size={13} color="var(--text-muted)" />
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Webhook / API Trigger</span>
+        </div>
+      </div>
+
+      <p style={{ ...muted, marginBottom: 12, marginTop: 0 }}>
+        Trigger this pipeline from external systems using{' '}
+        <code style={{ fontSize: 11, background: '#1A1D27', padding: '1px 5px', borderRadius: 3 }}>
+          POST /api/pipelines/{pipelineId.slice(0, 8)}…/trigger?token=&lt;token&gt;
+        </code>
+      </p>
+
+      {/* New token after creation — show URL once */}
+      {justCreated && (
+        <div style={{ marginBottom: 12, padding: '10px 12px', background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 6 }}>
+          <div style={{ fontSize: 11.5, color: '#4ADE80', fontWeight: 600, marginBottom: 6 }}>
+            Token created — copy the URL now. It will not be shown again.
+          </div>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <input
+              readOnly
+              value={triggerUrl}
+              style={{ flex: 1, background: '#0F1117', border: '1px solid #2D3143', borderRadius: 5, padding: '5px 8px', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text)', outline: 'none' }}
+            />
+            <button className="btn btn-sm" onClick={handleCopy} title="Copy URL">
+              <Copy size={11} /> {copied ? 'Copied!' : 'Copy'}
+            </button>
+            <button
+              className="btn btn-sm"
+              onClick={() => setJustCreated(null)}
+              title="Dismiss"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Token list */}
+      {isLoading ? (
+        <p style={muted}>Loading…</p>
+      ) : tokens.length === 0 && !justCreated ? (
+        <p style={{ ...muted, marginBottom: 12 }}>No tokens yet. Generate one below to enable API triggers.</p>
+      ) : (
+        <div style={{ marginBottom: 12 }}>
+          {tokens.map(t => (
+            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid #2D3143' }}>
+              <span style={{ flex: 1, fontSize: 12, color: 'var(--text)' }}>{t.label || <em style={{ color: 'var(--text-muted)' }}>unlabelled</em>}</span>
+              <span style={{ ...muted, fontFamily: 'var(--font-mono)', fontSize: 10.5 }}>
+                {t.last_used_at ? `last used ${new Date(t.last_used_at).toLocaleDateString()}` : 'never used'}
+              </span>
+              <button
+                className="btn btn-sm"
+                onClick={() => handleRevoke(t.id)}
+                title="Revoke token"
+                style={{ color: '#F87171' }}
+              >
+                <Trash2 size={11} /> Revoke
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Create new token */}
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <input
+          className="input"
+          placeholder="Label (e.g. GitHub Actions, Zapier)"
+          value={newLabel}
+          onChange={e => setNewLabel(e.target.value)}
+          style={{ flex: 1, height: 32, fontSize: 12 }}
+          onKeyDown={e => e.key === 'Enter' && !creating && handleCreate()}
+        />
+        <button
+          className="btn btn-sm btn-primary"
+          onClick={handleCreate}
+          disabled={creating}
+          title="Generate a new webhook token"
+        >
+          {creating ? <RefreshCw size={11} /> : <Plus size={11} />} Generate token
+        </button>
+      </div>
+    </div>
+  )
+}
+
 
 // ─── CronBuilder ─────────────────────────────────────────────────────────────
 

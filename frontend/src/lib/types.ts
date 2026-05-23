@@ -48,6 +48,16 @@ export interface PipelineVariable {
   is_secret: boolean
 }
 
+export interface WebhookToken {
+  id: string
+  pipeline_id: string
+  label: string
+  enabled: boolean
+  last_used_at: string | null
+  created_at: string
+  token?: string   // raw token — only present on creation response
+}
+
 export interface PipelineRun {
   id: string
   pipeline_id: string

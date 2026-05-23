@@ -74,6 +74,13 @@ def log_email_sent(
     )
 
 
+def log_webhook_trigger(pipeline_name: str, run_id: str, remote_addr: str = '') -> None:
+    _get_logger().info(
+        'WEBHOOK_TRIGGER  pipeline=%-30r  run_id=%s  ip=%s',
+        pipeline_name, run_id, remote_addr or 'unknown',
+    )
+
+
 def log_report_exported(
     pipeline_name: str,
     step_name: str,

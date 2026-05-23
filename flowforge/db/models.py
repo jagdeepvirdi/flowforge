@@ -186,12 +186,14 @@ class Pipeline(db.Model):
     created_at      = Column(DateTime(timezone=True), default=_utcnow)
     updated_at      = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
-    steps     = relationship('PipelineStep', back_populates='pipeline',
-                             order_by='PipelineStep.step_order', cascade='all, delete-orphan')
-    variables = relationship('PipelineVariable', back_populates='pipeline',
-                             cascade='all, delete-orphan')
-    runs      = relationship('PipelineRun', back_populates='pipeline')
-    project   = relationship('Project', back_populates='pipelines')
+    steps          = relationship('PipelineStep', back_populates='pipeline',
+                                  order_by='PipelineStep.step_order', cascade='all, delete-orphan')
+    variables      = relationship('PipelineVariable', back_populates='pipeline',
+                                  cascade='all, delete-orphan')
+    runs           = relationship('PipelineRun', back_populates='pipeline')
+    webhook_tokens = relationship('WebhookToken', back_populates='pipeline',
+                                  cascade='all, delete-orphan')
+    project        = relationship('Project', back_populates='pipelines')
 
 
 class PipelineStep(db.Model):
@@ -251,6 +253,21 @@ class PipelineRun(db.Model):
 
     pipeline  = relationship('Pipeline', back_populates='runs')
     step_runs = relationship('StepRun', back_populates='pipeline_run', cascade='all, delete-orphan')
+
+
+class WebhookToken(db.Model):
+    """Per-pipeline API tokens for external webhook triggers."""
+    __tablename__ = 'ff_webhook_tokens'
+
+    id          = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    pipeline_id = Column(UUID(as_uuid=False), ForeignKey('ff_pipelines.id', ondelete='CASCADE'), nullable=False)
+    label       = Column(String(100), nullable=False, default='')
+    token_hash  = Column(String(64), nullable=False, unique=True)  # SHA-256(raw_token)
+    enabled     = Column(Boolean, nullable=False, default=True)
+    last_used_at = Column(DateTime(timezone=True))
+    created_at  = Column(DateTime(timezone=True), default=_utcnow)
+
+    pipeline = relationship('Pipeline', back_populates='webhook_tokens')
 
 
 class TokenBlocklist(db.Model):
