@@ -23,7 +23,7 @@ function ColorDot({ color }: { color: string }) {
   )
 }
 
-export default function ProjectSwitcher() {
+export default function ProjectSwitcher({ compact = false }: { compact?: boolean }) {
   const { activeProjectId, setActiveProjectId } = useProjectStore()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -51,24 +51,25 @@ export default function ProjectSwitcher() {
   }
 
   return (
-    <div ref={ref} style={{ position: 'relative', marginBottom: 4 }}>
+    <div ref={ref} style={{ position: 'relative', marginBottom: compact ? 0 : 4 }}>
       <button
         onClick={() => setOpen(o => !o)}
         style={{
-          width: '100%',
+          width: compact ? undefined : '100%',
           display: 'flex',
           alignItems: 'center',
           gap: 8,
-          padding: '7px 10px',
+          padding: compact ? '4px 8px' : '7px 10px',
           background: open ? '#21252F' : 'transparent',
           border: '1px solid',
           borderColor: open ? '#3D4460' : 'transparent',
-          borderRadius: 8,
+          borderRadius: 6,
           cursor: 'pointer',
           color: 'var(--text)',
           fontSize: 12.5,
           fontWeight: 600,
           transition: 'border-color 0.15s, background 0.15s',
+          whiteSpace: 'nowrap',
         }}
         onMouseEnter={e => { if (!open) (e.currentTarget.style.background = '#1E2130') }}
         onMouseLeave={e => { if (!open) (e.currentTarget.style.background = 'transparent') }}
@@ -87,7 +88,7 @@ export default function ProjectSwitcher() {
           position: 'absolute',
           top: 'calc(100% + 4px)',
           left: 0,
-          right: 0,
+          right: compact ? undefined : 0,
           background: '#21252F',
           border: '1px solid #2D3143',
           borderRadius: 8,

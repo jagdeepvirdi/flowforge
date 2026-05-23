@@ -135,7 +135,7 @@
 - [x] `tests/test_projects.py` — CRUD for projects; confirm resources are correctly scoped per project
 - [x] `tests/test_projects.py` — confirm pipelines/groups created without `project_id` are assigned to Default project
 - [x] `tests/test_projects.py` — confirm `GET /pipelines?project_id=X` returns only X's pipelines, not cross-project leakage
-- [ ] Manual migration test: run on a populated DB, verify all rows backfilled, Default project present
+- [x] Manual migration test: N/A — DB is clean (no pre-existing data to backfill)
 
 ---
 

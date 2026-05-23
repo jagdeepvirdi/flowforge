@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useHelp } from '../../lib/useHelp'
 import type { Pipeline, ReportConfig, EmailConfig } from '../../lib/types'
+import ProjectSwitcher from './ProjectSwitcher'
 
 interface Props {
   crumbs: string[]
@@ -90,6 +91,8 @@ export default function TopBar({ crumbs, actions, helpTopic, queryKeys }: Props)
 
   return (
     <div className="topbar">
+      <ProjectSwitcher compact />
+      <span style={{ width: 1, height: 16, background: 'var(--border)', margin: '0 10px', flexShrink: 0 }} />
       <div className="crumb">
         {crumbs.map((c, i) => (
           <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

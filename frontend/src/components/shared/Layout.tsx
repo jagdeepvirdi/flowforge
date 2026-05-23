@@ -4,7 +4,6 @@ import { useAuth } from '../../lib/auth'
 import { getRuns } from '../../lib/api'
 import HelpDrawer from './HelpDrawer'
 import RouteErrorBoundary from './RouteErrorBoundary'
-import ProjectSwitcher from './ProjectSwitcher'
 
 const NAV_MAIN = [
   { to: '/dashboard',   label: 'Dashboard',       icon: 'dashboard' },
@@ -85,11 +84,6 @@ export default function Layout() {
               production
             </span>
           </div>
-        </div>
-
-        {/* Project switcher */}
-        <div style={{ padding: '0 8px', marginBottom: 4 }}>
-          <ProjectSwitcher />
         </div>
 
         {/* Nav */}
