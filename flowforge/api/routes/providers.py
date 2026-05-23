@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 
+import flowforge.audit as audit
 from flowforge.api.auth import require_auth
 from flowforge.crypto import decrypt_config, encrypt_config
 from flowforge.db.models import EmailProvider, db
@@ -52,6 +53,7 @@ def create_provider():
     )
     db.session.add(provider)
     db.session.commit()
+    audit.log_provider_change('CREATED', provider.name, provider.id)
     return jsonify(_provider_dict(provider)), 201
 
 
@@ -84,6 +86,7 @@ def update_provider(provider_id):
         provider.config = encrypt_config(existing)
 
     db.session.commit()
+    audit.log_provider_change('UPDATED', provider.name, provider.id)
     return jsonify(_provider_dict(provider, include_config=True))
 
 
@@ -93,8 +96,10 @@ def delete_provider(provider_id):
     provider = db.session.get(EmailProvider, str(provider_id))
     if not provider:
         return jsonify({'error': 'Provider not found'}), 404
+    name, pid = provider.name, provider.id
     db.session.delete(provider)
     db.session.commit()
+    audit.log_provider_change('DELETED', name, pid)
     return jsonify({'deleted': str(provider_id)})
 
 

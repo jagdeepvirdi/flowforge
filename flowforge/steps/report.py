@@ -52,6 +52,14 @@ class ReportStep(BaseStep):
                 return StepResult(success=False, error=f"Unknown report format: {fmt}")
 
             logger.info("Report generated: %s (%d rows)", output_path, len(rows))
+            import flowforge.audit as audit
+            audit.log_report_exported(
+                pipeline_name=context.get('pipeline_name', ''),
+                step_name=self.name,
+                output_filename=output_filename,
+                row_count=len(rows),
+                fmt=fmt,
+            )
             return StepResult(success=True, output_path=str(output_path), rows_affected=len(rows))
         except Exception as e:
             logger.error("Report step failed: %s", e)

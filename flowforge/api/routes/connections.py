@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 
+import flowforge.audit as audit
 from flowforge.api.auth import require_auth
 from flowforge.crypto import decrypt_config, encrypt_config
 from flowforge.db.models import DbConnection, db
@@ -54,6 +55,7 @@ def create_connection():
     )
     db.session.add(conn)
     db.session.commit()
+    audit.log_connection_change('CREATED', conn.name, conn.id)
     return jsonify(_connection_dict(conn)), 201
 
 
@@ -87,6 +89,7 @@ def update_connection(conn_id):
         conn.config = encrypt_config(existing)
 
     db.session.commit()
+    audit.log_connection_change('UPDATED', conn.name, conn.id)
     return jsonify(_connection_dict(conn, include_config=True))
 
 
@@ -96,8 +99,10 @@ def delete_connection(conn_id):
     conn = db.session.get(DbConnection, str(conn_id))
     if not conn:
         return jsonify({'error': 'Connection not found'}), 404
+    name, cid = conn.name, conn.id
     db.session.delete(conn)
     db.session.commit()
+    audit.log_connection_change('DELETED', name, cid)
     return jsonify({'deleted': str(conn_id)})
 
 

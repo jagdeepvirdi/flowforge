@@ -44,3 +44,40 @@ def log_pipeline_run(
         'PIPELINE  %-8s  pipeline=%-30r  triggered_by=%-10s  run_id=%s',
         status.upper(), pipeline_name, triggered_by, run_id,
     )
+
+
+def log_connection_change(action: str, name: str, conn_id: str) -> None:
+    """action: CREATED | UPDATED | DELETED"""
+    _get_logger().info('CONNECTION %-7s  name=%-30r  id=%s', action.upper(), name, conn_id)
+
+
+def log_provider_change(action: str, name: str, provider_id: str) -> None:
+    """action: CREATED | UPDATED | DELETED"""
+    _get_logger().info('PROVIDER   %-7s  name=%-30r  id=%s', action.upper(), name, provider_id)
+
+
+def log_email_sent(
+    pipeline_name: str,
+    step_name: str,
+    subject: str,
+    recipients: list[str],
+    attachment_names: list[str],
+) -> None:
+    attachments = ', '.join(attachment_names) if attachment_names else 'none'
+    _get_logger().info(
+        'EMAIL_SENT  pipeline=%-20r  step=%-20r  subject=%-40r  recipients=%d  attachments=%s',
+        pipeline_name, step_name, subject, len(recipients), attachments,
+    )
+
+
+def log_report_exported(
+    pipeline_name: str,
+    step_name: str,
+    output_filename: str,
+    row_count: int,
+    fmt: str,
+) -> None:
+    _get_logger().info(
+        'REPORT_EXPORTED  pipeline=%-20r  step=%-20r  file=%-40s  rows=%d  format=%s',
+        pipeline_name, step_name, output_filename, row_count, fmt,
+    )

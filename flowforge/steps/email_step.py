@@ -85,6 +85,14 @@ class EmailStep(BaseStep):
             result = provider.send(to, cc, bcc, subject, body, direct_attachments)
             if result.success:
                 logger.info("Email sent: '%s' → %s", subject, to)
+                import flowforge.audit as audit
+                audit.log_email_sent(
+                    pipeline_name=context.get('pipeline_name', ''),
+                    step_name=self.name,
+                    subject=subject,
+                    recipients=result.recipients,
+                    attachment_names=[p.name for p in direct_attachments],
+                )
                 return StepResult(success=True, extra={'email_sent_to': result.recipients})
             return StepResult(success=False, error=result.error)
         except Exception as e:
