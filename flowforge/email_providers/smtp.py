@@ -61,9 +61,9 @@ class SMTPProvider(EmailProvider):
         context = ssl.SSLContext(ssl.PROTOCOL_TLS)
         try:
             if self.use_ssl:
-                server = smtplib.SMTP_SSL(self.host, self.port)
+                server = smtplib.SMTP_SSL(self.host, self.port, timeout=30)
             else:
-                server = smtplib.SMTP(self.host, self.port)
+                server = smtplib.SMTP(self.host, self.port, timeout=30)
                 if self.use_tls:
                     server.starttls(context=context)
             server.login(self.username, self.password)

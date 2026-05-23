@@ -2,7 +2,7 @@ import html as _html
 import logging
 from typing import Any
 
-from flowforge.steps.base import BaseStep, StepResult
+from flowforge.steps.base import BaseStep, StepResult, validate_identifier
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +55,12 @@ class DbQueryStep(BaseStep):
 
         if output_table and mode not in _VALID_MODES:
             return StepResult(success=False, error=f"Invalid mode '{mode}'. Must be one of: {', '.join(_VALID_MODES)}")
+
+        if output_table:
+            try:
+                validate_identifier(output_table, 'output_table')
+            except ValueError as e:
+                return StepResult(success=False, error=str(e))
 
         output_variable = self.config.get('output_variable', '').strip()
 

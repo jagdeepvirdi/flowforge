@@ -1,6 +1,17 @@
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
+
+_IDENT_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_.]*$')
+
+
+def validate_identifier(name: str, field_name: str = 'table name') -> None:
+    """Raise ValueError if name is unsafe for SQL identifier interpolation."""
+    if not _IDENT_RE.match(name):
+        raise ValueError(
+            f"Invalid {field_name} '{name}': only letters, digits, underscores, and dots allowed"
+        )
 
 
 @dataclass

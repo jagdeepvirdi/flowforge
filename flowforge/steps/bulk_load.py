@@ -15,7 +15,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from flowforge.steps.base import BaseStep, StepResult
+from flowforge.steps.base import BaseStep, StepResult, validate_identifier
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +59,10 @@ class BulkLoadStep(BaseStep):
             return StepResult(success=False, error='bulk_load: source_directory is required')
         if not target_table:
             return StepResult(success=False, error='bulk_load: target_table is required')
+        try:
+            validate_identifier(target_table, 'target_table')
+        except ValueError as e:
+            return StepResult(success=False, error=f'bulk_load: {e}')
 
         src_path = Path(source_dir)
         if not src_path.is_dir():
