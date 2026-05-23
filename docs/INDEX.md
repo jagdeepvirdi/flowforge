@@ -34,6 +34,14 @@ All documentation files in this directory and what they contain.
 
 ---
 
+## Strategy & Product
+
+| File | Purpose |
+|---|---|
+| [USE_CASE.md](USE_CASE.md) | Who FlowForge is for, real-world use cases by industry (Finance, HR, Ops, IT, SaaS), comparison vs Airflow/Prefect/n8n/Zapier, the Oracle advantage, honest limitations, and sizing guide |
+
+---
+
 ## Code Review & Analysis
 
 | File | Purpose |
