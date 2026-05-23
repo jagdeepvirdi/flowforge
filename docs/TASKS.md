@@ -67,56 +67,45 @@
 ### Platform
 - [ ] Plugin system for community step types
 - [ ] Slack/Teams notifications (v2)
-- [ ] AI analyze step — `flowforge/steps/ai_analyze.py`, Ollama/Claude routing, `{{ ai_summary }}` variable (v2)
+- [ ] AI analyze step — `flowforge/steps/ai_analyze.py`, Ollama routing, `{{ ai_summary }}` variable — see AI Features track for the full AI roadmap
 
 ---
 
-## AI Features Track — Ollama-Only (Zero Cost, Data Stays Local)
+## AI Features — Ollama-Only (Zero Cost, Data Stays Local)
 
-*All features in this track route exclusively through Ollama running locally.  
-No data is sent to any external API. Each feature is independently opt-in.*
+*All features route exclusively through Ollama running locally (`OLLAMA_URL`, default `http://localhost:11434`).  
+No data is sent to any external API. Each feature is independently opt-in and degrades gracefully if Ollama is unreachable.*
 
-### Authoring Intelligence (highest ROI — works on SQL text, never row data)
+*Ordered by build priority — earlier items have fewer dependencies and higher immediate ROI.*
 
-- [ ] **SQL Explainer** — "What does this query do?" button in the Report Designer SQL editor.  
-  Sends the SQL text (no data) to Ollama; returns a plain-English summary of joins, filters, and aggregations.  
-  Also flags obvious problems: missing WHERE on large tables, cartesian joins, column name typos.  
-  *No privacy concern — only the query string is sent, never query results.*
+| # | Feature | Data sent to Ollama | Privacy risk | Effort |
+|---|---|---|---|---|
+| AI-1 | AI Chart Generator | column names + ≤50 rows | Low — local only | S |
+| AI-2 | SQL Explainer | SQL text only | None | S |
+| AI-3 | SQL Optimizer | SQL text only | None | S |
+| AI-4 | Pipeline Failure Diagnosis | error message + step config | None | S |
+| AI-5 | Data Profiler | column names + sample rows | Low — local only | M |
+| AI-6 | Run History Anomaly Alerts | none (stats) / optional narrative | None | M |
 
-- [ ] **SQL Optimizer** — "Optimize for PostgreSQL / Oracle" button alongside the Explainer.  
-  Ollama rewrites the query using CTEs, window functions, or index-friendly predicates where applicable.  
-  User sees a diff of original vs. suggested; accepts or dismisses.
+---
 
-- [ ] **Pipeline Failure Diagnosis** — When a step fails, show an "Explain this error" button in the run detail page next to the raw error message.  
-  Sends the error text, step type, and step config (no row data) to Ollama; returns a human-readable explanation and suggested fix.  
-  Example: `ORA-01555: snapshot too old` → "Your query ran longer than the undo retention window. Try adding a PARALLEL hint or scheduling during off-peak hours."
+- [ ] **[AI-1] AI Chart Generator** — "Visualize" button on the Report Preview panel. Sends column names + up to 50 rows to Ollama; Ollama returns a JSON chart config `{ type, x, y, title }`. FlowForge renders it immediately using Recharts (already installed). Supported types: bar, line, area, pie, scatter. User can swap axes or change type manually. Optional: embed as static PNG in email body via `html2canvas`. New Flask endpoint `POST /api/ai/chart-config`; new React component — no DB schema changes needed. *Best first build: self-contained, visually impressive, directly addresses the "understand my data" need.*
 
-### Data Intelligence (works on preview sample — local Ollama only, explicitly opt-in)
+- [ ] **[AI-2] SQL Explainer** — "Explain" button in the Report Designer SQL editor. Sends the SQL text only (never row data) to Ollama; returns a plain-English summary of what the query does: joins, filters, aggregations. Also flags obvious problems: missing WHERE clause on large tables, cartesian joins, column name typos. *Zero privacy concern — SQL text contains no user data.*
 
-- [ ] **Data Profiler** — "Summarize" button on the Report Preview panel (after the user runs a preview query and sees 20 rows).  
-  Sends column names + sample rows to Ollama; returns a short narrative:  
-  - Value ranges, null counts, obvious outliers  
-  - Duplicate key suspicion ("customer_id 00482 appears 4 times")  
-  - Data quality warnings before the report is attached to a pipeline  
-  *Opt-in per session. A clear banner states "Sample rows will be sent to your local Ollama instance."*
+- [ ] **[AI-3] SQL Optimizer** — "Optimize" button alongside AI-2. Ollama rewrites the query using CTEs, window functions, or index-friendly predicates where applicable. User sees a side-by-side diff of original vs. suggested and can accept or dismiss. Builds on the same `/api/ai/sql` endpoint as AI-2, different prompt.
 
-- [ ] **AI Chart Generator** — "Visualize" button on the Report Preview panel.  
-  Sends column names + up to 50 rows to Ollama; Ollama returns a JSON chart config (type, x-axis column, y-axis column(s), title, color scheme).  
-  FlowForge renders it instantly using Recharts (already installed in the frontend) — no external rendering service.  
-  Supported chart types: bar, line, area, pie, scatter.  
-  User can tweak the suggestion (swap axes, change chart type) and optionally embed the chart in an email body as a static PNG via `html2canvas`.  
-  *This is zero-cost visualisation: the AI picks the config, Recharts draws it, data never leaves the machine.*
+- [ ] **[AI-4] Pipeline Failure Diagnosis** — "Explain this error" button in the Run Detail page, shown next to the raw error message when a step fails. Sends error text + step type + step config (no row data) to Ollama; returns a human-readable cause and suggested fix. Example: `ORA-01555: snapshot too old` → *"Your query ran longer than the undo retention window. Try reducing the fetch size or scheduling during off-peak hours."* New Flask endpoint `POST /api/ai/explain-error`.
 
-- [ ] **Run History Anomaly Alerts** — No LLM needed for detection; statistical outlier on `rows_affected` and `duration_ms` per step across the last 30 runs.  
-  When a step is >2σ outside its normal range, surface a warning badge in the run detail page.  
-  Ollama (optional) generates a one-sentence narrative: "Load Customer Extract wrote 847 rows — 94% below its 30-run average of 13,200. Check upstream data load."
+- [ ] **[AI-5] Data Profiler** — "Summarise" button on the Report Preview panel, shown after the user runs a preview query and sees rows. Sends column names + sample rows to Ollama; returns a short narrative: value ranges, null counts, outliers, duplicate key suspicion. Opt-in per session with a visible banner: *"Sample rows will be processed by your local Ollama instance."* Helps users confirm the query is correct before attaching it to a pipeline that emails 200 people.
 
-### Implementation Notes
+- [ ] **[AI-6] Run History Anomaly Alerts** — Statistical outlier detection on `rows_affected` and `duration_ms` per step across the last 30 runs (no LLM required for detection). When a step result is >2σ outside its normal range, show a warning badge in the Run Detail page. Ollama optionally generates a one-sentence narrative: *"Load Customer Extract wrote 847 rows — 94% below its 30-run average of 13,200. Check upstream data load."* The statistical layer ships first; the Ollama narrative is additive.
 
-- Ollama endpoint configured via `OLLAMA_URL` env var (default: `http://localhost:11434`) — already in `.env.example`.
-- Recommended model: `llama3.2` (4B) or `mistral` for SQL tasks; `phi3-mini` if RAM is constrained.
-- All AI calls are best-effort: if Ollama is unreachable, the button shows "AI unavailable — is Ollama running?" and the rest of the UI is unaffected.
-- The Chart Generator is the most self-contained feature to build first: it requires only a new React component calling `/api/ai/chart-config` (POST with columns + rows), a Flask endpoint that calls Ollama, and a Recharts render. No new DB schema needed.
+### Shared Implementation Notes
+
+- Recommended model: `llama3.2:3b` or `mistral:7b` for SQL/text tasks; `phi3:mini` if RAM is constrained.
+- All AI calls are best-effort: if Ollama is unreachable the button shows *"AI unavailable — is Ollama running?"* and the rest of the UI is unaffected.
+- A single `POST /api/ai/query` endpoint (with a `task` field) handles AI-2/3/4 to avoid endpoint sprawl. AI-1 and AI-5 have dedicated endpoints due to different input/output shapes.
 
 ---
 
