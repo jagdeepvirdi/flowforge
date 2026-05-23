@@ -1,4 +1,13 @@
 import { defineConfig, devices } from '@playwright/test'
+import { config as loadEnv } from 'dotenv'
+import { fileURLToPath } from 'url'
+import path from 'path'
+
+// Load .env.test from the repo root so E2E_USERNAME / E2E_PASSWORD are always set
+// without needing to manually source the file before running tests.
+// Variables already in the shell environment take precedence (dotenv does not override).
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+loadEnv({ path: path.resolve(__dirname, '../.env.test') })
 
 /**
  * E2E tests require the full stack running before you invoke playwright:
@@ -10,13 +19,13 @@ import { defineConfig, devices } from '@playwright/test'
  *   # Terminal 2 — frontend dev server
  *   cd frontend && npm run dev
  *
- *   # Terminal 3 — run tests
+ *   # Terminal 3 — run tests (credentials loaded automatically from ../.env.test)
  *   cd frontend && npm run test:e2e
  *
  * Environment variables (all optional, shown with defaults):
  *   E2E_BASE_URL   http://localhost:5173
- *   E2E_USERNAME   admin
- *   E2E_PASSWORD   testpass
+ *   E2E_USERNAME   admin        (set in .env.test)
+ *   E2E_PASSWORD   H@rpal123    (set in .env.test)
  */
 export default defineConfig({
   testDir: './e2e',

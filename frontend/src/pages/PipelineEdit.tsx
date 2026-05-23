@@ -6,7 +6,7 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
-import { Plus, Save, ArrowLeft, Trash2, Copy, Link, RefreshCw } from 'lucide-react'
+import { Plus, Save, ArrowLeft, Trash2, Copy, Link as LinkIcon, RefreshCw } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import {
   getPipeline, createPipeline, updatePipeline,
@@ -380,7 +380,7 @@ function WebhookCard({ pipelineId }: { pipelineId: string }) {
     <div className="card" style={{ marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Link size={13} color="var(--text-muted)" />
+          <LinkIcon size={13} color="var(--text-muted)" />
           <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Webhook / API Trigger</span>
         </div>
       </div>

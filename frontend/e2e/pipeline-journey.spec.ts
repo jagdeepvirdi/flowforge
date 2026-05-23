@@ -31,9 +31,12 @@ async function deletePipeline(page: Page, name: string): Promise<void> {
   await page.goto('/pipelines')
   const row = page.locator('tr').filter({ hasText: name })
 
-  // Accept the window.confirm() dialog triggered by the delete button
-  page.once('dialog', dialog => dialog.accept())
-  await row.locator('button[title="Delete"]').click()
+  // Run click and dialog acceptance concurrently — window.confirm blocks the renderer
+  // thread so the click never completes unless the dialog is dismissed in parallel.
+  await Promise.all([
+    page.waitForEvent('dialog').then(d => d.accept()),
+    row.locator('button[title="Delete"]').click(),
+  ])
 
   await expect(row).not.toBeVisible({ timeout: 10_000 })
 }

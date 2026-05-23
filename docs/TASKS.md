@@ -6,18 +6,18 @@
 ---
 
 ## GitHub Release Score: 9.5 / 10 (updated 2026-05-23)
-## Codebase Review Score: 7.3 / 10 (reviewed 2026-05-23 — see CODEBASE_REVIEW.md)
+## Codebase Review Score: 7.9 / 10 (post NEW-1–10 — estimated)
 
-| Dimension | 2026-05-20 | 2026-05-23 |
-|---|---|---|
-| Architecture | 6.5 | 7.0 (+0.5) |
-| Code Quality | 6.0 | 7.0 (+1.0) |
-| Database | 6.5 | 8.0 (+1.5) |
-| Security | 5.5 | 7.5 (+2.0) |
-| Tests | 6.0 | 7.5 (+1.5) |
-| Frontend | 5.5 | 6.5 (+1.0) |
-| DevOps | 6.0 | 7.5 (+1.5) |
-| **Overall** | **6.0** | **7.3 (+1.3)** |
+| Dimension | 2026-05-20 | 2026-05-23 | Post NEW-1–10 | Target (8.5+) |
+|---|---|---|---|---|
+| Architecture | 6.5 | 7.0 (+0.5) | 7.0 | 7.5 (SCORE-7) |
+| Code Quality | 6.0 | 7.0 (+1.0) | 7.0 | 7.5 (SCORE-2) |
+| Database | 6.5 | 8.0 (+1.5) | 8.0 | 8.5 (SCORE-8) |
+| Security | 5.5 | 7.5 (+2.0) | 7.5 | 7.5 |
+| Tests | 6.0 | 7.5 (+1.5) | 7.5 | 8.5 (SCORE-6,11) |
+| Frontend | 5.5 | 6.5 (+1.0) | 6.5 | 8.5 (SCORE-1,2,3,10) |
+| DevOps | 6.0 | 7.5 (+1.5) | 7.5 | 8.5 (SCORE-4,5) |
+| **Overall** | **6.0** | **7.3 (+1.3)** | **7.9 (+0.6)** | **≥ 8.5** |
 
 ---
 
@@ -38,7 +38,41 @@
 
 ---
 
-## Backlog (Post v1)
+## Score 8.5+ Track
+
+*Ordered by score impact. Frontend is the biggest lever — it's the lowest-scoring dimension and caps the overall average. Complete SCORE-1 through SCORE-3 first.*
+
+### Frontend (6.5 → 8.5)
+
+- [ ] **[SCORE-1] Loading skeletons** — every data-fetch page currently shows a blank white flash before content arrives. Add `<Skeleton />` components (shadcn/ui or a thin custom implementation using Tailwind `animate-pulse`) to `Dashboard.tsx`, `RunHistory.tsx`, `PipelineEdit.tsx`, `Connections.tsx`, and `BulkLoads.tsx`. Each page should show a shimmer layout that matches its final shape. *Frontend +1.0 — single biggest visual quality gap.*
+
+- [ ] **[SCORE-2] React Hook Form + Zod migration** — CLAUDE.md declares React Hook Form + Zod as the form library, but most forms (`EmailEdit.tsx`, `ReportEdit.tsx`, `DbConnectionForm.tsx`, `EmailProviderForm.tsx`) use `useState` + manual validation. Migrate the highest-traffic forms to `useForm<Schema>()` + `zodResolver`. Eliminates per-field error state variables, makes validation declarative. *Frontend +0.5, Code Quality +0.5.*
+
+- [ ] **[SCORE-3] CSS token variables — replace scattered inline styles** — multiple components use hardcoded hex colours (`#0F1117`, `#1A1D27`, `#F97316`, etc.) outside of Tailwind classes. Audit all files under `frontend/src/` for raw `style={{ ... }}` objects and non-token hex strings; move to CSS custom properties defined in `index.css` and reference via Tailwind config or `var(--color-*)`. *Frontend +0.5 — consistency and maintainability.*
+
+- [ ] **[SCORE-10] React error boundaries** — unhandled render errors crash the entire app with a blank screen. Wrap major routes in an `<ErrorBoundary>` component (React class component pattern; React 19 `use`-based if already on that version) that renders a "Something went wrong — reload" fallback. One global boundary at the router level; optional finer-grained ones around the pipeline step editor. *Frontend +0.5, Architecture +0.25.*
+
+### DevOps (7.5 → 8.5)
+
+- [ ] **[SCORE-4] Log rotation for `audit.log`** — `flowforge/audit.py` writes to `logs/audit.log` with no size cap or rotation. Replace `FileHandler` with `RotatingFileHandler(maxBytes=10*1024*1024, backupCount=5)`. Also add a `LOG_LEVEL` env var to control verbosity without code changes. *DevOps +0.5 — prevents disk-fill in production.*
+
+- [ ] **[SCORE-5] Fix `alembic.ini` hardcoded database URL** — `alembic.ini` contains a `sqlalchemy.url = postgresql://...` placeholder that gets overridden at runtime via `env.py`, but the hardcoded string still exists and confuses new contributors (and some Alembic tooling picks it up before `env.py` runs). Set it to `%(FLOWFORGE_DB_URL)s` and document the pattern, or strip it entirely and add a note that `env.py` handles URL injection from the env var. *DevOps +0.5 — eliminates silent wrong-DB connections for new devs.*
+
+### Tests (7.5 → 8.5)
+
+- [ ] **[SCORE-6] Report generation end-to-end test** — `tests/` has unit tests for individual steps but no test that runs the full chain: execute SQL against a test DB → call `ReportGenerator` → verify a real file is written to disk with the correct format and row count. Add `tests/test_report_e2e.py`: spin up a SQLite (or pg test DB from conftest) with seed data, configure a `ReportConfig`, run it, assert `output_path.exists()` and that the Excel/CSV contains the expected rows. *Tests +0.5.*
+
+- [ ] **[SCORE-11] Bulk load step tests** — `flowforge/steps/bulk_load.py` and `flowforge/bulk_load.py` have zero test coverage. Add `tests/test_bulk_load.py`: write temp CSV files, call `BulkLoadStep.execute()`, verify rows land in a test table. Cover: normal load, `on_no_files='skip'`, `on_no_files='fail'`, footer row stripping. *Tests +0.5.*
+
+### Architecture (7.0 → 7.5)
+
+- [ ] **[SCORE-7] Graceful shutdown — drain in-flight pipeline runs** — the Flask/APScheduler process uses daemon threads for pipeline execution. When the process receives `SIGTERM` (systemd stop, Docker stop), daemon threads are killed instantly, leaving `status='running'` rows in the DB that never resolve. Add a `signal.signal(SIGTERM, ...)` handler in `runner.py` or `cli.py` that: sets a shutdown flag, waits up to 60 s for in-flight runs to finish, then marks any still-running rows as `status='cancelled'` before exiting. Update `flowforge-api.service` in `docs/deployment.md` to set `TimeoutStopSec=90`. *Architecture +0.5 — eliminates ghost "running" runs after restart.*
+
+### Database (8.0 → 8.5)
+
+- [ ] **[SCORE-8] Deleted-pipeline run history visibility** — `ff_pipeline_runs.pipeline_id` is a FK with `ON DELETE CASCADE`, meaning when a pipeline is deleted all its run history vanishes. History should be an append-only audit log. Change the FK to `ON DELETE SET NULL` (migration `0011_pipeline_runs_set_null.py`) and update `RunHistory.tsx` filter logic to show `pipeline_id IS NULL` runs under a "Deleted pipelines" group. The `pipeline_name` column is already denormalized precisely for this case. *Database +0.5.*
+
+---
 
 ### More Email Providers
 - [ ] SendGrid API
