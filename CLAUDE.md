@@ -17,7 +17,7 @@ FlowForge is a lightweight, database-driven data pipeline orchestrator. Users co
 
 Before any code is written or changed, Claude Code must:
 1. Read all existing code in the project directory
-2. Produce a full structured review (see Session Zero prompt in TASKS.md)
+2. Produce a full structured review (see Session Zero prompt in docs/TASKS.md)
 3. Save review to `docs/code-review.md`
 4. Only then proceed with scrub and refactor
 

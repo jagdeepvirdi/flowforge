@@ -182,7 +182,7 @@ The stop command:
 | Port 5000 already in use | Set `FLOWFORGE_PORT=5001` (or any free port) in `.env` |
 | `waitress` / `gunicorn` not found | Install with `pip install waitress` (Windows) or `pip install gunicorn` (Linux/macOS) |
 | API job immediately fails in dev mode | Check that `FLOWFORGE_DB_URL` is set correctly and PostgreSQL is running |
-| Scheduler starts but pipelines never fire | Run `python check_scheduler.py` from the project root — it tests each layer independently (env vars, DB, pipeline discovery, worker-thread context, live job fire) and prints a clear pass/fail at each step |
+| Scheduler starts but pipelines never fire | Run `python scripts/check_scheduler.py` from the project root — it tests each layer independently (env vars, DB, pipeline discovery, worker-thread context, live job fire) and prints a clear pass/fail at each step |
 | Pipelines show no "Next run" time on Dashboard | The schedule expression may be invalid — open the Pipeline Builder, re-save the cron expression and check for validation errors |
 
 ---
@@ -190,4 +190,4 @@ The stop command:
 ## Related
 
 - [Getting Started](getting-started.md) — installation, first pipeline, CLI reference
-- [RUNBOOK.md](../RUNBOOK.md) — database migration workflow, stamp scenario, production checklist
+- [RUNBOOK.md](RUNBOOK.md) — database migration workflow, stamp scenario, production checklist

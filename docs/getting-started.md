@@ -209,7 +209,7 @@ Configure the threshold and Drive folder in the Email Designer under **Smart Att
 If a scheduled pipeline isn't firing, run the built-in diagnostic script from the project root:
 
 ```bash
-python check_scheduler.py
+python scripts/check_scheduler.py
 ```
 
 This script tests each layer independently — env vars, database connectivity, pipeline discovery, worker-thread app context, a live direct job fire, run history, and APScheduler job registration — and prints a clear PASS/FAIL at each step.
