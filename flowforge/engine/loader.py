@@ -8,14 +8,16 @@ from flowforge.steps.base import BaseStep
 logger = logging.getLogger(__name__)
 
 _STEP_CLASSES: dict[str, str] = {
-    'db_procedure': 'flowforge.steps.db_procedure.DbProcedureStep',
-    'db_query':     'flowforge.steps.db_query.DbQueryStep',
-    'report':       'flowforge.steps.report.ReportStep',
-    'email':        'flowforge.steps.email_step.EmailStep',
+    'db_procedure':    'flowforge.steps.db_procedure.DbProcedureStep',
+    'db_query':        'flowforge.steps.db_query.DbQueryStep',
+    'report':          'flowforge.steps.report.ReportStep',
+    'email':           'flowforge.steps.email_step.EmailStep',
     'drive_upload':    'flowforge.steps.drive_upload.DriveUploadStep',
     'onedrive_upload': 'flowforge.steps.onedrive_upload.OneDriveUploadStep',
     'data_load':       'flowforge.steps.data_load.DataLoadStep',
-    'bulk_load':    'flowforge.steps.bulk_load.BulkLoadStep',
+    'bulk_load':       'flowforge.steps.bulk_load.BulkLoadStep',
+    'ai_analyze':      'flowforge.steps.ai_analyze.AiAnalyzeStep',
+    'sftp_transfer':   'flowforge.steps.sftp_transfer.SftpTransferStep',
 }
 
 

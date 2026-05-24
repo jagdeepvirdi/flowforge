@@ -283,6 +283,169 @@ The report is available here: {{ steps.upload_to_drive.drive_url }}
 
 ---
 
+## onedrive_upload
+
+Uploads a file to Microsoft OneDrive via the Microsoft Graph API and returns a shareable anonymous-view link. Uses the same MSAL credentials configured for the Microsoft 365 email provider.
+
+```yaml
+step_type: onedrive_upload
+config:
+  file_path:   "{{ steps.generate_report.output_path }}"
+  folder_id:   "root"                                 # OneDrive item ID or 'root'
+  rename_to:   "Revenue_{{ current_month }}.xlsx"     # optional — rename in OneDrive
+  user_email:  ""                                     # optional — defaults to MICROSOFT_SENDER_EMAIL
+```
+
+**`folder_id`:** The item ID of the destination folder in OneDrive. Use `"root"` to place the file directly in the user's root folder. To find an item ID: navigate to the folder in OneDrive on the web, open Developer Tools → Network, and look for the `id` field in Graph API calls, or use the Microsoft Graph Explorer.
+
+**`user_email`:** The Microsoft 365 user whose OneDrive to upload to. If omitted, falls back to `MICROSOFT_SENDER_EMAIL` from the environment.
+
+**Prerequisites:** `MICROSOFT_TENANT_ID`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, and `MICROSOFT_SENDER_EMAIL` must be set (same as the M365 email provider). The Azure AD app registration needs `Files.ReadWrite.All` (application permission) in addition to `Mail.Send`.
+
+**Large files:** Files larger than 4 MB are automatically uploaded via a resumable upload session (Graph API `createUploadSession`). Files ≤ 4 MB use a single PUT request.
+
+**Outputs:**
+- `{{ steps.<name>.drive_url }}` — anonymous view URL for the uploaded file
+
+Use it downstream in an email body:
+```
+The report is available here: {{ steps.upload_report.drive_url }}
+```
+
+**Smart attachment integration:** The `email` step supports OneDrive as a smart-attachment destination. Set `onedrive_folder_id` in the Email Designer to route oversized attachments to OneDrive instead of (or in preference over) Google Drive.
+
+---
+
+## ai_analyze
+
+Runs a SQL query, formats the results as a data table, passes it to an LLM with a user-defined prompt, and stores the response in a pipeline variable. Use it to generate natural-language summaries, anomaly explanations, or commentary that can be embedded in downstream email bodies.
+
+```yaml
+step_type: ai_analyze
+config:
+  connection_id:   <uuid>                              # DB connection (optional — falls back to DB_* env vars)
+  query: >
+    SELECT region, SUM(revenue) AS total_revenue
+    FROM sales
+    WHERE month = '{{ current_month }}'
+    GROUP BY region
+    ORDER BY total_revenue DESC
+  prompt: >
+    Summarise the regional revenue distribution for {{ current_month }} in 3 sentences.
+    Highlight the top and bottom performers and flag any unusual patterns.
+  output_variable: ai_summary                          # name of the pipeline variable (default: ai_summary)
+  provider:        ollama                              # 'ollama' (default, free, local) | 'claude'
+  model:           llama3.2:3b                         # optional — overrides OLLAMA_QUERY_MODEL / default Claude model
+  max_rows:        100                                 # rows sent to LLM (default 100, hard cap 500)
+```
+
+**How it works:**
+
+1. The SQL query is rendered with Jinja2 variables and executed against the configured connection.
+2. Column names and up to `max_rows` rows are formatted as a pipe-delimited text table.
+3. The table is prepended to the `prompt` and sent to the AI provider.
+4. The response is stored in `output_variable` (top-level context) and in `{{ steps.<name>.ai_summary }}` (step context).
+
+**Providers:**
+
+| `provider` | Requirement | Default model |
+|---|---|---|
+| `ollama` (default) | Ollama running at `OLLAMA_URL` | `OLLAMA_QUERY_MODEL` (default `llama3.2:3b`) |
+| `claude` | `ANTHROPIC_API_KEY` set + `pip install anthropic` | `claude-haiku-4-5-20251001` |
+
+**Using the result downstream:**
+
+In an `email` step's `body_template`:
+```html
+<p>{{ ai_summary }}</p>
+```
+
+Or using the step namespace (useful when multiple ai_analyze steps run):
+```html
+<p>{{ steps.analyze_revenue.ai_summary }}</p>
+```
+
+**`max_rows` guidance:** Keep this below 200 for `llama3.2:3b` (4 GB context limit). Larger models tolerate more. If the query returns more rows than `max_rows`, a truncation note is appended to the prompt so the LLM knows it is working with a sample.
+
+**Outputs:**
+- `{{ <output_variable> }}` — LLM response at top-level context (default: `{{ ai_summary }}`)
+- `{{ steps.<name>.ai_summary }}` — same value, always accessible as `ai_summary` on the step regardless of `output_variable` name
+- `{{ steps.<name>.rows_affected }}` — total rows the query returned (before truncation)
+
+**Error behaviour:** If the query fails or the AI provider is unreachable, the step fails. Set `on_error: continue` to let the pipeline proceed anyway (downstream steps receive an empty `{{ ai_summary }}`).
+
+---
+
+## sftp_transfer
+
+Downloads files from or uploads files to a remote SFTP server. Supports password authentication and private-key authentication (RSA, ECDSA, Ed25519, DSS). Requires `pip install paramiko` (or `pip install 'flowforge[sftp]'`).
+
+```yaml
+step_type: sftp_transfer
+config:
+  # Connection
+  host:            sftp.example.com          # required
+  port:            22                        # default: 22
+  username:        reports                   # required
+  password:        "{{ env.SFTP_PASSWORD }}" # use password OR key_path
+  key_path:        /home/user/.ssh/id_rsa    # path to private key file
+  key_passphrase:  ""                        # optional passphrase for encrypted key
+  timeout:         30                        # connection timeout in seconds (default: 30)
+
+  # Transfer
+  operation:    download                     # 'download' or 'upload'  (required)
+  remote_path:  /data/exports/               # remote file or directory — supports {{ variables }}
+  local_path:   /tmp/reports/               # local file or directory — supports {{ variables }}
+
+  # Download-only options
+  pattern:      "*.csv"                      # glob filter when remote_path is a directory
+                                             # e.g. "REPORT_*.xlsx"  (default: all files)
+
+  # Upload-only options
+  create_remote_dirs: true                   # create missing remote directories (default: true)
+
+  # Both operations
+  overwrite:    true                         # overwrite existing files (default: true)
+                                             # false → skip files that already exist
+```
+
+### Download — single file
+
+When `remote_path` points to a file, that file is downloaded to `local_path`. If `local_path` is a directory (or ends with `/`), the remote filename is preserved inside it.
+
+### Download — directory
+
+When `remote_path` points to a directory, all files in that directory are downloaded into `local_path`. Subdirectories are not recursed. Use `pattern` to filter by glob:
+
+```yaml
+remote_path: /data/monthly/
+local_path:  /tmp/downloads/
+pattern:     "REPORT_*.xlsx"
+```
+
+### Upload
+
+`local_path` must point to an existing file (directories are not supported for upload). If `remote_path` ends with `/` or `\`, the local filename is appended automatically. Missing remote parent directories are created automatically unless `create_remote_dirs: false`.
+
+```yaml
+operation:   upload
+local_path:  "{{ steps.generate_report.output_path }}"
+remote_path: /outbound/reports/{{ current_month }}/
+```
+
+**Outputs (download):**
+- `{{ steps.<name>.output_path }}` — path of the downloaded file (single file), or first file downloaded (directory)
+- `{{ steps.<name>.files_found }}` — number of files matched (after pattern filter)
+- `{{ steps.<name>.files_loaded }}` — number of files successfully downloaded
+- `{{ steps.<name>.files_failed }}` — number of files that failed
+
+**Outputs (upload):**
+- `{{ steps.<name>.files_loaded }}` — `1` on success, `0` if skipped (overwrite=false)
+
+**Error behaviour:** Connection errors, missing remote paths, and upload failures all fail the step. Set `on_error: continue` to let the pipeline proceed. Partial directory downloads (some files fail) also fail the step and report which files could not be downloaded.
+
+---
+
 ## Variable Reference
 
 All config string fields support Jinja2 variables. Available at runtime:
@@ -360,10 +523,13 @@ Use with a Jinja2 guard for delta queries:
 | Variable | Set by |
 |---|---|
 | `{{ steps.<name>.output_path }}` | `report` step |
-| `{{ steps.<name>.drive_url }}` | `drive_upload` or `email` step (smart attachment) |
-| `{{ steps.<name>.rows_affected }}` | `db_query`, `data_load` steps |
-| `{{ steps.<name>.files_found }}` | `bulk_load` step |
-| `{{ steps.<name>.files_loaded }}` | `bulk_load` step |
+| `{{ steps.<name>.drive_url }}` | `drive_upload`, `onedrive_upload`, or `email` step (smart attachment) |
+| `{{ steps.<name>.rows_affected }}` | `db_query`, `data_load`, `ai_analyze` steps |
+| `{{ steps.<name>.ai_summary }}` | `ai_analyze` step |
+| `{{ ai_summary }}` | `ai_analyze` step — also injected to top-level context as `output_variable` |
+| `{{ steps.<name>.files_found }}` | `bulk_load`, `sftp_transfer` (download) steps |
+| `{{ steps.<name>.files_loaded }}` | `bulk_load`, `sftp_transfer` steps |
+| `{{ steps.<name>.files_failed }}` | `sftp_transfer` (download directory) step |
 | `{{ steps.<name>.records_loaded }}` | `bulk_load` step |
 | `{{ steps.<name>.records_failed }}` | `bulk_load` step |
 | `{{ steps.<name>.duration_sec }}` | `bulk_load` step |

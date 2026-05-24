@@ -133,6 +133,66 @@ Then set `GOOGLE_DRIVE_FOLDER_ID` to the ID of the folder where files should be 
 export GOOGLE_SERVICE_ACCOUNT_FILE=service_account.json
 ```
 
+## Setting Up Microsoft OneDrive
+
+OneDrive upload uses the same Azure AD app registration as Microsoft 365 email. If you already configured M365, no additional registration is needed — just add the `Files.ReadWrite.All` application permission to your existing app.
+
+1. In your Azure AD app registration, go to **API permissions → Add a permission → Microsoft Graph → Application permissions**
+2. Search for and add: `Files.ReadWrite.All`
+3. Click **Grant admin consent**
+
+The same environment variables are used for both OneDrive and M365 email:
+
+```env
+MICROSOFT_TENANT_ID=...
+MICROSOFT_CLIENT_ID=...
+MICROSOFT_CLIENT_SECRET=...
+MICROSOFT_SENDER_EMAIL=sender@yourcompany.com   # OneDrive owner
+```
+
+Add an `onedrive_upload` step to any pipeline, or configure `onedrive_folder_id` in the Email Designer to automatically route oversized attachments to OneDrive instead of Google Drive.
+
+See [Step Types Reference → onedrive_upload](step-types.md#onedrive_upload) for the full config reference.
+
+## AI Features (Optional)
+
+FlowForge ships with six AI-powered features, all routed through [Ollama](https://ollama.com) running locally. No data leaves your machine and there is no API cost.
+
+| Feature | Where | What it does |
+|---|---|---|
+| AI Chart Generator | Report Preview panel | Suggests the best chart type and axes for your query result |
+| SQL Explainer | SQL editor | Explains tables, joins, filters, and potential issues in plain English |
+| SQL Optimizer | SQL editor | Rewrites queries for better performance; shows a side-by-side diff |
+| Pipeline Failure Diagnosis | Run Detail → Logs tab | Explains a failed step error and suggests a fix |
+| Data Profiler | Report Preview panel | Summarises value ranges, nulls, and outliers in your data sample |
+| Run History Anomaly Alerts | Run Detail page | Flags steps whose row counts or durations are statistical outliers |
+
+### Enabling AI
+
+Install Ollama from [ollama.com](https://ollama.com), then pull a model:
+
+```bash
+ollama pull llama3.2:3b
+```
+
+AI is enabled by default. To disable all AI features (hides buttons in the UI):
+
+```env
+FLOWFORGE_AI_ENABLED=false
+```
+
+### Configuring models
+
+```env
+OLLAMA_URL=http://localhost:11434          # default
+OLLAMA_CHART_MODEL=llama3.2:3b            # chart suggestions + data profiling
+OLLAMA_QUERY_MODEL=llama3.2:3b            # SQL tasks + failure diagnosis
+```
+
+Use `mistral:7b` for better SQL quality if you have enough RAM. Use `phi3:mini` if RAM is constrained.
+
+All AI calls are best-effort: if Ollama is unreachable the AI buttons show *"AI unavailable — is Ollama running?"* and the rest of the UI is unaffected.
+
 ## Your First Pipeline
 
 In the web UI:
@@ -190,9 +250,11 @@ All step config fields are rendered as Jinja2 templates. Key variables:
 | `{{ env.MY_VAR }}` | Any OS environment variable |
 | `{{ my_var }}` / `{{ vars.my_var }}` | Pipeline variable (set in Pipeline Builder → Variables card) |
 | `{{ steps.my_step.output_path }}` | File path from a previous `report` step |
-| `{{ steps.my_step.drive_url }}` | Drive URL from a previous `drive_upload` or `email` step |
+| `{{ steps.my_step.drive_url }}` | Drive URL from a previous `drive_upload`, `onedrive_upload`, or `email` step |
+| `{{ ai_summary }}` | LLM response from a previous `ai_analyze` step |
+| `{{ steps.my_step.ai_summary }}` | Same, using the step namespace |
 
-See [Step Types Reference](step-types.md#variable-reference) for the full variable list including `bulk_load` output variables.
+See [Step Types Reference](step-types.md#variable-reference) for the full variable list including `bulk_load` and `ai_analyze` output variables.
 
 ## Smart Attachments
 

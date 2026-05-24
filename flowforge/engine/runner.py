@@ -111,6 +111,7 @@ def run_pipeline(
                 'rows':           step_result.rows,
                 'table_html':     step_result.table_html,
                 'kv_html':        step_result.kv_html,
+                'ai_summary':     step_result.ai_summary,
             }
 
             # Scalar output variables go to top-level context; guard against overwriting built-ins

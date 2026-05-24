@@ -201,7 +201,7 @@ class PipelineStep(db.Model):
     __tablename__ = 'ff_pipeline_steps'
     __table_args__ = (
         CheckConstraint(
-            "step_type IN ('db_procedure','db_query','report','email','drive_upload','data_load','bulk_load','onedrive_upload')",
+            "step_type IN ('db_procedure','db_query','report','email','drive_upload','data_load','bulk_load','onedrive_upload','ai_analyze','sftp_transfer')",
             name='ck_step_type',
         ),
         CheckConstraint("on_error IN ('stop', 'continue')", name='ck_on_error'),

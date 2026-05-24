@@ -247,3 +247,110 @@ def test_last_success_at_available_when_injected():
     })
     assert render('{{ last_success_at }}', ctx) == '20260501120000'
     assert render('{{ last_success_date }}', ctx) == '2026-05-01'
+
+
+# ── _SafeEnv credential blocklist ─────────────────────────────────────────────
+
+def test_safe_env_blocks_flowforge_secret_key(monkeypatch):
+    """FLOWFORGE_SECRET_KEY must never be readable from a Jinja2 template."""
+    monkeypatch.setenv('FLOWFORGE_SECRET_KEY', 'aes-key-must-not-leak')
+    from flowforge.engine.context import build, render
+    ctx = build('test')
+    result = render('{{ env.FLOWFORGE_SECRET_KEY }}', ctx)
+    assert result == ''
+    assert 'aes-key-must-not-leak' not in result
+
+
+def test_safe_env_blocks_flowforge_password(monkeypatch):
+    monkeypatch.setenv('FLOWFORGE_PASSWORD', '$2b$12$fakehash')
+    from flowforge.engine.context import build, render
+    ctx = build('test')
+    assert render('{{ env.FLOWFORGE_PASSWORD }}', ctx) == ''
+
+
+def test_safe_env_blocks_gmail_client_secret(monkeypatch):
+    monkeypatch.setenv('GMAIL_CLIENT_SECRET', 'gmail-oauth-secret')
+    from flowforge.engine.context import build, render
+    ctx = build('test')
+    assert render('{{ env.GMAIL_CLIENT_SECRET }}', ctx) == ''
+
+
+def test_safe_env_blocks_gmail_refresh_token(monkeypatch):
+    monkeypatch.setenv('GMAIL_REFRESH_TOKEN', 'gmail-refresh-xxxx')
+    from flowforge.engine.context import build, render
+    ctx = build('test')
+    assert render('{{ env.GMAIL_REFRESH_TOKEN }}', ctx) == ''
+
+
+def test_safe_env_blocks_microsoft_client_secret(monkeypatch):
+    monkeypatch.setenv('MICROSOFT_CLIENT_SECRET', 'azure-secret-value')
+    from flowforge.engine.context import build, render
+    ctx = build('test')
+    assert render('{{ env.MICROSOFT_CLIENT_SECRET }}', ctx) == ''
+
+
+def test_safe_env_blocks_anthropic_api_key(monkeypatch):
+    monkeypatch.setenv('ANTHROPIC_API_KEY', 'sk-ant-xxxx')
+    from flowforge.engine.context import build, render
+    ctx = build('test')
+    assert render('{{ env.ANTHROPIC_API_KEY }}', ctx) == ''
+
+
+def test_safe_env_allows_non_blocked_var(monkeypatch):
+    """Regular environment variables not in the blocklist must be readable."""
+    monkeypatch.setenv('REPORT_OUTPUT_DIR', '/data/reports')
+    from flowforge.engine.context import build, render
+    ctx = build('test')
+    assert render('{{ env.REPORT_OUTPUT_DIR }}', ctx) == '/data/reports'
+
+
+def test_safe_env_missing_var_returns_empty(monkeypatch):
+    monkeypatch.delenv('TOTALLY_NONEXISTENT_VAR_XYZ', raising=False)
+    from flowforge.engine.context import build, render
+    ctx = build('test')
+    assert render('{{ env.TOTALLY_NONEXISTENT_VAR_XYZ }}', ctx) == ''
+
+
+# ── Pipeline variable collision warning ───────────────────────────────────────
+
+def test_pipeline_var_collision_emits_warning(caplog):
+    """A WARNING must be logged when a pipeline variable shadows a built-in key."""
+    import logging
+    from flowforge.engine.context import build
+    with caplog.at_level(logging.WARNING, logger='flowforge.engine.context'):
+        build('test', pipeline_vars={'current_date': '2020-01-01'})
+    assert any('current_date' in msg for msg in caplog.messages), (
+        f"Expected a collision warning mentioning 'current_date'. Got: {caplog.messages}"
+    )
+
+
+def test_pipeline_var_collision_value_wins(caplog):
+    """Even when a collision is logged, the pipeline variable takes effect."""
+    from flowforge.engine.context import build
+    ctx = build('test', pipeline_vars={'current_date': '2020-01-01'})
+    assert ctx['current_date'] == '2020-01-01'
+
+
+def test_pipeline_var_collision_multiple_keys(caplog):
+    """Multiple collisions are all mentioned in a single warning log line."""
+    import logging
+    from flowforge.engine.context import build
+    with caplog.at_level(logging.WARNING, logger='flowforge.engine.context'):
+        build('test', pipeline_vars={
+            'current_date': '2020-01-01',
+            'run_id': 'overridden-uuid',
+        })
+    collision_msgs = [m for m in caplog.messages if 'current_date' in m or 'run_id' in m]
+    assert collision_msgs, f"Expected collision warning, got: {caplog.messages}"
+
+
+def test_no_collision_warning_for_normal_vars(caplog):
+    """No warning is emitted when pipeline variables do not shadow built-ins."""
+    import logging
+    from flowforge.engine.context import build
+    with caplog.at_level(logging.WARNING, logger='flowforge.engine.context'):
+        build('test', pipeline_vars={'my_custom_var': 'hello', 'report_region': 'APAC'})
+    assert not any(
+        'overwrite' in m.lower() or 'collision' in m.lower() or 'shadow' in m.lower()
+        for m in caplog.messages
+    )

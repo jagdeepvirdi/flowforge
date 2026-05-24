@@ -5,6 +5,11 @@
 **Commit**: cbf0d23
 **Branch**: master
 
+> **Note:** This review was written at commit `cbf0d23`. Subsequent commits added the following features not covered by this review:
+> - **AI Features (AI-1 through AI-6)** — Ollama-based chart generator, SQL explainer/optimizer, pipeline failure diagnosis, data profiler, and run history anomaly alerts. Global enable/disable via `FLOWFORGE_AI_ENABLED`. See `flowforge/api/routes/ai.py`.
+> - **OneDrive upload step** — `onedrive_upload` step type via Microsoft Graph API; chunked upload for large files; smart attachment integration in `email` step. See `flowforge/steps/onedrive_upload.py` and `flowforge/storage/onedrive.py`.
+> - **Bug fixes** — 14 issues from the prior review resolved; see TASKS.md Bug Fix Track for details.
+
 ---
 
 ## Score Comparison (Previous → Current)

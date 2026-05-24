@@ -75,11 +75,15 @@ pdf = [
 oracle = [
     "oracledb>=2.0",
 ]
+sftp = [
+    "paramiko>=3.0",
+]
 all = [
     "flowforge[gmail]",
     "flowforge[drive]",
     "flowforge[microsoft365]",
     "flowforge[pdf]",
+    "flowforge[sftp]",
 ]
 dev = [
     "pytest>=8.0",
