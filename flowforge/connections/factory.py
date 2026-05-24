@@ -28,7 +28,7 @@ def get_connection(connection_id: str) -> BaseConnection:
         return OracleConnection(
             host=cfg['host'],
             port=int(cfg.get('port', 1521)),
-            service_name=cfg.get('service_name', ''),
+            service_name=cfg.get('service_name') or cfg.get('database', ''),
             user=cfg.get('user') or cfg.get('username', ''),
             password=cfg['password'],
         )
