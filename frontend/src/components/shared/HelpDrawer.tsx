@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { X, BookOpen, List } from 'lucide-react'
+import { X, BookOpen, List, ExternalLink, ChevronDown, ChevronRight } from 'lucide-react'
 import { useHelp } from '../../lib/useHelp'
-import { INTRO_CARDS, GLOSSARY, STEP_HINTS } from '../../lib/helpContent'
+import { INTRO_CARDS, GLOSSARY, STEP_HINTS, PROVIDER_SETUP_GUIDES, type ProviderSetupGuide } from '../../lib/helpContent'
 
 const STEP_TYPES = ['db_procedure', 'db_query', 'report', 'email', 'drive_upload'] as const
 
@@ -20,6 +20,81 @@ function GlossaryTab() {
           <p style={{ fontSize: 12.5, color: 'var(--text-3)', margin: 0, lineHeight: 1.55 }}>{entry.def}</p>
         </div>
       ))}
+    </div>
+  )
+}
+
+function ProviderGuide({ guide }: { guide: ProviderSetupGuide }) {
+  const [openStep, setOpenStep] = useState<number | null>(null)
+  const [showTrouble, setShowTrouble] = useState(false)
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{guide.title}</span>
+        <a
+          href={`/api/docs/${guide.docPath}`}
+          target="_blank" rel="noreferrer"
+          style={{ fontSize: 11, color: 'var(--accent-text)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+        >
+          Full guide <ExternalLink size={10} />
+        </a>
+      </div>
+
+      {/* Intro */}
+      <p style={{ fontSize: 12.5, color: 'var(--text-3)', margin: 0, lineHeight: 1.55 }}>{guide.intro}</p>
+
+      {/* Steps */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {guide.steps.map((step, i) => (
+          <div key={i} style={{ border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
+            <button
+              onClick={() => setOpenStep(openStep === i ? null : i)}
+              style={{
+                width: '100%', background: openStep === i ? 'var(--surface-2)' : 'transparent',
+                border: 'none', cursor: 'pointer', padding: '8px 10px',
+                display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left',
+              }}
+            >
+              {openStep === i
+                ? <ChevronDown size={12} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+                : <ChevronRight size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+              }
+              <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)' }}>{step.label}</span>
+            </button>
+            {openStep === i && (
+              <div style={{ padding: '8px 10px 10px 28px', background: 'var(--surface-2)', borderTop: '1px solid var(--border)' }}>
+                <p style={{ fontSize: 12, color: 'var(--text-3)', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-wrap', fontFamily: step.detail.includes('\n') ? 'JetBrains Mono, monospace' : undefined }}>
+                  {step.detail}
+                </p>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Troubleshooting */}
+      <button
+        onClick={() => setShowTrouble(t => !t)}
+        style={{
+          background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
+          display: 'flex', alignItems: 'center', gap: 5, color: 'var(--text-muted)',
+        }}
+      >
+        {showTrouble ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+        <span style={{ fontSize: 11, fontWeight: 500 }}>Troubleshooting</span>
+      </button>
+      {showTrouble && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {guide.troubleshooting.map((t, i) => (
+            <div key={i} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px' }}>
+              <div style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'var(--failure)', marginBottom: 3 }}>{t.error}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{t.fix}</div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -72,7 +147,19 @@ function HelpTab({ topic }: { topic: string }) {
         </div>
       )}
 
-      {!card && !stepHint && (
+      {/* Provider setup guides — shown on the Settings page */}
+      {topic === 'settings' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Email Provider Setup
+          </div>
+          <ProviderGuide guide={PROVIDER_SETUP_GUIDES.gmail} />
+          <div style={{ borderTop: '1px solid var(--border)' }} />
+          <ProviderGuide guide={PROVIDER_SETUP_GUIDES.microsoft365} />
+        </div>
+      )}
+
+      {!card && !stepHint && topic !== 'settings' && (
         <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>Select a page to see contextual help.</p>
       )}
     </div>

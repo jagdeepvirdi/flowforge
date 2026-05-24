@@ -36,7 +36,7 @@ export const INTRO_CARDS: Record<string, IntroCard> = {
   },
   settings: {
     title: 'Settings & OAuth setup',
-    body:  'Connect FlowForge to Gmail or Microsoft 365 via OAuth2, and configure Google Drive for smart attachments. Status badges show which providers are fully wired up.',
+    body:  'Connect FlowForge to Gmail or Microsoft 365 via OAuth2. Use the step-by-step setup guides below — they cover everything from Azure app registration to getting a Gmail refresh token. Status badges show which providers are fully wired up.',
   },
 }
 
@@ -137,6 +137,101 @@ export const STEP_HINTS: Record<string, StepHint> = {
     ],
   },
 }
+
+// ─── Provider setup guides (shown in Help drawer on Settings page) ───────────
+
+export interface SetupStep {
+  label:  string
+  detail: string
+}
+
+export interface ProviderSetupGuide {
+  title:    string
+  docPath:  string  // served via /api/docs/
+  intro:    string
+  steps:    SetupStep[]
+  troubleshooting: Array<{ error: string; fix: string }>
+}
+
+export const PROVIDER_SETUP_GUIDES: Record<string, ProviderSetupGuide> = {
+  gmail: {
+    title:   'Gmail OAuth2 Setup',
+    docPath: 'gmail-oauth2-setup.md',
+    intro:   'FlowForge sends mail via the Gmail API (free tier). You need a Google Cloud project with a Desktop OAuth2 credential and a refresh token.',
+    steps: [
+      {
+        label:  '1. Create a Google Cloud project',
+        detail: 'Go to console.cloud.google.com → click the project dropdown → New Project. Name it "FlowForge" and click Create.',
+      },
+      {
+        label:  '2. Enable Gmail API',
+        detail: 'APIs & Services → Library → search "Gmail API" → Enable. Optionally also enable Google Drive API if you use Drive uploads.',
+      },
+      {
+        label:  '3. Configure OAuth consent screen',
+        detail: 'APIs & Services → OAuth consent screen → External → Create. Fill in App name and your email. On the Test users page, add your own Gmail address.',
+      },
+      {
+        label:  '4. Create a Desktop OAuth credential',
+        detail: 'APIs & Services → Credentials → + Create Credentials → OAuth client ID. Application type must be "Desktop app" (not Web — that causes a 401). Copy the Client ID and Client Secret.',
+      },
+      {
+        label:  '5. Get a refresh token',
+        detail: 'Run: flowforge setup gmail\nThis opens a browser OAuth flow. Sign in with your Gmail account, grant permissions, and the refresh token is saved to .env automatically.',
+      },
+      {
+        label:  '6. Add provider in FlowForge',
+        detail: 'Connections → Email Providers → Add Provider → Gmail. Enter your sender address and the credentials from .env. Click Test to verify, then Save.',
+      },
+    ],
+    troubleshooting: [
+      { error: 'Error 401: invalid_client',          fix: 'Application type must be Desktop app — delete and re-create the credential.' },
+      { error: 'Error 403: access_denied',            fix: 'Your Gmail account is not listed as a Test User on the OAuth consent screen.' },
+      { error: 'Token has been expired or revoked',   fix: 'Re-run "flowforge setup gmail" to generate a new refresh token.' },
+      { error: 'Mail.Send permission denied',         fix: 'Gmail API is not enabled — go to APIs & Services → Library → enable Gmail API.' },
+    ],
+  },
+
+  microsoft365: {
+    title:   'Microsoft 365 Setup',
+    docPath: 'email-providers.md',
+    intro:   'FlowForge sends mail via the Microsoft Graph API using an Azure AD app registration with client credentials (no user login required).',
+    steps: [
+      {
+        label:  '1. Sign in to Azure portal',
+        detail: 'Go to portal.azure.com and sign in with a Microsoft 365 admin account in the tenant you want to send from.',
+      },
+      {
+        label:  '2. Register an app',
+        detail: 'Search "App registrations" → New registration. Name it "FlowForge". Supported account types: "Accounts in this organizational directory only". Leave Redirect URI blank. Click Register.',
+      },
+      {
+        label:  '3. Copy Tenant ID and Client ID',
+        detail: 'On the app Overview page you will see Application (client) ID and Directory (tenant) ID. Copy both — these are your Client ID and Tenant ID.',
+      },
+      {
+        label:  '4. Create a Client Secret',
+        detail: 'Certificates & secrets → + New client secret. Enter a description, choose 24-month expiry, click Add. Copy the Value immediately — it is only shown once.',
+      },
+      {
+        label:  '5. Grant Mail.Send permission',
+        detail: 'API permissions → + Add a permission → Microsoft Graph → Application permissions → search "Mail.Send" → Add. Then click "Grant admin consent for [your org]" and confirm. The status should show a green tick.',
+      },
+      {
+        label:  '6. Add provider in FlowForge',
+        detail: 'Connections → Email Providers → Add Provider → Microsoft 365. Enter Tenant ID, Client ID, Client Secret, and the sender email address (must be a licensed M365 user). Click Test, then Save.',
+      },
+    ],
+    troubleshooting: [
+      { error: 'AADSTS700016: Application not found',         fix: 'Wrong Tenant ID — copy it from App registrations → Overview → Directory (tenant) ID.' },
+      { error: 'AADSTS7000215: Invalid client secret',        fix: 'Secret expired or copied incorrectly — create a new secret in Certificates & secrets.' },
+      { error: 'Authorization_RequestDenied',                 fix: 'Mail.Send not granted or admin consent not clicked — re-add the permission and grant consent.' },
+      { error: 'ErrorSendAsDenied',                           fix: 'Sender email is not a licensed Microsoft 365 user in your tenant.' },
+    ],
+  },
+}
+
+// ─── Tooltip content ──────────────────────────────────────────────────────────
 
 export interface TooltipContent {
   text:    string

@@ -82,9 +82,16 @@ export default function Settings() {
               }
             </div>
             <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
-              Run the setup wizard from the CLI to authorize Gmail sending and Google Drive uploads.
+              Requires a Google Cloud project with Gmail API enabled and a Desktop OAuth2 credential.
+              Run the CLI wizard to complete the OAuth flow and save your refresh token.
             </p>
             <CodeBlock>flowforge setup gmail</CodeBlock>
+            <a href="/api/docs/gmail-oauth2-setup.md" target="_blank" rel="noreferrer"
+              style={{ fontSize: 12, color: 'var(--accent-text)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+              onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+              onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}>
+              Step-by-step Gmail setup guide <ExternalLink size={11} />
+            </a>
           </div>
 
           {/* Microsoft 365 */}
@@ -104,9 +111,16 @@ export default function Settings() {
               }
             </div>
             <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
-              Requires an Azure AD app registration with <InlineCode>Mail.Send</InlineCode> permission.
+              Requires an Azure AD app registration with <InlineCode>Mail.Send</InlineCode> application permission
+              and admin consent. You will need your Tenant ID, Client ID, and Client Secret from the Azure portal.
             </p>
             <CodeBlock>flowforge setup microsoft365</CodeBlock>
+            <a href="/api/docs/email-providers.md" target="_blank" rel="noreferrer"
+              style={{ fontSize: 12, color: 'var(--accent-text)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+              onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+              onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}>
+              Step-by-step Microsoft 365 setup guide <ExternalLink size={11} />
+            </a>
           </div>
 
           {/* YAML export/import */}
@@ -121,9 +135,10 @@ export default function Settings() {
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Documentation</div>
             {([
-              ['Getting Started', '/api/docs/getting-started.md'],
-              ['Step Types Reference', '/api/docs/step-types.md'],
-              ['Email Providers', '/api/docs/email-providers.md'],
+              ['Getting Started',          '/api/docs/getting-started.md'],
+              ['Step Types Reference',     '/api/docs/step-types.md'],
+              ['Email Providers (all)',    '/api/docs/email-providers.md'],
+              ['Gmail OAuth2 Setup',       '/api/docs/gmail-oauth2-setup.md'],
             ] as [string, string][]).map(([label, href]) => (
               <a key={href} href={href} target="_blank" rel="noreferrer"
                 style={{ color: 'var(--accent-text)', fontSize: 13, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
