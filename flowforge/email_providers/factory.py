@@ -24,11 +24,16 @@ def get_email_provider(provider_id: str) -> EmailProvider:
 
     if row.provider_type == 'microsoft365':
         from flowforge.email_providers.microsoft365 import Microsoft365Provider
+        sender = cfg.get('sender_email') or cfg.get('sender', '')
+        if not sender:
+            raise ValueError(
+                "Microsoft 365 provider config is missing 'sender' (the licensed M365 sender email address)"
+            )
         return Microsoft365Provider(
-            tenant_id=cfg['tenant_id'],
-            client_id=cfg['client_id'],
-            client_secret=cfg['client_secret'],
-            sender_email=cfg['sender_email'],
+            tenant_id=cfg.get('tenant_id', ''),
+            client_id=cfg.get('client_id', ''),
+            client_secret=cfg.get('client_secret', ''),
+            sender_email=sender,
         )
 
     if row.provider_type == 'smtp':
