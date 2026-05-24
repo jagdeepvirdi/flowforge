@@ -294,6 +294,9 @@ export default function Connections() {
                         {ts === 'fail' && <StatusBadge status="failed"  label="Unreachable" />}
                       </div>
                       <div className="mono" style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{c.db_type} · {c.is_default ? 'default' : 'not default'}</div>
+                      {ts === 'fail' && testErrors[c.id] && (
+                        <div className="mono" style={{ fontSize: 11, color: 'var(--failure)', marginTop: 4, wordBreak: 'break-all' }}>{testErrors[c.id]}</div>
+                      )}
                     </div>
                     <div style={{ display: 'flex', gap: 24, fontSize: 11.5, flexShrink: 0 }}>
                       <StatCol label="Type"    value={label} />

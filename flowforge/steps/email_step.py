@@ -22,10 +22,14 @@ def _handle_attachments(
     drive_folder_id: str,
     drive_message_template: str,
     context: dict[str, Any],
+    onedrive_folder_id: str = '',
 ) -> tuple[list[Path], str]:
-    """Split attachments into direct and Drive-uploaded. Returns (direct_files, extra_body_text)."""
+    """Split attachments into direct and cloud-uploaded. Returns (direct_files, extra_body_text).
+
+    Prefers OneDrive when onedrive_folder_id is set; falls back to Google Drive when
+    drive_folder_id is set; attaches directly if neither is configured.
+    """
     from flowforge.engine.context import render
-    from flowforge.storage.google_drive import upload_file
 
     max_bytes = max_mb * 1024 * 1024
     direct: list[Path] = []
@@ -36,13 +40,22 @@ def _handle_attachments(
             logger.warning("Attachment not found, skipping: %s", path)
             continue
         if path.stat().st_size > max_bytes:
-            url = upload_file(path, drive_folder_id, make_shareable=True)
+            if onedrive_folder_id:
+                from flowforge.storage.onedrive import upload_file as _onedrive_upload
+                url = _onedrive_upload(path, onedrive_folder_id, make_shareable=True)
+                logger.info("Large attachment uploaded to OneDrive: %s", path.name)
+            elif drive_folder_id:
+                from flowforge.storage.google_drive import upload_file as _gdrive_upload
+                url = _gdrive_upload(path, drive_folder_id, make_shareable=True)
+                logger.info("Large attachment uploaded to Google Drive: %s", path.name)
+            else:
+                direct.append(path)
+                continue
             drive_links.append({
                 'filename': path.name,
                 'url': url,
                 'size_mb': round(path.stat().st_size / 1024 / 1024, 1),
             })
-            logger.info("Large attachment uploaded to Drive: %s", path.name)
         else:
             direct.append(path)
 
@@ -70,8 +83,10 @@ class EmailStep(BaseStep):
         max_mb = email_cfg.get('attachment_max_mb', 10)
         drive_folder_id = email_cfg.get('drive_folder_id', '')
         drive_message = email_cfg.get('drive_share_message', '')
+        onedrive_folder_id = email_cfg.get('onedrive_folder_id', '')
         direct_attachments, extra_body = _handle_attachments(
-            attachments, max_mb, drive_folder_id, drive_message, context
+            attachments, max_mb, drive_folder_id, drive_message, context,
+            onedrive_folder_id=onedrive_folder_id,
         )
 
         to = self._resolve_recipients(email_cfg)
@@ -119,6 +134,7 @@ class EmailStep(BaseStep):
                 'attachment_max_mb':   row.attachment_max_mb,
                 'drive_folder_id':     row.drive_folder_id or '',
                 'drive_share_message': row.drive_share_message or '',
+                'onedrive_folder_id':  row.onedrive_folder_id or '',
             }
             provider = get_email_provider(str(row.provider_id)) if row.provider_id else None
             if not provider:

@@ -164,6 +164,7 @@ class EmailConfig(db.Model):
     attachment_max_mb   = Column(Integer, default=10)
     drive_folder_id     = Column(String(255))
     drive_share_message = Column(Text)
+    onedrive_folder_id  = Column(String(255))
     project_id          = Column(UUID(as_uuid=False), ForeignKey('ff_projects.id', ondelete='SET NULL'), nullable=True)
     created_at          = Column(DateTime, default=_utcnow)
     updated_at          = Column(DateTime, default=_utcnow, onupdate=_utcnow)
@@ -200,7 +201,7 @@ class PipelineStep(db.Model):
     __tablename__ = 'ff_pipeline_steps'
     __table_args__ = (
         CheckConstraint(
-            "step_type IN ('db_procedure','db_query','report','email','drive_upload','data_load','bulk_load')",
+            "step_type IN ('db_procedure','db_query','report','email','drive_upload','data_load','bulk_load','onedrive_upload')",
             name='ck_step_type',
         ),
         CheckConstraint("on_error IN ('stop', 'continue')", name='ck_on_error'),

@@ -12,8 +12,9 @@ _STEP_CLASSES: dict[str, str] = {
     'db_query':     'flowforge.steps.db_query.DbQueryStep',
     'report':       'flowforge.steps.report.ReportStep',
     'email':        'flowforge.steps.email_step.EmailStep',
-    'drive_upload': 'flowforge.steps.drive_upload.DriveUploadStep',
-    'data_load':    'flowforge.steps.data_load.DataLoadStep',
+    'drive_upload':    'flowforge.steps.drive_upload.DriveUploadStep',
+    'onedrive_upload': 'flowforge.steps.onedrive_upload.OneDriveUploadStep',
+    'data_load':       'flowforge.steps.data_load.DataLoadStep',
     'bulk_load':    'flowforge.steps.bulk_load.BulkLoadStep',
 }
 

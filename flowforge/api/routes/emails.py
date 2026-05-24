@@ -28,6 +28,7 @@ def _email_dict(e: EmailConfig) -> dict:
         'attachment_max_mb': e.attachment_max_mb,
         'drive_folder_id': e.drive_folder_id,
         'drive_share_message': e.drive_share_message,
+        'onedrive_folder_id': e.onedrive_folder_id,
         'project_id': e.project_id,
         'created_at': e.created_at.isoformat() if e.created_at else None,
         'updated_at': e.updated_at.isoformat() if e.updated_at else None,
@@ -68,6 +69,7 @@ def create_email_config():
         attachment_max_mb=data.get('attachment_max_mb', 10),
         drive_folder_id=data.get('drive_folder_id'),
         drive_share_message=data.get('drive_share_message'),
+        onedrive_folder_id=data.get('onedrive_folder_id'),
         project_id=data.get('project_id') or _default_project_id(),
     )
     db.session.add(config)
@@ -96,7 +98,7 @@ def update_email_config(config_id):
         'name', 'description', 'provider_id', 'from_name', 'subject', 'header_text',
         'body_template', 'recipient_group_id', 'to_addresses', 'cc_addresses',
         'bcc_addresses', 'attachment_max_mb', 'drive_folder_id', 'drive_share_message',
-        'project_id',
+        'onedrive_folder_id', 'project_id',
     )
     for field in fields:
         if field in data:
