@@ -76,6 +76,7 @@ FlowForge replaces that entirely — with scheduling, run history, and zero infr
 | Monthly campaign performance | Analytics query → Excel + Drive upload → share link in email | Smart attachment for large reports |
 | Customer segment extract | Query → CSV → email marketing team | Fast, repeatable |
 | Investor metrics report | KPI query → Excel → Google Drive (shareable) → email investors | Drive-first workflow |
+| AI-generated insight digest | `ai_analyze` on sales data → email body includes Ollama-generated summary | No LLM coding required; zero API cost |
 
 ### Small SaaS / Startups
 
@@ -84,6 +85,17 @@ FlowForge replaces that entirely — with scheduling, run history, and zero infr
 | Weekly user metrics to investors | Query → Excel → Drive upload → email | Drive link in email; no attachment size worry |
 | Subscription churn alert | Churn query → capture rows → daily email to founders | Query capture + inline table in email |
 | Usage data extract for support | Query → CSV → email support team | Straightforward data export |
+| SFTP data ingest | `sftp_transfer` download from partner SFTP → `bulk_load` to DB | No scripting; password or key auth |
+| OneDrive report distribution | Report → `onedrive_upload` → shareable link in email | Microsoft 365 shops; no Google Drive needed |
+
+### AI-Assisted Pipelines (Ollama — zero cost, data stays local)
+
+| Pipeline | Steps | Why FlowForge |
+|---|---|---|
+| Monthly narrative summary | `ai_analyze` → plain-English summary injected into email body | `{{ ai_summary }}` available to downstream steps |
+| Anomaly alerting | Run History Anomaly Alerts flag outlier steps; Ollama explains the deviation | Statistical detection + optional narrative |
+| SQL optimisation in report designer | SQL Optimizer rewrites slow queries; side-by-side diff shown | No DBA required for basic index hints |
+| Chart suggestion | AI Chart Generator picks chart type from query columns | One click from preview to visualisation |
 
 ---
 

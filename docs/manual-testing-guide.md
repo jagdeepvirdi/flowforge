@@ -657,9 +657,281 @@ that doesn't exist yet (rename `target_table` to `public.dl_replace_test`).
 
 ## 13. OneDrive Upload
 
-*(Not yet built — backlog item. Skip.)*
+*(Requires Azure AD app registration with `Files.ReadWrite.All` permission.
+Same credentials as M365 email — set `MICROSOFT_TENANT_ID`, `MICROSOFT_CLIENT_ID`,
+`MICROSOFT_CLIENT_SECRET`, `MICROSOFT_SENDER_EMAIL` in `.env`.)*
 
-- [ ] N/A — feature not yet implemented
+### 13a. Standalone OneDrive upload step
+
+1. Create a pipeline: **Report → OneDrive Upload**
+   - Step 1: Report step (CSV or Excel)
+   - Step 2: OneDrive Upload step:
+
+     | Field | Value |
+     |---|---|
+     | File path | `{{ steps.step1_name.output_path }}` |
+     | Folder ID | Your OneDrive folder ID (from the folder URL) |
+     | Rename to | `report_{{ current_date }}.csv` |
+     | Make shareable | Ticked |
+
+2. Run the pipeline
+
+- [ ] File appears in OneDrive folder with the correct name
+- [ ] `drive_url` (anonymous view link) visible in step run log
+- [ ] Link opens the file in a browser without login
+
+### 13b. OneDrive link in email body
+
+1. Extend the pipeline from 13a — add an **Email** step after the upload:
+   - In the email body: `<p>Your report: <a href="{{ steps.upload_step.drive_url }}">Click here</a></p>`
+2. Run the pipeline
+
+- [ ] Email received with a working OneDrive link
+- [ ] Link resolves to the correct file
+
+### 13c. OneDrive as smart attachment fallback
+
+1. In an Email config, set `onedrive_folder_id` and set **Max attachment size** to `0.001` MB
+2. Attach a report file that exceeds this threshold
+3. Run the pipeline
+
+- [ ] Email received with OneDrive link in body instead of direct attachment
+- [ ] Log shows "smart attachment → OneDrive"
+
+---
+
+## 14. AI Features (UI — Ollama required)
+
+*(Requires Ollama running locally: `ollama serve`. Pull a model first:
+`ollama pull llama3.2:3b`. All features are best-effort — if Ollama is
+unreachable the button shows "AI unavailable" and the rest of the UI works normally.)*
+
+### 14a. AI Chart Generator
+
+1. Go to **Reports → Report Designer** → write or load a query with numeric columns
+2. Click **Preview** to run the query and show the data table
+3. Click **Visualize** (AI sparkle button in the Preview panel toolbar)
+
+- [ ] A chart config card appears below the preview table
+- [ ] Chart type, X axis, and Y axis are populated with sensible suggestions
+- [ ] Recharts chart renders immediately (bar, line, area, pie, or scatter)
+- [ ] User can change chart type and axes via dropdowns — chart updates live
+- [ ] If Ollama is unreachable: "AI unavailable — is Ollama running?" shown, no crash
+
+### 14b. SQL Explainer
+
+1. Open any report in **Report Designer**
+2. Write or paste a SQL query with joins and filters
+3. Click **Explain** (button in the SQL editor header)
+
+- [ ] Dismissible explanation panel appears below the SQL editor
+- [ ] Panel describes tables/joins, filters, aggregations, and potential issues in plain English
+- [ ] "via Ollama" label visible
+- [ ] Dismiss button closes the panel
+
+### 14c. SQL Optimizer
+
+1. Same SQL editor — click **Optimize** (button alongside Explain)
+
+- [ ] Side-by-side diff panel appears: original (red tint) vs suggested (green tint)
+- [ ] Suggested SQL is extracted cleanly (no prose mixed in)
+- [ ] **Accept** replaces the SQL editor content with the suggestion
+- [ ] **Dismiss** closes the panel without changing the SQL
+
+### 14d. Pipeline Failure Diagnosis
+
+1. Create a pipeline with a step that will intentionally fail (e.g. a DB query with a syntax error)
+2. Run the pipeline — it fails
+3. Go to **Run History → Run Detail → Logs tab**
+4. Find the failed step — click **Explain this error**
+
+- [ ] 2–4 sentence diagnosis appears below the error message
+- [ ] Diagnosis explains the cause and suggests a fix in plain English
+- [ ] "via Ollama" label visible
+- [ ] Dismissible; other steps are unaffected
+
+### 14e. Data Profiler
+
+1. Open **Report Designer** with a query that has multiple column types
+2. Click **Preview** to load the data
+3. Click **Summarise** (button in TopBar, visible after preview runs)
+4. First time: opt-in banner appears — "Your preview rows will be sent to your local Ollama instance. No data leaves your machine."
+
+- [ ] Consent banner shown on first use per session
+- [ ] After accepting: profile card appears with 3–5 sentence narrative
+- [ ] Narrative mentions structure, value ranges, or notable patterns
+- [ ] Profile card is dismissible
+- [ ] Re-running the query clears the old profile card
+- [ ] Consent persists for the session (banner not shown again after accepting)
+
+### 14f. Run History Anomaly Alerts
+
+1. Run a pipeline at least 5 times so baseline statistics accumulate
+2. Simulate an anomalous run — e.g. a query that returns far fewer rows than usual (add a WHERE clause to drastically reduce results)
+3. Go to **Run History → Run Detail** for the anomalous run
+
+- [ ] Warning badge appears on the step whose `rows_affected` is a statistical outlier (>2σ)
+- [ ] Optional Ollama narrative sentence appears alongside the badge explaining the anomaly
+- [ ] Steps within normal range show no badge
+- [ ] No badge on first 1–2 runs (insufficient baseline)
+
+### 14g. AI global disable
+
+1. Set `FLOWFORGE_AI_ENABLED=false` in `.env` and restart the server
+2. Open Report Designer, Run Detail, etc.
+
+- [ ] All AI buttons (Visualize, Explain, Optimize, Explain this error, Summarise) are hidden
+- [ ] No AI endpoints reachable — `/api/ai/*` returns 503
+3. Reset to `FLOWFORGE_AI_ENABLED=true` (or remove the var) and restart
+
+- [ ] All AI buttons reappear
+
+---
+
+## 15. AI Analyze Step (ai_analyze)
+
+*(Requires Ollama running locally, or `ANTHROPIC_API_KEY` set for Claude provider.)*
+
+### 15a. Basic ai_analyze step — Ollama
+
+1. Create a pipeline: `AI Analyze Test`
+2. Add an **AI Analyze** step:
+
+   | Field | Value |
+   |---|---|
+   | Name | `revenue_summary` |
+   | Connection | `FlowForge DB` |
+   | Query | `SELECT plan, status, COUNT(*) AS cnt, SUM(monthly_amount) AS mrr FROM public.bulk_test_subscribers GROUP BY plan, status ORDER BY mrr DESC` |
+   | Prompt | `Summarise the key revenue trends from this subscriber breakdown in 3 sentences. Highlight the top plan.` |
+   | Provider | `ollama` |
+   | Model | `llama3.2:3b` |
+   | Output variable | `ai_summary` |
+   | Max rows | `50` |
+
+3. Run the pipeline
+
+- [ ] Step succeeds
+- [ ] Step run log shows the LLM response
+- [ ] `rows_affected` in log matches the query row count
+
+### 15b. AI summary in email body
+
+1. Add an **Email** step after `revenue_summary`:
+   - Body: `<p>AI Summary:</p><p>{{ ai_summary }}</p>`
+2. Run the pipeline
+
+- [ ] Email received with the LLM response in the body (not the literal `{{ ai_summary }}`)
+
+### 15c. Step-namespace access
+
+1. Add a second AI Analyze step named `churn_analysis` with a different query
+2. In the email body use `{{ steps.revenue_summary.ai_summary }}` and `{{ steps.churn_analysis.ai_summary }}`
+
+- [ ] Both summaries appear in the email body correctly attributed
+
+### 15d. Custom output_variable
+
+1. Set `output_variable` to `revenue_narrative` on the step
+2. In the email body use `{{ revenue_narrative }}`
+
+- [ ] Email body contains the LLM response via the custom variable name
+
+### 15e. max_rows truncation
+
+1. Set `max_rows` to `3` on a query that returns more rows
+2. Run the pipeline — check the step log
+
+- [ ] Log shows "Showing first 3 of N rows" note was appended to the prompt
+- [ ] `rows_affected` still shows the total (not 3)
+
+### 15f. Ollama unreachable
+
+1. Stop Ollama (`Ctrl+C` the `ollama serve` process)
+2. Run the pipeline
+
+- [ ] Step fails with a clear "Ollama" error message
+- [ ] Set `on_error: continue` — pipeline continues; `{{ ai_summary }}` is empty in downstream steps
+
+---
+
+## 16. SFTP Transfer Step (sftp_transfer)
+
+*(Requires an accessible SFTP server. For local testing:
+`docker run -p 2222:22 -e SSH_USERS="testuser:1001" atmoz/sftp` or
+use any accessible SFTP endpoint you have credentials for.)*
+
+### 16a. Download single file
+
+1. Create a pipeline: `SFTP Test`
+2. Add an **SFTP Transfer** step:
+
+   | Field | Value |
+   |---|---|
+   | Host | `localhost` (or your SFTP host) |
+   | Port | `2222` (or `22`) |
+   | Username | `testuser` |
+   | Password | *(your SFTP password)* |
+   | Operation | `download` |
+   | Remote path | `/upload/test_file.csv` (a file that exists on the server) |
+   | Local path | `D:\Project\flowforge\sample_data\sftp_test\` |
+
+3. Run the pipeline
+
+- [ ] Step succeeds
+- [ ] File downloaded to `sample_data\sftp_test\test_file.csv`
+- [ ] `output_path` visible in step run log
+- [ ] `files_loaded = 1` in log
+
+### 16b. Download directory with glob pattern
+
+1. Edit the step:
+   - Remote path: `/upload/` (a directory)
+   - Pattern: `*.csv`
+   - Local path: `D:\Project\flowforge\sample_data\sftp_test\`
+
+- [ ] Only `.csv` files downloaded (any `.txt` or other files skipped)
+- [ ] `files_found` and `files_loaded` counts visible in log
+
+### 16c. overwrite=false skips existing
+
+1. Run the download step again with `overwrite: false`
+
+- [ ] Step succeeds
+- [ ] `files_loaded = 0` — already-downloaded files are skipped, not overwritten
+- [ ] No error
+
+### 16d. Upload file
+
+1. Generate a small file locally (or use a report output)
+2. Add an SFTP Transfer step:
+
+   | Field | Value |
+   |---|---|
+   | Operation | `upload` |
+   | Local path | `{{ steps.report_step.output_path }}` (or a hard-coded path) |
+   | Remote path | `/upload/reports/{{ current_date }}/` |
+   | Create remote dirs | Ticked |
+
+3. Run the pipeline
+
+- [ ] File uploaded to the correct remote path
+- [ ] Remote directory created automatically (if it didn't exist)
+- [ ] `files_loaded = 1` in log
+
+### 16e. Private key authentication
+
+1. Configure the step with `key_path` (path to a local private key) instead of `password`
+2. Run the pipeline
+
+- [ ] Step connects successfully using the private key
+- [ ] No error about missing password
+
+### 16f. Invalid host / credentials
+
+1. Set the host to a non-existent server and run
+
+- [ ] Step fails with a clear "SFTP error" message
+- [ ] Pipeline error recorded in Run History with the step name
 
 ---
 
