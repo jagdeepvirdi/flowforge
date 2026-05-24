@@ -74,18 +74,20 @@ def update_step(step_id):
             return jsonify({'error': 'Invalid step_type'}), 400
         step.step_type = data['step_type']
 
-    # DB-1: two-phase swap to avoid (pipeline_id, step_order) unique constraint violation
+    # Two-phase swap to avoid (pipeline_id, step_order) unique constraint violation.
+    # Negative temp is guaranteed safe: real step orders are always positive integers.
     if 'step_order' in data and data['step_order'] != step.step_order:
         new_order = data['step_order']
         old_order = step.step_order
         occupant = (
             db.session.query(PipelineStep)
+            .with_for_update()
             .filter_by(pipeline_id=step.pipeline_id, step_order=new_order)
             .filter(PipelineStep.id != step.id)
             .first()
         )
         if occupant:
-            occupant.step_order = 999999  # vacate the slot
+            occupant.step_order = -old_order  # negative: never collides with a real step order
             db.session.flush()
             step.step_order = new_order
             db.session.flush()

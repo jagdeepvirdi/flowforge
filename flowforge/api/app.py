@@ -28,6 +28,7 @@ def create_app(config: dict | None = None) -> Flask:
         'FLOWFORGE_DB_URL', 'postgresql://flowforge:flowforge@localhost:5432/flowforge'
     )
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB — prevents OOM on large POST bodies
 
     # AES-256 encryption key — used exclusively by flowforge/crypto.py
     app.config['SECRET_KEY'] = os.environ.get('FLOWFORGE_SECRET_KEY', '')

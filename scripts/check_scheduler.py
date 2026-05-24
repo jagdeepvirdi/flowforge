@@ -151,26 +151,23 @@ with app.app_context():
 
 # ── 7. APScheduler job registration ─────────────────────────
 section("7. APScheduler job registration (what would be scheduled)")
-from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime, timezone
 
-test_scheduler = BackgroundScheduler(timezone="UTC")
 with app.app_context():
-    sched_module._load_pipeline_jobs(test_scheduler)
+    from flowforge.db.models import Pipeline as _P
+    scheduled = [
+        p for p in db.session.query(_P).filter_by(enabled=True).all()
+        if p.schedule and len(p.schedule.strip().split()) == 5
+    ]
 
-jobs = test_scheduler.get_jobs()
-if jobs:
+if scheduled:
     now = datetime.now(timezone.utc)
-    for job in jobs:
-        nrt = getattr(job, "next_run_time", None) or getattr(job, "next_fire_time", None)
-        if nrt:
-            mins = int((nrt - now).total_seconds() // 60)
-            print(f"  {job.id}")
-            print(f"    next fire : {nrt}  (in {mins}m)")
-        else:
-            print(f"  {job.id}  -- trigger: {job.trigger}")
+    for p in scheduled:
+        print(f"  pipeline_{p.id}")
+        print(f"    pipeline : {p.name}")
+        print(f"    cron     : {p.schedule}")
 else:
-    print(f"{FAIL} No jobs registered -- scheduler would do nothing")
+    print(f"{FAIL} No jobs would be registered -- scheduler would do nothing")
 
 print(f"\n{SEP}")
 print("  Diagnostic complete.")

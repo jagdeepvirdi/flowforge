@@ -59,6 +59,11 @@ class BulkLoadStep(BaseStep):
             return StepResult(success=False, error='bulk_load: source_directory is required')
         if not target_table:
             return StepResult(success=False, error='bulk_load: target_table is required')
+        if len(delimiter) != 1 or not delimiter.isprintable() or delimiter in ("'", '"', '\\'):
+            return StepResult(
+                success=False,
+                error=f"bulk_load: invalid delimiter {delimiter!r} — must be a single printable non-quote character",
+            )
         try:
             validate_identifier(target_table, 'target_table')
         except ValueError as e:
@@ -191,18 +196,14 @@ def _load_bulk_load_config(config_id: str) -> dict | None:
 # ─── Connection helpers ────────────────────────────────────────────────────────
 
 def _resolve_connection(connection_id: str) -> dict:
-    from flowforge.crypto import decrypt_value
+    from flowforge.crypto import decrypt_config
     from flowforge.db.models import DbConnection as DbConnectionModel, db
 
     row = db.session.get(DbConnectionModel, connection_id)
     if not row:
         raise ValueError(f'DB connection not found: {connection_id}')
 
-    _ENCRYPTED_FIELDS = {'password', 'host', 'username', 'service'}
-    config = {
-        k: (decrypt_value(v) if k in _ENCRYPTED_FIELDS and v else v)
-        for k, v in row.config.items()
-    }
+    config = decrypt_config(row.config)
     config['_db_type'] = row.db_type
     return config
 
@@ -269,6 +270,8 @@ def _load_python_fallback(
         if header_rows >= 1 and all_rows:
             raw_cols = [c.strip() for c in all_rows[0]]
             cols = [col_map.get(c, c) for c in raw_cols]
+            for col in cols:
+                validate_identifier(col, 'column name')
         else:
             cols = [f'col{i}' for i in range(len(data_rows[0]))]
 
@@ -328,6 +331,8 @@ def _load_postgres_copy(
         if header_rows >= 1 and all_lines:
             raw_header = next(csv.reader([all_lines[0]], delimiter=delimiter))
             mapped_header = [col_map.get(c.strip(), c.strip()) for c in raw_header]
+            for col in mapped_header:
+                validate_identifier(col, 'column name')
         else:
             mapped_header = None
 
@@ -414,11 +419,21 @@ def _load_sqlloader(
         service  = conn_cfg.get('database', '')
         dsn      = f'{host}:{port}/{service}'
 
-        cmd = [
-            'sqlldr', f'{user}/{password}@{dsn}',
-            f'control={ctl_file}', f'log={log_file}', f'bad={bad_file}',
-            'silent=header,feedback',
-        ]
+        par_file = tmpdir / 'load.par'
+        par_file.write_text(
+            f'userid={user}/{password}@{dsn}\n'
+            f'control={ctl_file}\n'
+            f'log={log_file}\n'
+            f'bad={bad_file}\n'
+            'silent=header,feedback\n',
+            encoding='utf-8',
+        )
+        try:
+            par_file.chmod(0o600)
+        except NotImplementedError:
+            pass  # Windows; tmpdir is already process-private
+
+        cmd = ['sqlldr', f'parfile={par_file}']
         subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
 
         log_text = log_file.read_text(errors='replace') if log_file.exists() else ''

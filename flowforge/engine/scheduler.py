@@ -94,42 +94,6 @@ def _sync_pipeline_jobs() -> None:
     logger.info("Sync complete: %d active job(s), %d removed.", registered, removed)
 
 
-def _load_pipeline_jobs(scheduler: BlockingScheduler) -> None:
-    """Add-only job loader used by check_scheduler.py with an external scheduler instance."""
-    from flowforge.db.models import Pipeline, db
-
-    pipelines = db.session.query(Pipeline).filter_by(enabled=True).all()
-    registered = 0
-    for pipeline in pipelines:
-        if not pipeline.schedule:
-            continue
-        try:
-            cron_parts = pipeline.schedule.strip().split()
-            if len(cron_parts) != 5:
-                logger.warning("Invalid cron expression for '%s': %s", pipeline.name, pipeline.schedule)
-                continue
-            minute, hour, day, month, day_of_week = cron_parts
-            scheduler.add_job(
-                _run_pipeline_job,
-                trigger='cron',
-                args=[pipeline.id, pipeline.name],
-                id=f'pipeline_{pipeline.id}',
-                minute=minute,
-                hour=hour,
-                day=day,
-                month=month,
-                day_of_week=day_of_week,
-                replace_existing=True,
-                misfire_grace_time=300,
-            )
-            registered += 1
-            logger.info("Scheduled '%s': %s", pipeline.name, pipeline.schedule)
-        except Exception as e:
-            logger.error("Failed to register schedule for '%s': %s", pipeline.name, e)
-
-    logger.info("Registered %d scheduled pipeline(s).", registered)
-
-
 def _register_cleanup_job() -> None:
     _scheduler.add_job(
         _cleanup_job,
@@ -157,6 +121,26 @@ def _register_sync_job() -> None:
 def _cleanup_job() -> None:
     from flowforge.engine.cleanup import cleanup_output_files
     cleanup_output_files()
+    _prune_token_blocklist()
+
+
+def _prune_token_blocklist() -> None:
+    if _app is None:
+        return
+    try:
+        from datetime import datetime, timezone
+        with _app.app_context():
+            from flowforge.db.models import TokenBlocklist, db
+            deleted = (
+                db.session.query(TokenBlocklist)
+                .filter(TokenBlocklist.expires_at < datetime.now(timezone.utc))
+                .delete()
+            )
+            db.session.commit()
+            if deleted:
+                logger.info("Pruned %d expired token blocklist entry/entries.", deleted)
+    except Exception as e:
+        logger.error("Token blocklist pruning failed: %s", e)
 
 
 def _sync_db_job() -> None:

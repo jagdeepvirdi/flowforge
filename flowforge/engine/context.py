@@ -37,14 +37,56 @@ Built-in variables available in all config strings:
     {{ steps.name.* }}      outputs from a previous step
 """
 import calendar
+import logging
 import os
 from datetime import date, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
-from jinja2 import Environment, Undefined
+logger = logging.getLogger(__name__)
 
-_jinja = Environment(undefined=Undefined)
+_BUILT_IN_VAR_KEYS = frozenset({
+    'current_date', 'current_month', 'current_year',
+    'yesterday', 'week_start', 'week_end',
+    'month_start', 'month_end', 'prev_month_start', 'prev_month_end',
+    'quarter_start', 'quarter_end',
+    'day_start_ts', 'day_end_ts',
+    'yesterday_start_ts', 'yesterday_end_ts',
+    'month_start_ts', 'month_end_ts',
+    'prev_month_start_ts', 'prev_month_end_ts',
+    'timestamp', 'run_id', 'pipeline_name',
+    'last_success_at', 'last_success_date',
+    'env', 'steps', 'vars',
+})
+
+from jinja2 import Undefined
+from jinja2.sandbox import SandboxedEnvironment
+
+_jinja = SandboxedEnvironment(undefined=Undefined)
+
+# Env vars whose values must never be reachable from pipeline templates.
+_ENV_BLOCKLIST = frozenset({
+    'FLOWFORGE_SECRET_KEY',
+    'FLOWFORGE_PASSWORD',
+    'GMAIL_CLIENT_SECRET',
+    'GMAIL_REFRESH_TOKEN',
+    'MICROSOFT_CLIENT_SECRET',
+    'ANTHROPIC_API_KEY',
+})
+
+
+class _SafeEnv:
+    """Read-only view of os.environ that hides credential variables."""
+
+    def __getitem__(self, key: str) -> str:
+        if key in _ENV_BLOCKLIST:
+            return ''
+        return os.environ.get(key, '')
+
+    def get(self, key: str, default: str = '') -> str:
+        if key in _ENV_BLOCKLIST:
+            return default
+        return os.environ.get(key, default)
 
 
 def _built_ins() -> dict[str, Any]:
@@ -109,9 +151,15 @@ def build(
     """Assemble the full variable context for a pipeline run."""
     ctx: dict[str, Any] = _built_ins()
     ctx['pipeline_name'] = pipeline_name
-    ctx['env'] = os.environ
+    ctx['env'] = _SafeEnv()
     ctx['steps'] = step_results or {}
     if pipeline_vars:
+        collisions = _BUILT_IN_VAR_KEYS & pipeline_vars.keys()
+        if collisions:
+            logger.warning(
+                'Pipeline variable(s) overwrite built-in context keys: %s',
+                ', '.join(sorted(collisions)),
+            )
         ctx.update(pipeline_vars)          # {{ mykey }}
         ctx['vars'] = pipeline_vars        # {{ vars.mykey }} — explicit namespace
     return ctx

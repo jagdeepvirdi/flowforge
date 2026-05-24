@@ -1,5 +1,6 @@
 import mimetypes
 import os
+from pathlib import Path
 
 from flask import Blueprint, jsonify, request, send_file
 
@@ -90,14 +91,17 @@ def download_step_output(step_run_id):
     if not step_run.output_path:
         return jsonify({'error': 'No output file for this step'}), 404
 
-    abs_path = os.path.abspath(step_run.output_path)
-    if not os.path.isfile(abs_path):
+    abs_path = Path(step_run.output_path).resolve()
+    output_root = Path(os.environ.get('FLOWFORGE_OUTPUT_DIR', 'output')).resolve()
+    if not str(abs_path).startswith(str(output_root) + os.sep):
+        return jsonify({'error': 'Output file path is not permitted'}), 403
+    if not abs_path.is_file():
         return jsonify({'error': 'Output file no longer exists on disk'}), 404
 
-    mime, _ = mimetypes.guess_type(abs_path)
+    mime, _ = mimetypes.guess_type(str(abs_path))
     return send_file(
         abs_path,
         mimetype=mime or 'application/octet-stream',
         as_attachment=True,
-        download_name=os.path.basename(abs_path),
+        download_name=abs_path.name,
     )

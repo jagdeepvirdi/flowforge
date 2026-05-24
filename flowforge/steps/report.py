@@ -35,7 +35,7 @@ class ReportStep(BaseStep):
 
             if fmt == 'excel':
                 from flowforge.reports.excel_report import generate
-                tmpl = Path(report_cfg['template_path']) if report_cfg.get('template_path') else None
+                tmpl = _resolve_template_path(report_cfg.get('template_path'))
                 generate(rows, columns, output_path,
                          sheet_name=report_cfg.get('sheet_name', 'Sheet1'),
                          template_path=tmpl)
@@ -97,3 +97,15 @@ class ReportStep(BaseStep):
             user=os.environ.get('DB_USER', ''),
             password=os.environ.get('DB_PASSWORD', ''),
         )
+
+
+def _resolve_template_path(raw: str | None) -> Path | None:
+    if not raw:
+        return None
+    template_root = Path(os.environ.get('FLOWFORGE_TEMPLATE_DIR', './templates')).resolve()
+    resolved = (template_root / raw).resolve()
+    if not str(resolved).startswith(str(template_root) + os.sep):
+        raise ValueError(
+            f"Template path {raw!r} is outside FLOWFORGE_TEMPLATE_DIR ({template_root})"
+        )
+    return resolved

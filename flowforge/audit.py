@@ -5,9 +5,8 @@ request context (background threads) so it uses a plain file handler rather
 than the Flask logger.
 
 Rotation: 10 MB per file, 5 backups (logs/audit.log → audit.log.1 … .5).
-Log level: controlled by LOG_LEVEL env var (default INFO). The audit log is a
-security record so WARNING or higher will suppress all events — leave at INFO
-in production.
+Log level: always INFO regardless of LOG_LEVEL — the audit log is a security
+record and must not be silenced by production log-level configuration.
 """
 import logging
 import os
@@ -16,8 +15,6 @@ from pathlib import Path
 
 _LOG_DIR = Path(os.environ.get('FLOWFORGE_LOG_DIR', 'logs'))
 _logger: logging.Logger | None = None
-
-_LEVEL = getattr(logging, os.environ.get('LOG_LEVEL', 'INFO').upper(), logging.INFO)
 
 
 def _get_logger() -> logging.Logger:
@@ -36,7 +33,7 @@ def _get_logger() -> logging.Logger:
                 logging.Formatter('%(asctime)sZ  %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
             )
             logger.addHandler(handler)
-        logger.setLevel(_LEVEL)
+        logger.setLevel(logging.INFO)  # hardcoded — audit log must not follow LOG_LEVEL
         logger.propagate = False
         _logger = logger
     return _logger

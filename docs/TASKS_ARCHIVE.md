@@ -3,6 +3,15 @@
 
 ---
 
+## Session — 2026-05-24 (Score 8.5+ Track, Tests complete) 🟢 *(COMPLETE)*
+
+### Score 8.5+ Track — Tests
+
+- [x] **[SCORE-6] Report generation end-to-end test** — `tests/test_report_e2e.py`: CSV + Excel full-chain tests against real test DB (SQL → ReportStep → file on disk), zero-rows edge case, output_path validation. *Tests +0.5.*
+- [x] **[SCORE-11] Bulk load step tests** — Already complete: `tests/test_bulk_load_step.py` (27 tests) + `tests/test_bulk_load_configs.py` (14 tests). Covers normal load, skip/fail on no files, footer stripping, replace mode, column mapping, archive, config resolution, runner context propagation. *Tests +0.5.*
+
+---
+
 ## Session — 2026-05-24 (Score 8.5+ Track) 🟢 *(COMPLETE)*
 
 ### New Issues — Found in 2026-05-23 Review (all resolved)
