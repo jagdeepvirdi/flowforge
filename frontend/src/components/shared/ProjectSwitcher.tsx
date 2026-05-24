@@ -31,6 +31,7 @@ export default function ProjectSwitcher({ compact = false }: { compact?: boolean
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
     queryFn: getProjects,
+    staleTime: 0,
   })
 
   useEffect(() => {

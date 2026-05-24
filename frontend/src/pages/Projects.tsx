@@ -62,8 +62,8 @@ function ProjectModal({
       project
         ? updateProject(project.id, form)
         : createProject(form),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['projects'] })
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['projects'] })
       onClose()
     },
     onError: (e: Error) => setError(e.message),
