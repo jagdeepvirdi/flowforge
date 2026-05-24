@@ -94,7 +94,7 @@ def test_report_e2e_csv(app, csv_report_id, tmp_path):
     assert out.exists()
     assert out.suffix == '.csv'
 
-    with out.open(newline='') as f:
+    with out.open(newline='', encoding='utf-8-sig') as f:
         reader = csv.reader(f)
         rows = list(reader)
 
@@ -153,7 +153,7 @@ def test_report_e2e_zero_rows(app, client, headers, report_conn_id, tmp_path):
     out = tmp_path / 'e2e_zero.csv'
     assert out.exists()
 
-    with out.open(newline='') as f:
+    with out.open(newline='', encoding='utf-8-sig') as f:
         rows = list(csv.reader(f))
 
     assert len(rows) == 1  # header row only

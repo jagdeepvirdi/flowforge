@@ -58,7 +58,7 @@ class SMTPProvider(EmailProvider):
             msg.attach(part)
 
         all_recipients = to + cc + bcc
-        context = ssl.SSLContext(ssl.PROTOCOL_TLS)
+        context = ssl.create_default_context()
         try:
             if self.use_ssl:
                 server = smtplib.SMTP_SSL(self.host, self.port, timeout=30)
