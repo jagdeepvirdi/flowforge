@@ -36,6 +36,11 @@ def auth_refresh():
     return jsonify({'token': generate_token(username)})
 
 
+def _ai_enabled() -> bool:
+    val = os.environ.get('FLOWFORGE_AI_ENABLED', 'true').lower().strip()
+    return val not in ('false', '0', 'no', 'off')
+
+
 @bp.get('/setup/status')
 @require_auth
 def setup_status():
@@ -55,6 +60,10 @@ def setup_status():
         'microsoft365': {
             'configured': _all('MICROSOFT_TENANT_ID', 'MICROSOFT_CLIENT_ID', 'MICROSOFT_CLIENT_SECRET', 'MICROSOFT_SENDER_EMAIL'),
             'sender': os.environ.get('MICROSOFT_SENDER_EMAIL', ''),
+        },
+        'ai': {
+            'enabled': _ai_enabled(),
+            'ollama_url': os.environ.get('OLLAMA_URL', 'http://localhost:11434'),
         },
     })
 

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { ExternalLink, CheckCircle2, XCircle } from 'lucide-react'
+import { ExternalLink, CheckCircle2, XCircle, BrainCircuit } from 'lucide-react'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 import PageIntro from '../components/shared/PageIntro'
@@ -104,8 +104,8 @@ export default function Settings() {
                   <StatusBadge
                     ok={status.microsoft365.configured}
                     label={status.microsoft365.configured
-                      ? `Connected · ${status.microsoft365.sender}`
-                      : 'Not configured'}
+                      ? `M365 · ${status.microsoft365.sender}`
+                      : 'M365 not configured'}
                   />
                 )
               }
@@ -121,6 +121,41 @@ export default function Settings() {
               onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}>
               Step-by-step Microsoft 365 setup guide <ExternalLink size={11} />
             </a>
+          </div>
+
+          {/* AI Features */}
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
+                <BrainCircuit size={15} style={{ color: 'var(--text-muted)' }} />
+                AI Features (Ollama)
+              </div>
+              {isLoading
+                ? <Spinner size={14} />
+                : status && (
+                  <StatusBadge
+                    ok={status.ai.enabled}
+                    label={status.ai.enabled ? `Enabled · ${status.ai.ollama_url}` : 'Disabled'}
+                  />
+                )
+              }
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
+              SQL Explain, SQL Optimize, Data Profiler, Chart Generator, and Pipeline Failure Diagnosis all
+              route through a local <InlineCode>Ollama</InlineCode> instance — no data leaves your machine and there is no API cost.
+              Set <InlineCode>FLOWFORGE_AI_ENABLED=false</InlineCode> to hide all AI buttons and disable all AI endpoints.
+            </p>
+            {status && !status.ai.enabled && (
+              <div style={{ padding: '8px 12px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 6, fontSize: 12, color: 'var(--text-2)' }}>
+                AI is currently disabled. Remove or change the env var below and restart to re-enable.
+              </div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <CodeBlock>FLOWFORGE_AI_ENABLED=true   # set to false to disable all AI features</CodeBlock>
+              <CodeBlock>OLLAMA_URL=http://localhost:11434</CodeBlock>
+              <CodeBlock>OLLAMA_CHART_MODEL=llama3.2:3b   # model for chart & profile tasks</CodeBlock>
+              <CodeBlock>OLLAMA_QUERY_MODEL=llama3.2:3b   # model for explain/optimize/diagnose</CodeBlock>
+            </div>
           </div>
 
           {/* YAML export/import */}

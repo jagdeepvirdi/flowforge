@@ -28,7 +28,9 @@ Built-in variables available in all config strings:
   Other:
     {{ current_month }}     YYYY-MM
     {{ current_year }}      YYYY
+    {{ mon_year }}          MON-YYYY  e.g. AUG-2026  (for human-readable filenames)
     {{ timestamp }}         DDMMYYYYHHmmSS (unique per second, for filenames)
+    {{ now_ts }}            YYYYMMDDHHmmSS e.g. 20260824223155 (sortable filename timestamp)
     {{ run_id }}            UUID of the current pipeline run
     {{ pipeline_name }}     name of the running pipeline
     {{ last_success_at }}   YYYYMMDDHHmmSS of the last successful run (set by runner)
@@ -54,7 +56,7 @@ _BUILT_IN_VAR_KEYS = frozenset({
     'yesterday_start_ts', 'yesterday_end_ts',
     'month_start_ts', 'month_end_ts',
     'prev_month_start_ts', 'prev_month_end_ts',
-    'timestamp', 'run_id', 'pipeline_name',
+    'timestamp', 'now_ts', 'mon_year', 'run_id', 'pipeline_name',
     'last_success_at', 'last_success_date',
     'env', 'steps', 'vars',
 })
@@ -139,6 +141,8 @@ def _built_ins() -> dict[str, Any]:
 
         # Run metadata
         'timestamp':    now.strftime('%d%m%Y%H%M%S'),
+        'now_ts':       now.strftime('%Y%m%d%H%M%S'),
+        'mon_year':     now.strftime('%b').upper() + '-' + now.strftime('%Y'),
         'run_id':       str(uuid4()),
     }
 

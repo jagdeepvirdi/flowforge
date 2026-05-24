@@ -1,11 +1,38 @@
 import mimetypes
 import os
+import statistics
 from pathlib import Path
 
 from flask import Blueprint, jsonify, request, send_file
 
 from flowforge.api.auth import require_auth
 from flowforge.db.models import Pipeline, PipelineRun, StepRun, db
+
+_ANOMALY_MIN_HISTORY = 5
+_ANOMALY_THRESHOLD   = 2.0   # z-score
+
+
+def _check_anomaly(history: list, current) -> dict | None:
+    if current is None or len(history) < _ANOMALY_MIN_HISTORY:
+        return None
+    try:
+        mean  = statistics.mean(history)
+        stdev = statistics.stdev(history)
+    except statistics.StatisticsError:
+        return None
+    if stdev == 0:
+        return None
+    z = abs(current - mean) / stdev
+    if z < _ANOMALY_THRESHOLD:
+        return None
+    pct_diff = (current - mean) / mean * 100 if mean != 0 else 0
+    return {
+        'value':    current,
+        'mean':     round(mean, 1),
+        'std':      round(stdev, 1),
+        'z_score':  round(z, 2),
+        'pct_diff': round(pct_diff, 1),
+    }
 
 bp = Blueprint('runs', __name__)
 
@@ -80,6 +107,48 @@ def get_run(run_id):
     if not run:
         return jsonify({'error': 'Run not found'}), 404
     return jsonify(_run_dict(run, include_steps=True))
+
+
+@bp.get('/runs/<uuid:run_id>/anomalies')
+@require_auth
+def get_run_anomalies(run_id):
+    """Return statistical anomalies (>2σ) for each step in this run vs its 30-run history."""
+    run = db.session.get(PipelineRun, str(run_id))
+    if not run:
+        return jsonify({'error': 'Run not found'}), 404
+    if not run.pipeline_id:
+        return jsonify([])
+
+    result = []
+    for step in sorted(run.step_runs, key=lambda s: s.step_order):
+        history = (
+            db.session.query(StepRun)
+            .join(PipelineRun, StepRun.pipeline_run_id == PipelineRun.id)
+            .filter(
+                PipelineRun.pipeline_id == run.pipeline_id,
+                StepRun.step_name == step.step_name,
+                StepRun.status == 'success',
+                PipelineRun.id != str(run_id),
+            )
+            .order_by(StepRun.started_at.desc())
+            .limit(30)
+            .all()
+        )
+        rows_hist = [h.rows_affected for h in history if h.rows_affected is not None]
+        dur_hist  = [h.duration_ms   for h in history if h.duration_ms   is not None]
+
+        rows_anomaly = _check_anomaly(rows_hist, step.rows_affected)
+        dur_anomaly  = _check_anomaly(dur_hist,  step.duration_ms)
+
+        if rows_anomaly or dur_anomaly:
+            result.append({
+                'step_id':          step.id,
+                'step_name':        step.step_name,
+                'rows_anomaly':     rows_anomaly,
+                'duration_anomaly': dur_anomaly,
+            })
+
+    return jsonify(result)
 
 
 @bp.get('/step-runs/<uuid:step_run_id>/download')

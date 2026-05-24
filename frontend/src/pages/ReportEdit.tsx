@@ -4,18 +4,19 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { ArrowLeft, Play, Save, RefreshCw, Check } from 'lucide-react'
+import { ArrowLeft, Play, Save, RefreshCw, Check, BarChart2, Lightbulb, Wand2, Activity, X } from 'lucide-react'
 import {
   getReportConfig, createReportConfig, updateReportConfig, previewReport,
-  getDbConnections,
+  generateChartConfig, aiQuery, profileData, getDbConnections, getSetupStatus,
 } from '../lib/api'
 import type { ReportFormat } from '../lib/types'
+import ChartPreview, { type ChartConfig } from '../components/report/ChartPreview'
 import { useProjectStore } from '../lib/store'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 import Sk from '../components/shared/Skeleton'
 
-const VAR_HINTS = ['{{ current_date }}', '{{ current_month }}', '{{ current_year }}', '{{ timestamp }}', '{{ run_id }}']
+const VAR_HINTS = ['{{ current_date }}', '{{ current_month }}', '{{ current_year }}', '{{ mon_year }}', '{{ now_ts }}', '{{ timestamp }}', '{{ run_id }}']
 const FORMAT_EXT: Record<ReportFormat, string> = { excel: '.xlsx', csv: '.csv', pdf: '.pdf', json: '.json' }
 
 const schema = z.object({
@@ -39,6 +40,8 @@ export default function ReportEdit() {
 
   const { data: existing, isLoading } = useQuery({ queryKey: ['report-config', id], queryFn: () => getReportConfig(id!), enabled: !isNew })
   const { data: dbConns = [] } = useQuery({ queryKey: ['db-connections'], queryFn: getDbConnections })
+  const { data: setupStatus } = useQuery({ queryKey: ['setup-status'], queryFn: getSetupStatus, staleTime: 60_000 })
+  const aiEnabled = setupStatus?.ai?.enabled ?? true
 
   const { register, handleSubmit, watch, getValues, setValue, reset, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -53,6 +56,16 @@ export default function ReportEdit() {
   const [error, setError] = useState('')
   const [preview, setPreview] = useState<{ columns: string[]; rows: unknown[][] } | null>(null)
   const [previewing, setPreviewing] = useState(false)
+  const [chartConfig, setChartConfig] = useState<ChartConfig | null>(null)
+  const [visualizing, setVisualizing] = useState(false)
+  const [explanation, setExplanation] = useState<string | null>(null)
+  const [explaining, setExplaining] = useState(false)
+  const [optimization, setOptimization] = useState<{ original: string; suggested: string } | null>(null)
+  const [optimizing, setOptimizing] = useState(false)
+  const [profileConsented, setProfileConsented] = useState(false)
+  const [profilePending, setProfilePending] = useState(false)
+  const [profileResult, setProfileResult] = useState<string | null>(null)
+  const [profiling, setProfiling] = useState(false)
 
   const format = watch('format')
   const name   = watch('name')
@@ -95,10 +108,96 @@ export default function ReportEdit() {
     try {
       const result = await previewReport(id)
       setPreview(result)
+      setChartConfig(null)
+      setExplanation(null)
+      setOptimization(null)
+      setProfileResult(null)
+      setProfilePending(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Preview failed')
     } finally {
       setPreviewing(false)
+    }
+  }
+
+  const handleExplain = async () => {
+    const sql = getValues('query').trim()
+    if (!sql) return
+    setExplaining(true)
+    setError('')
+    try {
+      const { result } = await aiQuery({ task: 'explain', sql })
+      setExplanation(result)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Explanation failed')
+    } finally {
+      setExplaining(false)
+    }
+  }
+
+  const handleOptimize = async () => {
+    const sql = getValues('query').trim()
+    if (!sql) return
+    setOptimizing(true)
+    setError('')
+    try {
+      const { result } = await aiQuery({ task: 'optimize', sql })
+      setOptimization({ original: sql, suggested: result })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Optimization failed')
+    } finally {
+      setOptimizing(false)
+    }
+  }
+
+  const doProfile = async () => {
+    if (!preview) return
+    setProfiling(true)
+    setProfileResult(null)
+    setError('')
+    try {
+      const { result } = await profileData({ columns: preview.columns, rows: preview.rows })
+      setProfileResult(result)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Profiling failed')
+    } finally {
+      setProfiling(false)
+    }
+  }
+
+  const handleSummarise = () => {
+    if (!preview) return
+    if (profileConsented) {
+      doProfile()
+    } else {
+      setProfilePending(true)
+    }
+  }
+
+  const handleProfileProceed = () => {
+    setProfileConsented(true)
+    setProfilePending(false)
+    doProfile()
+  }
+
+  const acceptOptimization = () => {
+    if (!optimization) return
+    setValue('query', optimization.suggested)
+    setOptimization(null)
+    setExplanation(null)
+  }
+
+  const handleVisualize = async () => {
+    if (!preview) return
+    setVisualizing(true)
+    setError('')
+    try {
+      const cfg = await generateChartConfig({ columns: preview.columns, rows: preview.rows })
+      setChartConfig(cfg as ChartConfig)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Visualization failed')
+    } finally {
+      setVisualizing(false)
     }
   }
 
@@ -142,6 +241,16 @@ export default function ReportEdit() {
             {!isNew && (
               <button className="btn btn-sm" onClick={handlePreview} disabled={previewing}>
                 {previewing ? <Spinner size={12} /> : <Play size={12} />} Run query
+              </button>
+            )}
+            {!isNew && preview && aiEnabled && (
+              <button className="btn btn-sm" onClick={handleVisualize} disabled={visualizing}>
+                {visualizing ? <Spinner size={12} /> : <BarChart2 size={12} />} Visualize
+              </button>
+            )}
+            {!isNew && preview && aiEnabled && (
+              <button className="btn btn-sm" onClick={handleSummarise} disabled={profiling}>
+                {profiling ? <Spinner size={12} /> : <Activity size={12} />} Summarise
               </button>
             )}
             <button className="btn btn-primary btn-sm" onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
@@ -256,9 +365,21 @@ export default function ReportEdit() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text)', fontWeight: 500 }}>
                 <span className="mono" style={{ color: 'var(--text-3)' }}>query.sql</span>
               </div>
-              <button className="btn btn-sm btn-ghost" onClick={handlePreview} disabled={previewing}>
-                {previewing ? <Spinner size={12} /> : <RefreshCw size={12} />} Run
-              </button>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                {aiEnabled && (
+                  <button className="btn btn-sm btn-ghost" onClick={handleExplain} disabled={explaining}>
+                    {explaining ? <Spinner size={12} /> : <Lightbulb size={12} />} Explain
+                  </button>
+                )}
+                {aiEnabled && (
+                  <button className="btn btn-sm btn-ghost" onClick={handleOptimize} disabled={optimizing}>
+                    {optimizing ? <Spinner size={12} /> : <Wand2 size={12} />} Optimize
+                  </button>
+                )}
+                <button className="btn btn-sm btn-ghost" onClick={handlePreview} disabled={previewing}>
+                  {previewing ? <Spinner size={12} /> : <RefreshCw size={12} />} Run
+                </button>
+              </div>
               {errors.query && <span style={{ fontSize: 11.5, color: 'var(--failure)', marginLeft: 8 }}>{errors.query.message}</span>}
             </div>
             <div style={{ background: 'var(--bg)', padding: 0 }}>
@@ -271,6 +392,72 @@ export default function ReportEdit() {
               />
             </div>
           </div>
+
+          {/* SQL Optimization diff */}
+          {optimization && (
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 14px', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Wand2 size={13} style={{ color: '#F97316' }} />
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>SQL Optimization</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 10.5, color: 'var(--text-dim)' }}>via Ollama</span>
+                  <button onClick={() => setOptimization(null)} style={{ display: 'flex', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 2 }}>
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Side-by-side diff */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
+                <div style={{ borderRight: '1px solid var(--border)' }}>
+                  <div style={{ padding: '6px 14px', borderBottom: '1px solid var(--border)', background: 'rgba(239,68,68,0.04)' }}>
+                    <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Original</span>
+                  </div>
+                  <pre style={{ margin: 0, padding: '12px 14px', fontSize: 12, lineHeight: 1.65, color: 'var(--text-2)', overflowX: 'auto', fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap', wordBreak: 'break-all', background: 'rgba(239,68,68,0.02)', maxHeight: 320 }}>
+                    {optimization.original}
+                  </pre>
+                </div>
+                <div>
+                  <div style={{ padding: '6px 14px', borderBottom: '1px solid var(--border)', background: 'rgba(34,197,94,0.05)' }}>
+                    <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Suggested</span>
+                  </div>
+                  <pre style={{ margin: 0, padding: '12px 14px', fontSize: 12, lineHeight: 1.65, color: 'var(--text-2)', overflowX: 'auto', fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap', wordBreak: 'break-all', background: 'rgba(34,197,94,0.02)', maxHeight: 320 }}>
+                    {optimization.suggested}
+                  </pre>
+                </div>
+              </div>
+
+              {/* Footer actions */}
+              <div style={{ display: 'flex', gap: 8, padding: '10px 14px', borderTop: '1px solid var(--border)', justifyContent: 'flex-end' }}>
+                <button className="btn btn-sm" onClick={() => setOptimization(null)}>Dismiss</button>
+                <button className="btn btn-primary btn-sm" onClick={acceptOptimization}>Accept suggestion</button>
+              </div>
+            </div>
+          )}
+
+          {/* SQL Explanation */}
+          {explanation !== null && (
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 14px', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Lightbulb size={13} style={{ color: '#F97316' }} />
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>SQL Explanation</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 10.5, color: 'var(--text-dim)' }}>via Ollama</span>
+                  <button onClick={() => setExplanation(null)} style={{ display: 'flex', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 2 }}>
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+              <div style={{ padding: '14px 16px', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>
+                {explanation}
+              </div>
+            </div>
+          )}
 
           {/* Preview table */}
           {preview && (
@@ -296,6 +483,59 @@ export default function ReportEdit() {
                 </table>
               </div>
             </div>
+          )}
+
+          {/* Data profile opt-in banner */}
+          {profilePending && (
+            <div style={{ padding: '12px 14px', background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.18)', borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9 }}>
+                <Activity size={14} style={{ color: '#3B82F6', marginTop: 1, flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>Data Profiling — Local Only</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.65 }}>
+                    Your preview rows (up to 20) will be sent to your <strong>local Ollama instance</strong> for analysis.
+                    No data leaves your machine.
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button className="btn btn-sm" onClick={() => setProfilePending(false)}>Cancel</button>
+                <button className="btn btn-primary btn-sm" onClick={handleProfileProceed} disabled={profiling}>
+                  {profiling ? <Spinner size={12} /> : <Activity size={12} />} Proceed
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Data profile result */}
+          {profileResult !== null && (
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 14px', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Activity size={13} style={{ color: '#F97316' }} />
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Data Profile</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 10.5, color: 'var(--text-dim)' }}>via Ollama</span>
+                  <button onClick={() => setProfileResult(null)} style={{ display: 'flex', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 2 }}>
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+              <div style={{ padding: '14px 16px', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>
+                {profileResult}
+              </div>
+            </div>
+          )}
+
+          {/* AI Chart */}
+          {chartConfig && preview && (
+            <ChartPreview
+              columns={preview.columns}
+              rows={preview.rows}
+              config={chartConfig}
+              onConfigChange={setChartConfig}
+            />
           )}
         </div>
       </div>

@@ -478,6 +478,8 @@ Available in all config values rendered via Jinja2:
 | `{{ current_date }}` | 2026-05-16 |
 | `{{ current_year }}` | 2026 |
 | `{{ yesterday }}` | 2026-05-15 |
+| `{{ mon_year }}` | AUG-2026 |
+| `{{ now_ts }}` | 20260824223155 |
 | `{{ run_id }}` | UUID of current run |
 | `{{ pipeline_name }}` | Monthly Revenue Report |
 | `{{ failed_step }}` | Generate Excel Report |

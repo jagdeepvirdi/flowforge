@@ -167,6 +167,21 @@ export interface BulkLoadConfig {
   updated_at: string
 }
 
+export interface AnomalyMetric {
+  value: number
+  mean: number
+  std: number
+  z_score: number
+  pct_diff: number
+}
+
+export interface StepAnomaly {
+  step_id: string
+  step_name: string
+  rows_anomaly: AnomalyMetric | null
+  duration_anomaly: AnomalyMetric | null
+}
+
 export interface RecipientGroup {
   id: string
   name: string

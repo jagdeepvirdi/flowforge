@@ -92,6 +92,16 @@ export const createReportConfig = (data: Partial<import('./types').ReportConfig>
 export const updateReportConfig = (id: string, data: Partial<import('./types').ReportConfig>) => put<import('./types').ReportConfig>(`/report-configs/${id}`, data)
 export const deleteReportConfig = (id: string) => del<{ deleted: string }>(`/report-configs/${id}`)
 export const previewReport      = (id: string) => post<{ columns: string[]; rows: unknown[][] }>(`/report-configs/${id}/preview`)
+export const profileData = (payload: { columns: string[]; rows: unknown[][] }) =>
+  post<{ result: string }>('/ai/data-profile', payload)
+export const generateChartConfig = (payload: { columns: string[]; rows: unknown[][]; hint?: string }) =>
+  post<{ type: string; x: string; y: string; title: string; available_columns: string[] }>('/ai/chart-config', payload)
+type AiQueryPayload =
+  | { task: 'explain';  sql: string }
+  | { task: 'optimize'; sql: string }
+  | { task: 'diagnose'; step_type: string; error: string; logs?: string | null }
+export const aiQuery = (payload: AiQueryPayload) =>
+  post<{ result: string }>('/ai/query', payload)
 
 // Email configs
 export const getEmailConfigs   = (params?: { project_id?: string }) => {
@@ -143,12 +153,18 @@ export const getRuns = (params?: { pipeline_id?: string; project_id?: string; st
   return get<import('./types').PipelineRun[]>(`/runs${q ? `?${q}` : ''}`)
 }
 export const getRun = (id: string) => get<import('./types').PipelineRun>(`/runs/${id}`)
+export const getRunAnomalies = (id: string) => get<import('./types').StepAnomaly[]>(`/runs/${id}/anomalies`)
+export const getAnomalyNarrative = (payload: {
+  step_name: string; metric: 'rows' | 'duration'
+  value: number; mean: number; pct_diff: number
+}) => post<{ result: string }>('/ai/anomaly-narrative', payload)
 
 // Setup / OAuth status
 export type SetupStatus = {
   gmail:        { configured: boolean; sender: string }
   drive:        { configured: boolean; folder_id: string }
   microsoft365: { configured: boolean; sender: string }
+  ai:           { enabled: boolean; ollama_url: string }
 }
 export const getSetupStatus = () => get<SetupStatus>('/setup/status')
 
