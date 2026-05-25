@@ -50,6 +50,29 @@
   --shadow: 0 4px 16px rgba(0,0,0,0.32);
 }
 
+.light {
+  --bg:            #F8FAFC;
+  --surface:       #FFFFFF;
+  --surface-2:     #F1F5F9;
+  --surface-3:     #E2E8F0;
+  --border:        #CBD5E1;
+  --border-strong: #94A3B8;
+
+  --text:         #0F172A;
+  --text-2:       #334155;
+  --text-3:       #475569;
+  --text-muted:   #64748B;
+  --text-dim:     #94A3B8;
+
+  --bg-code:       #E2E8F0;
+  --surface-hover: #E2E8F0;
+
+  --success-text: #15803D;
+  --failure-text: #DC2626;
+  --running-text: #2563EB;
+  --accent-text:  #EA580C;
+}
+
 /* ── Base ───────────────────────────────────────────── */
 * { box-sizing: border-box; }
 
