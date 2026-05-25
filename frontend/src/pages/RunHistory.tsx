@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { Search, ChevronRight, Clock, User } from 'lucide-react'
+import { Search, ChevronRight, Clock, User, Download } from 'lucide-react'
 import { getRuns, getPipelines } from '../lib/api'
 import { useProjectStore } from '../lib/store'
+import { useAuth } from '../lib/auth'
 import StatusBadge from '../components/shared/StatusBadge'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
@@ -27,6 +28,7 @@ export default function RunHistory() {
   const [search, setSearch] = useState('')
   const [limit, setLimit]   = useState(PAGE_SIZE)
   const { activeProjectId } = useProjectStore()
+  const { token } = useAuth()
 
   useEffect(() => { setLimit(PAGE_SIZE) }, [filterPipeline, filterStatus, activeProjectId])
 
@@ -55,6 +57,32 @@ export default function RunHistory() {
   const successCount = filtered.filter(r => r.status === 'success').length
   const failedCount  = filtered.filter(r => r.status === 'failed').length
   const runningCount = filtered.filter(r => r.status === 'running').length
+
+  const handleExportCSV = () => {
+    const params = new URLSearchParams()
+    if (filterPipeline && filterPipeline !== '__deleted__') params.set('pipeline_id', filterPipeline)
+    if (filterStatus) params.set('status', filterStatus)
+    if (activeProjectId) params.set('project_id', activeProjectId)
+    params.set('format', 'csv')
+    
+    const url = `/api/runs/export?${params.toString()}`
+    const headers: HeadersInit = {}
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    
+    fetch(url, { headers })
+      .then(res => res.blob())
+      .then(blob => {
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `run_history_${new Date().toISOString().split('T')[0]}.csv`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        window.URL.revokeObjectURL(url)
+      })
+      .catch(err => console.error('Export failed:', err))
+  }
 
   if (isLoading) return (
     <>
@@ -185,6 +213,15 @@ export default function RunHistory() {
             <option value="running">Running</option>
             <option value="cancelled">Cancelled</option>
           </select>
+          <button
+            className="btn btn-sm"
+            onClick={handleExportCSV}
+            disabled={filtered.length === 0}
+            style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <Download size={14} />
+            Export CSV
+          </button>
         </div>
 
         <div className="card" style={{ overflow: 'hidden', padding: 0 }}>

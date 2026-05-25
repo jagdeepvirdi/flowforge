@@ -1,14 +1,16 @@
+import csv
+import io
 import mimetypes
 import os
 import statistics
 from collections import defaultdict
 from pathlib import Path
 
-from flask import Blueprint, jsonify, request, send_file
+from flask import Blueprint, Response, jsonify, request, send_file
 
 from flowforge.api.auth import require_auth, require_role
 from flowforge.api.serializers import run_dict, step_run_dict
-from flowforge.db.models import Pipeline, PipelineRun, db
+from flowforge.db.models import Pipeline, PipelineRun, StepRun, db
 
 _ANOMALY_MIN_HISTORY = 5
 _ANOMALY_THRESHOLD   = 2.0   # z-score
@@ -98,6 +100,73 @@ def list_runs():
 
     runs = query.offset(offset).limit(limit).all()
     return jsonify([run_dict(r) for r in runs])
+
+
+@bp.get('/runs/export')
+@require_auth
+def export_runs():
+    """Export pipeline runs as CSV"""
+    format_type = request.args.get('format', 'csv')
+    if format_type != 'csv':
+        return jsonify({'error': 'Only CSV format is supported'}), 400
+    
+    query = db.session.query(PipelineRun).order_by(PipelineRun.started_at.desc())
+    
+    pipeline_id = request.args.get('pipeline_id')
+    project_id  = request.args.get('project_id')
+    status      = request.args.get('status')
+    
+    if pipeline_id:
+        query = query.filter(PipelineRun.pipeline_id == pipeline_id)
+    if project_id:
+        query = (
+            query
+            .join(Pipeline, PipelineRun.pipeline_id == Pipeline.id)
+            .filter(Pipeline.project_id == project_id)
+        )
+    if status:
+        query = query.filter(PipelineRun.status == status)
+    
+    runs = query.all()
+    
+    # Create CSV in memory
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow([
+        'Pipeline Name',
+        'Run ID',
+        'Status',
+        'Triggered By',
+        'Started At',
+        'Finished At',
+        'Duration (ms)',
+        'Error Message'
+    ])
+    
+    # Write data rows
+    for run in runs:
+        writer.writerow([
+            run.pipeline_name,
+            str(run.id),
+            run.status,
+            run.triggered_by or '',
+            run.started_at.isoformat() if run.started_at else '',
+            run.finished_at.isoformat() if run.finished_at else '',
+            run.duration_ms or '',
+            run.error_message or ''
+        ])
+    
+    # Return CSV response
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={
+            'Content-Disposition': 'attachment; filename=run_history.csv'
+        }
+    )
 
 
 @bp.get('/runs/<uuid:run_id>')
