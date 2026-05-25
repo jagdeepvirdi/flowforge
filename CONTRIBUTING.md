@@ -130,6 +130,8 @@ Open `http://localhost:5173` in your browser.
 
 ## Running Tests
 
+**Policy:** All new functionality must include tests. Bug fixes must include a regression test. PRs without tests will not be merged.
+
 Tests use `pytest` and hit a real PostgreSQL database. They do **not** use mocked DB connections — this was a deliberate choice after mock/real divergence caused issues in the past.
 
 ### Test database setup
