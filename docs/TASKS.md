@@ -56,10 +56,10 @@
 *These badges appear at the top of the README and immediately signal project maturity to visitors and recruiters.*
 
 ### 2.1 SonarCloud (Highest Priority Badge)
-- [ ] Create a SonarCloud account and link the GitHub repo (free for open source)
-- [ ] Add `sonarcloud.yml` GitHub Action to scan on every push
-- [ ] Fix any critical / blocker issues SonarCloud flags before release
-- [ ] Add badges to README: **Quality Gate**, **Bugs**, **Technical Debt**
+- [x] SonarCloud account created, repo linked, `SONAR_TOKEN` added to GitHub secrets
+- [x] `sonar-project.properties` added; SonarCloud scan step wired into `test.yml` (runs after pytest coverage)
+- [ ] Check first scan results — fix any Critical/Blocker issues
+- [ ] Add **Quality Gate** badge to README once first scan passes
 - [ ] Take a screenshot of the SonarCloud dashboard for LinkedIn post
 
 ### 2.2 OpenSSF Scorecard (Security Credibility)
