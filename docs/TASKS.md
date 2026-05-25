@@ -72,10 +72,9 @@
 - [ ] `connections.py` — already done; verify read routes
 - [ ] Tests: spot-check that viewer token gets 403 on write routes, 200 on reads
 
-### MU-4 — Audit log `user_id` attribution *(backend)*
-- [ ] `audit.py` — read `g.current_user_id` (set by `require_auth`) and include in every log entry
-- [ ] Verify structured log lines contain `user_id` field for all existing audit calls
-- [ ] No new migrations needed — audit log is file-based
+### MU-4 — Audit log user attribution *(backend)* — partially done ✅
+- [x] `audit.py` — `_current_user()` reads `g.user_token['sub']` (username) and appends `by=<username>` to every log entry. All `audit.log_*` call sites covered. ✅
+- [ ] When MU-1 adds `user_id` to the JWT payload, optionally also log `user_id=<uuid>` alongside the username for cross-referencing with `ff_users`
 
 ### MU-5 — Frontend role context *(frontend)*
 - [ ] `lib/api.ts` — add `getMe(): Promise<{ id, username, role }>` calling `GET /api/auth/me`
@@ -110,11 +109,9 @@
 - [ ] Verify end-to-end: trigger a pipeline run via API, confirm Celery worker picks it up and writes run history
 - [ ] (Optional) Add Flower dashboard service to `docker-compose.yml` for real-time task monitoring
 
-### Audit Log `user_id` Attribution — MU-4
-- [ ] `require_auth` in `auth.py` — set `g.current_user_id` after token decode
-- [ ] `audit.py` — read `g.current_user_id` and include `user_id` field in every structured log entry
-- [ ] Verify all existing `audit.log_*` call sites emit `user_id` in their output
-- [ ] *(No new migrations needed — audit log is file-based)*
+### Audit Log `user_id` Attribution — MU-4 *(optional follow-up)*
+- `audit.py` already logs `by=<username>` on every entry via `_current_user()` — username attribution is done ✅
+- [ ] After MU-1 adds `user_id` to the JWT, optionally also emit `user_id=<uuid>` in audit entries for UUID-based cross-referencing with `ff_users`
 
 ---
 
@@ -129,7 +126,7 @@
 
 ### P1 — Security & Compliance
 - [ ] **RBAC**: *(In progress — see Multi-User Sprint above)*
-- [ ] **Audit log `user_id` attribution**: *(In progress — MU-4)*
+- [x] **Audit log user attribution** — `_current_user()` in `audit.py` logs `by=<username>` on every entry ✅ *(UUID follow-up after MU-1 — see After Multi-User Sprint)*
 
 ---
 
@@ -213,7 +210,7 @@
 - [x] **Audit log completeness** — login, pipeline events, connection/provider config changes all logged ✅
 - [x] **Structured audit stdout** — `FLOWFORGE_AUDIT_STDOUT=true` emits JSON lines via `_JsonStdoutHandler` ✅
 - [x] **Log rotation** — `RotatingFileHandler` (10 MB × 5 backups) in `audit.py` ✅
-- [ ] **`user_id` in every audit entry** — *(In progress — MU-4)*
+- [x] **Username attribution in every audit entry** — `_current_user()` reads `g.user_token['sub']`; all call sites covered ✅ *(UUID cross-reference optional after MU-1)*
 - [ ] **Audit log UI page** — admin-only view with filters (user, action type, date range)
 - [ ] **Retention policies** — configurable auto-purge of `ff_pipeline_runs` / `ff_step_runs` / audit log after N days
 
