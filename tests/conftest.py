@@ -90,6 +90,7 @@ def app(apply_migrations):
         'SQLALCHEMY_DATABASE_URI': os.environ['FLOWFORGE_DB_URL'],
         'SECRET_KEY': os.environ['FLOWFORGE_SECRET_KEY'],
         'JWT_SECRET':  os.environ['FLOWFORGE_JWT_SECRET'],
+        'RATELIMIT_ENABLED': False,
     })
     yield application
 

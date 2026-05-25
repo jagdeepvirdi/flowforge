@@ -54,13 +54,13 @@
 - [x] `GET /api/auth/me` — returns `{ id, username, role }` for the current token; 401 for legacy tokens without `uid` ✅
 - [x] Tests: 3 new tests — `/api/auth/me` correct fields, requires auth, rejects legacy token without uid — all passing ✅
 
-### MU-2 — User management API *(backend)*
-- [ ] `POST /api/users` — create user: `{ username, password, role }` — admin only
-- [ ] `GET /api/users` — list all users (id, username, role, created_at) — admin only
-- [ ] `PATCH /api/users/{id}` — update role or username — admin only; cannot demote self
-- [ ] `DELETE /api/users/{id}` — delete user — admin only; cannot delete self
-- [ ] `POST /api/auth/change-password` — `{ current_password, new_password }` — any authenticated user
-- [ ] Tests for all five endpoints (auth, role checks, self-protection guards)
+### MU-2 — User management API *(backend)* ✅
+- [x] `POST /api/users` — create user: `{ username, password, role }` — admin only ✅
+- [x] `GET /api/users` — list all users (id, username, role, created_at) — admin only ✅
+- [x] `PATCH /api/users/{id}` — update role or username — admin only; cannot demote self ✅
+- [x] `DELETE /api/users/{id}` — delete user — admin only; cannot delete self ✅
+- [x] `POST /api/auth/change-password` — `{ current_password, new_password }` — any authenticated user; min 8 chars ✅
+- [x] 22 tests covering auth, role checks, self-protection guards, duplicate username, password validation — all passing ✅
 
 ### MU-3 — `@require_role` guards on all remaining routes *(backend)*
 - [ ] `pipelines.py` — create/update/delete/run/clone → `require_role(['admin','editor'])`; GET → `require_auth`
