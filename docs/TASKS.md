@@ -103,17 +103,15 @@
 ## Critical Action Items (Post-Review May 2026)
 
 ### P0 — UX & Confidence
-- [ ] **Email Preview**: Implement `GET /api/email-configs/{id}/preview` and a preview modal in `EmailEdit.tsx`.
 - [ ] **Mobile/Responsive**: Fix the layout breakage on screens smaller than 1200px.
 
 ### P1 — Technical Debt & Scalability
-- [ ] **Frontend Refactor**: Replace inline `style={{...}}` with Tailwind CSS classes or CSS modules in `Dashboard.tsx`, `PipelineEdit.tsx`, and `Layout.tsx`.
-- [ ] **Engine Decoupling**: Move pipeline launch logic from `pipelines.py` to a dedicated `EngineManager` or `RunnerService`. ✅ Done via `launcher.py`
+- [ ] **Frontend Refactor**: Replace inline `style={{...}}` with Tailwind CSS classes or CSS modules — 574 occurrences across 15 files (`Dashboard.tsx`, `PipelineEdit.tsx`, `Layout.tsx` and others).
 - [ ] **Task Queue (v2)**: Migrate from daemon threads to Celery/Redis for reliable execution.
 
 ### P1 — Security & Compliance
-- [ ] **RBAC**: Implement `User.role` (Admin/Editor/Viewer) and API decorators. *(In progress — see Multi-User Sprint above)*
-- [ ] **Full Audit Log**: Log all configuration changes (who changed what connection?). *(In progress — MU-4)*
+- [ ] **RBAC**: *(In progress — see Multi-User Sprint above)*
+- [ ] **Audit log `user_id` attribution**: *(In progress — MU-4)*
 
 ---
 
@@ -129,15 +127,12 @@
 - [ ] Azure Blob upload step
 
 ### More DB Support
-- [ ] MySQL / MariaDB
 - [ ] MSSQL / SQL Server
 - [ ] Generic ODBC
 
 ### Pipeline Features
 - [ ] Pipeline dependencies (run B after A)
 - [ ] Parallel step execution
-- [ ] Step retry with exponential backoff
-- [ ] Pipeline YAML import/export from UI
 
 ### Platform
 - [ ] Plugin system for community step types
@@ -177,17 +172,16 @@
 - [ ] **Add Redis service to `docker-compose.yml`** — broker for Celery; also used for rate-limiter storage and token revocation set
 - [ ] **Celery worker service in `docker-compose.yml`** — separate container running `celery -A flowforge.worker worker`
 - [ ] **Flower dashboard** (optional but recommended) — `celery -A flowforge.worker flower`; real-time task monitoring
-- [ ] **Retry support** — Celery `autoretry_for`, `max_retries`, `countdown` — per-step retry with exponential backoff
 
 ### Scheduler
-- [ ] **Switch APScheduler to PostgreSQL jobstore** — already designed for; set `SQLALCHEMY_JOB_STORE=True`; prevents duplicate job execution when multiple API workers run
-- [ ] **Remove in-memory `_sync_pipeline_jobs`** — no longer needed once jobstore is durable
+- [x] **APScheduler PostgreSQL jobstore** — `SQLAlchemyJobStore` in `scheduler.py`; jobs survive restarts ✅
+- [x] **Remove dead `_load_pipeline_jobs`** — replaced by `_sync_pipeline_jobs` + jobstore ✅
 
 ### API & Infrastructure
 - [ ] **Gunicorn multi-worker deployment** — document `gunicorn -w 4 wsgi:app`; in-memory semaphore doesn't work across workers (resolved by Celery)
 - [ ] **PgBouncer or SQLAlchemy pool tuning** — prevent DB connection exhaustion under load; document `pool_size`, `max_overflow` settings
 - [ ] **Metrics endpoint** — `GET /api/metrics` returning Prometheus-compatible counters: runs queued, running, succeeded, failed; worker count; queue depth
-- [ ] **Graceful shutdown** — `SIGTERM` handler drains in-flight tasks before exit; update `flowforge.ps1` / `flowforge.sh` stop logic
+- [x] **Graceful shutdown** — `flowforge/engine/shutdown.py`; `SIGTERM` handler + `atexit`; `TimeoutStopSec=90` in systemd units ✅
 
 ### Effort estimate: Celery migration alone ~1 week; rest is configuration (1–2 days)
 
@@ -198,17 +192,12 @@
 *Required before FlowForge can be deployed in finance, healthcare, or any environment with a compliance review.*
 
 ### Audit & Logging
-- [ ] **Complete audit log** — currently only pipeline start/end and login are logged; add:
-  - Connection created / modified / deleted (who, when, what changed)
-  - Email provider setup / modified
-  - Email sent (pipeline, step, recipient list, attachment names)
-  - Report generated (pipeline, step, output filename, row count)
-  - User login / logout / failed login (already partial)
-  - Config changes by any user
-- [ ] **Structured audit log** — switch from plain text `logs/audit.log` to structured JSON lines; include `user_id`, `ip`, `action`, `resource_id`, `timestamp`
-- [ ] **Log rotation** — `RotatingFileHandler` (10MB × 5 files) or ship to external log aggregator
-- [ ] **Audit log UI page** — admin-only view of recent audit events with filters (user, action type, date range)
-- [ ] **Retention policies** — configurable auto-purge of `ff_pipeline_runs` / `ff_step_runs` / audit log after N days; `flowforge cleanup --runs-older-than 90d`
+- [x] **Audit log completeness** — login, pipeline events, connection/provider config changes all logged ✅
+- [x] **Structured audit stdout** — `FLOWFORGE_AUDIT_STDOUT=true` emits JSON lines via `_JsonStdoutHandler` ✅
+- [x] **Log rotation** — `RotatingFileHandler` (10 MB × 5 backups) in `audit.py` ✅
+- [ ] **`user_id` in every audit entry** — *(In progress — MU-4)*
+- [ ] **Audit log UI page** — admin-only view with filters (user, action type, date range)
+- [ ] **Retention policies** — configurable auto-purge of `ff_pipeline_runs` / `ff_step_runs` / audit log after N days
 
 ### Identity & Access Hardening
 - [ ] **MFA (TOTP)** — time-based one-time password via `pyotp`; QR code enrollment in Settings; enforced per-user or globally by admin
@@ -217,10 +206,10 @@
 - [ ] **IP allowlisting** — global or per-project; `FLOWFORGE_ALLOWED_IPS` env var; reject requests outside the list at the API middleware level
 
 ### Data Protection
-- [ ] **Report file encryption at rest** — encrypt output files on disk with the `FLOWFORGE_SECRET_KEY`; decrypt on download; prevents data exposure if server storage is compromised
+- [ ] **Report file encryption at rest** — encrypt output files on disk with the `FLOWFORGE_SECRET_KEY`; decrypt on download
 - [ ] **Secrets scanning in CI** — add `detect-secrets` or `truffleHog` GitHub Action to prevent credential commits
-- [ ] **SAST in CI** — add `bandit` (Python) and `eslint-plugin-security` (TypeScript) to the GitHub Actions workflow
-- [ ] **GDPR data export** — `GET /api/admin/export-user-data?user_id=...` — export all pipeline configs, run history, and audit events for a user
+- [x] **SAST in CI** — `bandit` (Python) + `npm audit` in GitHub Actions CI ✅
+- [ ] **GDPR data export** — `GET /api/admin/export-user-data?user_id=...`
 - [ ] **GDPR data deletion** — `DELETE /api/admin/users/{id}` — anonymize run history, remove credentials, delete user record
 
 ### Compliance Documentation

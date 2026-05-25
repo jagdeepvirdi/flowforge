@@ -3,6 +3,23 @@
 
 ---
 
+## Session — 2026-05-25 (TASKS.md Audit — Recovered Completed Items) 🟢 *(COMPLETE)*
+
+*Items found already done in code but still listed as pending in TASKS.md.*
+
+- [x] **Email Preview (P0)** — `GET /api/email-configs/{id}/preview` endpoint in `emails.py`; preview modal in `EmailEdit.tsx`. Verified in code 2026-05-25.
+- [x] **Engine Decoupling (P1)** — `flowforge/engine/launcher.py` extracted; `pipelines.py` now calls `launcher.launch_run`. Done via commit `0e7a29c`.
+- [x] **MySQL / MariaDB support** — `flowforge/connections/mysql.py`; migration `0017` adds `mysql` to DB type constraint; frontend Connections page supports MySQL. (FEAT-1)
+- [x] **Step retry with configurable backoff** — `retry_count` (0–10) and `retry_delay_seconds` (0–3600) in `engine/runner.py:93-114`; per-step config in `StepEditor.tsx`. (FEAT-5)
+- [x] **Pipeline YAML import/export from UI** — Import (file picker) and Export (download) buttons in `Pipelines.tsx`; `POST /api/pipelines/import` + `GET /api/pipelines/{id}/export` endpoints. (FEAT-4)
+- [x] **APScheduler PostgreSQL jobstore** — `SQLAlchemyJobStore` wired in `scheduler.py`; jobs survive scheduler restarts; logged at startup. Commit `9f423ba`.
+- [x] **Graceful shutdown** — `flowforge/engine/shutdown.py`: active-run registry, `_drain(timeout)`, `SIGTERM` handler, `atexit` hook; `TimeoutStopSec=90` in systemd units. (SCORE-7)
+- [x] **Audit log rotation** — `RotatingFileHandler(10 MB, 5 backups)` in `audit.py`; `LOG_LEVEL` env var controls verbosity. (SCORE-4)
+- [x] **Structured audit log (stdout)** — `_JsonStdoutHandler` in `audit.py`; active when `FLOWFORGE_AUDIT_STDOUT=true`; emits ISO-8601 JSON lines. (FEAT-7)
+- [x] **SAST + dependency audit in CI** — `bandit -r flowforge/` (Python SAST) + `npm audit --audit-level=high` (frontend) in `.github/workflows/test.yml`. Commit `8fd9507`.
+
+---
+
 ## Session — 2026-05-25 (Frontend Test Coverage) 🟢 *(COMPLETE)*
 
 - [x] **FEAT-9 · Frontend test coverage** — 24 unit tests (Vitest + React Testing Library) across 5 files; 5 E2E spec files (Playwright) covering login, dashboard, pipelines CRUD, run history, and connections. Global setup/teardown with auth state reuse. Fixed 2 pre-existing broken test mocks (Dashboard, Pipelines). Completed 2026-05-25.
