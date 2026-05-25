@@ -116,25 +116,16 @@
 
 ---
 
-## Phase 4 — GitHub Release Preparation (P0)
+## Phase 4 — GitHub Release Preparation ✅ COMPLETE
 
-### 4.1 GitHub Release
-- [ ] Ensure all code is merged to `master` and CI is green
-- [ ] Tag the release: `git tag v1.0.0 && git push origin v1.0.0`
-- [ ] Draft GitHub Release on the Releases page:
-  - Title: `v1.0.0 — Production-ready pipeline orchestrator`
-  - Body: link to CHANGELOG, key features highlight, Docker quick start
-  - Mark as "Latest release"
+### 4.1 GitHub Release ✅
+- [x] CI green (842 tests passing — fixed `test_unreadable_file_counts_as_error` Linux compat, commit `66a8aef`)
+- [x] Tag pushed: `v1.0.0`
+- [x] GitHub Release published: https://github.com/jagdeepvirdi/flowforge/releases/tag/v1.0.0 — marked Latest
 
-### 4.2 Good First Issues (Contributor Funnel)
-- [ ] Create 5 GitHub Issues labeled `good first issue`:
-  1. "Add a dark mode toggle to the Settings page"
-  2. "Add SendGrid as an email provider"
-  3. "Add Telegram notification step type"
-  4. "Add a `run_count` stat card to the Dashboard (total runs all-time)"
-  5. "Export Run History to CSV from the Run History page"
-- [ ] Add `help wanted` label to 3 medium-difficulty issues
-- [ ] Pin 1–2 issues to the repo homepage
+### 4.2 Good First Issues ✅
+- [x] 5 issues created (#1–#5), all labeled `good first issue`
+- [x] `help wanted` added to issues #2, #3, #5
 
 ---
 

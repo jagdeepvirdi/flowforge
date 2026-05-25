@@ -3,6 +3,25 @@
 
 ---
 
+## Session — 2026-05-25 (v1.0.0 GitHub Release) 🟢 *(COMPLETE)*
+
+### Phase 4.1 — GitHub Release
+
+- [x] CI green — fixed `test_unreadable_file_counts_as_error` (Linux: `Path.is_file()` calls `stat()` internally; moved guard inside `try` block, commit `66a8aef`)
+- [x] Tag `v1.0.0` pushed to origin
+- [x] GitHub Release published as Latest: https://github.com/jagdeepvirdi/flowforge/releases/tag/v1.0.0
+- [x] CHANGELOG v1.0.0 entry added; footer diff links updated
+
+### Phase 4.2 — Good First Issues
+
+- [x] #1 "Add a dark mode toggle to the Settings page" — `good first issue`
+- [x] #2 "Add SendGrid as an email provider" — `good first issue`, `help wanted`
+- [x] #3 "Add Telegram notification step type" — `good first issue`, `help wanted`
+- [x] #4 "Add a total run count stat card to the Dashboard" — `good first issue`
+- [x] #5 "Export Run History to CSV from the Run History page" — `good first issue`, `help wanted`
+
+---
+
 ## Session — 2026-05-25 (P0 Release Blockers — Docker + CHANGELOG + Celery E2E) 🟢 *(COMPLETE)*
 
 ### 1.2 Docker Compose Smoke Test — All Complete (commit `8a20243`)
