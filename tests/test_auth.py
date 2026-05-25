@@ -91,10 +91,16 @@ def test_revoked_token_rejected_on_protected_route(app, client):
 
 def test_revoke_token_unit(app):
     """revoke_token() should blocklist the jti and verify_token() should return None."""
+    class _FakeUser:
+        id = 'test-unit-id'
+        username = 'testadmin'
+        role = 'admin'
+
     with app.app_context():
         from flowforge.api.auth import generate_token, revoke_token, verify_token
-        token = generate_token('testadmin')
-        assert verify_token(token) == 'testadmin'
+        token = generate_token(_FakeUser())
+        payload = verify_token(token)
+        assert payload is not None and payload.get('sub') == 'testadmin'
         username = revoke_token(token)
         assert username == 'testadmin'
         assert verify_token(token) is None
@@ -103,9 +109,15 @@ def test_revoke_token_unit(app):
 def test_generate_token_has_jti(app):
     """Tokens issued after NEW-4 must carry a non-empty jti claim."""
     import jwt as _jwt
+
+    class _FakeUser:
+        id = 'test-jti-id'
+        username = 'testadmin'
+        role = 'admin'
+
     with app.app_context():
         from flowforge.api.auth import generate_token
-        token = generate_token('testadmin')
+        token = generate_token(_FakeUser())
         payload = _jwt.decode(
             token,
             app.config.get('JWT_SECRET') or app.config['SECRET_KEY'],

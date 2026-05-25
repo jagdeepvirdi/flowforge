@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 
+import flowforge.audit as audit
 from flowforge.api.auth import require_auth
 from flowforge.api.validators import validate_report
 from flowforge.db.models import DEFAULT_PROJECT_ID, Project, ReportConfig, db
@@ -100,6 +101,7 @@ def update_report_config(config_id):
             setattr(config, field, data[field])
 
     db.session.commit()
+    audit.log_report_change('UPDATED', config.name, config.id)
     return jsonify(_report_dict(config))
 
 

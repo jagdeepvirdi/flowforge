@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 
+import flowforge.audit as audit
 from flowforge.api.auth import require_auth
 from flowforge.api.validators import validate_recipient_group
 from flowforge.db.models import DEFAULT_PROJECT_ID, Project, RecipientGroup, db
@@ -87,6 +88,8 @@ def delete_group(group_id):
     group = db.session.get(RecipientGroup, str(group_id))
     if not group:
         return jsonify({'error': 'Group not found'}), 404
+    name, gid = group.name, group.id
     db.session.delete(group)
     db.session.commit()
+    audit.log_recipient_change('DELETED', name, gid)
     return jsonify({'deleted': str(group_id)})

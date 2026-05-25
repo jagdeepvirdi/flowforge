@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 
+import flowforge.audit as audit
 from flowforge.api.auth import require_auth
 from flowforge.db.models import BulkLoadConfig, db
 

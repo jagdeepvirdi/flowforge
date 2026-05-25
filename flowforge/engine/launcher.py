@@ -1,0 +1,81 @@
+import logging
+import threading
+from typing import Any
+
+from flowforge.db.models import Pipeline, PipelineRun, db
+
+logger = logging.getLogger(__name__)
+
+
+def launch_run(pipeline: Pipeline, triggered_by: str, app: Any = None) -> tuple[dict, int]:
+    """Create a PipelineRun record and execute the pipeline in a background thread.
+
+    Returns (json_dict, status_code) immediately; the run continues asynchronously.
+    """
+    if not pipeline.enabled:
+        return {'error': 'Pipeline is disabled'}, 400
+
+    run = PipelineRun(
+        pipeline_id=pipeline.id,
+        pipeline_name=pipeline.name,
+        status='running',
+        triggered_by=triggered_by,
+    )
+    db.session.add(run)
+    db.session.commit()
+    run_id = run.id
+
+    flask_app = app or _current_app()
+    t = threading.Thread(
+        target=_run_in_thread,
+        args=(flask_app, pipeline.id, pipeline.name, triggered_by, run_id),
+        daemon=True,
+    )
+    t.start()
+
+    return {'run_id': run_id, 'status': 'running', 'pipeline_name': pipeline.name}, 202
+
+
+def _current_app():
+    from flask import current_app
+    return current_app._get_current_object()
+
+
+def _run_in_thread(app, pipeline_id: str, pipeline_name: str, triggered_by: str, run_id: str):
+    from flowforge.engine.loader import load_pipeline
+    from flowforge.engine.runner import run_pipeline
+
+    with app.app_context():
+        try:
+            steps, pipeline_vars, secret_keys = load_pipeline(pipeline_id)
+        except Exception as e:
+            logger.error("Failed to load pipeline %s: %s", pipeline_name, e)
+            _mark_failed(run_id, f'Failed to load pipeline: {e}')
+            return
+
+        pipeline = db.session.get(Pipeline, pipeline_id)
+        webhook_url = pipeline.on_failure_webhook_url if pipeline else None
+
+        run_pipeline(
+            pipeline_name=pipeline_name,
+            steps=steps,
+            pipeline_vars=pipeline_vars,
+            triggered_by=triggered_by,
+            pipeline_id=pipeline_id,
+            existing_run_id=run_id,
+            secret_var_keys=secret_keys,
+            on_failure_webhook_url=webhook_url,
+        )
+
+
+def _mark_failed(run_id: str, message: str) -> None:
+    from datetime import datetime, timezone
+    try:
+        run = db.session.get(PipelineRun, run_id)
+        if run:
+            run.status = 'failed'
+            run.error_message = message
+            run.finished_at = datetime.now(timezone.utc)
+            db.session.commit()
+    except Exception as e:
+        logger.error("Could not mark run %s as failed: %s", run_id, e)

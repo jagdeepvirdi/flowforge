@@ -76,8 +76,8 @@ def apply_migrations():
     _hash = bcrypt.hashpw(b'testpass', bcrypt.gensalt(4)).decode()
     with seed_engine.begin() as conn:
         conn.execute(
-            text('INSERT INTO ff_users (id, username, password_hash) VALUES (:id, :u, :h)'),
-            {'id': str(uuid.uuid4()), 'u': _username, 'h': _hash},
+            text('INSERT INTO ff_users (id, username, password_hash, role) VALUES (:id, :u, :h, :r)'),
+            {'id': str(uuid.uuid4()), 'u': _username, 'h': _hash, 'r': 'admin'},
         )
     seed_engine.dispose()
 

@@ -52,10 +52,16 @@ def test_wrong_scheme_rejected(client, auth_token):
 
 
 def test_verify_token_valid(app):
+    class _FakeUser:
+        id = 'test-verify-id'
+        username = 'testadmin'
+        role = 'admin'
+
     with app.app_context():
         from flowforge.api.auth import verify_token, generate_token
-        token = generate_token('testadmin')
-        assert verify_token(token) == 'testadmin'
+        token = generate_token(_FakeUser())
+        payload = verify_token(token)
+        assert payload is not None and payload.get('sub') == 'testadmin'
 
 
 def test_verify_token_expired(app):

@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 
 import flowforge.audit as audit
-from flowforge.api.auth import require_auth
+from flowforge.api.auth import require_auth, require_role
 from flowforge.crypto import decrypt_config, encrypt_config
 from flowforge.db.models import EmailProvider, db
 
