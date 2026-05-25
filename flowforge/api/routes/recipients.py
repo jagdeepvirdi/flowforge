@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 
 import flowforge.audit as audit
-from flowforge.api.auth import require_auth
+from flowforge.api.auth import require_auth, require_role
 from flowforge.api.validators import validate_recipient_group
 from flowforge.db.models import DEFAULT_PROJECT_ID, Project, RecipientGroup, db
 
@@ -35,7 +35,7 @@ def list_groups():
 
 
 @bp.post('/recipient-groups')
-@require_auth
+@require_role(['admin', 'editor'])
 def create_group():
     data = request.get_json() or {}
     if not data.get('name'):
@@ -67,7 +67,7 @@ def get_group(group_id):
 
 
 @bp.put('/recipient-groups/<uuid:group_id>')
-@require_auth
+@require_role(['admin', 'editor'])
 def update_group(group_id):
     group = db.session.get(RecipientGroup, str(group_id))
     if not group:
@@ -83,7 +83,7 @@ def update_group(group_id):
 
 
 @bp.delete('/recipient-groups/<uuid:group_id>')
-@require_auth
+@require_role(['admin', 'editor'])
 def delete_group(group_id):
     group = db.session.get(RecipientGroup, str(group_id))
     if not group:

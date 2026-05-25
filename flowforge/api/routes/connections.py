@@ -73,7 +73,7 @@ def get_connection(conn_id):
 
 
 @bp.put('/db-connections/<uuid:conn_id>')
-@require_auth
+@require_role('admin')
 def update_connection(conn_id):
     conn = db.session.get(DbConnection, str(conn_id))
     if not conn:

@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 
-from flowforge.api.auth import require_auth
+from flowforge.api.auth import require_auth, require_role
 from flowforge.api.validators import validate_email_config
 from flowforge.db.models import DEFAULT_PROJECT_ID, EmailConfig, Project, db
 
@@ -47,7 +47,7 @@ def list_email_configs():
 
 
 @bp.post('/email-configs')
-@require_auth
+@require_role(['admin', 'editor'])
 def create_email_config():
     data = request.get_json() or {}
     required = ('name', 'subject', 'body_template')
@@ -91,7 +91,7 @@ def get_email_config(config_id):
 
 
 @bp.put('/email-configs/<uuid:config_id>')
-@require_auth
+@require_role(['admin', 'editor'])
 def update_email_config(config_id):
     config = db.session.get(EmailConfig, str(config_id))
     if not config:
@@ -116,7 +116,7 @@ def update_email_config(config_id):
 
 
 @bp.delete('/email-configs/<uuid:config_id>')
-@require_auth
+@require_role(['admin', 'editor'])
 def delete_email_config(config_id):
     config = db.session.get(EmailConfig, str(config_id))
     if not config:

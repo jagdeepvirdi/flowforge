@@ -35,7 +35,7 @@ def list_providers():
 
 
 @bp.post('/email-providers')
-@require_auth
+@require_role('admin')
 def create_provider():
     data = request.get_json() or {}
     if not data.get('name'):
@@ -91,7 +91,7 @@ def update_provider(provider_id):
 
 
 @bp.delete('/email-providers/<uuid:provider_id>')
-@require_auth
+@require_role('admin')
 def delete_provider(provider_id):
     provider = db.session.get(EmailProvider, str(provider_id))
     if not provider:

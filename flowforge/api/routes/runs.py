@@ -6,7 +6,7 @@ from pathlib import Path
 
 from flask import Blueprint, jsonify, request, send_file
 
-from flowforge.api.auth import require_auth
+from flowforge.api.auth import require_auth, require_role
 from flowforge.api.serializers import run_dict, step_run_dict
 from flowforge.db.models import Pipeline, PipelineRun, db
 
@@ -174,3 +174,18 @@ def download_step_output(step_run_id):
         as_attachment=True,
         download_name=abs_path.name,
     )
+
+
+@bp.post('/runs/<uuid:run_id>/cancel')
+@require_role(['admin', 'editor'])
+def cancel_run(run_id):
+    from datetime import datetime, timezone
+    run = db.session.get(PipelineRun, str(run_id))
+    if not run:
+        return jsonify({'error': 'Run not found'}), 404
+    if run.status not in ('running', 'pending'):
+        return jsonify({'error': f'Cannot cancel a run with status {run.status!r}'}), 409
+    run.status = 'cancelled'
+    run.finished_at = datetime.now(timezone.utc)
+    db.session.commit()
+    return jsonify({'message': 'Run cancelled', 'run_id': str(run_id)})

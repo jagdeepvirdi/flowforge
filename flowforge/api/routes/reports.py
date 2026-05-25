@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 
 import flowforge.audit as audit
-from flowforge.api.auth import require_auth
+from flowforge.api.auth import require_auth, require_role
 from flowforge.api.validators import validate_report
 from flowforge.db.models import DEFAULT_PROJECT_ID, Project, ReportConfig, db
 
@@ -43,7 +43,7 @@ def list_report_configs():
 
 
 @bp.post('/report-configs')
-@require_auth
+@require_role(['admin', 'editor'])
 def create_report_config():
     data = request.get_json() or {}
     required = ('name', 'query', 'format', 'output_filename')
@@ -84,7 +84,7 @@ def get_report_config(config_id):
 
 
 @bp.put('/report-configs/<uuid:config_id>')
-@require_auth
+@require_role(['admin', 'editor'])
 def update_report_config(config_id):
     config = db.session.get(ReportConfig, str(config_id))
     if not config:
@@ -106,7 +106,7 @@ def update_report_config(config_id):
 
 
 @bp.delete('/report-configs/<uuid:config_id>')
-@require_auth
+@require_role(['admin', 'editor'])
 def delete_report_config(config_id):
     config = db.session.get(ReportConfig, str(config_id))
     if not config:

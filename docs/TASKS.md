@@ -62,15 +62,15 @@
 - [x] `POST /api/auth/change-password` — `{ current_password, new_password }` — any authenticated user; min 8 chars ✅
 - [x] 22 tests covering auth, role checks, self-protection guards, duplicate username, password validation — all passing ✅
 
-### MU-3 — `@require_role` guards on all remaining routes *(backend)*
-- [ ] `pipelines.py` — create/update/delete/run/clone → `require_role(['admin','editor'])`; GET → `require_auth`
-- [ ] `reports.py` — create/update/delete → `require_role(['admin','editor'])`; GET → `require_auth`
-- [ ] `emails.py` — create/update/delete → `require_role(['admin','editor'])`; GET → `require_auth`
-- [ ] `recipients.py` — create/update/delete → `require_role(['admin','editor'])`; GET → `require_auth`
-- [ ] `runs.py` — cancel → `require_role(['admin','editor'])`; GET/list → `require_auth`
-- [ ] `providers.py` — already done (admin only for write); verify read routes
-- [ ] `connections.py` — already done; verify read routes
-- [ ] Tests: spot-check that viewer token gets 403 on write routes, 200 on reads
+### MU-3 — `@require_role` guards on all remaining routes *(backend)* ✅
+- [x] `pipelines.py` — create/update/delete/run/clone/import/webhook-tokens → `require_role(['admin','editor'])` ✅
+- [x] `reports.py` — create/update/delete → `require_role(['admin','editor'])` ✅
+- [x] `emails.py` — create/update/delete → `require_role(['admin','editor'])` ✅
+- [x] `recipients.py` — create/update/delete → `require_role(['admin','editor'])` ✅
+- [x] `runs.py` — added `POST /runs/<id>/cancel` → `require_role(['admin','editor'])`; 409 if not running ✅
+- [x] `providers.py` — create/delete upgraded from `require_auth` → `require_role('admin')` ✅
+- [x] `connections.py` — update upgraded from `require_auth` → `require_role('admin')` ✅
+- [x] 21 RBAC spot-check tests in `tests/test_rbac.py` — viewer 403 on writes, 200 on reads; editor passes where expected — all 742 suite tests passing ✅
 
 ### MU-4 — Audit log user attribution *(backend)* — partially done ✅
 - [x] `audit.py` — `_current_user()` reads `g.user_token['sub']` (username) and appends `by=<username>` to every log entry. All `audit.log_*` call sites covered. ✅

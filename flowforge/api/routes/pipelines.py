@@ -6,7 +6,7 @@ import threading
 from flask import Blueprint, jsonify, request
 
 from flowforge.api.app import limiter
-from flowforge.api.auth import require_auth
+from flowforge.api.auth import require_auth, require_role
 from flowforge.api.serializers import run_dict
 from flowforge.api.validators import validate_pipeline, validate_pipeline_variable
 from flowforge import audit
@@ -121,7 +121,7 @@ def cron_next_runs():
 
 
 @bp.post('/pipelines')
-@require_auth
+@require_role(['admin', 'editor'])
 def create_pipeline():
     data = request.get_json()
     if not data or not data.get('name'):
@@ -173,7 +173,7 @@ def get_pipeline(pipeline_id):
 
 
 @bp.put('/pipelines/<uuid:pipeline_id>')
-@require_auth
+@require_role(['admin', 'editor'])
 def update_pipeline(pipeline_id):
     pipeline = db.session.get(Pipeline, str(pipeline_id))
     if not pipeline:
@@ -213,7 +213,7 @@ def update_pipeline(pipeline_id):
 
 
 @bp.post('/pipelines/<uuid:pipeline_id>/clone')
-@require_auth
+@require_role(['admin', 'editor'])
 def clone_pipeline(pipeline_id):
     from flowforge.db.models import PipelineStep
     src = db.session.get(Pipeline, str(pipeline_id))
@@ -265,7 +265,7 @@ def clone_pipeline(pipeline_id):
 
 
 @bp.delete('/pipelines/<uuid:pipeline_id>')
-@require_auth
+@require_role(['admin', 'editor'])
 def delete_pipeline(pipeline_id):
     pipeline = db.session.get(Pipeline, str(pipeline_id))
     if not pipeline:
@@ -324,7 +324,7 @@ def export_pipeline(pipeline_id):
 
 
 @bp.post('/pipelines/import')
-@require_auth
+@require_role(['admin', 'editor'])
 def import_pipeline():
     """Create a new pipeline from a YAML document (multipart file or JSON body with yaml_content)."""
     import yaml
@@ -397,7 +397,7 @@ def import_pipeline():
 
 
 @bp.post('/pipelines/<uuid:pipeline_id>/run')
-@require_auth
+@require_role(['admin', 'editor'])
 @limiter.limit('10 per minute')
 def trigger_run(pipeline_id):
     pipeline = db.session.get(Pipeline, str(pipeline_id))
@@ -493,7 +493,7 @@ def list_webhook_tokens(pipeline_id):
 
 
 @bp.post('/pipelines/<uuid:pipeline_id>/webhook-tokens')
-@require_auth
+@require_role(['admin', 'editor'])
 def create_webhook_token(pipeline_id):
     pipeline = db.session.get(Pipeline, str(pipeline_id))
     if not pipeline:
@@ -514,7 +514,7 @@ def create_webhook_token(pipeline_id):
 
 
 @bp.delete('/pipelines/<uuid:pipeline_id>/webhook-tokens/<uuid:token_id>')
-@require_auth
+@require_role(['admin', 'editor'])
 def revoke_webhook_token(pipeline_id, token_id):
     wt = db.session.query(WebhookToken).filter_by(
         id=str(token_id), pipeline_id=str(pipeline_id)
