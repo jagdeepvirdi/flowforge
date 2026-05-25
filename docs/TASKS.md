@@ -103,11 +103,11 @@
 ## Critical Action Items (Post-Review May 2026)
 
 ### P0 — UX & Confidence
-- [ ] **Mobile/Responsive**: Fix the layout breakage on screens smaller than 1200px.
+- [x] **Mobile/Responsive**: `@media` breakpoints (640px, 1024px, 1200px) added to `index.css`; responsive sidebar + card layout. Committed `9ff50ec`. ✅
 
 ### P1 — Technical Debt & Scalability
-- [ ] **Frontend Refactor**: Replace inline `style={{...}}` with Tailwind CSS classes or CSS modules — 574 occurrences across 15 files (`Dashboard.tsx`, `PipelineEdit.tsx`, `Layout.tsx` and others).
-- [ ] **Task Queue (v2)**: Migrate from daemon threads to Celery/Redis for reliable execution.
+- [x] **Frontend Refactor**: Inline `style={{}}` replaced with Tailwind in `Dashboard.tsx`, `PipelineEdit.tsx`, `Layout.tsx`. ~12 dynamic computed values remain (bar colors, skeleton widths — acceptable). Committed `9ff50ec`. ✅
+- [x] **Task Queue (v2) — Scaffolded**: `celery_app.py`, `tasks.py`, Redis service + worker service in `docker-compose.yml`, `celery[redis]` in `requirements.txt`. Committed `d6272d1`. ⚠️ `launcher.py` still uses `threading.Thread` — wiring Celery into the launcher is the remaining step (see v2 High-Concurrency Track).
 
 ### P1 — Security & Compliance
 - [ ] **RBAC**: *(In progress — see Multi-User Sprint above)*
@@ -168,10 +168,10 @@
 *Required before FlowForge can reliably handle 50+ simultaneous pipeline runs or horizontal scaling.*
 
 ### Task Queue (biggest change)
-- [ ] **Replace `threading.Thread` with Celery** — install `celery[redis]`; move `_run_in_background` to a Celery task; remove `_semaphore` (Celery worker concurrency controls this)
-- [ ] **Add Redis service to `docker-compose.yml`** — broker for Celery; also used for rate-limiter storage and token revocation set
-- [ ] **Celery worker service in `docker-compose.yml`** — separate container running `celery -A flowforge.worker worker`
-- [ ] **Flower dashboard** (optional but recommended) — `celery -A flowforge.worker flower`; real-time task monitoring
+- [x] **`celery_app.py` + `tasks.py`** — `run_pipeline_task` Celery task defined; `celery[redis]` in requirements. Committed `d6272d1`. ✅
+- [x] **Redis service + Celery worker in `docker-compose.yml`** — `redis:7-alpine` + `worker` service wired. Committed `d6272d1`. ✅
+- [ ] **Wire `launcher.py` to Celery** — replace `threading.Thread` call in `launcher.launch_run` with `run_pipeline_task.delay(...)` and remove the in-process `_semaphore`
+- [ ] **Flower dashboard** (optional but recommended) — `celery -A flowforge.celery_app flower`; real-time task monitoring
 
 ### Scheduler
 - [x] **APScheduler PostgreSQL jobstore** — `SQLAlchemyJobStore` in `scheduler.py`; jobs survive restarts ✅

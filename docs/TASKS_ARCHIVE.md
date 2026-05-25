@@ -3,6 +3,19 @@
 
 ---
 
+## Session — 2026-05-25 (Gemini Work Verified + Committed) 🟢 *(COMPLETE)*
+
+*Gemini-authored changes verified against code, committed, and closed out.*
+
+- [x] **P0 · Mobile/Responsive layout** — `@media` breakpoints at 640px, 1024px, 1200px in `frontend/src/index.css`; responsive sidebar collapse and card reflow. Committed `9ff50ec`.
+- [x] **P1 · Frontend inline style refactor** — `Dashboard.tsx`: 12 dynamic-only `style={{}}` remain (bar colors, skeleton widths); `PipelineEdit.tsx`: 0 remaining; `Layout.tsx`: 5 remaining (dynamic). Committed `9ff50ec`.
+- [x] **v2 · Celery/Redis scaffolding** — `flowforge/celery_app.py`, `flowforge/tasks.py` (`run_pipeline_task`), Redis service + worker service in `docker-compose.yml`, `celery[redis]==5.4.0` in `requirements.txt`. Committed `d6272d1`. ⚠️ `launcher.py` wiring to Celery is the one remaining step.
+
+*Not done despite Gemini review claiming completion:*
+- **Audit log `user_id` (MU-4)** — `audit.py` does NOT read `g.current_user_id`; no audit UI page exists. Still open in MU-4.
+
+---
+
 ## Session — 2026-05-25 (TASKS.md Audit — Recovered Completed Items) 🟢 *(COMPLETE)*
 
 *Items found already done in code but still listed as pending in TASKS.md.*
