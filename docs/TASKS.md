@@ -100,6 +100,24 @@
 
 ---
 
+## After Multi-User Sprint
+
+*These two items are ready to implement once MU-1 through MU-7 are done.*
+
+### Celery Wiring — Complete the Task Queue Migration
+- [ ] `flowforge/engine/launcher.py` — replace `threading.Thread` call with `run_pipeline_task.delay(pipeline_id, triggered_by, run_id)`
+- [ ] Remove in-process `_semaphore` from `launcher.py` (Celery worker concurrency replaces it)
+- [ ] Verify end-to-end: trigger a pipeline run via API, confirm Celery worker picks it up and writes run history
+- [ ] (Optional) Add Flower dashboard service to `docker-compose.yml` for real-time task monitoring
+
+### Audit Log `user_id` Attribution — MU-4
+- [ ] `require_auth` in `auth.py` — set `g.current_user_id` after token decode
+- [ ] `audit.py` — read `g.current_user_id` and include `user_id` field in every structured log entry
+- [ ] Verify all existing `audit.log_*` call sites emit `user_id` in their output
+- [ ] *(No new migrations needed — audit log is file-based)*
+
+---
+
 ## Critical Action Items (Post-Review May 2026)
 
 ### P0 — UX & Confidence
