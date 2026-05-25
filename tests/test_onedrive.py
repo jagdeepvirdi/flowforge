@@ -38,7 +38,6 @@ def _mock_msal_token():
 @patch('flowforge.storage.onedrive.msal', create=True)
 def test_upload_small_file_direct(mock_msal_mod, tmp_small_file):
     """Small files use a direct PUT and return item ID."""
-    import msal as _msal
     mock_msal_mod.ConfidentialClientApplication.return_value = _mock_msal_token()
 
     mock_resp = MagicMock()
