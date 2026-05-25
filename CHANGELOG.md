@@ -7,6 +7,117 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-05-25
+
+### Added
+
+- **Multi-user roles** — FlowForge moves from a single-admin model to a proper user system with three built-in roles:
+  - `admin` — full access, user management, all write operations
+  - `editor` — create and edit pipelines, connections, reports, email configs; cannot manage users
+  - `viewer` — read-only; can view pipelines and run history; cannot create, edit, run, or delete
+
+  Users are stored in `ff_users` (`id`, `username`, `password_hash`, `role`, `created_at`). The legacy `FLOWFORGE_USERNAME` / `FLOWFORGE_PASSWORD` env vars are preserved for single-admin deployments; the DB user table takes precedence when rows exist. ([`flowforge/db/models.py`](flowforge/db/models.py), `flowforge/db/migrations/`)
+
+- **`require_role` decorator** — Applied to every write route in the API. Reads `g.current_user_id` and `g.current_user_role` injected by `require_auth`. Returns `403 Forbidden` for insufficient roles. Cancel and seed endpoints are also guarded. ([`flowforge/api/auth.py`](flowforge/api/auth.py))
+
+- **`GET /api/auth/me`** — Returns the current user's `id`, `username`, and `role`. Used by the frontend to bootstrap the auth context on load. ([`flowforge/api/auth.py`](flowforge/api/auth.py))
+
+- **User management API** — Admin-only endpoints for full user lifecycle:
+  - `GET /api/admin/users` — list all users with role and creation date
+  - `POST /api/admin/users` — create user (username, password, role)
+  - `PUT /api/admin/users/<id>` — update username or role
+  - `DELETE /api/admin/users/<id>` — delete user (cannot delete own account)
+  - `POST /api/admin/users/<id>/change-password` — force-set any user's password
+  - `POST /api/users/me/change-password` — self-service password change (any role)
+
+  ([`flowforge/api/routes/users.py`](flowforge/api/routes/users.py))
+
+- **Users page** — New `/users` frontend page, visible to admins only. Shows a table of all users with role badges, inline role-change selector, and delete buttons. "New User" modal with username, password, and role picker. ([`frontend/src/pages/Users.tsx`](frontend/src/pages/Users.tsx))
+
+- **Role-based UI visibility** — Write actions are hidden for viewers and non-admins throughout the app: "New Pipeline", "Run Now", "Edit", "Delete", "Clone" buttons; all step configuration forms; Connections "Add" button; recipient group, email config, and report create/edit controls. Role is read from the `useCurrentUser` hook which calls `/api/auth/me` once on login. ([`frontend/src/pages/`](frontend/src/pages/))
+
+- **Celery / Redis task queue** — When `FLOWFORGE_REDIS_URL` is set, pipeline runs are dispatched to Celery workers instead of background threads. `FlaskTask` base class (in `celery_app.py`) wraps each task execution in a Flask app context. Worker processes lazily call `create_app()` once via `_get_app()`; the web server process calls `init_celery(app)` on startup, so `create_app()` is never called twice. Thread-based execution is fully retained as a zero-dependency fallback when Redis is not configured. ([`flowforge/celery_app.py`](flowforge/celery_app.py), [`flowforge/tasks.py`](flowforge/tasks.py), [`flowforge/engine/launcher.py`](flowforge/engine/launcher.py))
+
+- **`flowforge worker` CLI command** — `flowforge worker [--concurrency N] [--loglevel LEVEL]` starts a Celery worker via `celery.worker_main()`. Exits with a clear error message if `FLOWFORGE_REDIS_URL` is not set. ([`flowforge/cli.py`](flowforge/cli.py))
+
+### Security
+
+- **Audit log user attribution** — `g.current_user_id` (set by `require_auth`) is now emitted alongside `by=<username>` in all `audit.py` log entries, enabling per-user accountability in the audit trail. ([`flowforge/audit.py`](flowforge/audit.py))
+
+### Changed
+
+- **Responsive / mobile layout** — All pages converted from inline style objects to Tailwind utility classes. Sidebar collapses on narrow viewports. Tables gain horizontal scroll at the `sm` breakpoint. Dashboard and Run History cards reflow to a single column on mobile. ([`frontend/src/`](frontend/src/))
+
+### Tests
+
+- `tests/test_users.py` — user management API: create, list, update, delete, self-delete prevention, force change-password, role validation, duplicate username rejection.
+- `tests/test_rbac.py` — role-based access control: viewer blocked on all write routes, editor blocked on user-management routes, admin succeeds on all, unauthenticated requests return 401.
+- `tests/test_jwt_expiry.py` — JWT revocation: logout invalidates the token immediately, subsequent requests with the same token return 401, expired tokens are still rejected after logout.
+
+---
+
+## [1.1.0] — 2026-05-24
+
+### Added
+
+- **MySQL / MariaDB connector** — `MySQLConnection` using PyMySQL. Implements the same `BaseConnection` interface as PostgreSQL and Oracle — pipelines require no changes to switch databases. Migration adds `mysql` to the `ck_db_type` check constraint. Install with: `pip install 'flowforge[mysql]'`. ([`flowforge/connections/mysql.py`](flowforge/connections/mysql.py))
+
+- **OneDrive upload step** — `onedrive_upload` step type uploads files to Microsoft OneDrive via Microsoft Graph API. Uses a direct PUT for files ≤ 4 MB and chunked upload sessions for larger files. `createLink` generates an anonymous shareable URL stored as `{{ steps.<name>.drive_url }}`. `onedrive_folder_id` added to `ff_email_configs` so the smart-attachment logic routes large attachments to OneDrive when configured, with Google Drive as a fallback. Install with: `pip install 'flowforge[microsoft365]'`. ([`flowforge/steps/onedrive_upload.py`](flowforge/steps/onedrive_upload.py), [`flowforge/storage/onedrive.py`](flowforge/storage/onedrive.py))
+
+- **SFTP transfer step** — `sftp_transfer` step type for file transfer over SSH/SFTP. Supports download (single file, directory, or glob pattern) and upload modes. Accepts password or private-key authentication. `create_remote_dirs` auto-creates the destination path on the remote server. Configurable `overwrite` flag and `strict_host_keys` mode (defaults to TOFU for compatibility; set `FLOWFORGE_SFTP_STRICT_HOSTKEYS=true` in production). Uses `paramiko`. Install with: `pip install 'flowforge[sftp]'`. ([`flowforge/steps/sftp_transfer.py`](flowforge/steps/sftp_transfer.py))
+
+- **AI analyze step** — `ai_analyze` step type runs an LLM prompt against query results and injects the response into the pipeline context. Two providers:
+  - **Ollama** (default) — runs locally, zero cost, no data leaves your machine. Configure via `OLLAMA_URL` and `OLLAMA_QUERY_MODEL`.
+  - **Claude API** — Anthropic cloud, pay-per-use, opt-in via `USE_CLAUDE=true` and `ANTHROPIC_API_KEY`.
+
+  `max_rows` caps rows sent to the model to stay within context limits. The LLM response is stored in a named `output_variable` (e.g. `ai_summary`) for use in downstream email bodies or report titles via `{{ ai_summary }}`. Disabled globally with `FLOWFORGE_AI_ENABLED=false`. ([`flowforge/steps/ai_analyze.py`](flowforge/steps/ai_analyze.py))
+
+- **Step retry** — Each pipeline step now accepts a `retry` block: `max_attempts` (default 1, no retry) and `backoff_seconds` (default 5). On failure, the step is retried up to `max_attempts − 1` additional times with configurable back-off before being marked failed. Each attempt is logged with its index and elapsed time. ([`flowforge/engine/runner.py`](flowforge/engine/runner.py))
+
+- **Failure webhook notification** — Pipeline-level `failure_webhook_url` field. When a run ends with `status='failed'`, FlowForge POSTs a JSON payload to the URL: `pipeline_id`, `pipeline_name`, `run_id`, `error_step`, `error_message`, `failed_at`. Useful for alerting via Slack, PagerDuty, or any webhook-capable service. Migration adds the column to `ff_pipelines`. ([`flowforge/engine/runner.py`](flowforge/engine/runner.py))
+
+- **Webhook / API trigger** — External systems can trigger pipelines without a user session. Tokens are managed via `GET / POST / DELETE /api/pipelines/<id>/webhook-tokens` (JWT-protected). Each token is stored as a SHA-256 hash — the plaintext is shown only once at creation. Triggering: `POST /api/pipelines/<id>/trigger?token=<token>` — public endpoint, rate-limited at 30 requests/min per IP, sets `triggered_by='api'` in run history. Adds `ff_webhook_tokens` table. ([`flowforge/api/routes/`](flowforge/api/routes/))
+
+- **Pipeline clone** — `POST /api/pipelines/<id>/clone` creates a full copy of a pipeline including all steps and variables. The clone is created disabled with `(copy)` appended to the name.
+
+- **Pipeline YAML import/export** — `GET /api/pipelines/<id>/export` returns a portable YAML document. `POST /api/pipelines/import` recreates the pipeline in the database, preserving step order and variable config. Useful for migrating pipelines between environments or checking configs into version control.
+
+### Security
+
+- **JWT revocation via server-side blocklist** — Every issued JWT now contains a `jti` (UUID v4) claim. `POST /api/auth/logout` writes the `jti` to the new `ff_token_blocklist` table. All subsequent requests bearing that token are rejected immediately — no need to wait for natural expiry. Mitigates stolen-session scenarios. The frontend Sign Out button calls the logout endpoint first, then clears local storage regardless of the response. ([`flowforge/api/auth.py`](flowforge/api/auth.py), [`flowforge/db/models.py`](flowforge/db/models.py))
+
+- **Separate JWT signing key** — `FLOWFORGE_JWT_SECRET` is now a required, distinct secret from `FLOWFORGE_SECRET_KEY`. Using the same key for AES-256-GCM credential encryption and JWT signing created unnecessary key-reuse risk. Existing deployments must add `FLOWFORGE_JWT_SECRET` to their `.env` (see `.env.example` for the generation command).
+
+- **SAST pipeline (Bandit)** — GitHub Actions CI split into three parallel jobs: `pytest`, `bandit`, and `npm-audit + vitest`. Bandit scans the entire `flowforge/` package on every push and pull request. Configured via `[tool.bandit]` in `pyproject.toml`. Five real security issues fixed during the initial scan (missing `timeout=` on `requests.post/put` calls in `microsoft365.py` and `onedrive.py`). Known false positives suppressed with `# nosec` comments and justification. ([`.github/workflows/test.yml`](.github/workflows/test.yml))
+
+- **npm dependency audit** — `npm audit --audit-level=high` runs as part of the frontend CI job, failing the build on high-severity vulnerabilities.
+
+### Changed
+
+- **PostgreSQL APScheduler jobstore hardened** — `SQLAlchemyJobStore` targets PostgreSQL explicitly. `alembic/env.py` excludes the `apscheduler_jobs` table from autogenerate to prevent spurious DROP TABLE migrations. Startup logging now shows the DB host and database name when the PostgreSQL jobstore is active (credentials stripped). ([`flowforge/engine/scheduler.py`](flowforge/engine/scheduler.py))
+
+- **Audit log stdout mode** — `FLOWFORGE_AUDIT_STDOUT=true` emits structured JSON audit lines to stdout for container log aggregators (Fluentd, Loki, CloudWatch). `FLOWFORGE_AUDIT_FILE=false` suppresses writing to `logs/audit.log`. Both flags default to their original behaviour so existing deployments are unaffected. ([`flowforge/audit.py`](flowforge/audit.py))
+
+- **Serializer consolidation** — `api/serializers.py` introduces canonical `run_dict()` and `step_run_dict()` helpers used by all run-related routes, eliminating inconsistent field naming across endpoints. ([`flowforge/api/serializers.py`](flowforge/api/serializers.py))
+
+- **Input length validation** — `api/validators.py` enforces maximum-length constraints on all string fields accepted by the API (pipeline names, query strings, file paths, etc.), preventing runaway database storage.
+
+### Fixed
+
+- **Oracle connection pool exhaustion** — A new connection pool was created per pipeline step, exhausting Oracle connections on multi-step pipelines. Pool is now keyed by `(host, port, service_name, user, password_hash)` and reused across all steps in the same process. ([`flowforge/connections/oracle.py`](flowforge/connections/oracle.py))
+
+- **Dashboard N+1 query** — The dashboard summary (total runs, success rate, active count) was previously computed by loading every run row. Replaced with a single aggregation query via a dedicated `/api/runs/summary` endpoint. ([`flowforge/api/routes/runs.py`](flowforge/api/routes/runs.py))
+
+### Tests
+
+- 24 frontend unit tests (Vitest + React Testing Library) covering Dashboard, Pipelines list, TopBar, Login, and Connections components.
+- 5 Playwright E2E specs: login flow, dashboard, pipeline CRUD, run history, and connections — with global setup/teardown and auth state reuse across specs.
+- 38 tests for the `sftp_transfer` step (all auth modes, download/upload paths, glob matching, error handling).
+- 27 tests for the `ai_analyze` step (Ollama and Claude provider paths, context injection, `max_rows` cap, output variable propagation).
+- 16 additional Jinja2 context variable tests.
+
+---
+
 ## [0.1.5] — 2026-05-23
 
 ### Added
@@ -245,7 +356,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `flowforge[pdf]` — `weasyprint`
 - `flowforge[dev]` — `pytest`, `pytest-mock`, `responses`, `pytest-cov`
 
-[Unreleased]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/jagdeepvirdi/flowforge/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/jagdeepvirdi/flowforge/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.5...v1.1.0
+[0.1.5]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.1...v0.1.2
