@@ -137,7 +137,7 @@ def preview_email_config(config_id):
     # Build context with sample step results so previews are more realistic
     sample_steps = {
         'report': {
-            'output_path': '/tmp/sample_report.xlsx',  # nosec B108
+            'output_path': '/tmp/sample_report.xlsx',  # nosec B108 — NOSONAR: preview placeholder, never opened
             'drive_url': 'https://drive.google.com/open?id=sample',
             'rows_affected': 124,
             'duration_sec': 12.5,

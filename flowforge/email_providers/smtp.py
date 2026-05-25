@@ -61,7 +61,7 @@ class SMTPProvider(EmailProvider):
         context = ssl.create_default_context()
         try:
             if self.use_ssl:
-                server = smtplib.SMTP_SSL(self.host, self.port, timeout=30)
+                server = smtplib.SMTP_SSL(self.host, self.port, context=context, timeout=30)
             else:
                 server = smtplib.SMTP(self.host, self.port, timeout=30)
                 if self.use_tls:
@@ -76,10 +76,10 @@ class SMTPProvider(EmailProvider):
             return EmailResult(success=False, error=str(e))
 
     def test(self) -> tuple[bool, str]:
-        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS)
+        ctx = ssl.create_default_context()
         try:
             if self.use_ssl:
-                server = smtplib.SMTP_SSL(self.host, self.port, timeout=10)
+                server = smtplib.SMTP_SSL(self.host, self.port, context=ctx, timeout=10)
             else:
                 server = smtplib.SMTP(self.host, self.port, timeout=10)
                 if self.use_tls:

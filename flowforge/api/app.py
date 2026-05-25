@@ -31,7 +31,7 @@ def create_app(config: dict | None = None) -> Flask:
     app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB — prevents OOM on large POST bodies
 
     # AES-256 encryption key — used exclusively by flowforge/crypto.py
-    app.config['SECRET_KEY'] = os.environ.get('FLOWFORGE_SECRET_KEY', '')
+    app.config['SECRET_KEY'] = os.environ.get('FLOWFORGE_SECRET_KEY', '')  # NOSONAR: value from env, not hardcoded
 
     # JWT signing secret — separate from the encryption key (SEC-2)
     # Falls back to SECRET_KEY for backward compatibility; set FLOWFORGE_JWT_SECRET in production.

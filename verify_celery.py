@@ -19,14 +19,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 # ── env vars must be set BEFORE any flowforge import ──────────────────────────
-_DB_URL   = 'postgresql://flowforge:harpal123@localhost:5434/flowforge_test'
-_SK       = '4d688ef00edded2d39f4109d9e6497d54fff5165555a8a41e8aaedb9c7f62fd0'
-_REDIS    = 'redis://localhost:6379/0'
+# Override defaults by setting these env vars before running the script.
+_DB_URL = os.environ.get('FLOWFORGE_DB_URL', 'postgresql://flowforge:flowforge@localhost:5434/flowforge_test')
+_SK     = os.environ.get('FLOWFORGE_SECRET_KEY', '4d688ef00edded2d39f4109d9e6497d54fff5165555a8a41e8aaedb9c7f62fd0')  # NOSONAR: local dev verification only
+_REDIS  = os.environ.get('FLOWFORGE_REDIS_URL', 'redis://localhost:6379/0')
 
-os.environ['FLOWFORGE_DB_URL']    = _DB_URL
+os.environ['FLOWFORGE_DB_URL']     = _DB_URL
 os.environ['FLOWFORGE_SECRET_KEY'] = _SK
 os.environ['FLOWFORGE_JWT_SECRET'] = _SK
-os.environ['FLOWFORGE_REDIS_URL'] = _REDIS
+os.environ['FLOWFORGE_REDIS_URL']  = _REDIS
 
 VENV_PYTHON = str(Path(__file__).parent / '.venv' / 'Scripts' / 'python.exe')
 
