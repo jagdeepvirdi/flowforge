@@ -18,7 +18,7 @@ jobs:
         env:
           POSTGRES_DB: flowforge_test
           POSTGRES_USER: flowforge
-          POSTGRES_PASSWORD: testpass
+          POSTGRES_PASSWORD: testpass  # NOSONAR — ephemeral CI container, not a real credential
         ports:
           - 5432:5432
         options: >-
@@ -28,7 +28,7 @@ jobs:
           --health-retries 10
 
     env:
-      FLOWFORGE_DB_URL: postgresql://flowforge:testpass@localhost:5432/flowforge_test
+      FLOWFORGE_DB_URL: postgresql://flowforge:testpass@localhost:5432/flowforge_test  # NOSONAR
       FLOWFORGE_SECRET_KEY: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
       FLOWFORGE_JWT_SECRET:  bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 

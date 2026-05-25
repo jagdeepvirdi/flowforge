@@ -9,7 +9,7 @@ services:
     environment:
       POSTGRES_DB: retail_sample
       POSTGRES_USER: retail
-      POSTGRES_PASSWORD: retail123
+      POSTGRES_PASSWORD: retail123  # NOSONAR — sample/demo database only, not a production credential
     volumes:
       - ./sample_data/retail_db/init:/docker-entrypoint-initdb.d:ro
       - retail_sample_data:/var/lib/postgresql/data
