@@ -44,6 +44,79 @@
 
 ---
 
+## Multi-User Feature — Active Sprint
+
+> Foundation already in place: `ff_users` + `role` column, `require_role` decorator, `ff_token_blocklist`, `ff_projects`. Cutting `ff_project_members` and password-reset (v3). Estimated: ~3 days backend + 1.5 days frontend.
+
+### MU-1 — JWT carries `user_id` + `/api/auth/me` *(backend)*
+- [ ] `auth.py:generate_token` — include `user_id` in JWT payload (role already present)
+- [ ] `require_auth` — expose `g.current_user_id` after token decode (for audit log use)
+- [ ] `GET /api/auth/me` — return `{ id, username, role }` for the current token
+- [ ] Tests: verify `/api/auth/me` returns correct fields; verify old tokens without `user_id` are rejected cleanly
+
+### MU-2 — User management API *(backend)*
+- [ ] `POST /api/users` — create user: `{ username, password, role }` — admin only
+- [ ] `GET /api/users` — list all users (id, username, role, created_at) — admin only
+- [ ] `PATCH /api/users/{id}` — update role or username — admin only; cannot demote self
+- [ ] `DELETE /api/users/{id}` — delete user — admin only; cannot delete self
+- [ ] `POST /api/auth/change-password` — `{ current_password, new_password }` — any authenticated user
+- [ ] Tests for all five endpoints (auth, role checks, self-protection guards)
+
+### MU-3 — `@require_role` guards on all remaining routes *(backend)*
+- [ ] `pipelines.py` — create/update/delete/run/clone → `require_role(['admin','editor'])`; GET → `require_auth`
+- [ ] `reports.py` — create/update/delete → `require_role(['admin','editor'])`; GET → `require_auth`
+- [ ] `emails.py` — create/update/delete → `require_role(['admin','editor'])`; GET → `require_auth`
+- [ ] `recipients.py` — create/update/delete → `require_role(['admin','editor'])`; GET → `require_auth`
+- [ ] `runs.py` — cancel → `require_role(['admin','editor'])`; GET/list → `require_auth`
+- [ ] `providers.py` — already done (admin only for write); verify read routes
+- [ ] `connections.py` — already done; verify read routes
+- [ ] Tests: spot-check that viewer token gets 403 on write routes, 200 on reads
+
+### MU-4 — Audit log `user_id` attribution *(backend)*
+- [ ] `audit.py` — read `g.current_user_id` (set by `require_auth`) and include in every log entry
+- [ ] Verify structured log lines contain `user_id` field for all existing audit calls
+- [ ] No new migrations needed — audit log is file-based
+
+### MU-5 — Frontend role context *(frontend)*
+- [ ] `lib/api.ts` — add `getMe(): Promise<{ id, username, role }>` calling `GET /api/auth/me`
+- [ ] Zustand `useAuthStore` — add `user: { id, username, role } | null`; populate on login and app load
+- [ ] `useCurrentUser()` hook — convenience wrapper over the store
+- [ ] Call `getMe()` in app bootstrap (e.g. `App.tsx` effect) so role is always available
+
+### MU-6 — User management UI *(frontend)*
+- [ ] New page `src/pages/Users.tsx` — admin-only; redirect non-admins to dashboard
+- [ ] Add route `/settings/users` in `App.tsx`; add nav item in `Layout.tsx` (visible to admins only)
+- [ ] Users table: username, role badge, "Change Role" dropdown, "Delete" button
+- [ ] "Add User" slide-over: username + password + role selector → `POST /api/users`
+- [ ] "Change Password" section in Settings page (self-service, any user)
+
+### MU-7 — Frontend role-based visibility *(frontend)*
+- [ ] Connections page — hide "Add Connection", "Delete" for non-admins
+- [ ] Providers page — hide "Add Provider", "Delete" for non-admins
+- [ ] Pipelines — hide "New Pipeline", edit/delete/clone actions for viewers
+- [ ] Dashboard — hide "Run Now" button for viewers
+- [ ] Reports / Emails / Recipients — hide create/edit/delete for viewers
+- [ ] Use `useCurrentUser().role` — no API calls, instant from store
+
+---
+
+## Critical Action Items (Post-Review May 2026)
+
+### P0 — UX & Confidence
+- [ ] **Email Preview**: Implement `GET /api/email-configs/{id}/preview` and a preview modal in `EmailEdit.tsx`.
+- [ ] **Mobile/Responsive**: Fix the layout breakage on screens smaller than 1200px.
+
+### P1 — Technical Debt & Scalability
+- [ ] **Frontend Refactor**: Replace inline `style={{...}}` with Tailwind CSS classes or CSS modules in `Dashboard.tsx`, `PipelineEdit.tsx`, and `Layout.tsx`.
+- [ ] **Engine Decoupling**: Move pipeline launch logic from `pipelines.py` to a dedicated `EngineManager` or `RunnerService`. ✅ Done via `launcher.py`
+- [ ] **Task Queue (v2)**: Migrate from daemon threads to Celery/Redis for reliable execution.
+
+### P1 — Security & Compliance
+- [ ] **RBAC**: Implement `User.role` (Admin/Editor/Viewer) and API decorators. *(In progress — see Multi-User Sprint above)*
+- [ ] **Full Audit Log**: Log all configuration changes (who changed what connection?). *(In progress — MU-4)*
+
+---
+
 ## Feature Backlog
 
 ### More Email Providers
@@ -77,22 +150,21 @@
 *Required before FlowForge can be used by teams where more than one person logs in.*
 
 ### Auth & Identity
-- [ ] `ff_users` table — add `role` column: `admin | editor | viewer`
-- [ ] `ff_project_members` join table — user X can access Project A but not Project B
-- [ ] Switch JWT from single-user (env-var admin) to user-id-bearing tokens; store `user_id` in every JWT claim
-- [ ] Server-side token revocation — `jti` UUID per token, revocation table in DB (or Redis set); `/api/auth/logout` endpoint invalidates current token
-- [ ] Password reset flow — `POST /auth/forgot-password` → email token → `POST /auth/reset-password`
-- [ ] User management UI page — list users, invite, change role, deactivate; admin only
+- [x] `ff_users` table — `role` column added (migration 0018) ✅
+- [x] `require_role` decorator in `auth.py` ✅
+- [x] `ff_token_blocklist` table for server-side revocation ✅
+- [ ] JWT carries `user_id` — see MU-1
+- [ ] User management API + UI — see MU-2 / MU-6
+- [ ] `ff_project_members` join table — deferred to v3
+- [ ] Password reset flow — deferred to v3
 
 ### Role-Based Access Control
-- [ ] **Admin** — full access: manage connections, email providers, all projects, all users
-- [ ] **Editor** — create/edit/run pipelines, reports, emails in assigned projects; cannot manage connections or users
-- [ ] **Viewer** — read-only: view runs, download reports, no config changes
-- [ ] Permission guards on every API route — decorator `@require_role('editor')` pattern
-- [ ] Permission guards in frontend — hide/disable buttons based on user role from `/api/auth/me`
-- [ ] Audit log — attach `user_id` to every existing audit event so every action is attributable
+- [x] `@require_role('admin')` on connections (create/delete) and providers ✅
+- [ ] Guards on all remaining routes — see MU-3
+- [ ] Frontend role visibility — see MU-5 / MU-7
+- [ ] Audit log `user_id` — see MU-4
 
-### Effort estimate: 3–5 days backend + 2–3 days frontend UI
+### Effort estimate: ~3 days backend + 1.5 days frontend (scoped, project-member access deferred)
 
 ---
 
