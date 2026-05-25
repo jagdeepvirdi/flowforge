@@ -76,11 +76,14 @@
 - [x] `audit.py` — `_current_user()` reads `g.user_token['sub']` (username) and appends `by=<username>` to every log entry. All `audit.log_*` call sites covered. ✅
 - [ ] When MU-1 adds `user_id` to the JWT payload, optionally also log `user_id=<uuid>` alongside the username for cross-referencing with `ff_users`
 
-### MU-5 — Frontend role context *(frontend)*
-- [ ] `lib/api.ts` — add `getMe(): Promise<{ id, username, role }>` calling `GET /api/auth/me`
-- [ ] Zustand `useAuthStore` — add `user: { id, username, role } | null`; populate on login and app load
-- [ ] `useCurrentUser()` hook — convenience wrapper over the store
-- [ ] Call `getMe()` in app bootstrap (e.g. `App.tsx` effect) so role is always available
+### MU-5 — Frontend role context *(frontend)* ✅
+- [x] `lib/types.ts` — added `Role` type + `CurrentUser` interface ✅
+- [x] `lib/api.ts` — `getMe()` calls `GET /api/auth/me` ✅
+- [x] `lib/auth.ts` — `useAuth` store extended with `user: CurrentUser | null` + `setUser`; `clearToken` also clears `user` ✅
+- [x] `useCurrentUser()` hook exported from `lib/auth.ts` — selector over store, no extra API calls ✅
+- [x] `Login.tsx` — calls `getMe()` + `setUser()` immediately after token so role is available before navigation ✅
+- [x] `App.tsx` — `AppBootstrap` component: `useEffect([token])` calls `getMe()` on every page load/refresh; clears token if call fails (expired token) ✅
+- [x] Login test updated to mock `getMe` + `setUser`; all 24 frontend tests passing ✅
 
 ### MU-6 — User management UI *(frontend)*
 - [ ] New page `src/pages/Users.tsx` — admin-only; redirect non-admins to dashboard

@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { login } from '../lib/api'
+import { login, getMe } from '../lib/api'
 import { useAuth } from '../lib/auth'
 
 export default function Login() {
-  const { setToken } = useAuth()
+  const { setToken, setUser } = useAuth()
   const navigate = useNavigate()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -18,6 +18,8 @@ export default function Login() {
     try {
       const { token } = await login(username, password)
       setToken(token)
+      const user = await getMe()
+      setUser(user)
       navigate('/dashboard')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')

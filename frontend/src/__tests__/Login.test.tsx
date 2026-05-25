@@ -4,22 +4,27 @@ import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from './helpers'
 import Login from '../pages/Login'
 
-// vi.hoisted ensures mockLogin is defined before vi.mock's factory runs
-const mockLogin = vi.hoisted(() => vi.fn())
+// vi.hoisted ensures mocks are defined before vi.mock's factory runs
+const mockLogin   = vi.hoisted(() => vi.fn())
+const mockGetMe   = vi.hoisted(() => vi.fn())
 const mockSetToken = vi.hoisted(() => vi.fn())
+const mockSetUser  = vi.hoisted(() => vi.fn())
 
 vi.mock('../lib/api', () => ({
   login: mockLogin,
+  getMe: mockGetMe,
 }))
 
 vi.mock('../lib/auth', () => ({
-  useAuth: () => ({ setToken: mockSetToken, token: null, clearToken: vi.fn() }),
+  useAuth: () => ({ setToken: mockSetToken, setUser: mockSetUser, token: null, clearToken: vi.fn() }),
 }))
 
 describe('Login page', () => {
   beforeEach(() => {
     mockLogin.mockReset()
     mockSetToken.mockReset()
+    mockSetUser.mockReset()
+    mockGetMe.mockResolvedValue({ id: 'u1', username: 'admin', role: 'admin' })
   })
 
   it('renders username and password fields', () => {

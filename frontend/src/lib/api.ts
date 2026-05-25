@@ -42,6 +42,7 @@ const del  = <T>(path: string)             => request<T>('DELETE', path)
 export const login  = (username: string, password: string) =>
   post<{ token: string }>('/auth/login', { username, password })
 export const logout = () => post<{ message: string }>('/auth/logout')
+export const getMe  = () => get<import('./types').CurrentUser>('/auth/me')
 
 // Projects
 export const getProjects    = () => get<import('./types').Project[]>('/projects')

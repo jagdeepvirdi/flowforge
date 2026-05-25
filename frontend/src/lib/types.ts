@@ -1,3 +1,11 @@
+export type Role = 'admin' | 'editor' | 'viewer'
+
+export interface CurrentUser {
+  id: string
+  username: string
+  role: Role
+}
+
 export interface Project {
   id: string
   name: string

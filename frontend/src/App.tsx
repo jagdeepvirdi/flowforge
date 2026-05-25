@@ -1,4 +1,6 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { getMe } from './lib/api'
 import { useAuth } from './lib/auth'
 import Layout from './components/shared/Layout'
 import Login from './pages/Login'
@@ -23,9 +25,23 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return isAuthenticated() ? <>{children}</> : <Navigate to="/login" replace />
 }
 
+function AppBootstrap({ children }: { children: React.ReactNode }) {
+  const token = useAuth((s) => s.token)
+  const setUser = useAuth((s) => s.setUser)
+  const clearToken = useAuth((s) => s.clearToken)
+
+  useEffect(() => {
+    if (!token) return
+    getMe().then(setUser).catch(() => clearToken())
+  }, [token])
+
+  return <>{children}</>
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <AppBootstrap>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route
@@ -58,6 +74,7 @@ export default function App() {
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
+      </AppBootstrap>
     </BrowserRouter>
   )
 }
