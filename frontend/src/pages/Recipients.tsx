@@ -4,6 +4,7 @@ import { Plus, Pencil, Trash2, Check, X } from 'lucide-react'
 import { getRecipientGroups, createRecipientGroup, updateRecipientGroup, deleteRecipientGroup } from '../lib/api'
 import type { RecipientGroup } from '../lib/types'
 import { useProjectStore } from '../lib/store'
+import { useCurrentUser } from '../lib/auth'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 import PageIntro from '../components/shared/PageIntro'
@@ -30,7 +31,7 @@ function ChipInput({ values, onChange }: { values: string[]; onChange: (v: strin
   )
 }
 
-function GroupRow({ group, onSaved, onDelete }: { group: RecipientGroup; onSaved: () => void; onDelete: () => void }) {
+function GroupRow({ group, onSaved, onDelete, canEdit }: { group: RecipientGroup; onSaved: () => void; onDelete: () => void; canEdit: boolean }) {
   const [editing, setEditing] = useState(false)
   const [name, setName]       = useState(group.name)
   const [desc, setDesc]       = useState(group.description)
@@ -50,12 +51,14 @@ function GroupRow({ group, onSaved, onDelete }: { group: RecipientGroup; onSaved
             {group.addresses.map(a => <span key={a} className="chip" style={{ height: 20, fontSize: 11 }}>{a}</span>)}
           </div>
         </td>
-        <td>
-          <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-            <button className="btn btn-sm btn-ghost btn-icon" onClick={() => setEditing(true)}><Pencil size={12} /></button>
-            <button className="btn btn-sm btn-ghost btn-icon" onClick={() => window.confirm(`Delete "${group.name}"?`) && onDelete()}><Trash2 size={12} /></button>
-          </div>
-        </td>
+        {canEdit && (
+          <td>
+            <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+              <button className="btn btn-sm btn-ghost btn-icon" onClick={() => setEditing(true)}><Pencil size={12} /></button>
+              <button className="btn btn-sm btn-ghost btn-icon" onClick={() => window.confirm(`Delete "${group.name}"?`) && onDelete()}><Trash2 size={12} /></button>
+            </div>
+          </td>
+        )}
       </tr>
     )
   }
@@ -80,6 +83,8 @@ function GroupRow({ group, onSaved, onDelete }: { group: RecipientGroup; onSaved
 export default function Recipients() {
   const qc = useQueryClient()
   const { activeProjectId } = useProjectStore()
+  const me = useCurrentUser()
+  const canEdit = me?.role !== 'viewer'
   const { data: groups = [], isLoading } = useQuery({
     queryKey: ['recipient-groups', activeProjectId],
     queryFn: () => getRecipientGroups(activeProjectId ? { project_id: activeProjectId } : undefined),
@@ -105,7 +110,7 @@ export default function Recipients() {
       <TopBar
         crumbs={['Workspace', 'Recipients']}
         helpTopic="recipients"
-        actions={<button className="btn btn-primary btn-sm" onClick={() => setShowNew(true)}><Plus size={13} /> New Group</button>}
+        actions={canEdit ? <button className="btn btn-primary btn-sm" onClick={() => setShowNew(true)}><Plus size={13} /> New Group</button> : undefined}
       />
       <div className="scroll">
         <PageIntro page="recipients" />
@@ -145,7 +150,7 @@ export default function Recipients() {
             </thead>
             <tbody>
               {groups.length === 0 && <tr><td colSpan={4} style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>No recipient groups yet. Create a named list of addresses — "Finance Team", "Management" — and assign it to an email config.</td></tr>}
-              {groups.map(g => <GroupRow key={g.id} group={g} onSaved={() => qc.invalidateQueries({ queryKey: ['recipient-groups'] })} onDelete={() => remove(g.id)} />)}
+              {groups.map(g => <GroupRow key={g.id} group={g} canEdit={canEdit} onSaved={() => qc.invalidateQueries({ queryKey: ['recipient-groups'] })} onDelete={() => remove(g.id)} />)}
             </tbody>
           </table>
         </div>

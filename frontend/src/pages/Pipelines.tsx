@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { Plus, Play, Pencil, Trash2, Copy, Upload, Search, ChevronDown } from 'lucide-react'
 import { getPipelines, deletePipeline, clonePipeline, runPipeline, exportPipeline, importPipeline } from '../lib/api'
 import { useProjectStore } from '../lib/store'
+import { useCurrentUser } from '../lib/auth'
 import StatusBadge from '../components/shared/StatusBadge'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
@@ -60,6 +61,8 @@ export default function Pipelines() {
   const [scheduleFilter, setScheduleFilter] = useState('Any')
   const qc = useQueryClient()
   const { activeProjectId } = useProjectStore()
+  const me = useCurrentUser()
+  const canEdit = me?.role !== 'viewer'
 
   const { data: pipelines = [], isLoading } = useQuery({
     queryKey: ['pipelines', activeProjectId],
@@ -110,13 +113,13 @@ export default function Pipelines() {
       <TopBar
         crumbs={['Workspace', 'Pipelines']}
         helpTopic="pipelines"
-        actions={
+        actions={canEdit ? (
           <div style={{ display: 'flex', gap: 6 }}>
             <input ref={importRef} type="file" accept=".yaml,.yml" style={{ display: 'none' }} onChange={handleImportFile} />
             <button className="btn btn-sm btn-ghost" onClick={() => importRef.current?.click()}><Upload size={13} /> Import</button>
             <Link to="/pipelines/new" className="btn btn-primary btn-sm"><Plus size={13} /> New Pipeline</Link>
           </div>
-        }
+        ) : undefined}
       />
 
       <div className="scroll">
@@ -146,7 +149,7 @@ export default function Pipelines() {
         {filtered.length === 0 ? (
           <div className="card ff-empty">
             <p className="msg">{search ? 'No pipelines match your filter.' : 'No pipelines yet.'}</p>
-            {!search && <Link to="/pipelines/new" className="btn btn-primary">Create your first pipeline</Link>}
+            {!search && canEdit && <Link to="/pipelines/new" className="btn btn-primary">Create your first pipeline</Link>}
           </div>
         ) : (
           <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
@@ -187,12 +190,6 @@ export default function Pipelines() {
                     <td className="mono" style={{ color: 'var(--text-2)' }}>{p.steps.length}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-                        <button className="btn btn-sm btn-ghost btn-icon" onClick={() => trigger(p.id)} title="Run now" disabled={!p.enabled}>
-                          <Play size={12} />
-                        </button>
-                        <button className="btn btn-sm btn-ghost btn-icon" title="Clone" onClick={() => clone(p.id)}>
-                          <Copy size={12} />
-                        </button>
                         <button className="btn btn-sm btn-ghost btn-icon" title="Export YAML" onClick={async () => {
                           const blob = await exportPipeline(p.id)
                           const url = URL.createObjectURL(blob)
@@ -202,19 +199,29 @@ export default function Pipelines() {
                         }}>
                           <Upload size={12} style={{ transform: 'rotate(180deg)' }} />
                         </button>
-                        <Link to={`/pipelines/${p.id}/edit`} className="btn btn-sm btn-ghost btn-icon" title="Edit">
-                          <Pencil size={12} />
-                        </Link>
-                        <button
-                          className="btn btn-sm btn-ghost btn-icon"
-                          style={{ color: 'var(--text-muted)' }}
-                          onMouseEnter={e => (e.currentTarget.style.color = 'var(--failure-text)')}
-                          onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
-                          onClick={() => window.confirm(`Delete "${p.name}"?`) && remove(p.id)}
-                          title="Delete"
-                        >
-                          <Trash2 size={12} />
-                        </button>
+                        {canEdit && (
+                          <>
+                            <button className="btn btn-sm btn-ghost btn-icon" onClick={() => trigger(p.id)} title="Run now" disabled={!p.enabled}>
+                              <Play size={12} />
+                            </button>
+                            <button className="btn btn-sm btn-ghost btn-icon" title="Clone" onClick={() => clone(p.id)}>
+                              <Copy size={12} />
+                            </button>
+                            <Link to={`/pipelines/${p.id}/edit`} className="btn btn-sm btn-ghost btn-icon" title="Edit">
+                              <Pencil size={12} />
+                            </Link>
+                            <button
+                              className="btn btn-sm btn-ghost btn-icon"
+                              style={{ color: 'var(--text-muted)' }}
+                              onMouseEnter={e => (e.currentTarget.style.color = 'var(--failure-text)')}
+                              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+                              onClick={() => window.confirm(`Delete "${p.name}"?`) && remove(p.id)}
+                              title="Delete"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -85,20 +85,23 @@
 - [x] `App.tsx` — `AppBootstrap` component: `useEffect([token])` calls `getMe()` on every page load/refresh; clears token if call fails (expired token) ✅
 - [x] Login test updated to mock `getMe` + `setUser`; all 24 frontend tests passing ✅
 
-### MU-6 — User management UI *(frontend)*
-- [ ] New page `src/pages/Users.tsx` — admin-only; redirect non-admins to dashboard
-- [ ] Add route `/settings/users` in `App.tsx`; add nav item in `Layout.tsx` (visible to admins only)
-- [ ] Users table: username, role badge, "Change Role" dropdown, "Delete" button
-- [ ] "Add User" slide-over: username + password + role selector → `POST /api/users`
-- [ ] "Change Password" section in Settings page (self-service, any user)
+### MU-6 — User management UI *(frontend)* ✅
+- [x] New page `src/pages/Users.tsx` — admin-only; redirect non-admins to dashboard ✅
+- [x] Route `/settings/users` in `App.tsx`; admin-only nav item in `Layout.tsx` via `useCurrentUser()` ✅
+- [x] Users table: username col with "(you)" badge, inline role select (disabled for self), delete button ✅
+- [x] "Add User" modal: username + password + role selector → `POST /api/users` ✅
+- [x] "Change Password" card in Settings page (self-service, any user) ✅
+- [x] 24 frontend tests passing ✅
 
-### MU-7 — Frontend role-based visibility *(frontend)*
-- [ ] Connections page — hide "Add Connection", "Delete" for non-admins
-- [ ] Providers page — hide "Add Provider", "Delete" for non-admins
-- [ ] Pipelines — hide "New Pipeline", edit/delete/clone actions for viewers
-- [ ] Dashboard — hide "Run Now" button for viewers
-- [ ] Reports / Emails / Recipients — hide create/edit/delete for viewers
-- [ ] Use `useCurrentUser().role` — no API calls, instant from store
+### MU-7 — Frontend role-based visibility *(frontend)* ✅
+- [x] Connections — hide "Add Connection", "Edit", "Delete" for non-admins (`isAdmin = role === 'admin'`) ✅
+- [x] Providers — same page as Connections; handled in same component ✅
+- [x] Pipelines — hide "New Pipeline", Import, Run/Clone/Edit/Delete per-row for viewers ✅
+- [x] Dashboard — hide "Run Now", "Edit" for viewers in PipelineCard; hide "New Pipeline" button ✅
+- [x] Reports / Emails / Recipients — hide create/edit/delete for viewers ✅
+- [x] All via `useCurrentUser().role` — no API calls, instant from Zustand store ✅
+- [x] Connections test updated to mock `useCurrentUser` returning admin ✅
+- [x] 24 frontend tests passing ✅
 
 ---
 

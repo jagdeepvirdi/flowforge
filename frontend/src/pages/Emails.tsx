@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { getEmailConfigs, deleteEmailConfig, getEmailProviders } from '../lib/api'
 import { useProjectStore } from '../lib/store'
+import { useCurrentUser } from '../lib/auth'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 import PageIntro from '../components/shared/PageIntro'
@@ -10,6 +11,8 @@ import PageIntro from '../components/shared/PageIntro'
 export default function Emails() {
   const qc = useQueryClient()
   const { activeProjectId } = useProjectStore()
+  const me = useCurrentUser()
+  const canEdit = me?.role !== 'viewer'
   const { data: configs = [], isLoading } = useQuery({
     queryKey: ['email-configs', activeProjectId],
     queryFn: () => getEmailConfigs(activeProjectId ? { project_id: activeProjectId } : undefined),
@@ -32,7 +35,7 @@ export default function Emails() {
       <TopBar
         crumbs={['Workspace', 'Email Templates']}
         helpTopic="emails"
-        actions={<Link to="/emails/new" className="btn btn-primary btn-sm"><Plus size={13} /> New Email Config</Link>}
+        actions={canEdit ? <Link to="/emails/new" className="btn btn-primary btn-sm"><Plus size={13} /> New Email Config</Link> : undefined}
       />
       <div className="scroll">
         <PageIntro page="emails" />
@@ -48,7 +51,7 @@ export default function Emails() {
             <p className="msg">No email configs yet.</p>
             <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: '0 0 14px' }}>An email config stores the subject, body, and recipients for a type of email. You'll also need an Email Provider (Gmail/M365/SMTP) set up under Connections.</p>
             <div style={{ display: 'flex', gap: 10 }}>
-              <Link to="/emails/new" className="btn btn-primary">Create email config</Link>
+              {canEdit && <Link to="/emails/new" className="btn btn-primary">Create email config</Link>}
               <Link to="/connections" className="btn btn-sm">Set up email provider →</Link>
             </div>
           </div>
@@ -79,14 +82,16 @@ export default function Emails() {
                     <td style={{ color: 'var(--text-3)', fontSize: 12 }}>{providerName(c.provider_id)}</td>
                     <td className="mono" style={{ fontSize: 12, color: 'var(--text-2)', maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.subject}</td>
                     <td style={{ color: 'var(--text-3)', fontSize: 12 }}>{c.attachment_max_mb}MB</td>
-                    <td>
-                      <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-                        <Link to={`/emails/${c.id}/edit`} className="btn btn-sm btn-ghost btn-icon"><Pencil size={12} /></Link>
-                        <button className="btn btn-sm btn-ghost btn-icon" onClick={() => window.confirm(`Delete "${c.name}"?`) && remove(c.id)}>
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </td>
+                    {canEdit && (
+                      <td>
+                        <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                          <Link to={`/emails/${c.id}/edit`} className="btn btn-sm btn-ghost btn-icon"><Pencil size={12} /></Link>
+                          <button className="btn btn-sm btn-ghost btn-icon" onClick={() => window.confirm(`Delete "${c.name}"?`) && remove(c.id)}>
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

@@ -4,6 +4,11 @@ import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from './helpers'
 import Connections from '../pages/Connections'
 
+vi.mock('../lib/auth', () => ({
+  useAuth: vi.fn(() => ({ token: 'tok', setToken: vi.fn(), setUser: vi.fn(), clearToken: vi.fn(), isAuthenticated: () => true })),
+  useCurrentUser: vi.fn(() => ({ id: 'u1', username: 'admin', role: 'admin' })),
+}))
+
 const MOCK_DB_CONNECTIONS = [
   {
     id: 'db1', name: 'Production Postgres', db_type: 'postgresql',

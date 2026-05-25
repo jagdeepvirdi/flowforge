@@ -5,7 +5,7 @@ import {
   getDbConnections, getDbConnection, createDbConnection, updateDbConnection, deleteDbConnection, testDbConnection, testDbConnectionRaw,
   getEmailProviders, getEmailProvider, createEmailProvider, updateEmailProvider, deleteEmailProvider, testEmailProvider,
 } from '../lib/api'
-
+import { useCurrentUser } from '../lib/auth'
 import StatusBadge from '../components/shared/StatusBadge'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
@@ -73,6 +73,8 @@ function Field({ label, children, tooltip }: { label: string; children: React.Re
 
 export default function Connections() {
   const qc = useQueryClient()
+  const me = useCurrentUser()
+  const isAdmin = me?.role === 'admin'
   const [tab, setTab] = useState<Tab>('db')
   const [testStatuses, setTestStatuses] = useState<Record<string, 'testing' | 'ok' | 'fail'>>({})
   const [testErrors, setTestErrors]     = useState<Record<string, string>>({})
@@ -208,7 +210,7 @@ export default function Connections() {
       <TopBar
         crumbs={['Workspace', 'Connections']}
         helpTopic="connections"
-        actions={<button className="btn btn-primary btn-sm" onClick={openModal}><Plus size={13} /> Add Connection</button>}
+        actions={isAdmin ? <button className="btn btn-primary btn-sm" onClick={openModal}><Plus size={13} /> Add Connection</button> : undefined}
       />
 
       <div className="scroll">
@@ -308,10 +310,14 @@ export default function Connections() {
                         {ts === 'testing' ? <Spinner size={11} /> : <span style={{ width: 6, height: 6, borderRadius: '50%', background: ts === 'ok' ? 'var(--success-text)' : 'var(--text-muted)' }} />}
                         Test
                       </button>
-                      <button className="btn btn-sm btn-ghost btn-icon" onClick={() => openEdit(c.id)}><Pencil size={12} /></button>
-                      <button className="btn btn-sm btn-ghost btn-icon" onClick={() => window.confirm(`Delete "${c.name}"?`) && removeDb(c.id)}>
-                        <Trash2 size={12} />
-                      </button>
+                      {isAdmin && (
+                        <>
+                          <button className="btn btn-sm btn-ghost btn-icon" onClick={() => openEdit(c.id)}><Pencil size={12} /></button>
+                          <button className="btn btn-sm btn-ghost btn-icon" onClick={() => window.confirm(`Delete "${c.name}"?`) && removeDb(c.id)}>
+                            <Trash2 size={12} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -321,7 +327,7 @@ export default function Connections() {
               <div className="card ff-empty">
                 <p className="msg">No database connections yet.</p>
                 <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: '0 0 14px' }}>Add a PostgreSQL or Oracle connection. Credentials are encrypted at rest with AES-256.</p>
-                <button className="btn btn-primary btn-sm" onClick={openModal}>Add connection</button>
+                {isAdmin && <button className="btn btn-primary btn-sm" onClick={openModal}>Add connection</button>}
               </div>
             )}
           </div>
@@ -388,10 +394,14 @@ export default function Connections() {
                         {ts === 'testing' ? <Spinner size={11} /> : <span style={{ width: 6, height: 6, borderRadius: '50%', background: ts === 'ok' ? 'var(--success-text)' : 'var(--text-muted)' }} />}
                         Test
                       </button>
-                      <button className="btn btn-sm btn-ghost btn-icon" onClick={() => openEdit(p.id)}><Pencil size={12} /></button>
-                      <button className="btn btn-sm btn-ghost btn-icon" onClick={() => window.confirm(`Delete "${p.name}"?`) && removeEmail(p.id)}>
-                        <Trash2 size={12} />
-                      </button>
+                      {isAdmin && (
+                        <>
+                          <button className="btn btn-sm btn-ghost btn-icon" onClick={() => openEdit(p.id)}><Pencil size={12} /></button>
+                          <button className="btn btn-sm btn-ghost btn-icon" onClick={() => window.confirm(`Delete "${p.name}"?`) && removeEmail(p.id)}>
+                            <Trash2 size={12} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -401,7 +411,7 @@ export default function Connections() {
               <div className="card ff-empty">
                 <p className="msg">No email providers configured yet.</p>
                 <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: '0 0 14px' }}>Add a Gmail, Microsoft 365, or SMTP provider. One provider can be shared across many email configs.</p>
-                <button className="btn btn-primary btn-sm" onClick={openModal}>Add email provider</button>
+                {isAdmin && <button className="btn btn-primary btn-sm" onClick={openModal}>Add email provider</button>}
               </div>
             )}
           </div>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { getReportConfigs, deleteReportConfig } from '../lib/api'
 import { useProjectStore } from '../lib/store'
+import { useCurrentUser } from '../lib/auth'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 import PageIntro from '../components/shared/PageIntro'
@@ -16,6 +17,8 @@ const FORMAT_META: Record<string, { cls: string }> = {
 export default function Reports() {
   const qc = useQueryClient()
   const { activeProjectId } = useProjectStore()
+  const me = useCurrentUser()
+  const canEdit = me?.role !== 'viewer'
   const { data: configs = [], isLoading } = useQuery({
     queryKey: ['report-configs', activeProjectId],
     queryFn: () => getReportConfigs(activeProjectId ? { project_id: activeProjectId } : undefined),
@@ -35,7 +38,7 @@ export default function Reports() {
       <TopBar
         crumbs={['Workspace', 'Reports']}
         helpTopic="reports"
-        actions={<Link to="/reports/new" className="btn btn-primary btn-sm"><Plus size={13} /> New Report</Link>}
+        actions={canEdit ? <Link to="/reports/new" className="btn btn-primary btn-sm"><Plus size={13} /> New Report</Link> : undefined}
       />
       <div className="scroll">
         <PageIntro page="reports" />
@@ -50,7 +53,7 @@ export default function Reports() {
           <div className="card ff-empty">
             <p className="msg">No report configs yet.</p>
             <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: '0 0 14px' }}>A report config pairs a SQL query with an output format (Excel, PDF, CSV). Once created, reference it in a pipeline's report step.</p>
-            <Link to="/reports/new" className="btn btn-primary">Create first report config</Link>
+            {canEdit && <Link to="/reports/new" className="btn btn-primary">Create first report config</Link>}
           </div>
         ) : (
           <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
@@ -80,14 +83,16 @@ export default function Reports() {
                       </td>
                       <td><span className={`tbadge ${m.cls}`}>{c.format.toUpperCase()}</span></td>
                       <td className="mono" style={{ fontSize: 11.5, color: 'var(--text-3)' }}>{c.output_filename}</td>
-                      <td>
-                        <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-                          <Link to={`/reports/${c.id}/edit`} className="btn btn-sm btn-ghost btn-icon"><Pencil size={12} /></Link>
-                          <button className="btn btn-sm btn-ghost btn-icon" onClick={() => window.confirm(`Delete "${c.name}"?`) && remove(c.id)}>
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      </td>
+                      {canEdit && (
+                        <td>
+                          <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                            <Link to={`/reports/${c.id}/edit`} className="btn btn-sm btn-ghost btn-icon"><Pencil size={12} /></Link>
+                            <button className="btn btn-sm btn-ghost btn-icon" onClick={() => window.confirm(`Delete "${c.name}"?`) && remove(c.id)}>
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   )
                 })}

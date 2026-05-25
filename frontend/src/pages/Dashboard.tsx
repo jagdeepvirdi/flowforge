@@ -4,6 +4,7 @@ import { Plus, Clock, Calendar, History, Pencil, Play } from 'lucide-react'
 import { getPipelines, getDashboardSummary, runPipeline, getRuns } from '../lib/api'
 import type { Pipeline, PipelineRun } from '../lib/types'
 import { useProjectStore } from '../lib/store'
+import { useCurrentUser } from '../lib/auth'
 import StatusBadge from '../components/shared/StatusBadge'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
@@ -43,6 +44,8 @@ const RUN_BARS = 14
 
 function PipelineCard({ pipeline, runs }: { pipeline: Pipeline; runs: PipelineRun[] }) {
   const qc = useQueryClient()
+  const me = useCurrentUser()
+  const canEdit = me?.role !== 'viewer'
   const lastRun: PipelineRun | undefined = runs[0]
   const isRunning = lastRun?.status === 'running'
 
@@ -94,20 +97,24 @@ function PipelineCard({ pipeline, runs }: { pipeline: Pipeline; runs: PipelineRu
 
       {/* Footer */}
       <div className="flex gap-1.5">
-        <Link to={`/runs?pipeline=${pipeline.id}`} className="btn btn-sm flex-1">
+        <Link to={`/runs?pipeline=${pipeline.id}`} className={`btn btn-sm ${canEdit ? 'flex-1' : 'flex-1'}`}>
           <History size={12} /> Runs
         </Link>
-        <Link to={`/pipelines/${pipeline.id}/edit`} className="btn btn-sm flex-1">
-          <Pencil size={12} /> Edit
-        </Link>
-        <button
-          className="btn btn-primary btn-sm flex-[1.4]"
-          onClick={() => trigger()}
-          disabled={isPending || isRunning || !pipeline.enabled}
-        >
-          {isPending || isRunning ? <Spinner size={12} /> : <Play size={11} />}
-          {isRunning ? 'Running…' : 'Run Now'}
-        </button>
+        {canEdit && (
+          <>
+            <Link to={`/pipelines/${pipeline.id}/edit`} className="btn btn-sm flex-1">
+              <Pencil size={12} /> Edit
+            </Link>
+            <button
+              className="btn btn-primary btn-sm flex-[1.4]"
+              onClick={() => trigger()}
+              disabled={isPending || isRunning || !pipeline.enabled}
+            >
+              {isPending || isRunning ? <Spinner size={12} /> : <Play size={11} />}
+              {isRunning ? 'Running…' : 'Run Now'}
+            </button>
+          </>
+        )}
       </div>
     </div>
   )
@@ -127,6 +134,8 @@ function MetaCol({ label, value, icon, mono }: { label: string; value: string; i
 
 export default function Dashboard() {
   const { activeProjectId } = useProjectStore()
+  const me = useCurrentUser()
+  const canEdit = me?.role !== 'viewer'
   const projectParam = activeProjectId ? { project_id: activeProjectId } : undefined
 
   const { data: pipelines = [], isLoading } = useQuery({
@@ -226,7 +235,7 @@ export default function Dashboard() {
       <TopBar
         crumbs={['Workspace', 'Dashboard']}
         helpTopic="dashboard"
-        actions={<Link to="/pipelines/new" className="btn btn-primary btn-sm"><Plus size={12} /> New Pipeline</Link>}
+        actions={canEdit ? <Link to="/pipelines/new" className="btn btn-primary btn-sm"><Plus size={12} /> New Pipeline</Link> : undefined}
       />
 
       <div className="scroll">
@@ -261,7 +270,7 @@ export default function Dashboard() {
         {pipelines.length === 0 ? (
           <div className="card ff-empty">
             <p className="msg">No pipelines yet.</p>
-            <Link to="/pipelines/new" className="btn btn-primary">Create your first pipeline</Link>
+            {canEdit && <Link to="/pipelines/new" className="btn btn-primary">Create your first pipeline</Link>}
           </div>
         ) : (
           <div className="grid-pipelines mb-7">
