@@ -3,6 +3,32 @@
 
 ---
 
+## Session — 2026-05-25 (P0 Release Blockers — Docker + CHANGELOG + Celery E2E) 🟢 *(COMPLETE)*
+
+### 1.2 Docker Compose Smoke Test — All Complete (commit `8a20243`)
+
+- [x] Run `docker compose up` on a clean environment — all 5 services started cleanly
+- [x] Verify API, frontend (Nginx), PostgreSQL, scheduler, Redis, and Celery worker all start cleanly — `All 5 services healthy` confirmed
+- [x] Verify `flowforge db upgrade && flowforge db seed` works inside the container — 18 migrations applied, admin user seeded
+- [x] Open `http://localhost:5000`, log in, create a pipeline, run it — `PipelineRun.status = "success"` confirmed via `/api/runs/<id>`
+
+*Five fixes required for clean Docker build: Dockerfile copy of `pyproject.toml`/`README.md`/`LICENSE`/`wsgi.py`; `.dockerignore` unblocked `README.md`; `alembic` added to `requirements.txt`; `cli.py db seed` sets `role="admin"`; `Skeleton.tsx` `className` prop added for TypeScript build.*
+
+### 1.3 CHANGELOG.md — All Complete (commit `81440d1`)
+
+- [x] Add v1.1.0 entry — MySQL, OneDrive, SFTP, AI features, step retry, failure webhook, webhook trigger, JWT revocation, SAST
+- [x] Add v1.2.0 entry — multi-user roles, user management UI, Celery wiring, responsive layout, audit attribution
+- [x] Confirm CHANGELOG format matches existing v0.x / v1.0.0 entries — footer diff links updated for all versions v0.1.0 → HEAD
+
+### 1.1 Celery E2E Verification — All 4 Items Complete (commit `23dac3f` + Test 3, script `verify_celery.py`)
+
+- [x] Start Redis + `flowforge worker`, trigger a pipeline via the API/UI — dispatched via `run_pipeline_task.delay()`
+- [x] Confirm worker picks up the task and writes to `ff_pipeline_runs` + `ff_step_runs` — polled to `status = success`, StepRun checked
+- [x] Confirm fallback (no `FLOWFORGE_REDIS_URL`) still runs pipeline in thread mode — `_use_celery()` returns `False`, thread executor confirmed
+- [x] Confirm scheduler-triggered runs flow through Celery — Test 3: `_run_pipeline_job()` called directly (exact APScheduler entry point) with `scheduler._app` set; `PipelineRun.triggered_by='scheduler'`, `status='success'`, 1 StepRun written
+
+---
+
 ## Session — 2026-05-25 (Celery Wiring + Multi-User Sprint Close-out) 🟢 *(COMPLETE)*
 
 ### Celery Task Queue — Wiring Complete

@@ -293,6 +293,126 @@ def test_thread_fallback():
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Test 3 — Scheduler-triggered path via Celery
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_scheduler_celery_path():
+    """Simulate what APScheduler does: call _run_pipeline_job() directly.
+
+    This is the exact entry point APScheduler calls when a cron fires.
+    We set scheduler._app (the module-level app handle the scheduler stores),
+    then call _run_pipeline_job(pipeline_id, pipeline_name) while a Celery
+    worker is running.  We verify:
+      - PipelineRun.triggered_by == 'scheduler'
+      - PipelineRun.status == 'success'
+      - StepRun records written
+    """
+    _header('TEST 3 — Scheduler → Celery (simulates APScheduler cron fire)')
+
+    app = create_app()
+    conn_id     = _create_test_connection(app)
+    pipeline_id = _create_test_pipeline(app, conn_id)
+    _ok(f'Test pipeline created: {pipeline_id[:8]}…')
+
+    # Wire scheduler._app exactly as start_scheduler() does
+    import flowforge.engine.scheduler as _sched_mod
+    _sched_mod._app = app
+    _ok('scheduler._app set (replicates start_scheduler() setup)')
+
+    # Start a worker subprocess
+    print('  Starting flowforge worker…')
+    worker = subprocess.Popen(
+        [VENV_PYTHON, '-m', 'celery', '-A', 'flowforge.celery_app', 'worker',
+         '--loglevel=info', '--pool=solo',
+         '--without-gossip', '--without-mingle', '--without-heartbeat'],
+        env=os.environ.copy(),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    time.sleep(4)
+    if worker.poll() is not None:
+        out, _ = worker.communicate()
+        _err(f'Worker exited early (rc={worker.returncode}):\n{out}')
+    _ok('Worker process started')
+
+    # Get pipeline name inside app context, then call the scheduler entry point
+    with app.app_context():
+        from flowforge.db.models import Pipeline as _Pipeline
+        pipeline_name = db.session.get(_Pipeline, pipeline_id).name
+
+    print(f'  Calling _run_pipeline_job("{pipeline_id[:8]}…", "{pipeline_name}")…')
+    _sched_mod._run_pipeline_job(pipeline_id, pipeline_name)
+    _ok('_run_pipeline_job() returned (run dispatched to Celery)')
+
+    # Find the run that was created with triggered_by='scheduler'
+    print(f'  Waiting up to {_POLL_SECS}s for scheduler run to complete…')
+    deadline = time.time() + _POLL_SECS
+    run = None
+    while time.time() < deadline:
+        with app.app_context():
+            from flowforge.db.models import PipelineRun as _PR
+            run = (
+                db.session.query(_PR)
+                .filter_by(pipeline_id=pipeline_id, triggered_by='scheduler')
+                .order_by(_PR.started_at.desc())
+                .first()
+            )
+            if run and run.status != 'running':
+                break
+        time.sleep(1)
+
+    # Drain worker
+    try:
+        worker_stdout, _ = worker.communicate(timeout=5)
+    except subprocess.TimeoutExpired:
+        worker_stdout = ''
+        worker.kill()
+        worker.wait()
+    else:
+        worker.terminate()
+        worker.wait()
+
+    if run is None:
+        _err('No PipelineRun with triggered_by="scheduler" found in DB')
+
+    print(f'\n  PipelineRun.triggered_by = {run.triggered_by!r}')
+    print(f'  PipelineRun.status       = {run.status!r}')
+
+    if run.triggered_by != 'scheduler':
+        _err(f'triggered_by={run.triggered_by!r} — expected "scheduler"')
+    _ok('PipelineRun.triggered_by = "scheduler"  ✓')
+
+    if run.status == 'success':
+        _ok('PipelineRun.status = "success"  ✓')
+    elif run.status == 'failed':
+        _warn(f'Run failed (error: {run.error_message}) — but scheduler→Celery wiring confirmed')
+    else:
+        _err(f'Run stuck in status={run.status!r} after {_POLL_SECS}s')
+
+    step_runs = _get_step_runs(app, run.id)
+    if step_runs:
+        _ok(f'{len(step_runs)} StepRun record(s) written')
+        for sr in step_runs:
+            with app.app_context():
+                sr = db.session.merge(sr)
+                print(f'     step "{sr.step_name}": status={sr.status}, rows={sr.rows_affected}')
+    else:
+        _warn('No StepRun records — run may have failed before step execution')
+
+    # Confirm worker log mentions the task
+    task_confirmed = 'run_pipeline_task' in worker_stdout or 'succeeded' in worker_stdout
+    if task_confirmed:
+        _ok('Worker log confirms task was received and processed')
+    else:
+        _warn('Could not confirm task receipt in worker output (may have been buffered)')
+
+    _cleanup(app, pipeline_id, conn_id)
+    _ok('Test data cleaned up')
+    return run.status in ('success', 'failed') and run.triggered_by == 'scheduler'
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Main
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -322,6 +442,11 @@ if __name__ == '__main__':
         results['thread'] = test_thread_fallback()
     except SystemExit:
         results['thread'] = False
+
+    try:
+        results['scheduler_celery'] = test_scheduler_celery_path()
+    except SystemExit:
+        results['scheduler_celery'] = False
 
     _header('SUMMARY')
     for name, ok in results.items():

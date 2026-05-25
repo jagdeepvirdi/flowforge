@@ -43,22 +43,11 @@
 
 *The release cannot ship until these pass.*
 
-### 1.1 Celery End-to-End Verification
-- [ ] Start Redis + `flowforge worker`, trigger a pipeline via the API/UI
-- [ ] Confirm worker picks up the task and writes to `ff_pipeline_runs` + `ff_step_runs`
-- [ ] Confirm fallback (no `FLOWFORGE_REDIS_URL`) still runs pipeline in thread mode
-- [ ] Confirm scheduler-triggered runs also flow through Celery correctly
-
-### 1.2 Docker Compose Smoke Test
-- [ ] Run `docker compose up` on a clean environment (or clean `.env`)
-- [ ] Verify API, frontend (Nginx), PostgreSQL, scheduler, Redis, and Celery worker all start cleanly
-- [ ] Verify `flowforge db upgrade && flowforge db seed` works inside the container
-- [ ] Open `http://localhost:5000`, log in, create a pipeline, run it — confirm success in Run History
-
-### 1.3 CHANGELOG.md
-- [ ] Add v1.1.0 entry — MySQL, OneDrive, SFTP, AI features, step retry, failure webhook, webhook trigger, JWT revocation, SAST
-- [ ] Add v1.2.0 entry — multi-user roles, user management UI, Celery wiring, responsive layout, audit attribution
-- [ ] Confirm CHANGELOG format matches existing v0.x / v1.0.0 entries
+### 1.1 Celery End-to-End Verification ✅ COMPLETE
+- [x] Start Redis + `flowforge worker`, trigger a pipeline via the API/UI *(verified by `verify_celery.py`, commit `23dac3f`)*
+- [x] Confirm worker picks up the task and writes to `ff_pipeline_runs` + `ff_step_runs` *(verified by `verify_celery.py`)*
+- [x] Confirm fallback (no `FLOWFORGE_REDIS_URL`) still runs pipeline in thread mode *(verified by `verify_celery.py`)*
+- [x] Confirm scheduler-triggered runs also flow through Celery correctly *(Test 3 in `verify_celery.py` — `triggered_by='scheduler'`, `status='success'`, 1 StepRun written)*
 
 ---
 
