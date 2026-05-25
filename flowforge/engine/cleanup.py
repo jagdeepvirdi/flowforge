@@ -37,9 +37,9 @@ def cleanup_output_files(
     deleted = bytes_freed = errors = 0
 
     for path in directory.iterdir():
-        if not path.is_file():
-            continue
         try:
+            if not path.is_file():
+                continue
             stat = path.stat()
             if stat.st_mtime < cutoff:
                 bytes_freed += stat.st_size
