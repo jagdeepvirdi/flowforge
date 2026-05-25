@@ -11,9 +11,12 @@ FlowForge is a database-driven pipeline orchestrator. It executes ordered steps 
 
 ## Core Mandates
 - **No-YAML Config**: Normal operation should not require editing YAML files. Use the UI/API.
-- **Encryption**: Sensitive credentials (DB, Email, Secrets) MUST be encrypted using `flowforge.crypto` before saving to the database.
-- **Pluggable Architecture**: New step types, email providers, or database connections must follow the existing abstract base class patterns.
-- **Async Execution**: Long-running pipelines must be executed asynchronously via the engine runner.
+- **Encryption**: Sensitive credentials MUST be encrypted using `flowforge.crypto`.
+- **Pluggable Architecture**: Follow abstract base class patterns for new steps/providers.
+- **Async Execution**: Long-running pipelines MUST be executed asynchronously via the **Celery worker** queue. Never run heavy logic in the API request thread.
+- **Scalability**: All shared state must live in **PostgreSQL or Redis**, allowing for multiple API and Worker instances.
+- **Frontend Style**: **STOP using inline styles.** Use Tailwind CSS or CSS variables for all new components. Refactor existing inline styles when touching files.
+- **AI-First**: Leverage local Ollama for data profiling and query optimization where possible.
 
 ## Directory Structure
 - `flowforge/`: Core Python package.
