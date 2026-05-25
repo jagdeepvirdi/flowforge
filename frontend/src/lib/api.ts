@@ -175,6 +175,16 @@ export const getAnomalyNarrative = (payload: {
   value: number; mean: number; pct_diff: number
 }) => post<{ result: string }>('/ai/anomaly-narrative', payload)
 
+// Users (admin)
+export const getUsers    = () => get<import('./types').User[]>('/users')
+export const createUser  = (data: { username: string; password: string; role: string }) =>
+  post<import('./types').User>('/users', data)
+export const updateUser  = (id: string, data: { role?: string; username?: string }) =>
+  request<import('./types').User>('PATCH', `/users/${id}`, data)
+export const deleteUser  = (id: string) => del<{ message: string }>(`/users/${id}`)
+export const changePassword = (data: { current_password: string; new_password: string }) =>
+  post<{ message: string }>('/auth/change-password', data)
+
 // Setup / OAuth status
 export type SetupStatus = {
   gmail:        { configured: boolean; sender: string }

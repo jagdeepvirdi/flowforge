@@ -6,6 +6,13 @@ export interface CurrentUser {
   role: Role
 }
 
+export interface User {
+  id: string
+  username: string
+  role: Role
+  created_at: string
+}
+
 export interface Project {
   id: string
   name: string

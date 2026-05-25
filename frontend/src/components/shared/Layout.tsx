@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { useAuth } from '../../lib/auth'
+import { useAuth, useCurrentUser } from '../../lib/auth'
 import { getRuns, logout as apiLogout } from '../../lib/api'
 import HelpDrawer from './HelpDrawer'
 import RouteErrorBoundary from './RouteErrorBoundary'
@@ -45,6 +46,7 @@ const SPARKS = [8, 6, 9, 5, 12, 10, 14, 9, 11, 16, 13, 18, 15, 19]
 
 export default function Layout() {
   const { clearToken } = useAuth()
+  const me = useCurrentUser()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -138,6 +140,19 @@ export default function Layout() {
                 )}
               </NavLink>
             ))}
+            {me?.role === 'admin' && (
+              <NavLink to="/settings/users" className={({ isActive }) => `ff-nav-item${isActive ? ' active' : ''}`} onClick={() => setSidebarOpen(false)}>
+                {({ isActive }) => (
+                  <>
+                    <span className="flex items-center gap-2.5">
+                      <span className={isActive ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}><NavIcon name="users" /></span>
+                      Users
+                    </span>
+                    {isActive && <span className="ff-active-bar" />}
+                  </>
+                )}
+              </NavLink>
+            )}
             <button
               onClick={() => { apiLogout().catch(() => {}).finally(() => { clearToken(); navigate('/login') }) }}
               className="ff-nav-item border-none bg-transparent w-full text-left cursor-pointer text-[13px] text-[var(--text-muted)]"

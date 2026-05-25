@@ -1,9 +1,10 @@
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import { ExternalLink, CheckCircle2, XCircle, BrainCircuit } from 'lucide-react'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 import PageIntro from '../components/shared/PageIntro'
-import { getSetupStatus } from '../lib/api'
+import { getSetupStatus, changePassword } from '../lib/api'
 
 function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
@@ -41,6 +42,69 @@ function InlineCode({ children }: { children: string }) {
   )
 }
 
+function ChangePasswordCard() {
+  const [form, setForm] = useState({ current_password: '', new_password: '', confirm: '' })
+  const [error, setError]     = useState('')
+  const [success, setSuccess] = useState(false)
+
+  const mut = useMutation({
+    mutationFn: () => changePassword({ current_password: form.current_password, new_password: form.new_password }),
+    onSuccess: () => {
+      setSuccess(true)
+      setError('')
+      setForm({ current_password: '', new_password: '', confirm: '' })
+    },
+    onError: (e: Error) => { setError(e.message); setSuccess(false) },
+  })
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+    setSuccess(false)
+    if (form.new_password.length < 8) { setError('New password must be at least 8 characters'); return }
+    if (form.new_password !== form.confirm) { setError('Passwords do not match'); return }
+    mut.mutate()
+  }
+
+  return (
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Change Password</div>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="field">
+          <label>Current Password</label>
+          <input className="input" type="password" value={form.current_password}
+            onChange={e => setForm(f => ({ ...f, current_password: e.target.value }))} required />
+        </div>
+        <div className="field">
+          <label>New Password</label>
+          <input className="input" type="password" value={form.new_password}
+            onChange={e => setForm(f => ({ ...f, new_password: e.target.value }))} required />
+        </div>
+        <div className="field">
+          <label>Confirm New Password</label>
+          <input className="input" type="password" value={form.confirm}
+            onChange={e => setForm(f => ({ ...f, confirm: e.target.value }))} required />
+        </div>
+        {error && (
+          <div style={{ fontSize: 12.5, color: 'var(--failure-text)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, padding: '8px 12px' }}>
+            {error}
+          </div>
+        )}
+        {success && (
+          <div style={{ fontSize: 12.5, color: 'var(--success-text)', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 6, padding: '8px 12px' }}>
+            Password changed successfully.
+          </div>
+        )}
+        <div>
+          <button type="submit" className="btn btn-primary" disabled={mut.isPending}>
+            {mut.isPending ? 'Saving…' : 'Change Password'}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
 export default function Settings() {
   const { data: status, isLoading } = useQuery({
     queryKey: ['setup-status'],
@@ -58,6 +122,9 @@ export default function Settings() {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+          {/* Change Password */}
+          <ChangePasswordCard />
 
           {/* Gmail + Drive */}
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
