@@ -78,6 +78,25 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
             </select>
             <FieldTooltip field="on_error" />
           </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Retries</span>
+            <input
+              type="number" min={0} max={10}
+              className="input"
+              value={Number(cfg.retry_count ?? 0)}
+              onChange={e => setConfig('retry_count', Math.max(0, Number(e.target.value)))}
+              style={{ width: 46, height: 26, padding: '0 6px', fontSize: 11 }}
+            />
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>delay</span>
+            <input
+              type="number" min={0} max={3600}
+              className="input"
+              value={Number(cfg.retry_delay_seconds ?? 30)}
+              onChange={e => setConfig('retry_delay_seconds', Math.max(0, Number(e.target.value)))}
+              style={{ width: 52, height: 26, padding: '0 6px', fontSize: 11 }}
+            />
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>s</span>
+          </div>
 
           <button onClick={() => setExpanded(x => !x)} className="btn btn-sm btn-ghost btn-icon">
             {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}

@@ -11,6 +11,24 @@ from flowforge.steps.base import BaseStep, StepResult
 logger = logging.getLogger(__name__)
 
 _MAX_ROWS_DEFAULT = 100
+_anthropic_client = None  # lazy singleton, keyed by API key
+
+
+def _get_anthropic_client():
+    global _anthropic_client
+    try:
+        import anthropic as _anthropic_mod
+    except ImportError:
+        raise ImportError(
+            "Claude API requires: pip install anthropic  "
+            "(or pip install 'flowforge[claude]')"
+        )
+    api_key = os.environ.get('ANTHROPIC_API_KEY', '')
+    if not api_key:
+        raise ValueError('ANTHROPIC_API_KEY is not set')
+    if _anthropic_client is None or _anthropic_client.api_key != api_key:
+        _anthropic_client = _anthropic_mod.Anthropic(api_key=api_key)
+    return _anthropic_client
 _MAX_ROWS_HARD_CAP = 500   # never send more than this regardless of config
 
 
@@ -44,17 +62,7 @@ def _call_ollama(prompt: str, model: str, timeout: int = 120) -> str:
 
 
 def _call_claude(prompt: str, model: str) -> str:
-    try:
-        import anthropic
-    except ImportError:
-        raise ImportError(
-            "Claude API requires: pip install anthropic  "
-            "(or pip install 'flowforge[claude]')"
-        )
-    api_key = os.environ.get('ANTHROPIC_API_KEY', '')
-    if not api_key:
-        raise ValueError('ANTHROPIC_API_KEY is not set')
-    client = anthropic.Anthropic(api_key=api_key)
+    client = _get_anthropic_client()
     message = client.messages.create(
         model=model,
         max_tokens=1024,

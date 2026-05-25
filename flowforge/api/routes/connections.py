@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 
 import flowforge.audit as audit
 from flowforge.api.auth import require_auth
+from flowforge.api.validators import validate_connection
 from flowforge.crypto import decrypt_config, encrypt_config
 from flowforge.db.models import DbConnection, db
 
@@ -41,7 +42,10 @@ def create_connection():
     data = request.get_json() or {}
     if not data.get('name'):
         return jsonify({'error': 'name is required'}), 400
-    _VALID_TYPES = {'postgresql', 'oracle'}
+    err = validate_connection(data)
+    if err:
+        return jsonify({'error': err}), 400
+    _VALID_TYPES = {'postgresql', 'oracle', 'mysql'}
     if data.get('db_type') not in _VALID_TYPES:
         return jsonify({'error': f'db_type must be one of: {", ".join(sorted(_VALID_TYPES))}'}), 400
     if not data.get('config'):
@@ -127,6 +131,47 @@ def test_connection_raw():
                 connect_timeout=5,
                 options='-c TimeZone=UTC',
             )
+            conn.close()
+            latency_ms = int((time.monotonic() - start) * 1000)
+            return jsonify({'success': True, 'latency_ms': latency_ms})
+        if db_type == 'oracle':
+            try:
+                import oracledb
+            except ModuleNotFoundError:
+                return jsonify({'success': False, 'error': 'oracledb is not installed. Run: pip install "flowforge[oracle]"'}), 400
+            host         = cfg.get('host', 'localhost')
+            port         = int(cfg.get('port', 1521))
+            service_name = cfg.get('service_name') or cfg.get('database', '')
+            user         = cfg.get('username') or cfg.get('user', '')
+            password     = cfg.get('password', '')
+            start = time.monotonic()
+            conn = oracledb.connect(
+                user=user,
+                password=password,
+                dsn=f"{host}:{port}/{service_name}",
+            )
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1 FROM DUAL")
+            conn.close()
+            latency_ms = int((time.monotonic() - start) * 1000)
+            return jsonify({'success': True, 'latency_ms': latency_ms})
+        if db_type == 'mysql':
+            try:
+                import pymysql
+            except ModuleNotFoundError:
+                return jsonify({'success': False, 'error': 'pymysql is not installed. Run: pip install "flowforge[mysql]"'}), 400
+            start = time.monotonic()
+            conn = pymysql.connect(
+                host=cfg.get('host', 'localhost'),
+                port=int(cfg.get('port', 3306)),
+                database=cfg.get('database', ''),
+                user=cfg.get('username') or cfg.get('user', ''),
+                password=cfg.get('password', ''),
+                connect_timeout=5,
+                charset='utf8mb4',
+            )
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
             conn.close()
             latency_ms = int((time.monotonic() - start) * 1000)
             return jsonify({'success': True, 'latency_ms': latency_ms})

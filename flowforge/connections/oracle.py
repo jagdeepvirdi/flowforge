@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import time
 from typing import Any
@@ -5,6 +6,10 @@ from typing import Any
 from flowforge.connections.base import BaseConnection
 
 logger = logging.getLogger(__name__)
+
+# Module-level pool registry keyed by (host, port, service_name, user, password_hash).
+# Mirrors the postgres.py approach so a multi-step Oracle pipeline reuses one pool.
+_pools: dict[tuple, Any] = {}
 
 
 class OracleConnection(BaseConnection):
@@ -18,17 +23,22 @@ class OracleConnection(BaseConnection):
                 "python-oracledb is required for Oracle connections. "
                 "Install with: pip install flowforge[oracle]"
             )
-        # Thin mode: pure Python, no Oracle Instant Client required.
-        # To use thick mode (for advanced Oracle features), call
-        # oracledb.init_oracle_client() before creating the pool.
-        self._pool = oracledb.create_pool(
-            user=user,
-            password=password,
-            dsn=f"{host}:{port}/{service_name}",
-            min=1,
-            max=5,
-            increment=1,
-        )
+        pw_hash = hashlib.sha256(password.encode()).hexdigest()[:16]
+        key = (host, port, service_name, user, pw_hash)
+        if key not in _pools:
+            # Thin mode: pure Python, no Oracle Instant Client required.
+            # To use thick mode (for advanced Oracle features), call
+            # oracledb.init_oracle_client() before creating the pool.
+            _pools[key] = oracledb.create_pool(
+                user=user,
+                password=password,
+                dsn=f"{host}:{port}/{service_name}",
+                min=1,
+                max=5,
+                increment=1,
+            )
+            logger.debug("Created Oracle pool for %s:%s/%s", host, port, service_name)
+        self._pool = _pools[key]
         self._conn = self._pool.acquire()
         self._conn.autocommit = False
         logger.debug("Oracle connection acquired for %s:%s/%s", host, port, service_name)

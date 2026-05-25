@@ -60,8 +60,23 @@ export const getPipeline     = (id: string) => get<import('./types').Pipeline>(`
 export const createPipeline  = (data: Partial<import('./types').Pipeline>) => post<import('./types').Pipeline>('/pipelines', data)
 export const updatePipeline  = (id: string, data: Partial<import('./types').Pipeline>) => put<import('./types').Pipeline>(`/pipelines/${id}`, data)
 export const deletePipeline  = (id: string) => del<{ deleted: string }>(`/pipelines/${id}`)
-export const runPipeline     = (id: string) => post<{ run_id: string; status: string; pipeline_name: string }>(`/pipelines/${id}/run`)
-export const getPipelineRuns = (id: string) => get<import('./types').PipelineRun[]>(`/pipelines/${id}/runs`)
+export const clonePipeline    = (id: string) => post<import('./types').Pipeline>(`/pipelines/${id}/clone`)
+export const runPipeline      = (id: string) => post<{ run_id: string; status: string; pipeline_name: string }>(`/pipelines/${id}/run`)
+export const exportPipeline   = async (id: string): Promise<Blob> => {
+  const token = useAuth.getState().token
+  const res = await fetch(`${BASE}/pipelines/${id}/export`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.blob()
+}
+export const importPipeline   = (yamlContent: string) =>
+  post<import('./types').Pipeline>('/pipelines/import', { yaml_content: yamlContent })
+export const getPipelineRuns  = (id: string) => get<import('./types').PipelineRun[]>(`/pipelines/${id}/runs`)
+export const getDashboardSummary = (projectId?: string) => {
+  const qs = projectId ? `?project_id=${projectId}` : ''
+  return get<{ pipeline_runs: Record<string, import('./types').PipelineRun[]> }>(`/dashboard/summary${qs}`)
+}
 
 // Webhook tokens
 export const getWebhookTokens    = (pipelineId: string) => get<import('./types').WebhookToken[]>(`/pipelines/${pipelineId}/webhook-tokens`)

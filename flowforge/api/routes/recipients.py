@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 
 from flowforge.api.auth import require_auth
+from flowforge.api.validators import validate_recipient_group
 from flowforge.db.models import DEFAULT_PROJECT_ID, Project, RecipientGroup, db
 
 bp = Blueprint('recipients', __name__)
@@ -40,6 +41,9 @@ def create_group():
         return jsonify({'error': 'name is required'}), 400
     if not data.get('addresses'):
         return jsonify({'error': 'addresses is required'}), 400
+    err = validate_recipient_group(data)
+    if err:
+        return jsonify({'error': err}), 400
 
     group = RecipientGroup(
         name=data['name'],

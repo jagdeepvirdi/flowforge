@@ -2,6 +2,7 @@
 import contextlib
 import fnmatch
 import logging
+import os
 import stat as stat_module
 from pathlib import Path
 from typing import Any
@@ -42,10 +43,15 @@ def _sftp_connect(
         )
 
     ssh = paramiko.SSHClient()
-    # AutoAddPolicy trusts the host on first connect — acceptable for automation tools.
-    # Users who need strict host-key checking should add the host to known_hosts and
-    # set FLOWFORGE_SFTP_STRICT_HOSTKEYS=true (not yet implemented).
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    strict = os.environ.get('FLOWFORGE_SFTP_STRICT_HOSTKEYS', '').lower() == 'true'
+    if strict:
+        # RejectPolicy raises SSHException for any host not already in known_hosts.
+        # Add the server first: ssh-keyscan -H <host> >> ~/.ssh/known_hosts
+        ssh.set_missing_host_key_policy(paramiko.RejectPolicy())
+    else:
+        # AutoAddPolicy trusts any host key on first connect (default, TOFU).
+        # Set FLOWFORGE_SFTP_STRICT_HOSTKEYS=true to require known_hosts verification.
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     connect_kwargs: dict[str, Any] = dict(
         hostname=host,
@@ -62,8 +68,17 @@ def _sftp_connect(
     else:
         connect_kwargs['password'] = password
 
-    logger.debug("SFTP: connecting to %s:%d as %s", host, port, username)
-    ssh.connect(**connect_kwargs)
+    logger.debug("SFTP: connecting to %s:%d as %s (strict_hostkeys=%s)", host, port, username, strict)
+    try:
+        ssh.connect(**connect_kwargs)
+    except paramiko.SSHException as exc:
+        ssh.close()
+        if strict and 'not found in known_hosts' in str(exc):
+            raise paramiko.SSHException(
+                f"SFTP host key rejected for '{host}' (FLOWFORGE_SFTP_STRICT_HOSTKEYS=true). "
+                f"Add the host key with: ssh-keyscan -H {host} >> ~/.ssh/known_hosts"
+            ) from exc
+        raise
     sftp = ssh.open_sftp()
     try:
         yield sftp

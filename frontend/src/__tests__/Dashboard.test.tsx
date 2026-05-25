@@ -4,10 +4,12 @@ import { renderWithProviders } from './helpers'
 import Dashboard from '../pages/Dashboard'
 
 vi.mock('../lib/api', () => ({
-  getPipelines:    vi.fn(() => Promise.resolve([])),
-  getRuns:         vi.fn(() => Promise.resolve([])),
-  getPipelineRuns: vi.fn(() => Promise.resolve([])),
-  runPipeline:     vi.fn(() => Promise.resolve({ run_id: 'r1', status: 'running' })),
+  getPipelines:        vi.fn(() => Promise.resolve([])),
+  getRuns:             vi.fn(() => Promise.resolve([])),
+  getPipelineRuns:     vi.fn(() => Promise.resolve([])),
+  getDashboardSummary: vi.fn(() => Promise.resolve({ pipeline_runs: {} })),
+  runPipeline:         vi.fn(() => Promise.resolve({ run_id: 'r1', status: 'running', pipeline_name: 'Test' })),
+  getProjects:         vi.fn(() => Promise.resolve([])),
 }))
 
 describe('Dashboard', () => {

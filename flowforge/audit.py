@@ -1,38 +1,66 @@
-"""Append-only audit log — written to logs/audit.log.
+"""Append-only audit log.
 
-Records login attempts and pipeline run outcomes. Runs outside the Flask
-request context (background threads) so it uses a plain file handler rather
-than the Flask logger.
+Writes to logs/audit.log (rotating) by default.  When FLOWFORGE_AUDIT_STDOUT=true
+is set, structured JSON lines are also written to stdout so container log
+aggregators (Fluentd, Loki, CloudWatch) can capture the audit trail without a
+mounted volume.  The file handler is still active unless FLOWFORGE_AUDIT_FILE=false
+is set.
 
 Rotation: 10 MB per file, 5 backups (logs/audit.log → audit.log.1 … .5).
 Log level: always INFO regardless of LOG_LEVEL — the audit log is a security
 record and must not be silenced by production log-level configuration.
 """
+import json
 import logging
 import os
+import sys
+from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 _LOG_DIR = Path(os.environ.get('FLOWFORGE_LOG_DIR', 'logs'))
 _logger: logging.Logger | None = None
 
+_AUDIT_STDOUT = os.environ.get('FLOWFORGE_AUDIT_STDOUT', '').lower() == 'true'
+_AUDIT_FILE   = os.environ.get('FLOWFORGE_AUDIT_FILE',   'true').lower() != 'false'
+
+
+class _JsonStdoutHandler(logging.Handler):
+    """Emit audit records as JSON lines to stdout."""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        payload = {
+            'ts':      datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'level':   record.levelname,
+            'logger':  record.name,
+            'message': record.getMessage(),
+        }
+        try:
+            sys.stdout.write(json.dumps(payload) + '\n')
+            sys.stdout.flush()
+        except Exception:
+            pass
+
 
 def _get_logger() -> logging.Logger:
     global _logger
     if _logger is None:
-        _LOG_DIR.mkdir(parents=True, exist_ok=True)
         logger = logging.getLogger('flowforge.audit')
         if not logger.handlers:
-            handler = RotatingFileHandler(
-                _LOG_DIR / 'audit.log',
-                maxBytes=10 * 1024 * 1024,
-                backupCount=5,
-                encoding='utf-8',
-            )
-            handler.setFormatter(
-                logging.Formatter('%(asctime)sZ  %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
-            )
-            logger.addHandler(handler)
+            if _AUDIT_FILE:
+                _LOG_DIR.mkdir(parents=True, exist_ok=True)
+                file_handler = RotatingFileHandler(
+                    _LOG_DIR / 'audit.log',
+                    maxBytes=10 * 1024 * 1024,
+                    backupCount=5,
+                    encoding='utf-8',
+                )
+                file_handler.setFormatter(
+                    logging.Formatter('%(asctime)sZ  %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
+                )
+                logger.addHandler(file_handler)
+            if _AUDIT_STDOUT:
+                logger.addHandler(_JsonStdoutHandler())
         logger.setLevel(logging.INFO)  # hardcoded — audit log must not follow LOG_LEVEL
         logger.propagate = False
         _logger = logger

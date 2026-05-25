@@ -143,7 +143,6 @@ class EmailStep(BaseStep):
 
         # Inline config (testing / YAML import)
         inline = self.config.get('inline_config', {})
-        from flowforge.steps.email_step import _build_inline_provider
         return inline, _build_inline_provider(inline)
 
     def _resolve_recipients(self, email_cfg: dict) -> list[str]:

@@ -35,7 +35,7 @@ Built-in variables available in all config strings:
     {{ pipeline_name }}     name of the running pipeline
     {{ last_success_at }}   YYYYMMDDHHmmSS of the last successful run (set by runner)
     {{ last_success_date }} YYYY-MM-DD of the last successful run  (set by runner)
-    {{ env.VAR }}           any environment variable
+    {{ env.VAR }}           any environment variable (see FLOWFORGE_TEMPLATE_ENV_VARS)
     {{ steps.name.* }}      outputs from a previous step
 """
 import calendar
@@ -66,10 +66,14 @@ from jinja2.sandbox import SandboxedEnvironment
 
 _jinja = SandboxedEnvironment(undefined=Undefined)
 
-# Env vars whose values must never be reachable from pipeline templates.
+# Fallback blocklist used when FLOWFORGE_TEMPLATE_ENV_VARS is not set.
+# Prevents known credential vars from leaking into templates in the default
+# (backward-compatible) mode.  Prefer setting FLOWFORGE_TEMPLATE_ENV_VARS
+# to an explicit comma-separated allowlist instead.
 _ENV_BLOCKLIST = frozenset({
     'FLOWFORGE_SECRET_KEY',
     'FLOWFORGE_PASSWORD',
+    'FLOWFORGE_JWT_SECRET',
     'GMAIL_CLIENT_SECRET',
     'GMAIL_REFRESH_TOKEN',
     'MICROSOFT_CLIENT_SECRET',
@@ -78,17 +82,39 @@ _ENV_BLOCKLIST = frozenset({
 
 
 class _SafeEnv:
-    """Read-only view of os.environ that hides credential variables."""
+    """Read-only view of os.environ for use in pipeline templates.
+
+    Two modes, selected at instantiation time:
+
+    Allowlist mode (recommended):
+        Set FLOWFORGE_TEMPLATE_ENV_VARS=VAR1,VAR2 in the environment.
+        Only the listed variable names are accessible; all others return ''.
+        Example: FLOWFORGE_TEMPLATE_ENV_VARS=DB_HOST,REPORT_DIR,APP_ENV
+
+    Blocklist mode (default, backward-compatible):
+        When FLOWFORGE_TEMPLATE_ENV_VARS is not set, any env var is accessible
+        EXCEPT those in _ENV_BLOCKLIST (known credential names).
+        This mode is provided for existing deployments; migrating to allowlist
+        mode is strongly recommended.
+    """
+
+    def __init__(self) -> None:
+        raw = os.environ.get('FLOWFORGE_TEMPLATE_ENV_VARS', '').strip()
+        self._allowlist: frozenset[str] | None = (
+            frozenset(v.strip() for v in raw.split(',') if v.strip())
+            if raw else None
+        )
+
+    def _allowed(self, key: str) -> bool:
+        if self._allowlist is not None:
+            return key in self._allowlist
+        return key not in _ENV_BLOCKLIST
 
     def __getitem__(self, key: str) -> str:
-        if key in _ENV_BLOCKLIST:
-            return ''
-        return os.environ.get(key, '')
+        return os.environ.get(key, '') if self._allowed(key) else ''
 
     def get(self, key: str, default: str = '') -> str:
-        if key in _ENV_BLOCKLIST:
-            return default
-        return os.environ.get(key, default)
+        return os.environ.get(key, default) if self._allowed(key) else default
 
 
 def _built_ins() -> dict[str, Any]:

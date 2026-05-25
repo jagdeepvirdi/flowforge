@@ -5,50 +5,46 @@
 
 ---
 
-## GitHub Release Score: 9.5 / 10 (updated 2026-05-23)
-## Codebase Review Score: ~8.5 / 10 (estimated post Score Track)
+## Codebase Review Score: 7.8 / 10 (2026-05-25)
 
-| Dimension | 2026-05-20 | 2026-05-23 | Score Track | Target |
-|---|---|---|---|---|
-| Architecture | 6.5 | 7.0 | 7.5 ✓ (SCORE-7) | 7.5 |
-| Code Quality | 6.0 | 7.0 | 7.5 ✓ (SCORE-2) | 7.5 |
-| Database | 6.5 | 8.0 | 8.5 ✓ (SCORE-8) | 8.5 |
-| Security | 5.5 | 7.5 | 7.5 ✓ | 7.5 |
-| Tests | 6.0 | 7.5 | 8.5 ✓ (SCORE-6,11) | 8.5 |
-| Frontend | 5.5 | 6.5 | 8.5 ✓ (SCORE-1,2,3,10) | 8.5 |
-| DevOps | 6.0 | 7.5 | 8.5 ✓ (SCORE-4,5) | 8.5 |
-| **Overall** | **6.0** | **7.3** | **~8.3** | **≥ 8.5** |
+| Dimension | 2026-05-20 | 2026-05-23 | Score Track | 2026-05-25 Review | Target |
+|---|---|---|---|---|---|
+| Architecture | 6.5 | 7.0 | 7.5 ✓ | 7.5 | 8.5 |
+| Code Quality | 6.0 | 7.0 | 7.5 ✓ | 7.5 | 8.5 |
+| Database | 6.5 | 8.0 | 8.5 ✓ | 8.5 | 9.0 |
+| Security | 5.5 | 7.5 | 7.5 ✓ | 7.5 | 8.5 |
+| Tests | 6.0 | 7.5 | 8.5 ✓ | 8.5 | 9.0 |
+| Frontend | 5.5 | 6.5 | 8.5 ✓ | 8.0 | 9.0 |
+| DevOps | 6.0 | 7.5 | 8.5 ✓ | 8.5 | 9.0 |
+| **Overall** | **6.0** | **7.3** | **~8.3** | **7.8** | **≥ 9.0** |
+
+---
+
+## Code Review 2026-05-25 — Bug & Feature Track
+
+> Full review scored **7.8 / 10**. CR-1 and CR-2 resolved. Remaining items ordered by phase and priority.
 
 ---
 
-## Bug Fix Track — Code Review 2026-05-24
+### Phase 3 — Backlog (v2+, no fixed date)
 
-*14 issues identified in full code review. Ordered by severity.*
+*These are real gaps but not blockers for initial open-source release.*
 
-### Critical
-
-- [x] **BUG-1: `bulk_load.py:201` — `_resolve_connection` crashes at runtime** — replaced broken `.items()` dict-comprehension with `decrypt_config(row.config)`.
-- [x] **BUG-2: `bulk_load.py:281,343` — SQL injection via CSV column headers** — added `validate_identifier()` call on every mapped column name in both `_load_python_fallback` and `_load_postgres_copy`.
-- [x] **BUG-3: `bulk_load.py:418` — Oracle password exposed in process list** — credentials written to a `load.par` tempfile (chmod 600); `sqlldr parfile=…` used instead of inline `user/pass@dsn` arg; tempdir cleaned up in finally block.
-- [x] **BUG-4: DB constraint / step type mismatch** — migration 0011 adds `data_load` and `bulk_load` to `ck_step_type`; removes `ai_analyze` (no implementation yet). Model updated to match.
-- [x] **BUG-5: `context.py:47` — Jinja2 is not sandboxed + full `os.environ` in context** — switched to `SandboxedEnvironment`; `ctx['env']` now uses `_SafeEnv` proxy that blocks credential vars (`FLOWFORGE_SECRET_KEY`, `FLOWFORGE_PASSWORD`, `*_CLIENT_SECRET`, etc.).
-
-### High
-
-- [x] **BUG-6: `audit.py:20` — Audit log silenced when `LOG_LEVEL=WARNING`** — removed `_LEVEL` variable; `_get_logger()` now hardcodes `logging.INFO` so audit events are always written regardless of `LOG_LEVEL`.
-- [x] **BUG-7: `runs.py:93` — No path containment check on file download** — `abs_path` and `output_root` are both `.resolve()`d; a 403 is returned if `abs_path` does not start with `output_root + os.sep`.
-- [x] **BUG-8: `context.py:115` — Pipeline variables silently overwrite built-ins** — added `_BUILT_IN_VAR_KEYS` frozenset; `build()` logs a `WARNING` listing any collision before applying `ctx.update(pipeline_vars)`.
-- [x] **BUG-9: `app.py` — No `MAX_CONTENT_LENGTH`** — `app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024` added in `create_app()`.
-- [x] **BUG-10: `scheduler.py:97` — Dead function `_load_pipeline_jobs`** — function removed; `check_scheduler.py` section 7 updated to query the DB directly.
-
-### Medium
-
-- [x] **BUG-11: `models.py:273` — `TokenBlocklist` grows unbounded** — added `_prune_token_blocklist()` to `scheduler.py`; called from the existing daily `_cleanup_job`. Deletes all rows where `expires_at < NOW()` inside an app context.
-- [x] **BUG-12: `steps.py:88` — Step reorder magic number can violate unique constraint** — replaced `999999` with `-old_order` (guaranteed negative, never collides with a positive step order); added `.with_for_update()` to the occupant query to prevent concurrent swap races.
-- [x] **BUG-13: `bulk_load.py:343` — Delimiter injected into COPY SQL string literal** — `delimiter` is validated in `BulkLoadStep.run()` before any SQL is constructed: must be exactly one printable character and not a quote or backslash.
-- [x] **BUG-14: `report.py:38` — Excel template path unrestricted** — added `_resolve_template_path()` helper: joins `raw` against `FLOWFORGE_TEMPLATE_DIR` (default `./templates`), resolves both, and raises `ValueError` if the result escapes the root.
+- [ ] Snowflake / BigQuery / Redshift connectors
+- [ ] AWS S3 / Azure Blob upload step
+- [ ] MSSQL / SQL Server connection support
+- [ ] Generic ODBC connection support
+- [ ] SendGrid / AWS SES / Mailgun email providers
+- [ ] Pipeline dependencies (run pipeline B only after pipeline A succeeds)
+- [ ] Parallel step execution within a single pipeline
+- [ ] Environment promotion workflow (dev → staging → prod pipeline config sync)
+- [ ] Distributed concurrency control (Redis-backed advisory lock replacing in-process semaphore) — see v2 High-Concurrency Track
+- [ ] Pipeline run diff view ("what changed since last run" for row counts / output sizes)
+- [ ] Report column formatting rules (number format, date format, conditional cell colours in Excel)
 
 ---
+
+## Feature Backlog
 
 ### More Email Providers
 - [ ] SendGrid API
@@ -56,10 +52,8 @@
 - [ ] Mailgun
 
 ### More Storage
-- [x] **SFTP transfer step** — `sftp_transfer` step type; download (single file or directory with glob pattern) and upload; password or private-key auth (RSA/ECDSA/Ed25519/DSS); `create_remote_dirs`, `overwrite`, `pattern` options; migration 0014 adds `sftp_transfer` to `ck_step_type`; `pip install 'flowforge[sftp]'`
 - [ ] AWS S3 upload step
 - [ ] Azure Blob upload step
-- [x] **OneDrive / SharePoint upload step** — `onedrive_upload` step type (Graph API, MSAL); chunked upload for files > 4 MB; `make_shareable=True` returns anonymous view URL. Smart attachment in `email` step prefers OneDrive when `onedrive_folder_id` is set on the email config. Migration 0012 adds the column.
 
 ### More DB Support
 - [ ] MySQL / MariaDB
@@ -75,45 +69,6 @@
 ### Platform
 - [ ] Plugin system for community step types
 - [ ] Slack/Teams notifications (v2)
-- [x] AI analyze step — `flowforge/steps/ai_analyze.py`; Ollama + Claude providers; `{{ ai_summary }}` injected to top-level context; `{{ steps.<name>.ai_summary }}` in step context; `max_rows` cap; migration 0013 adds `ai_analyze` to `ck_step_type`
-
----
-
-## AI Features — Ollama-Only (Zero Cost, Data Stays Local)
-
-*All features route exclusively through Ollama running locally (`OLLAMA_URL`, default `http://localhost:11434`).  
-No data is sent to any external API. Each feature is independently opt-in and degrades gracefully if Ollama is unreachable.*
-
-*Ordered by build priority — earlier items have fewer dependencies and higher immediate ROI.*
-
-| # | Feature | Data sent to Ollama | Privacy risk | Effort |
-|---|---|---|---|---|
-| AI-1 | AI Chart Generator | column names + ≤50 rows | Low — local only | S |
-| AI-2 | SQL Explainer | SQL text only | None | S |
-| AI-3 | SQL Optimizer | SQL text only | None | S |
-| AI-4 | Pipeline Failure Diagnosis | error message + step config | None | S |
-| AI-5 | Data Profiler | column names + sample rows | Low — local only | M |
-| AI-6 | Run History Anomaly Alerts | none (stats) / optional narrative | None | M |
-
----
-
-- [x] **[AI-1] AI Chart Generator** — "Visualize" button on the Report Preview panel. Sends column names + up to 50 rows to Ollama; Ollama returns a JSON chart config `{ type, x, y, title }`. FlowForge renders it immediately using Recharts (already installed). Supported types: bar, line, area, pie, scatter. User can swap axes or change type manually. New Flask endpoint `POST /api/ai/chart-config`; new `ChartPreview` React component — no DB schema changes needed.
-
-- [x] **[AI-2] SQL Explainer** — "Explain" button in the Report Designer SQL editor header. Sends SQL text only to Ollama via `POST /api/ai/query` (`task: explain`); returns structured plain-text summary (tables/joins, filters, aggregations, potential issues). Dismissible panel below SQL editor.
-
-- [x] **[AI-3] SQL Optimizer** — "Optimize" button alongside AI-2. Ollama rewrites the query (uses JSON mode for reliable SQL extraction). Side-by-side diff panel: original (red tint) vs suggested (green tint). Accept replaces textarea; Dismiss closes panel.
-
-- [x] **[AI-4] Pipeline Failure Diagnosis** — "Explain this error" button in the Run Detail Logs tab, shown per failed step under the error message. Sends `step_type + error + logs` to Ollama via `POST /api/ai/query` (`task: diagnose`). Returns 2-4 sentence plain-English cause + fix. Diagnosis panel is per-step, dismissible, shows "via Ollama" label.
-
-- [x] **[AI-5] Data Profiler** — "Summarise" button in the TopBar (visible after preview runs). One-time opt-in banner per session: "Your preview rows will be sent to your local Ollama instance. No data leaves your machine." After consent, calls `POST /api/ai/data-profile`; returns a 3-5 sentence narrative (structure, value ranges, nulls, outliers, key suspicion). Profile card dismissible, clears on query re-run, consent persists for the session.
-
-- [x] **[AI-6] Run History Anomaly Alerts** — Statistical outlier detection on `rows_affected` and `duration_ms` per step across the last 30 runs (no LLM required for detection). When a step result is >2σ outside its normal range, show a warning badge in the Run Detail page. Ollama optionally generates a one-sentence narrative: *"Load Customer Extract wrote 847 rows — 94% below its 30-run average of 13,200. Check upstream data load."* The statistical layer ships first; the Ollama narrative is additive.
-
-### Shared Implementation Notes
-
-- Recommended model: `llama3.2:3b` or `mistral:7b` for SQL/text tasks; `phi3:mini` if RAM is constrained.
-- All AI calls are best-effort: if Ollama is unreachable the button shows *"AI unavailable — is Ollama running?"* and the rest of the UI is unaffected.
-- A single `POST /api/ai/query` endpoint (with a `task` field) handles AI-2/3/4 to avoid endpoint sprawl. AI-1 and AI-5 have dedicated endpoints due to different input/output shapes.
 
 ---
 

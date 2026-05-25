@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 
 from flowforge.api.auth import require_auth
+from flowforge.api.validators import validate_email_config
 from flowforge.db.models import DEFAULT_PROJECT_ID, EmailConfig, Project, db
 
 bp = Blueprint('emails', __name__)
@@ -53,6 +54,9 @@ def create_email_config():
     missing = [f for f in required if not data.get(f)]
     if missing:
         return jsonify({'error': f'Missing required fields: {", ".join(missing)}'}), 400
+    err = validate_email_config(data)
+    if err:
+        return jsonify({'error': err}), 400
 
     config = EmailConfig(
         name=data['name'],
@@ -94,6 +98,9 @@ def update_email_config(config_id):
         return jsonify({'error': 'Email config not found'}), 404
 
     data = request.get_json() or {}
+    err = validate_email_config(data)
+    if err:
+        return jsonify({'error': err}), 400
     fields = (
         'name', 'description', 'provider_id', 'from_name', 'subject', 'header_text',
         'body_template', 'recipient_group_id', 'to_addresses', 'cc_addresses',

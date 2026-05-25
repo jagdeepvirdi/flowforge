@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 
 from flowforge.api.auth import require_auth
+from flowforge.api.validators import validate_report
 from flowforge.db.models import DEFAULT_PROJECT_ID, Project, ReportConfig, db
 
 bp = Blueprint('reports', __name__)
@@ -50,6 +51,9 @@ def create_report_config():
         return jsonify({'error': f'Missing required fields: {", ".join(missing)}'}), 400
     if data['format'] not in ('excel', 'csv', 'pdf', 'json'):
         return jsonify({'error': 'format must be excel, csv, pdf, or json'}), 400
+    err = validate_report(data)
+    if err:
+        return jsonify({'error': err}), 400
 
     config = ReportConfig(
         name=data['name'],
@@ -86,6 +90,9 @@ def update_report_config(config_id):
         return jsonify({'error': 'Report config not found'}), 404
 
     data = request.get_json() or {}
+    err = validate_report(data)
+    if err:
+        return jsonify({'error': err}), 400
     fields = ('name', 'description', 'connection_id', 'query', 'format',
               'template_path', 'output_filename', 'title', 'sheet_name', 'columns', 'project_id')
     for field in fields:

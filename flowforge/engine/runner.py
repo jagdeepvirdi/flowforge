@@ -1,4 +1,8 @@
+import json
 import logging
+import time
+import urllib.error
+import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
@@ -20,6 +24,7 @@ class PipelineResult:
     steps_failed: int = 0
     step_results: dict[str, StepResult] = field(default_factory=dict)
     error: str = ''
+    error_step: str = ''
     run_id: str = ''
 
 
@@ -53,6 +58,7 @@ def run_pipeline(
     pipeline_id: str | None = None,
     existing_run_id: str | None = None,
     secret_var_keys: set[str] | None = None,
+    on_failure_webhook_url: str | None = None,
 ) -> PipelineResult:
     """Execute an ordered list of steps, threading context between them."""
     from flowforge.engine.context import build
@@ -84,12 +90,28 @@ def run_pipeline(
             step_order += 1
             logger.info("[%s] Starting step: %s", pipeline_name, step.name)
 
+            retry_count = int(step.config.get('retry_count', 0)) if hasattr(step, 'config') else 0
+            retry_delay = int(step.config.get('retry_delay_seconds', 30)) if hasattr(step, 'config') else 30
+            retry_count = max(0, min(retry_count, 10))  # cap at 10 retries
+            retry_delay = max(0, min(retry_delay, 3600))  # cap at 1 hour
+
             step_start = datetime.now(timezone.utc)
-            try:
-                step_result = step.run(context)
-            except Exception as e:
-                logger.error("[%s] Step '%s' raised uncaught exception: %s", pipeline_name, step.name, e)
-                step_result = StepResult(success=False, error=str(e))
+            attempt = 0
+            while True:
+                try:
+                    step_result = step.run(context)
+                except Exception as e:
+                    logger.error("[%s] Step '%s' raised uncaught exception: %s", pipeline_name, step.name, e)
+                    step_result = StepResult(success=False, error=str(e))
+
+                if step_result.success or attempt >= retry_count:
+                    break
+                attempt += 1
+                logger.warning(
+                    "[%s] Step '%s' failed (attempt %d/%d), retrying in %ds. Error: %s",
+                    pipeline_name, step.name, attempt, retry_count + 1, retry_delay, step_result.error,
+                )
+                time.sleep(retry_delay)
 
             step_end = datetime.now(timezone.utc)
             duration_ms = int((step_end - step_start).total_seconds() * 1000)
@@ -136,6 +158,7 @@ def run_pipeline(
                         pipeline_name, step.name, step_result.error,
                     )
                     result.error = step_result.error
+                    result.error_step = step.name
                     _finish_run_record(run_record, success=False, error_step=step.name,
                                        error_message=step_result.error)
                     break
@@ -161,6 +184,16 @@ def run_pipeline(
         pipeline_name, triggered_by, result.run_id or context['run_id'],
         'SUCCESS' if result.success else 'FAILED',
     )
+
+    if not result.success and on_failure_webhook_url:
+        _fire_failure_webhook(on_failure_webhook_url, {
+            'pipeline_name': pipeline_name,
+            'run_id':        result.run_id or context.get('run_id', ''),
+            'error_step':    result.error_step,
+            'error_message': result.error,
+            'triggered_by':  triggered_by,
+        })
+
     return result
 
 
@@ -235,6 +268,25 @@ def _finish_run_record(run_record, success: bool, error_step: str = '', error_me
         logger.error("Failed to update pipeline_run record: %s", e)
 
 
+def _fire_failure_webhook(url: str, payload: dict) -> None:
+    """POST JSON payload to the failure webhook URL; errors are logged, never raised."""
+    if not url:
+        return
+    try:
+        body = json.dumps(payload).encode()
+        req = urllib.request.Request(
+            url,
+            data=body,
+            headers={'Content-Type': 'application/json'},
+            method='POST',
+        )
+        with urllib.request.urlopen(req, timeout=10):
+            pass
+        logger.info("Failure webhook delivered to %s", url)
+    except Exception as exc:
+        logger.warning("Failure webhook POST to %s failed: %s", url, exc)
+
+
 def _get_last_success_ts(pipeline_id: str, fmt: str) -> str:
     """Return the finished_at of the most recent successful run in the given strftime format.
 
@@ -252,5 +304,6 @@ def _get_last_success_ts(pipeline_id: str, fmt: str) -> str:
         if run and run.finished_at:
             return run.finished_at.strftime(fmt)
         return ''
-    except Exception:
+    except Exception as e:
+        logger.warning("Could not fetch last_success_ts for pipeline %s: %s", pipeline_id, e)
         return ''

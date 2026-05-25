@@ -221,10 +221,11 @@ def _open_raw_connection(conn_cfg: dict):
         )
     if db_type == 'oracle':
         import oracledb
+        service = conn_cfg.get('service_name') or conn_cfg.get('database', '')
         return oracledb.connect(
             user=conn_cfg.get('username', ''),
             password=conn_cfg.get('password', ''),
-            dsn=f"{conn_cfg.get('host', 'localhost')}:{conn_cfg.get('port', 1521)}/{conn_cfg.get('database', '')}",
+            dsn=f"{conn_cfg.get('host', 'localhost')}:{conn_cfg.get('port', 1521)}/{service}",
         )
     raise ValueError(f'Unsupported db_type for bulk_load: {db_type}')
 
@@ -416,7 +417,7 @@ def _load_sqlloader(
         password = conn_cfg.get('password', '')
         host     = conn_cfg.get('host', 'localhost')
         port     = conn_cfg.get('port', 1521)
-        service  = conn_cfg.get('database', '')
+        service  = conn_cfg.get('service_name') or conn_cfg.get('database', '')
         dsn      = f'{host}:{port}/{service}'
 
         par_file = tmpdir / 'load.par'

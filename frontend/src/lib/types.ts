@@ -13,7 +13,7 @@ export type StepType = 'db_procedure' | 'db_query' | 'report' | 'email' | 'drive
 export type OnError = 'stop' | 'continue'
 export type ReportFormat = 'excel' | 'csv' | 'pdf' | 'json'
 export type ProviderType = 'gmail' | 'microsoft365' | 'smtp'
-export type DbType = 'postgresql' | 'oracle'
+export type DbType = 'postgresql' | 'oracle' | 'mysql'
 
 export interface Pipeline {
   id: string
@@ -23,6 +23,7 @@ export interface Pipeline {
   next_run: string | null
   enabled: boolean
   timeout_minutes: number
+  on_failure_webhook_url: string | null
   project_id: string | null
   created_at: string
   updated_at: string

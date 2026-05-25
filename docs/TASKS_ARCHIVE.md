@@ -3,6 +3,83 @@
 
 ---
 
+## Session — 2026-05-25 (Frontend Test Coverage) 🟢 *(COMPLETE)*
+
+- [x] **FEAT-9 · Frontend test coverage** — 24 unit tests (Vitest + React Testing Library) across 5 files; 5 E2E spec files (Playwright) covering login, dashboard, pipelines CRUD, run history, and connections. Global setup/teardown with auth state reuse. Fixed 2 pre-existing broken test mocks (Dashboard, Pipelines). Completed 2026-05-25.
+
+---
+
+## Session — 2026-05-25 (Code Review Bug Track + AI Features + SFTP + OneDrive) 🟢 *(COMPLETE)*
+
+### Code Review 2026-05-25 — Phase 2 (FEAT-1 through FEAT-8)
+
+- [x] **FEAT-1 · MySQL / MariaDB support** — `connections/mysql.py`: full `BaseConnection` implementation using PyMySQL. `connections/factory.py` dispatches `'mysql'` type. Migration `0017` adds `'mysql'` to `ck_db_connection_type`. `connections.py` test-raw endpoint supports MySQL. `Connections.tsx` adds MySQL option with auto-port (3306). `pyproject.toml` adds `[mysql]` extra.
+- [x] **FEAT-2 · Docker Compose one-command setup** — Existing `docker-compose.yml` refactored: renamed to `flowforge`, Oracle service extracted to `docker-compose.oracle.yml` override (users run `docker compose -f docker-compose.yml -f docker-compose.oracle.yml up`). Base stack is now frictionless: `docker compose up`.
+- [x] **FEAT-3 · Pipeline clone** — `POST /api/pipelines/<id>/clone` in `pipelines.py`: copies pipeline + steps + variables with `(Copy)` name suffix, clears schedule, sets `enabled=False`. `Pipelines.tsx` adds Clone button (Copy icon) in the row action bar.
+- [x] **FEAT-4 · Pipeline YAML import/export** — `GET /api/pipelines/<id>/export` returns YAML; `POST /api/pipelines/import` accepts YAML via JSON body or multipart file upload. Masked secrets (`***`) are skipped on import. Frontend: Import (file picker) and Export (download) buttons in `Pipelines.tsx`.
+- [x] **FEAT-5 · Step retry with configurable backoff** — `engine/runner.py`: reads `retry_count` (0–10) and `retry_delay_seconds` (0–3600) from step config JSONB. Logs attempt N/total on each retry. `StepEditor.tsx`: Retries + delay inputs added to the step header controls bar.
+- [x] **FEAT-6 · Failure webhook notification** — `db/models.py`: `on_failure_webhook_url VARCHAR(500)` on `Pipeline`. Migration `0016`. `engine/runner.py`: `_fire_failure_webhook()` POSTs JSON `{pipeline_name, run_id, error_step, error_message, triggered_by}` on failure; 10s timeout, errors logged not raised. `PipelineEdit.tsx`: Failure webhook URL input added.
+- [x] **FEAT-7 · Structured audit stdout** — `audit.py`: added `_JsonStdoutHandler` that emits ISO-8601 JSON lines. Active when `FLOWFORGE_AUDIT_STDOUT=true`. File handler suppressible with `FLOWFORGE_AUDIT_FILE=false`.
+- [x] **FEAT-8 · Input length validation** — `api/validators.py`: `validate_pipeline`, `validate_report`, `validate_email_config`, `validate_recipient_group`, `validate_connection` helpers. Wired into create + update handlers in `pipelines.py`, `reports.py`, `emails.py`, `recipients.py`, `connections.py`.
+
+### Code Review 2026-05-25 — Phase 1 (CR-6 through CR-14)
+
+- [x] **CR-6 · Oracle pool re-created on every step** — `connections/oracle.py`: added module-level `_pools` registry identical to `postgres.py`. Key is `(host, port, service_name, user, password_hash)`. Password hashed with SHA-256 (first 16 hex chars). Logs "Created Oracle pool" on first use.
+- [x] **CR-7 · `_run_dict` defined in two places** — Extracted canonical `run_dict()` and `step_run_dict()` to new `flowforge/api/serializers.py`. Both `runs.py` and `pipelines.py` now import from there. The `pipelines.py` copy (which was missing `error_step`/`error_message`) is deleted.
+- [x] **CR-8 · N+1 queries on Dashboard** — Added `GET /api/dashboard/summary` in `runs.py`: fetches all pipeline IDs then last 14 runs per pipeline in a single ordered query, grouped in Python. Frontend `PipelineCard` now accepts `runs` as a prop; `Dashboard` uses one `getDashboardSummary` query with per-run polling when any run is active.
+- [x] **CR-9 · No rate limiting on manual trigger** — Added `@limiter.limit('10 per minute')` to `trigger_run()` in `pipelines.py`.
+- [x] **CR-10 · Self-import in `email_step.py`** — Removed `from flowforge.steps.email_step import _build_inline_provider`; calls `_build_inline_provider(inline)` directly.
+- [x] **CR-11 · Inconsistent `DateTime(timezone=True)`** — Fixed `RecipientGroup.created_at`, `DbConnection.created_at`, `EmailConfig.created_at/updated_at` in `db/models.py`. Migration `0015_datetime_timezone.py` alters the four columns to `TIMESTAMPTZ`.
+- [x] **CR-12 · Oracle cursor not closed** — `api/routes/connections.py:149` now uses `with conn.cursor() as cur: cur.execute(...)`.
+- [x] **CR-13 · Silent exception in `_get_last_success_ts`** — `engine/runner.py`: bare `except Exception` changed to `except Exception as e: logger.warning(...)`.
+- [x] **CR-14 · New Anthropic client per AI call** — `steps/ai_analyze.py`: module-level `_anthropic_client` singleton initialised on first use; re-created only if `ANTHROPIC_API_KEY` changes. `_call_claude()` now calls `_get_anthropic_client()`.
+
+### Code Review 2026-05-25 — Phase 0 (CR-1 through CR-5)
+
+- [x] **CR-3 · `_SafeEnv` blocklist is inherently incomplete** — `engine/context.py`: replaced single-mode blocklist with dual-mode `_SafeEnv`. When `FLOWFORGE_TEMPLATE_ENV_VARS=VAR1,VAR2` is set only those vars are accessible (allowlist mode). Without it, falls back to blocklist with `FLOWFORGE_JWT_SECRET` added. Documents the new env var in the module docstring.
+- [x] **CR-4 · Oracle `service_name` field inconsistency in bulk_load** — `steps/bulk_load.py`: both `_open_raw_connection()` and `_load_sqlloader()` now use `conn_cfg.get('service_name') or conn_cfg.get('database', '')`, matching `connections/factory.py`.
+- [x] **CR-5 · PostgreSQL pool key excludes password** — `connections/postgres.py`: pool registry key extended to `(host, port, database, user, password_hash)` using first 16 hex chars of SHA-256. Two rows with the same host/db/user but different passwords now get separate pools.
+
+- [x] **CR-1 · SQL injection via procedure name** — `steps/db_procedure.py` and `connections/oracle.py` both f-string interpolated the procedure name without validation. Added `validate_identifier` import to `db_procedure.py` and call it before any SQL is built; a bad name now fails immediately with a `StepResult` error before touching the DB.
+- [x] **CR-2 · SFTP AutoAddPolicy — silent MITM risk** — implemented `FLOWFORGE_SFTP_STRICT_HOSTKEYS=true` flag in `steps/sftp_transfer.py`. When set, uses `paramiko.RejectPolicy()`; rejects unknown hosts with a clear error including the exact `ssh-keyscan` command needed to add the key. Default remains `AutoAddPolicy` (TOFU) for backward compatibility. Added `strict_hostkeys=` to the debug log line.
+
+### Bug Fix Track — Code Review 2026-05-24 (BUG-1 through BUG-14)
+
+- [x] **BUG-1: `bulk_load.py:201` — `_resolve_connection` crashes at runtime** — replaced broken `.items()` dict-comprehension with `decrypt_config(row.config)`.
+- [x] **BUG-2: `bulk_load.py:281,343` — SQL injection via CSV column headers** — added `validate_identifier()` call on every mapped column name in both `_load_python_fallback` and `_load_postgres_copy`.
+- [x] **BUG-3: `bulk_load.py:418` — Oracle password exposed in process list** — credentials written to a `load.par` tempfile (chmod 600); `sqlldr parfile=…` used instead of inline `user/pass@dsn` arg; tempdir cleaned up in finally block.
+- [x] **BUG-4: DB constraint / step type mismatch** — migration 0011 adds `data_load` and `bulk_load` to `ck_step_type`; removes `ai_analyze` (no implementation yet). Model updated to match.
+- [x] **BUG-5: `context.py:47` — Jinja2 is not sandboxed + full `os.environ` in context** — switched to `SandboxedEnvironment`; `ctx['env']` now uses `_SafeEnv` proxy that blocks credential vars (`FLOWFORGE_SECRET_KEY`, `FLOWFORGE_PASSWORD`, `*_CLIENT_SECRET`, etc.).
+- [x] **BUG-6: `audit.py:20` — Audit log silenced when `LOG_LEVEL=WARNING`** — removed `_LEVEL` variable; `_get_logger()` now hardcodes `logging.INFO` so audit events are always written regardless of `LOG_LEVEL`.
+- [x] **BUG-7: `runs.py:93` — No path containment check on file download** — `abs_path` and `output_root` are both `.resolve()`d; a 403 is returned if `abs_path` does not start with `output_root + os.sep`.
+- [x] **BUG-8: `context.py:115` — Pipeline variables silently overwrite built-ins** — added `_BUILT_IN_VAR_KEYS` frozenset; `build()` logs a `WARNING` listing any collision before applying `ctx.update(pipeline_vars)`.
+- [x] **BUG-9: `app.py` — No `MAX_CONTENT_LENGTH`** — `app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024` added in `create_app()`.
+- [x] **BUG-10: `scheduler.py:97` — Dead function `_load_pipeline_jobs`** — function removed; `check_scheduler.py` section 7 updated to query the DB directly.
+- [x] **BUG-11: `models.py:273` — `TokenBlocklist` grows unbounded** — added `_prune_token_blocklist()` to `scheduler.py`; called from the existing daily `_cleanup_job`. Deletes all rows where `expires_at < NOW()` inside an app context.
+- [x] **BUG-12: `steps.py:88` — Step reorder magic number can violate unique constraint** — replaced `999999` with `-old_order` (guaranteed negative, never collides with a positive step order); added `.with_for_update()` to the occupant query to prevent concurrent swap races.
+- [x] **BUG-13: `bulk_load.py:343` — Delimiter injected into COPY SQL string literal** — `delimiter` is validated in `BulkLoadStep.run()` before any SQL is constructed: must be exactly one printable character and not a quote or backslash.
+- [x] **BUG-14: `report.py:38` — Excel template path unrestricted** — added `_resolve_template_path()` helper: joins `raw` against `FLOWFORGE_TEMPLATE_DIR` (default `./templates`), resolves both, and raises `ValueError` if the result escapes the root.
+
+### AI Features — AI-1 through AI-6 (all shipped)
+
+- [x] **[AI-1] AI Chart Generator** — "Visualize" button on the Report Preview panel. Sends column names + up to 50 rows to Ollama; Ollama returns a JSON chart config `{ type, x, y, title }`. FlowForge renders it immediately using Recharts. Supported types: bar, line, area, pie, scatter. New Flask endpoint `POST /api/ai/chart-config`; new `ChartPreview` React component.
+- [x] **[AI-2] SQL Explainer** — "Explain" button in the Report Designer SQL editor header. Sends SQL text only to Ollama via `POST /api/ai/query` (`task: explain`); returns structured plain-text summary (tables/joins, filters, aggregations, potential issues). Dismissible panel below SQL editor.
+- [x] **[AI-3] SQL Optimizer** — "Optimize" button alongside AI-2. Ollama rewrites the query (JSON mode for reliable SQL extraction). Side-by-side diff panel: original (red tint) vs suggested (green tint). Accept replaces textarea; Dismiss closes panel.
+- [x] **[AI-4] Pipeline Failure Diagnosis** — "Explain this error" button in the Run Detail Logs tab, shown per failed step. Sends `step_type + error + logs` to Ollama via `POST /api/ai/query` (`task: diagnose`). Returns 2-4 sentence plain-English cause + fix. Diagnosis panel is per-step, dismissible, shows "via Ollama" label.
+- [x] **[AI-5] Data Profiler** — "Summarise" button in the TopBar (visible after preview runs). One-time opt-in banner per session. Calls `POST /api/ai/data-profile`; returns a 3-5 sentence narrative (structure, value ranges, nulls, outliers, key suspicion). Profile card dismissible, clears on query re-run, consent persists for session.
+- [x] **[AI-6] Run History Anomaly Alerts** — Statistical outlier detection on `rows_affected` and `duration_ms` per step across the last 30 runs. When a step result is >2σ outside normal range, shows a warning badge in Run Detail. Ollama optionally generates a one-sentence narrative. Statistical layer + Ollama narrative both shipped.
+
+### Storage Steps (shipped 2026-05-24/25)
+
+- [x] **SFTP transfer step** — `sftp_transfer` step type; download (single file or directory with glob pattern) and upload; password or private-key auth (RSA/ECDSA/Ed25519/DSS); `create_remote_dirs`, `overwrite`, `pattern` options; migration 0014 adds `sftp_transfer` to `ck_step_type`; `pip install 'flowforge[sftp]'`
+- [x] **OneDrive / SharePoint upload step** — `onedrive_upload` step type (Graph API, MSAL); chunked upload for files > 4 MB; `make_shareable=True` returns anonymous view URL. Smart attachment in `email` step prefers OneDrive when `onedrive_folder_id` is set on the email config. Migration 0012 adds the column.
+
+### Platform (shipped 2026-05-24)
+
+- [x] **AI analyze step** — `flowforge/steps/ai_analyze.py`; Ollama + Claude providers; `{{ ai_summary }}` injected to top-level context; `{{ steps.<name>.ai_summary }}` in step context; `max_rows` cap; migration 0013 adds `ai_analyze` to `ck_step_type`
+
+---
+
 ## Session — 2026-05-24 (Score 8.5+ Track, Tests complete) 🟢 *(COMPLETE)*
 
 ### Score 8.5+ Track — Tests

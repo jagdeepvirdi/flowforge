@@ -33,4 +33,14 @@ def get_connection(connection_id: str) -> BaseConnection:
             password=cfg['password'],
         )
 
+    if row.db_type == 'mysql':
+        from flowforge.connections.mysql import MySQLConnection
+        return MySQLConnection(
+            host=cfg['host'],
+            database=cfg.get('database', ''),
+            user=cfg.get('user') or cfg.get('username', ''),
+            password=cfg['password'],
+            port=int(cfg.get('port', 3306)),
+        )
+
     raise ValueError(f"Unsupported db_type: {row.db_type}")

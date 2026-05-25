@@ -1,12 +1,14 @@
 import mimetypes
 import os
 import statistics
+from collections import defaultdict
 from pathlib import Path
 
 from flask import Blueprint, jsonify, request, send_file
 
 from flowforge.api.auth import require_auth
-from flowforge.db.models import Pipeline, PipelineRun, StepRun, db
+from flowforge.api.serializers import run_dict, step_run_dict
+from flowforge.db.models import Pipeline, PipelineRun, db
 
 _ANOMALY_MIN_HISTORY = 5
 _ANOMALY_THRESHOLD   = 2.0   # z-score
@@ -36,42 +38,40 @@ def _check_anomaly(history: list, current) -> dict | None:
 
 bp = Blueprint('runs', __name__)
 
-
-def _run_dict(r: PipelineRun, include_steps: bool = False) -> dict:
-    result = {
-        'id': r.id,
-        'pipeline_id': r.pipeline_id,
-        'pipeline_name': r.pipeline_name,
-        'status': r.status,
-        'started_at': r.started_at.isoformat() if r.started_at else None,
-        'finished_at': r.finished_at.isoformat() if r.finished_at else None,
-        'duration_ms': r.duration_ms,
-        'triggered_by': r.triggered_by,
-        'error_step': r.error_step,
-        'error_message': r.error_message,
-    }
-    if include_steps:
-        result['step_runs'] = [_step_run_dict(s) for s in sorted(r.step_runs, key=lambda s: s.step_order)]
-    return result
+_DASHBOARD_BARS = 14  # number of recent runs returned per pipeline
 
 
-def _step_run_dict(s: StepRun) -> dict:
-    return {
-        'id': s.id,
-        'step_name': s.step_name,
-        'step_type': s.step_type,
-        'step_order': s.step_order,
-        'status': s.status,
-        'started_at': s.started_at.isoformat() if s.started_at else None,
-        'finished_at': s.finished_at.isoformat() if s.finished_at else None,
-        'duration_ms': s.duration_ms,
-        'rows_affected': s.rows_affected,
-        'output_path': s.output_path,
-        'drive_url': s.drive_url,
-        'email_sent_to': s.email_sent_to or [],
-        'logs': s.logs,
-        'error_message': s.error_message,
-    }
+@bp.get('/dashboard/summary')
+@require_auth
+def dashboard_summary():
+    """Return the last _DASHBOARD_BARS runs for every pipeline in a single query.
+
+    Returns: { "pipeline_runs": { "<pipeline_id>": [run, ...] } }
+    """
+    project_id = request.args.get('project_id')
+
+    pipeline_q = db.session.query(Pipeline.id)
+    if project_id:
+        pipeline_q = pipeline_q.filter(Pipeline.project_id == project_id)
+    pipeline_ids = [row.id for row in pipeline_q.all()]
+
+    if not pipeline_ids:
+        return jsonify({'pipeline_runs': {}})
+
+    all_runs = (
+        db.session.query(PipelineRun)
+        .filter(PipelineRun.pipeline_id.in_(pipeline_ids))
+        .order_by(PipelineRun.pipeline_id, PipelineRun.started_at.desc())
+        .all()
+    )
+
+    grouped: dict[str, list] = defaultdict(list)
+    for r in all_runs:
+        pid = r.pipeline_id
+        if len(grouped[pid]) < _DASHBOARD_BARS:
+            grouped[pid].append(run_dict(r))
+
+    return jsonify({'pipeline_runs': dict(grouped)})
 
 
 @bp.get('/runs')
@@ -97,7 +97,7 @@ def list_runs():
         query = query.filter(PipelineRun.status == status)
 
     runs = query.offset(offset).limit(limit).all()
-    return jsonify([_run_dict(r) for r in runs])
+    return jsonify([run_dict(r) for r in runs])
 
 
 @bp.get('/runs/<uuid:run_id>')
@@ -106,7 +106,7 @@ def get_run(run_id):
     run = db.session.get(PipelineRun, str(run_id))
     if not run:
         return jsonify({'error': 'Run not found'}), 404
-    return jsonify(_run_dict(run, include_steps=True))
+    return jsonify(run_dict(run, include_steps=True))
 
 
 @bp.get('/runs/<uuid:run_id>/anomalies')

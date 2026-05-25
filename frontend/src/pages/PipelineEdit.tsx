@@ -61,6 +61,7 @@ export default function PipelineEdit() {
   const [schedule, setSchedule]   = useState('')
   const [enabled, setEnabled]     = useState(true)
   const [timeout, setTimeout_]    = useState(60)
+  const [webhookUrl, setWebhookUrl] = useState('')
   const [steps, setSteps]         = useState<PipelineStep[]>([])
   const [vars, setVars]           = useState<{ key: string; value: string; is_secret: boolean }[]>([])
   const [saving, setSaving]       = useState(false)
@@ -74,6 +75,7 @@ export default function PipelineEdit() {
       setSchedule(existing.schedule ?? '')
       setEnabled(existing.enabled)
       setTimeout_(existing.timeout_minutes)
+      setWebhookUrl(existing.on_failure_webhook_url ?? '')
       setSteps([...existing.steps].sort((a, b) => a.step_order - b.step_order))
       setVars((existing.variables ?? []).map(v => ({
         key: v.var_key,
@@ -121,9 +123,9 @@ export default function PipelineEdit() {
 
       let pipeline: Pipeline
       if (isNew) {
-        pipeline = await createPipeline({ name, description: desc, schedule: schedule || null, enabled, timeout_minutes: timeout, variables: validVars, project_id: activeProjectId ?? undefined })
+        pipeline = await createPipeline({ name, description: desc, schedule: schedule || null, enabled, timeout_minutes: timeout, on_failure_webhook_url: webhookUrl || null, variables: validVars, project_id: activeProjectId ?? undefined })
       } else {
-        pipeline = await updatePipeline(id!, { name, description: desc, schedule: schedule || null, enabled, timeout_minutes: timeout, variables: validVars })
+        pipeline = await updatePipeline(id!, { name, description: desc, schedule: schedule || null, enabled, timeout_minutes: timeout, on_failure_webhook_url: webhookUrl || null, variables: validVars })
       }
 
       // Sync steps: delete removed, update existing, add new
@@ -250,6 +252,10 @@ export default function PipelineEdit() {
               <span style={{ fontSize: 11.5, color: 'var(--text-muted)', fontWeight: 500 }}>Timeout (min)</span>
               <input className="input" type="number" min={1} value={timeout} onChange={e => { setTimeout_(+e.target.value); if (fieldErrors.timeout) setFieldErrors(f => ({ ...f, timeout: '' })) }} style={{ width: 70, height: 30, padding: '4px 8px', fontSize: 12 }} />
               {fieldErrors.timeout && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{fieldErrors.timeout}</span>}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+              <span style={{ fontSize: 11.5, color: 'var(--text-muted)', fontWeight: 500, whiteSpace: 'nowrap' }}>Failure webhook</span>
+              <input className="input" type="url" placeholder="https://hooks.slack.com/…" value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} style={{ flex: 1, height: 30, padding: '4px 8px', fontSize: 12 }} />
             </div>
           </div>
         </div>

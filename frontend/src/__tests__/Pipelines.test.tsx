@@ -19,9 +19,13 @@ const MOCK_PIPELINES = [
 ]
 
 vi.mock('../lib/api', () => ({
-  getPipelines:  vi.fn(() => Promise.resolve(MOCK_PIPELINES)),
+  getPipelines:   vi.fn(() => Promise.resolve(MOCK_PIPELINES)),
   deletePipeline: vi.fn(() => Promise.resolve({})),
-  runPipeline:    vi.fn(() => Promise.resolve({ run_id: 'r1', status: 'running' })),
+  clonePipeline:  vi.fn(() => Promise.resolve({})),
+  exportPipeline: vi.fn(() => Promise.resolve(new Blob(['yaml']))),
+  importPipeline: vi.fn(() => Promise.resolve({})),
+  runPipeline:    vi.fn(() => Promise.resolve({ run_id: 'r1', status: 'running', pipeline_name: 'Test' })),
+  getProjects:    vi.fn(() => Promise.resolve([])),
 }))
 
 describe('Pipelines list', () => {

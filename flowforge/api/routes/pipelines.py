@@ -7,6 +7,8 @@ from flask import Blueprint, jsonify, request
 
 from flowforge.api.app import limiter
 from flowforge.api.auth import require_auth
+from flowforge.api.serializers import run_dict
+from flowforge.api.validators import validate_pipeline, validate_pipeline_variable
 from flowforge import audit
 from flowforge.crypto import decrypt_value, encrypt_value
 from flowforge.db.models import DEFAULT_PROJECT_ID, Pipeline, PipelineRun, PipelineVariable, Project, WebhookToken, db
@@ -64,6 +66,7 @@ def _pipeline_dict(p: Pipeline) -> dict:
         'next_run': _next_run_iso(p.schedule),
         'enabled': p.enabled,
         'timeout_minutes': p.timeout_minutes,
+        'on_failure_webhook_url': p.on_failure_webhook_url,
         'project_id': p.project_id,
         'created_at': p.created_at.isoformat() if p.created_at else None,
         'updated_at': p.updated_at.isoformat() if p.updated_at else None,
@@ -133,6 +136,10 @@ def create_pipeline():
     if not data or not data.get('name'):
         return jsonify({'error': 'name is required'}), 400
 
+    err = validate_pipeline(data)
+    if err:
+        return jsonify({'error': err}), 400
+
     if data.get('schedule'):
         err = _validate_cron(data['schedule'])
         if err:
@@ -144,6 +151,7 @@ def create_pipeline():
         schedule=data.get('schedule'),
         enabled=data.get('enabled', True),
         timeout_minutes=data.get('timeout_minutes', 60),
+        on_failure_webhook_url=data.get('on_failure_webhook_url'),
         project_id=data.get('project_id') or _default_project_id(),
     )
     db.session.add(pipeline)
@@ -180,12 +188,16 @@ def update_pipeline(pipeline_id):
         return jsonify({'error': 'Pipeline not found'}), 404
 
     data = request.get_json() or {}
+    len_err = validate_pipeline(data)
+    if len_err:
+        return jsonify({'error': len_err}), 400
     if data.get('schedule'):
         err = _validate_cron(data['schedule'])
         if err:
             return jsonify({'error': f'Invalid cron expression: {err}'}), 400
 
-    for field in ('name', 'description', 'schedule', 'enabled', 'timeout_minutes', 'project_id'):
+    for field in ('name', 'description', 'schedule', 'enabled', 'timeout_minutes',
+                  'on_failure_webhook_url', 'project_id'):
         if field in data:
             setattr(pipeline, field, data[field])
 
@@ -208,6 +220,57 @@ def update_pipeline(pipeline_id):
     return jsonify(_pipeline_dict(pipeline))
 
 
+@bp.post('/pipelines/<uuid:pipeline_id>/clone')
+@require_auth
+def clone_pipeline(pipeline_id):
+    from flowforge.db.models import PipelineStep
+    src = db.session.get(Pipeline, str(pipeline_id))
+    if not src:
+        return jsonify({'error': 'Pipeline not found'}), 404
+
+    # Find a unique name with (Copy) suffix
+    base_name = f"{src.name} (Copy)"
+    candidate = base_name
+    n = 1
+    while db.session.query(Pipeline).filter_by(name=candidate).first():
+        n += 1
+        candidate = f"{base_name} {n}"
+
+    clone = Pipeline(
+        name=candidate,
+        description=src.description,
+        schedule=None,           # clones start disabled with no schedule
+        enabled=False,
+        timeout_minutes=src.timeout_minutes,
+        on_failure_webhook_url=src.on_failure_webhook_url,
+        project_id=src.project_id,
+    )
+    db.session.add(clone)
+    db.session.flush()
+
+    for s in src.steps:
+        db.session.add(PipelineStep(
+            pipeline_id=clone.id,
+            step_order=s.step_order,
+            name=s.name,
+            step_type=s.step_type,
+            config=dict(s.config),
+            on_error=s.on_error,
+            enabled=s.enabled,
+        ))
+
+    for v in src.variables:
+        db.session.add(PipelineVariable(
+            pipeline_id=clone.id,
+            var_key=v.var_key,
+            var_value=v.var_value,
+            is_secret=v.is_secret,
+        ))
+
+    db.session.commit()
+    return jsonify(_pipeline_dict(clone)), 201
+
+
 @bp.delete('/pipelines/<uuid:pipeline_id>')
 @require_auth
 def delete_pipeline(pipeline_id):
@@ -217,6 +280,127 @@ def delete_pipeline(pipeline_id):
     db.session.delete(pipeline)
     db.session.commit()
     return jsonify({'deleted': str(pipeline_id)})
+
+
+@bp.get('/pipelines/<uuid:pipeline_id>/export')
+@require_auth
+def export_pipeline(pipeline_id):
+    """Return the pipeline as a YAML document suitable for re-import."""
+    import io
+    import yaml
+    from flask import Response
+    pipeline = db.session.get(Pipeline, str(pipeline_id))
+    if not pipeline:
+        return jsonify({'error': 'Pipeline not found'}), 404
+
+    doc = {
+        'name': pipeline.name,
+        'description': pipeline.description or '',
+        'schedule': pipeline.schedule,
+        'enabled': pipeline.enabled,
+        'timeout_minutes': pipeline.timeout_minutes,
+        'on_failure_webhook_url': pipeline.on_failure_webhook_url,
+        'steps': [
+            {
+                'name': s.name,
+                'step_type': s.step_type,
+                'step_order': s.step_order,
+                'config': dict(s.config),
+                'on_error': s.on_error,
+                'enabled': s.enabled,
+            }
+            for s in pipeline.steps
+        ],
+        'variables': [
+            {
+                'var_key': v.var_key,
+                'var_value': '***' if v.is_secret else v.var_value,
+                'is_secret': v.is_secret,
+            }
+            for v in pipeline.variables
+        ],
+    }
+    buf = io.StringIO()
+    yaml.dump(doc, buf, default_flow_style=False, allow_unicode=True, sort_keys=False)
+    filename = pipeline.name.replace(' ', '_') + '.yaml'
+    return Response(
+        buf.getvalue(),
+        mimetype='application/x-yaml',
+        headers={'Content-Disposition': f'attachment; filename="{filename}"'},
+    )
+
+
+@bp.post('/pipelines/import')
+@require_auth
+def import_pipeline():
+    """Create a new pipeline from a YAML document (multipart file or JSON body with yaml_content)."""
+    import yaml
+    from flowforge.db.models import PipelineStep
+
+    raw = None
+    if request.content_type and 'multipart' in request.content_type:
+        f = request.files.get('file')
+        if not f:
+            return jsonify({'error': 'No file uploaded'}), 400
+        raw = f.read().decode('utf-8')
+    else:
+        body = request.get_json(silent=True) or {}
+        raw = body.get('yaml_content', '')
+
+    if not raw:
+        return jsonify({'error': 'No YAML content provided'}), 400
+
+    try:
+        doc = yaml.safe_load(raw)
+    except yaml.YAMLError as e:
+        return jsonify({'error': f'Invalid YAML: {e}'}), 400
+
+    if not isinstance(doc, dict) or not doc.get('name'):
+        return jsonify({'error': 'YAML must be a mapping with a name field'}), 400
+
+    # Ensure unique name
+    base_name = str(doc['name'])
+    candidate = base_name
+    n = 1
+    while db.session.query(Pipeline).filter_by(name=candidate).first():
+        n += 1
+        candidate = f"{base_name} ({n})"
+
+    pipeline = Pipeline(
+        name=candidate,
+        description=doc.get('description', ''),
+        schedule=doc.get('schedule'),
+        enabled=doc.get('enabled', True),
+        timeout_minutes=doc.get('timeout_minutes', 60),
+        on_failure_webhook_url=doc.get('on_failure_webhook_url'),
+        project_id=_default_project_id(),
+    )
+    db.session.add(pipeline)
+    db.session.flush()
+
+    for s in doc.get('steps', []):
+        db.session.add(PipelineStep(
+            pipeline_id=pipeline.id,
+            step_order=int(s.get('step_order', 1)),
+            name=str(s['name']),
+            step_type=str(s['step_type']),
+            config=s.get('config') or {},
+            on_error=s.get('on_error', 'stop'),
+            enabled=s.get('enabled', True),
+        ))
+
+    for v in doc.get('variables', []):
+        if v.get('is_secret') and v.get('var_value') == '***':
+            continue   # skip masked secrets from export — user must re-enter
+        db.session.add(PipelineVariable(
+            pipeline_id=pipeline.id,
+            var_key=str(v['var_key']),
+            var_value=str(v.get('var_value', '')),
+            is_secret=bool(v.get('is_secret', False)),
+        ))
+
+    db.session.commit()
+    return jsonify(_pipeline_dict(pipeline)), 201
 
 
 def _launch_run(pipeline: Pipeline, triggered_by: str):
@@ -261,6 +445,7 @@ def _launch_run(pipeline: Pipeline, triggered_by: str):
     pid = pipeline.id
     pname = pipeline.name
     timeout_minutes = pipeline.timeout_minutes or 60
+    failure_webhook = pipeline.on_failure_webhook_url
 
     def _run_in_background():
         timeout_secs = timeout_minutes * 60
@@ -275,6 +460,7 @@ def _launch_run(pipeline: Pipeline, triggered_by: str):
                     pipeline_id=pid,
                     existing_run_id=run_id,
                     secret_var_keys=secret_keys,
+                    on_failure_webhook_url=failure_webhook,
                 )
 
         try:
@@ -299,6 +485,7 @@ def _launch_run(pipeline: Pipeline, triggered_by: str):
 
 @bp.post('/pipelines/<uuid:pipeline_id>/run')
 @require_auth
+@limiter.limit('10 per minute')
 def trigger_run(pipeline_id):
     pipeline = db.session.get(Pipeline, str(pipeline_id))
     if not pipeline:
@@ -317,22 +504,7 @@ def pipeline_runs(pipeline_id):
         .limit(50)
         .all()
     )
-    return jsonify([_run_dict(r) for r in runs])
-
-
-def _run_dict(r) -> dict:
-    return {
-        'id': r.id,
-        'pipeline_id': r.pipeline_id,
-        'pipeline_name': r.pipeline_name,
-        'status': r.status,
-        'started_at': r.started_at.isoformat() if r.started_at else None,
-        'finished_at': r.finished_at.isoformat() if r.finished_at else None,
-        'duration_ms': r.duration_ms,
-        'triggered_by': r.triggered_by,
-        'error_step': r.error_step,
-        'error_message': r.error_message,
-    }
+    return jsonify([run_dict(r) for r in runs])
 
 
 # ── Webhook / API trigger ──────────────────────────────────────────────────────

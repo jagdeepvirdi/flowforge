@@ -1,4 +1,4 @@
-name: flowforge-oracle
+name: flowforge
 
 services:
   db:
@@ -53,25 +53,6 @@ services:
     volumes:
       - output_files:/app/output
 
-  oracle:
-    image: gvenzl/oracle-free:23-slim
-    restart: unless-stopped
-    environment:
-      ORACLE_PASSWORD: ${ORACLE_PASSWORD:?Set ORACLE_PASSWORD in .env}
-      APP_USER: oracle
-      APP_USER_PASSWORD: ${APP_USER_PASSWORD:?Set APP_USER_PASSWORD in .env}
-    ports:
-      - "1521:1521"
-    volumes:
-      - oracle_data:/opt/oracle/oradata
-    healthcheck:
-      test: ["CMD-SHELL", "healthcheck.sh"]
-      interval: 10s
-      timeout: 10s
-      retries: 20
-      start_period: 180s
-
 volumes:
   postgres_data:
-  oracle_data:
   output_files:

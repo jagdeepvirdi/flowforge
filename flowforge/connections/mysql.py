@@ -3,51 +3,64 @@ import logging
 import time
 from typing import Any
 
-import psycopg2
-from psycopg2 import pool
-
 from flowforge.connections.base import BaseConnection
 
 logger = logging.getLogger(__name__)
 
-# Module-level pool registry keyed by (host, port, database, user, password_hash).
-# Password is hashed so that two connections with the same host/db/user but
-# different passwords get separate pools instead of silently sharing one.
-_pools: dict[tuple, pool.ThreadedConnectionPool] = {}
+_pools: dict[tuple, Any] = {}
 
 
-class PostgreSQLConnection(BaseConnection):
-    db_type = 'postgresql'
+class MySQLConnection(BaseConnection):
+    db_type = 'mysql'
 
-    def __init__(self, host: str, database: str, user: str, password: str, port: int = 5432):
+    def __init__(self, host: str, database: str, user: str, password: str, port: int = 3306):
+        try:
+            import pymysql
+            from pymysql import connections
+        except ImportError:
+            raise ImportError(
+                "PyMySQL is required for MySQL/MariaDB connections. "
+                "Install with: pip install flowforge[mysql]"
+            )
+
         pw_hash = hashlib.sha256(password.encode()).hexdigest()[:16]
         key = (host, port, database, user, pw_hash)
         if key not in _pools:
-            _pools[key] = pool.ThreadedConnectionPool(
-                1, 5, host=host, port=port, database=database, user=user, password=password
-            )
-            logger.debug("Created connection pool for %s:%s/%s", host, port, database)
-        self._pool = _pools[key]
-        self._conn = self._pool.getconn()
+            _pools[key] = {
+                'host': host, 'port': port, 'database': database,
+                'user': user, 'password': password,
+            }
+            logger.debug("Registered MySQL connection config for %s:%s/%s", host, port, database)
+
+        cfg = _pools[key]
+        import pymysql
+        self._conn = pymysql.connect(
+            host=cfg['host'],
+            port=cfg['port'],
+            database=cfg['database'],
+            user=cfg['user'],
+            password=cfg['password'],
+            autocommit=False,
+            charset='utf8mb4',
+            cursorclass=pymysql.cursors.Cursor,
+        )
 
     def execute_procedure(self, name: str, params: dict[str, Any]) -> None:
-        placeholders = ', '.join(['%s'] * len(params))
-        sql = f"CALL {name}({placeholders})"
         with self._conn.cursor() as cur:
-            cur.execute(sql, list(params.values()))
+            cur.callproc(name, list(params.values()))
         self._conn.commit()
-        logger.debug("Called procedure %s", name)
+        logger.debug("Called MySQL procedure %s", name)
 
     def execute_query(self, sql: str, params: tuple = ()) -> list[tuple]:
         with self._conn.cursor() as cur:
             cur.execute(sql, params)
-            return cur.fetchall()
+            return list(cur.fetchall())
 
     def execute_query_with_columns(self, sql: str, params: tuple = ()) -> tuple[list[tuple], list[str]]:
         with self._conn.cursor() as cur:
             cur.execute(sql, params)
             columns = [desc[0] for desc in cur.description] if cur.description else []
-            return cur.fetchall(), columns
+            return list(cur.fetchall()), columns
 
     def execute_write(self, sql: str, params: tuple = ()) -> int:
         with self._conn.cursor() as cur:
@@ -57,11 +70,11 @@ class PostgreSQLConnection(BaseConnection):
         return rows
 
     def execute_many(self, sql: str, rows: list[tuple]) -> int:
-        from psycopg2.extras import execute_batch
         with self._conn.cursor() as cur:
-            execute_batch(cur, sql, rows, page_size=1000)
+            cur.executemany(sql, rows)
+            count = cur.rowcount
         self._conn.commit()
-        return len(rows)
+        return count
 
     def make_placeholders(self, n: int) -> str:
         return ', '.join(['%s'] * n)
@@ -72,8 +85,11 @@ class PostgreSQLConnection(BaseConnection):
             self.execute_query("SELECT 1")
             return True, int((time.monotonic() - start) * 1000)
         except Exception as e:
-            logger.error("PostgreSQL connection test failed: %s", e)
+            logger.error("MySQL connection test failed: %s", e)
             return False, 0
 
     def close(self) -> None:
-        self._pool.putconn(self._conn)
+        try:
+            self._conn.close()
+        except Exception:
+            pass

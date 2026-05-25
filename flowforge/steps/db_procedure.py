@@ -1,7 +1,7 @@
 import logging
 from typing import Any
 
-from flowforge.steps.base import BaseStep, StepResult
+from flowforge.steps.base import BaseStep, StepResult, validate_identifier
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +15,11 @@ class DbProcedureStep(BaseStep):
         from flowforge.engine.context import render
 
         procedure = self.config['procedure']
+        try:
+            validate_identifier(procedure, 'procedure name')
+        except ValueError as e:
+            return StepResult(success=False, error=str(e))
+
         raw_params = self.config.get('params', {})
         params = {k: render(str(v), context) for k, v in raw_params.items()}
 

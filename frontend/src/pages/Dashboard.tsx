@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Plus, Clock, Calendar, History, Pencil, Play } from 'lucide-react'
-import { getPipelines, getPipelineRuns, runPipeline, getRuns } from '../lib/api'
+import { getPipelines, getDashboardSummary, runPipeline, getRuns } from '../lib/api'
 import type { Pipeline, PipelineRun } from '../lib/types'
 import { useProjectStore } from '../lib/store'
 import StatusBadge from '../components/shared/StatusBadge'
@@ -41,20 +41,14 @@ function fmtNext(iso: string | null): string {
 
 const RUN_BARS = 14
 
-function PipelineCard({ pipeline }: { pipeline: Pipeline }) {
+function PipelineCard({ pipeline, runs }: { pipeline: Pipeline; runs: PipelineRun[] }) {
   const qc = useQueryClient()
-  const { data: runs = [] } = useQuery({
-    queryKey: ['pipeline-runs', pipeline.id],
-    queryFn: () => getPipelineRuns(pipeline.id),
-    refetchInterval: (q) => (q.state.data ?? []).some(r => r.status === 'running') ? 3000 : false,
-  })
-
   const lastRun: PipelineRun | undefined = runs[0]
   const isRunning = lastRun?.status === 'running'
 
   const { mutate: trigger, isPending } = useMutation({
     mutationFn: () => runPipeline(pipeline.id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['pipeline-runs', pipeline.id] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['dashboard-summary'] }),
   })
 
   // Build mini run bars from recent history
@@ -140,6 +134,17 @@ export default function Dashboard() {
     queryKey: ['pipelines', activeProjectId],
     queryFn: () => getPipelines(projectParam),
   })
+
+  const { data: summary } = useQuery({
+    queryKey: ['dashboard-summary', activeProjectId],
+    queryFn: () => getDashboardSummary(activeProjectId ?? undefined),
+    refetchInterval: (q) => {
+      const runs = Object.values(q.state.data?.pipeline_runs ?? {}).flat()
+      return runs.some(r => r.status === 'running') ? 3000 : 5000
+    },
+  })
+  const pipelineRunsMap: Record<string, PipelineRun[]> = summary?.pipeline_runs ?? {}
+
   const { data: recentRuns = [] } = useQuery({
     queryKey: ['runs', activeProjectId],
     queryFn: () => getRuns({ limit: 50, project_id: activeProjectId ?? undefined }),
@@ -261,7 +266,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 28 }}>
-            {pipelines.map(p => <PipelineCard key={p.id} pipeline={p} />)}
+            {pipelines.map(p => <PipelineCard key={p.id} pipeline={p} runs={pipelineRunsMap[p.id] ?? []} />)}
           </div>
         )}
 

@@ -30,7 +30,7 @@ function StatCol({ label, value }: { label: string; value: string }) {
 // ── modal state types ────────────────────────────────────────────────────────
 
 type DbForm = {
-  name: string; db_type: 'postgresql' | 'oracle'
+  name: string; db_type: 'postgresql' | 'oracle' | 'mysql'
   host: string; port: string; database: string; username: string; password: string
   is_default: boolean
 }
@@ -128,8 +128,9 @@ export default function Connections() {
     if (tab === 'db') {
       getDbConnection(id).then(data => {
         const cfg = (data as any).config ?? {}
+        const defaultPort = data.db_type === 'oracle' ? 1521 : data.db_type === 'mysql' ? 3306 : 5432
         setDbForm({ name: data.name, db_type: data.db_type as DbForm['db_type'], is_default: data.is_default,
-          host: cfg.host ?? '', port: String(cfg.port ?? 5432), database: cfg.database ?? '',
+          host: cfg.host ?? '', port: String(cfg.port ?? defaultPort), database: cfg.database ?? '',
           username: cfg.username ?? '', password: '***' })
       }).catch(() => setFormError('Failed to load connection details'))
     } else {
@@ -440,14 +441,19 @@ export default function Connections() {
                 </Field>
 
                 <Field label="Type">
-                  <select className="input" value={dbForm.db_type} onChange={e => setDbForm(f => ({ ...f, db_type: e.target.value as DbForm['db_type'] }))}>
+                  <select className="input" value={dbForm.db_type} onChange={e => {
+                    const t = e.target.value as DbForm['db_type']
+                    const defaultPort = t === 'oracle' ? '1521' : t === 'mysql' ? '3306' : '5432'
+                    setDbForm(f => ({ ...f, db_type: t, port: defaultPort }))
+                  }}>
                     <option value="postgresql">PostgreSQL</option>
                     <option value="oracle">Oracle</option>
+                    <option value="mysql">MySQL / MariaDB</option>
                   </select>
                 </Field>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: 10 }}>
-                  <Field label="Host" tooltip={<FieldTooltip field={dbForm.db_type === 'oracle' ? 'oracle_connection' : 'db_host_port'} />}>
+                  <Field label="Host" tooltip={<FieldTooltip field={dbForm.db_type === 'oracle' ? 'oracle_connection' : dbForm.db_type === 'mysql' ? 'db_host_port' : 'db_host_port'} />}>
                     <input className="input" value={dbForm.host} onChange={e => setDbForm(f => ({ ...f, host: e.target.value }))} placeholder="localhost" required />
                   </Field>
                   <Field label="Port">

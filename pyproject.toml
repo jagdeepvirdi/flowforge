@@ -75,14 +75,23 @@ pdf = [
 oracle = [
     "oracledb>=2.0",
 ]
+mysql = [
+    "pymysql>=1.1",
+    "cryptography>=42.0",  # already in core, explicit here for PyMySQL's sha2_password auth
+]
 sftp = [
     "paramiko>=3.0",
+]
+claude = [
+    "anthropic>=0.25",
 ]
 all = [
     "flowforge[gmail]",
     "flowforge[drive]",
     "flowforge[microsoft365]",
     "flowforge[pdf]",
+    "flowforge[oracle]",
+    "flowforge[mysql]",
     "flowforge[sftp]",
 ]
 dev = [

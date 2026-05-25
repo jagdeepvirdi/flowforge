@@ -56,7 +56,7 @@ class RecipientGroup(db.Model):
     description = Column(Text)
     addresses   = Column(ARRAY(Text), nullable=False)
     project_id  = Column(UUID(as_uuid=False), ForeignKey('ff_projects.id', ondelete='SET NULL'), nullable=True)
-    created_at  = Column(DateTime, default=_utcnow)
+    created_at  = Column(DateTime(timezone=True), default=_utcnow)
 
     email_configs = relationship('EmailConfig', back_populates='recipient_group')
     project       = relationship('Project', back_populates='recipient_groups')
@@ -81,7 +81,7 @@ class EmailProvider(db.Model):
 class DbConnection(db.Model):
     __tablename__ = 'ff_db_connections'
     __table_args__ = (
-        CheckConstraint("db_type IN ('postgresql', 'oracle')", name='ck_db_connection_type'),
+        CheckConstraint("db_type IN ('postgresql', 'oracle', 'mysql')", name='ck_db_connection_type'),
     )
 
     id         = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
@@ -89,7 +89,7 @@ class DbConnection(db.Model):
     db_type    = Column(String(20), nullable=False)
     config     = Column(Text, nullable=False)   # encrypted JSON
     is_default = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=_utcnow)
+    created_at = Column(DateTime(timezone=True), default=_utcnow)
 
     report_configs    = relationship('ReportConfig', back_populates='connection')
     bulk_load_configs = relationship('BulkLoadConfig', back_populates='connection')
@@ -166,8 +166,8 @@ class EmailConfig(db.Model):
     drive_share_message = Column(Text)
     onedrive_folder_id  = Column(String(255))
     project_id          = Column(UUID(as_uuid=False), ForeignKey('ff_projects.id', ondelete='SET NULL'), nullable=True)
-    created_at          = Column(DateTime, default=_utcnow)
-    updated_at          = Column(DateTime, default=_utcnow, onupdate=_utcnow)
+    created_at          = Column(DateTime(timezone=True), default=_utcnow)
+    updated_at          = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
     provider         = relationship('EmailProvider',    back_populates='email_configs')
     recipient_group  = relationship('RecipientGroup',  back_populates='email_configs')
@@ -177,15 +177,16 @@ class EmailConfig(db.Model):
 class Pipeline(db.Model):
     __tablename__ = 'ff_pipelines'
 
-    id              = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
-    name            = Column(String(255), nullable=False, unique=True)
-    description     = Column(Text)
-    schedule        = Column(String(100))
-    enabled         = Column(Boolean, default=True)
-    timeout_minutes = Column(Integer, default=60)
-    project_id      = Column(UUID(as_uuid=False), ForeignKey('ff_projects.id', ondelete='SET NULL'), nullable=True)
-    created_at      = Column(DateTime(timezone=True), default=_utcnow)
-    updated_at      = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+    id                      = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    name                    = Column(String(255), nullable=False, unique=True)
+    description             = Column(Text)
+    schedule                = Column(String(100))
+    enabled                 = Column(Boolean, default=True)
+    timeout_minutes         = Column(Integer, default=60)
+    on_failure_webhook_url  = Column(String(500))
+    project_id              = Column(UUID(as_uuid=False), ForeignKey('ff_projects.id', ondelete='SET NULL'), nullable=True)
+    created_at              = Column(DateTime(timezone=True), default=_utcnow)
+    updated_at              = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
     steps          = relationship('PipelineStep', back_populates='pipeline',
                                   order_by='PipelineStep.step_order', cascade='all, delete-orphan')

@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { Plus, Play, Pencil, Trash2, Search, ChevronDown } from 'lucide-react'
-import { getPipelines, deletePipeline, runPipeline } from '../lib/api'
+import { Plus, Play, Pencil, Trash2, Copy, Upload, Search, ChevronDown } from 'lucide-react'
+import { getPipelines, deletePipeline, clonePipeline, runPipeline, exportPipeline, importPipeline } from '../lib/api'
 import { useProjectStore } from '../lib/store'
 import StatusBadge from '../components/shared/StatusBadge'
 import TopBar from '../components/shared/TopBar'
@@ -69,10 +69,27 @@ export default function Pipelines() {
     mutationFn: deletePipeline,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['pipelines'] }),
   })
+  const { mutate: clone } = useMutation({
+    mutationFn: clonePipeline,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['pipelines'] }),
+  })
   const { mutate: trigger } = useMutation({
     mutationFn: runPipeline,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['pipelines'] }),
   })
+  const importRef = useRef<HTMLInputElement>(null)
+  const { mutate: doImport } = useMutation({
+    mutationFn: (yamlContent: string) => importPipeline(yamlContent),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['pipelines'] }),
+  })
+  function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = ev => doImport(ev.target!.result as string)
+    reader.readAsText(file)
+    e.target.value = ''
+  }
 
   const filtered = pipelines.filter(p => {
     if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false
@@ -94,7 +111,11 @@ export default function Pipelines() {
         crumbs={['Workspace', 'Pipelines']}
         helpTopic="pipelines"
         actions={
-          <Link to="/pipelines/new" className="btn btn-primary btn-sm"><Plus size={13} /> New Pipeline</Link>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input ref={importRef} type="file" accept=".yaml,.yml" style={{ display: 'none' }} onChange={handleImportFile} />
+            <button className="btn btn-sm btn-ghost" onClick={() => importRef.current?.click()}><Upload size={13} /> Import</button>
+            <Link to="/pipelines/new" className="btn btn-primary btn-sm"><Plus size={13} /> New Pipeline</Link>
+          </div>
         }
       />
 
@@ -168,6 +189,18 @@ export default function Pipelines() {
                       <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
                         <button className="btn btn-sm btn-ghost btn-icon" onClick={() => trigger(p.id)} title="Run now" disabled={!p.enabled}>
                           <Play size={12} />
+                        </button>
+                        <button className="btn btn-sm btn-ghost btn-icon" title="Clone" onClick={() => clone(p.id)}>
+                          <Copy size={12} />
+                        </button>
+                        <button className="btn btn-sm btn-ghost btn-icon" title="Export YAML" onClick={async () => {
+                          const blob = await exportPipeline(p.id)
+                          const url = URL.createObjectURL(blob)
+                          const a = document.createElement('a')
+                          a.href = url; a.download = `${p.name.replace(/\s+/g, '_')}.yaml`; a.click()
+                          URL.revokeObjectURL(url)
+                        }}>
+                          <Upload size={12} style={{ transform: 'rotate(180deg)' }} />
                         </button>
                         <Link to={`/pipelines/${p.id}/edit`} className="btn btn-sm btn-ghost btn-icon" title="Edit">
                           <Pencil size={12} />
