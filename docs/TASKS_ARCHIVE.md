@@ -3,6 +3,37 @@
 
 ---
 
+## Session — 2026-05-25 (Celery Wiring + Multi-User Sprint Close-out) 🟢 *(COMPLETE)*
+
+### Celery Task Queue — Wiring Complete
+
+- [x] **`celery_app.py` rewrite** — Single module-level `celery` instance with `FlaskTask` base class that auto-pushes Flask app context on every task. Lazy `_get_app()` creates the Flask app once in worker processes; `init_celery(app)` binds the web-server app. No double `create_app()` call.
+- [x] **`tasks.py` fix** — Removed `create_app()` inside the task function; Flask context now provided by `FlaskTask.__call__`.
+- [x] **`launcher.py` → Celery dispatch** — `_use_celery()` returns `True` when `FLOWFORGE_REDIS_URL` is set; dispatches via `run_pipeline_task.delay(pipeline_id, triggered_by, run_id)`; thread-based fallback retained for zero-Redis deployments. `_semaphore` not present in launcher (concurrency handled by Celery worker `--concurrency`).
+- [x] **`create_app()` wired** — Calls `init_celery(app)` when `FLOWFORGE_REDIS_URL` is configured; stores celery instance on `app.extensions['celery']`.
+- [x] **`flowforge worker` CLI command** — `celery.worker_main()` with `--concurrency` and `--loglevel` options; validates Redis URL before starting.
+- [x] **`.env.example`** — `FLOWFORGE_REDIS_URL` section added (blank by default; threading fallback when unset).
+
+### Multi-User Sprint — MU-1 through MU-7 (all complete)
+
+- [x] **MU-1 · JWT carries `user_id` + `/api/auth/me`** — `uid: user.id` in JWT payload; `require_auth` sets `g.current_user_id`; `GET /api/auth/me` returns `{ id, username, role }`; rejects legacy tokens without `uid`; 3 tests.
+- [x] **MU-2 · User management API** — `POST /api/users`, `GET /api/users`, `PATCH /api/users/{id}`, `DELETE /api/users/{id}` (admin only); `POST /api/auth/change-password` (any user, min 8 chars); self-protection guards (cannot demote or delete self); 22 tests.
+- [x] **MU-3 · `@require_role` guards on all write routes** — pipelines (create/update/delete/run/clone/import/webhook-tokens), reports, emails, recipients, runs (`cancel`), providers, connections all guarded; 21 RBAC spot-check tests; all 742 suite tests passing.
+- [x] **MU-4 · Audit log username attribution** — `_current_user()` in `audit.py` reads `g.user_token['sub']` and appends `by=<username>` to every log entry. *(Optional UUID follow-up remains in Near-Term Pending.)*
+- [x] **MU-5 · Frontend role context** — `Role` type + `CurrentUser` interface in `types.ts`; `getMe()` in `api.ts`; `useAuth` store extended with `user: CurrentUser | null` + `setUser` / `clearToken` also clears user; `useCurrentUser()` hook; `AppBootstrap` rehydrates role on every page load/refresh; Login calls `getMe()` immediately after token.
+- [x] **MU-6 · User management UI** — `/settings/users` page (admin-only, redirects non-admins); users table with "(you)" badge, inline role select, delete button; "Add User" modal; "Change Password" card in Settings; admin-only nav item via `useCurrentUser()`; 24 frontend tests passing.
+- [x] **MU-7 · Frontend role-based visibility** — Connections, Providers, Pipelines, Dashboard, Reports, Emails, Recipients all gate write UI (create/edit/delete/run) behind `role !== 'viewer'` / `role === 'admin'`; uses `useCurrentUser().role` — no extra API calls; 24 frontend tests passing.
+
+### Critical Action Items — All Resolved
+
+- [x] **P0 · Mobile/Responsive layout** — `@media` breakpoints at 640px, 1024px, 1200px; responsive sidebar + card layout.
+- [x] **P1 · Frontend inline style refactor** — `style={{}}` replaced with Tailwind across `Dashboard.tsx`, `PipelineEdit.tsx`, `Layout.tsx`.
+- [x] **P1 · Task Queue (Celery)** — Scaffolded + fully wired. `launcher.py` dispatches via Celery when Redis configured.
+- [x] **P1 · RBAC** — All write routes guarded via `require_role`; frontend visibility gated per role (MU-3 + MU-7).
+- [x] **Audit log user attribution** — `by=<username>` on every entry.
+
+---
+
 ## Session — 2026-05-25 (Gemini Work Verified + Committed) 🟢 *(COMPLETE)*
 
 *Gemini-authored changes verified against code, committed, and closed out.*

@@ -61,6 +61,10 @@ def create_app(config: dict | None = None) -> Flask:
     db.init_app(app)
     limiter.init_app(app)
 
+    if os.environ.get('FLOWFORGE_REDIS_URL'):
+        from flowforge.celery_app import init_celery
+        init_celery(app)
+
     # CORS — warn loudly if FLOWFORGE_CORS_ORIGIN is not set in production (SEC-6)
     cors_origin = os.environ.get('FLOWFORGE_CORS_ORIGIN', '')
     if not cors_origin:

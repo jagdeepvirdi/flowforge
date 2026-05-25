@@ -1,4 +1,4 @@
-"""Tests for Excel, CSV, and PDF report file generation."""
+"""Tests for Excel, CSV, PDF, and JSON report file generation."""
 import csv
 import os
 import pytest
@@ -178,3 +178,183 @@ def test_excel_returns_output_path(tmp_path):
     out = tmp_path / 'report.xlsx'
     returned = generate(ROWS, COLUMNS, out)
     assert returned == out
+
+
+# ── JSON ──────────────────────────────────────────────────────────────────────
+
+def test_json_creates_file(tmp_path):
+    from flowforge.reports.json_report import generate
+    out = tmp_path / 'report.json'
+    generate(ROWS, COLUMNS, out)
+    assert out.exists()
+    assert out.stat().st_size > 0
+
+
+def test_json_returns_output_path(tmp_path):
+    from flowforge.reports.json_report import generate
+    out = tmp_path / 'report.json'
+    returned = generate(ROWS, COLUMNS, out)
+    assert returned == out
+
+
+def test_json_is_valid_json(tmp_path):
+    import json
+    from flowforge.reports.json_report import generate
+    out = tmp_path / 'report.json'
+    generate(ROWS, COLUMNS, out)
+    data = json.loads(out.read_text(encoding='utf-8'))
+    assert isinstance(data, list)
+    assert len(data) == len(ROWS)
+
+
+def test_json_keys_match_columns(tmp_path):
+    import json
+    from flowforge.reports.json_report import generate
+    out = tmp_path / 'report.json'
+    generate(ROWS, COLUMNS, out)
+    data = json.loads(out.read_text(encoding='utf-8'))
+    assert list(data[0].keys()) == COLUMNS
+
+
+def test_json_values_correct(tmp_path):
+    import json
+    from flowforge.reports.json_report import generate
+    out = tmp_path / 'report.json'
+    generate(ROWS, COLUMNS, out)
+    data = json.loads(out.read_text(encoding='utf-8'))
+    assert data[0]['name'] == 'Alice'
+    assert data[1]['id'] == 2
+
+
+def test_json_empty_rows(tmp_path):
+    import json
+    from flowforge.reports.json_report import generate
+    out = tmp_path / 'empty.json'
+    generate([], COLUMNS, out)
+    data = json.loads(out.read_text(encoding='utf-8'))
+    assert data == []
+
+
+def test_json_creates_parent_dirs(tmp_path):
+    from flowforge.reports.json_report import generate
+    out = tmp_path / 'nested' / 'deep' / 'report.json'
+    generate(ROWS, COLUMNS, out)
+    assert out.exists()
+
+
+def test_json_custom_indent(tmp_path):
+    import json
+    from flowforge.reports.json_report import generate
+    out = tmp_path / 'compact.json'
+    generate(ROWS, COLUMNS, out, indent=0)
+    # indent=0 → newlines but no spaces; file should be smaller than default
+    content = out.read_text(encoding='utf-8')
+    assert content.strip().startswith('[')
+
+
+def test_json_non_serialisable_value(tmp_path):
+    """default=str fallback handles non-JSON-serialisable types (dates, Decimal)."""
+    import json
+    from decimal import Decimal
+    from datetime import date
+    from flowforge.reports.json_report import generate
+    rows = [(1, Decimal('9.99'), date(2026, 1, 1))]
+    cols = ['id', 'price', 'date']
+    out = tmp_path / 'special.json'
+    generate(rows, cols, out)
+    data = json.loads(out.read_text(encoding='utf-8'))
+    assert data[0]['price'] == '9.99'
+    assert data[0]['date'] == '2026-01-01'
+
+
+# ── PDF (weasyprint mocked) ───────────────────────────────────────────────────
+
+def test_pdf_generates_file(tmp_path):
+    """PDF generation writes a file when WeasyPrint is mocked."""
+    from unittest.mock import MagicMock, patch
+    from types import ModuleType
+    import sys
+
+    mock_weasyprint = ModuleType('weasyprint')
+    mock_html_instance = MagicMock()
+    mock_html_instance.write_pdf = MagicMock(side_effect=lambda path: Path(path).write_bytes(b'%PDF'))
+    mock_weasyprint.HTML = MagicMock(return_value=mock_html_instance)
+
+    with patch.dict(sys.modules, {'weasyprint': mock_weasyprint}):
+        from flowforge.reports.pdf_report import generate
+        out = tmp_path / 'report.pdf'
+        result = generate(ROWS, COLUMNS, out, title='Test Report')
+
+    assert result == out
+    assert out.exists()
+
+
+def test_pdf_uses_default_template_when_no_template_path(tmp_path):
+    from unittest.mock import MagicMock, patch
+    from types import ModuleType
+    import sys
+
+    mock_weasyprint = ModuleType('weasyprint')
+    captured = {}
+
+    def capture_html(string=None, **kw):
+        captured['html'] = string
+        m = MagicMock()
+        m.write_pdf = MagicMock(side_effect=lambda p: Path(p).write_bytes(b'%PDF'))
+        return m
+
+    mock_weasyprint.HTML = capture_html
+
+    with patch.dict(sys.modules, {'weasyprint': mock_weasyprint}):
+        from flowforge.reports.pdf_report import generate
+        out = tmp_path / 'report.pdf'
+        generate(ROWS, COLUMNS, out, title='My Title')
+
+    assert 'My Title' in captured['html']
+    assert 'Alice' in captured['html']
+
+
+def test_pdf_uses_custom_template(tmp_path):
+    from unittest.mock import MagicMock, patch
+    from types import ModuleType
+    import sys
+
+    # Write a minimal custom template
+    tmpl_file = tmp_path / 'custom.html'
+    tmpl_file.write_text('<html><body><p>{{ title }}</p></body></html>', encoding='utf-8')
+
+    mock_weasyprint = ModuleType('weasyprint')
+    captured = {}
+
+    def capture_html(string=None, **kw):
+        captured['html'] = string
+        m = MagicMock()
+        m.write_pdf = MagicMock(side_effect=lambda p: Path(p).write_bytes(b'%PDF'))
+        return m
+
+    mock_weasyprint.HTML = capture_html
+
+    with patch.dict(sys.modules, {'weasyprint': mock_weasyprint}):
+        from flowforge.reports.pdf_report import generate
+        out = tmp_path / 'out.pdf'
+        generate(ROWS, COLUMNS, out, title='Custom', template_path=tmpl_file)
+
+    assert '<p>Custom</p>' in captured['html']
+
+
+def test_pdf_creates_parent_dirs(tmp_path):
+    from unittest.mock import MagicMock, patch
+    from types import ModuleType
+    import sys
+
+    mock_weasyprint = ModuleType('weasyprint')
+    mock_html_instance = MagicMock()
+    mock_html_instance.write_pdf = MagicMock(side_effect=lambda p: Path(p).write_bytes(b'%PDF'))
+    mock_weasyprint.HTML = MagicMock(return_value=mock_html_instance)
+
+    with patch.dict(sys.modules, {'weasyprint': mock_weasyprint}):
+        from flowforge.reports.pdf_report import generate
+        out = tmp_path / 'nested' / 'deep' / 'report.pdf'
+        generate(ROWS, COLUMNS, out)
+
+    assert out.exists()

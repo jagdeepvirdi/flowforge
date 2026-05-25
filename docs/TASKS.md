@@ -7,238 +7,301 @@
 
 ## Codebase Review Score: 7.8 / 10 (2026-05-25)
 
-| Dimension | 2026-05-20 | 2026-05-23 | Score Track | 2026-05-25 Review | Target |
-|---|---|---|---|---|---|
-| Architecture | 6.5 | 7.0 | 7.5 ✓ | 7.5 | 8.5 |
-| Code Quality | 6.0 | 7.0 | 7.5 ✓ | 7.5 | 8.5 |
-| Database | 6.5 | 8.0 | 8.5 ✓ | 8.5 | 9.0 |
-| Security | 5.5 | 7.5 | 7.5 ✓ | 7.5 | 8.5 |
-| Tests | 6.0 | 7.5 | 8.5 ✓ | 8.5 | 9.0 |
-| Frontend | 5.5 | 6.5 | 8.5 ✓ | 8.0 | 9.0 |
-| DevOps | 6.0 | 7.5 | 8.5 ✓ | 8.5 | 9.0 |
-| **Overall** | **6.0** | **7.3** | **~8.3** | **7.8** | **≥ 9.0** |
+| Dimension | 2026-05-20 | 2026-05-23 | 2026-05-25 | Target (v1.0) |
+|---|---|---|---|---|
+| Architecture | 6.5 | 7.0 | 7.5 | 8.5 |
+| Code Quality | 6.0 | 7.0 | 7.5 | 8.5 |
+| Database | 6.5 | 8.0 | 8.5 | 9.0 |
+| Security | 5.5 | 7.5 | 7.5 | 8.5 |
+| Tests | 6.0 | 7.5 | 8.5 | 9.0 |
+| Frontend | 5.5 | 6.5 | 8.0 | 9.0 |
+| DevOps | 6.0 | 7.5 | 8.5 | 9.0 |
+| **Overall** | **6.0** | **7.3** | **7.8** | **≥ 9.0** |
 
 ---
 
-## Code Review 2026-05-25 — Bug & Feature Track
+## Release Definition
 
-> Full review scored **7.8 / 10**. CR-1 and CR-2 resolved. Remaining items ordered by phase and priority.
+| Release | Goal |
+|---|---|
+| **v1.0** | Public GitHub release — stable, tested, `docker compose up` works, badges and docs polished, GTM done |
+| **v2.0** | Production-hardening — Gunicorn/scaling docs, metrics, audit UI, retention, dependency audit in CI |
+| **v2.x Compliance** | Regulated-environment track — MFA, SSO, GDPR, encryption at rest |
+| **v3.0** | New connectors/providers, pipeline DAGs, plugin system |
 
 ---
 
-### Phase 3 — Backlog (v2+, no fixed date)
+---
 
-*These are real gaps but not blockers for initial open-source release.*
+# V1.0 RELEASE — TASKS
 
+*Everything here must be done before tagging and publishing the GitHub v1.0.0 release.*
+
+---
+
+## Phase 1 — Code Stability (P0 — Release Blockers)
+
+*The release cannot ship until these pass.*
+
+### 1.1 Celery End-to-End Verification
+- [ ] Start Redis + `flowforge worker`, trigger a pipeline via the API/UI
+- [ ] Confirm worker picks up the task and writes to `ff_pipeline_runs` + `ff_step_runs`
+- [ ] Confirm fallback (no `FLOWFORGE_REDIS_URL`) still runs pipeline in thread mode
+- [ ] Confirm scheduler-triggered runs also flow through Celery correctly
+
+### 1.2 Docker Compose Smoke Test
+- [ ] Run `docker compose up` on a clean environment (or clean `.env`)
+- [ ] Verify API, frontend (Nginx), PostgreSQL, scheduler, Redis, and Celery worker all start cleanly
+- [ ] Verify `flowforge db upgrade && flowforge db seed` works inside the container
+- [ ] Open `http://localhost:5000`, log in, create a pipeline, run it — confirm success in Run History
+
+### 1.3 CHANGELOG.md
+- [ ] Add v1.1.0 entry — MySQL, OneDrive, SFTP, AI features, step retry, failure webhook, webhook trigger, JWT revocation, SAST
+- [ ] Add v1.2.0 entry — multi-user roles, user management UI, Celery wiring, responsive layout, audit attribution
+- [ ] Confirm CHANGELOG format matches existing v0.x / v1.0.0 entries
+
+---
+
+## Phase 2 — Code Quality Badges (P1 — Trust Signals)
+
+*These badges appear at the top of the README and immediately signal project maturity to visitors and recruiters.*
+
+### 2.1 SonarCloud (Highest Priority Badge)
+- [ ] Create a SonarCloud account and link the GitHub repo (free for open source)
+- [ ] Add `sonarcloud.yml` GitHub Action to scan on every push
+- [ ] Fix any critical / blocker issues SonarCloud flags before release
+- [ ] Add badges to README: **Quality Gate**, **Bugs**, **Technical Debt**
+- [ ] Take a screenshot of the SonarCloud dashboard for LinkedIn post
+
+### 2.2 OpenSSF Scorecard (Security Credibility)
+- [ ] Enable the Scorecard GitHub Action (`.github/workflows/scorecard.yml`)
+- [ ] Review and fix the top-scoring checks: branch protection, signed commits, dependency pinning
+- [ ] Add **Scorecard** badge to README
+- [ ] Target score ≥ 7.0 / 10
+
+### 2.3 OpenSSF Best Practices Badge (Self-Certification)
+- [ ] Complete the self-certification questionnaire at bestpractices.dev
+- [ ] Achieve at minimum the **Passing** tier
+- [ ] Add **OpenSSF Best Practices** badge to README
+
+### 2.4 Codecov (Test Coverage Visibility)
+- [ ] Add `codecov.yml` and upload step to GitHub Actions CI
+- [ ] Add **Coverage** badge to README
+- [ ] Target ≥ 80% coverage (currently strong — 742+ tests)
+
+### 2.5 README Badge Row
+- [ ] Finalize the badge row at the top of README:
+  `Tests | SonarCloud Quality Gate | Scorecard | OpenSSF Passing | Coverage`
+
+---
+
+## Phase 3 — Documentation Polish (P1 — Contributor Readiness)
+
+### 3.1 CONTRIBUTING.md — Fast Setup (<5 minutes)
+- [ ] Verify the local dev setup section works end-to-end in under 5 minutes
+- [ ] Add a "Quick Dev Setup" section at the top (before the full guide):
+  ```bash
+  git clone ... && cd flowforge
+  cp .env.test.example .env.test
+  pip install -e ".[dev]"
+  flowforge db upgrade && flowforge db seed
+  cd frontend && npm install && npm run dev
+  ```
+- [ ] Add a "Running Tests" one-liner: `pytest tests/` and `npx vitest`
+
+### 3.2 docs/security.md (New File)
+- [ ] Credential encryption: AES-256-GCM, key derivation, where keys are stored
+- [ ] JWT: signing secret separation, token lifetime, revocation via blocklist
+- [ ] Access control model: role table, `require_role` decorator, frontend gating
+- [ ] Audit log: what is logged, where it goes, rotation policy
+- [ ] Key rotation procedure: how to rotate `FLOWFORGE_SECRET_KEY` without data loss
+- [ ] Incident response: who to contact, how to report a vulnerability (`SECURITY.md`)
+
+### 3.3 SECURITY.md (New File — GitHub Standard)
+- [ ] Create `SECURITY.md` at repo root — GitHub recognizes this and links it in the Security tab
+- [ ] Content: supported versions table, how to report a vulnerability (email or GitHub private advisory), response SLA
+
+### 3.4 Getting-Started Quick Check
+- [ ] Run through `docs/getting-started.md` end-to-end — verify all commands and screenshots are current
+- [ ] Update any screenshots that show old UI (pre-multi-user)
+
+---
+
+## Phase 4 — GitHub Release Preparation (P0)
+
+### 4.1 GitHub Release
+- [ ] Ensure all code is merged to `master` and CI is green
+- [ ] Tag the release: `git tag v1.0.0 && git push origin v1.0.0`
+- [ ] Draft GitHub Release on the Releases page:
+  - Title: `v1.0.0 — Production-ready pipeline orchestrator`
+  - Body: link to CHANGELOG, key features highlight, Docker quick start
+  - Mark as "Latest release"
+
+### 4.2 Good First Issues (Contributor Funnel)
+- [ ] Create 5 GitHub Issues labeled `good first issue`:
+  1. "Add a dark mode toggle to the Settings page"
+  2. "Add SendGrid as an email provider"
+  3. "Add Telegram notification step type"
+  4. "Add a `run_count` stat card to the Dashboard (total runs all-time)"
+  5. "Export Run History to CSV from the Run History page"
+- [ ] Add `help wanted` label to 3 medium-difficulty issues
+- [ ] Pin 1–2 issues to the repo homepage
+
+---
+
+## Phase 5 — Go-To-Market (P1 — Visibility)
+
+*These do not block the GitHub release tag but should happen within the first week of release.*
+
+### 5.1 Demo Assets
+- [ ] Record a 60–90 second screen recording (GIF or MP4):
+  - Open dashboard → create a pipeline with a report + email step → run it → show Run History with logs
+- [ ] Capture a high-quality static screenshot of the Dashboard for the README hero and LinkedIn Featured section
+- [ ] Add the demo GIF to the README (below the tagline, above the feature list)
+
+### 5.2 ProductHunt Launch
+- [ ] Create a ProductHunt account / maker profile
+- [ ] Draft the listing:
+  - Name: **FlowForge**
+  - Tagline: `SQL-to-Email pipeline orchestrator. No YAML. No Airflow complexity.`
+  - Description: Explain the problem (50+ cron scripts), the solution, highlight Celery scaling + local AI
+  - Gallery: dashboard screenshot + report designer + run history
+- [ ] Schedule launch for a Tuesday or Wednesday (highest ProductHunt traffic)
+
+### 5.3 Reddit Posts
+- [ ] Post in **r/selfhosted**: "I built an open-source database pipeline orchestrator — SQL → Report → Email, with local AI. No YAML required."
+- [ ] Post in **r/Python**: focus on the Flask + Celery + APScheduler architecture choices
+- [ ] Post in **r/opensource**: general project introduction with demo GIF
+- [ ] Cross-post to **r/dataengineering** focusing on the Oracle + PostgreSQL + MySQL support
+
+### 5.4 Awesome Lists Submission
+- [ ] Submit PR to [awesome-selfhosted](https://github.com/awesome-selfhosted/awesome-selfhosted) — category: "Automation"
+- [ ] Submit PR to [awesome-python](https://github.com/vinta/awesome-python) — category: "Task Queues" or "Data Pipeline"
+
+### 5.5 LinkedIn
+- [ ] Write the launch post:
+  - Hook: "Stop writing boilerplate Python scripts for DB automation..."
+  - Highlight: Celery/Redis scaling, local AI (Ollama), full audit logging, multi-user roles
+  - Tech stack: React + Flask + PostgreSQL + Celery
+  - Link to GitHub repo
+  - Attach: demo GIF or dashboard screenshot
+- [ ] Add FlowForge to LinkedIn "Featured" section with dashboard screenshot and 2-sentence value description
+- [ ] Tag: `#OpenSource`, `#Python`, `#LocalAI`, `#DataEngineering`, `#Productivity`
+
+---
+
+---
+
+# V2.0 — TASKS
+
+*Post-release hardening. Starts after v1.0 ships.*
+
+---
+
+## Phase 6 — Production Hardening (P1)
+
+### 6.1 Gunicorn Deployment Guide
+- [ ] Document `gunicorn -w 4 -k gevent flowforge.api.app:create_app()` in RUNBOOK.md
+- [ ] Explain why Celery is required when running multiple Gunicorn workers
+- [ ] Add Nginx reverse-proxy config example
+- [ ] Add systemd unit for Gunicorn (alongside existing scheduler unit)
+
+### 6.2 SQLAlchemy Pool Tuning
+- [ ] Document `SQLALCHEMY_POOL_SIZE`, `SQLALCHEMY_MAX_OVERFLOW`, `SQLALCHEMY_POOL_TIMEOUT` in `.env.example`
+- [ ] Add pool settings to `create_app()` from env vars
+- [ ] Add PgBouncer note for deployments with 100+ concurrent pipelines
+
+### 6.3 Prometheus Metrics Endpoint
+- [ ] `GET /api/metrics` — plain-text Prometheus format
+- [ ] Counters: `flowforge_runs_total{status}`, `flowforge_runs_active`, `flowforge_queue_depth`
+- [ ] Expose via `prometheus_client` library (add to requirements)
+- [ ] Document scrape config for Grafana / Prometheus stack
+
+### 6.4 Flower Dashboard (Celery Monitoring)
+- [ ] Add `flower` service to `docker-compose.yml` (port 5555)
+- [ ] Add `FLOWER_BASIC_AUTH` env var for basic auth protection
+- [ ] Document in RUNBOOK.md
+
+### 6.5 Dependency Audit in CI
+- [ ] Add `pip-audit` step to GitHub Actions — fail on CRITICAL CVEs
+- [ ] `npm audit --audit-level=high` already runs; confirm it fails the build correctly
+- [ ] Pin all dependencies to exact versions in `requirements.txt` (currently pinned ✅ — verify)
+
+### 6.6 Audit Log `user_id` Attribution
+- [ ] Emit `user_id=<uuid>` alongside `by=<username>` in `audit.py` entries
+- [ ] Read from `g.current_user_id` (set by `require_auth` since MU-1)
+
+---
+
+## Phase 7 — Observability & Admin UI (P1)
+
+### 7.1 Audit Log UI Page
+- [ ] New page `/settings/audit` — admin-only
+- [ ] Reads from `logs/audit.log` (or a dedicated `ff_audit_log` DB table — decide approach)
+- [ ] Filters: user, action type (`LOGIN`, `PIPELINE_*`, `CONFIG_*`), date range
+- [ ] Export to CSV
+
+### 7.2 Run Retention Policies
+- [ ] Add `FLOWFORGE_RUN_RETENTION_DAYS` env var (default: 90)
+- [ ] Daily cleanup job in `scheduler.py` — delete `ff_pipeline_runs` + cascading `ff_step_runs` older than N days
+- [ ] UI setting in Settings page: "Keep run history for N days"
+- [ ] Audit log retention: separate `FLOWFORGE_AUDIT_RETENTION_DAYS` env var
+
+### 7.3 Code Climate Badge (Optional)
+- [ ] Set up Code Climate maintainability badge
+- [ ] Add to README badge row if grade is A or B
+
+---
+
+## Phase 8 — Compliance Track (P2 — Regulated Environments)
+
+*Required before FlowForge can be deployed in finance, healthcare, or SOC2-reviewed environments.*
+
+### 8.1 Data Protection
+- [ ] **Report file encryption at rest** — encrypt output files using `FLOWFORGE_SECRET_KEY`; decrypt transparently on download
+- [ ] **Secrets scanning in CI** — add `detect-secrets` or `truffleHog` GitHub Action; block commits with credential patterns
+- [ ] **GDPR data export** — `GET /api/admin/users/{id}/export` — all run history, pipeline config, and personal data for a user
+- [ ] **GDPR data deletion** — `DELETE /api/admin/users/{id}?purge=true` — anonymize run history, remove credentials, delete user record
+
+### 8.2 Identity Hardening
+- [ ] **MFA (TOTP)** — `pyotp`; QR code enrollment in Settings; per-user or globally enforced by admin; backup codes
+- [ ] **SSO / OAuth2 login** — "Sign in with Google" or "Sign in with Microsoft" using existing MSAL; map to internal user records by email
+- [ ] **IP allowlisting** — `FLOWFORGE_ALLOWED_IPS=10.0.0.0/8,192.168.1.0/24`; reject at `before_request` middleware
+
+### 8.3 Compliance Documentation
+- [ ] **Data flow diagram** — which data FlowForge touches (query results, report files, email addresses), where stored, where transmitted
+- [ ] **SAML support** — `python3-saml` for Okta / Azure AD / Ping enterprise IdP *(v2.x, lower priority)*
+
+---
+
+---
+
+# V3.0 BACKLOG
+
+*No fixed date. Community-driven. Good candidates for "good first issue" labeling.*
+
+## New Connectors & Providers
 - [ ] Snowflake / BigQuery / Redshift connectors
 - [ ] AWS S3 / Azure Blob upload step
 - [ ] MSSQL / SQL Server connection support
 - [ ] Generic ODBC connection support
-- [ ] SendGrid / AWS SES / Mailgun email providers
-- [ ] Pipeline dependencies (run pipeline B only after pipeline A succeeds)
+- [ ] SendGrid API email provider
+- [ ] AWS SES email provider
+- [ ] Mailgun email provider
+- [ ] Telegram / Slack / Teams notification step
+
+## Pipeline Features
+- [ ] Pipeline dependencies — run pipeline B only after pipeline A succeeds
 - [ ] Parallel step execution within a single pipeline
-- [ ] Environment promotion workflow (dev → staging → prod pipeline config sync)
-- [ ] Distributed concurrency control (Redis-backed advisory lock replacing in-process semaphore) — see v2 High-Concurrency Track
-- [ ] Pipeline run diff view ("what changed since last run" for row counts / output sizes)
-- [ ] Report column formatting rules (number format, date format, conditional cell colours in Excel)
+- [ ] Pipeline run diff view — row count and output size delta vs last run
+- [ ] Report column formatting rules — number format, date format, conditional cell colours in Excel
+- [ ] Environment promotion workflow — dev → staging → prod config sync
 
----
-
-## Multi-User Feature — Active Sprint
-
-> Foundation already in place: `ff_users` + `role` column, `require_role` decorator, `ff_token_blocklist`, `ff_projects`. Cutting `ff_project_members` and password-reset (v3). Estimated: ~3 days backend + 1.5 days frontend.
-
-### MU-1 — JWT carries `user_id` + `/api/auth/me` *(backend)* ✅
-- [x] `auth.py:generate_token` — `uid: user.id` already in JWT payload ✅
-- [x] `require_auth` — sets `g.current_user_id = payload.get('uid')` after token decode ✅
-- [x] `GET /api/auth/me` — returns `{ id, username, role }` for the current token; 401 for legacy tokens without `uid` ✅
-- [x] Tests: 3 new tests — `/api/auth/me` correct fields, requires auth, rejects legacy token without uid — all passing ✅
-
-### MU-2 — User management API *(backend)* ✅
-- [x] `POST /api/users` — create user: `{ username, password, role }` — admin only ✅
-- [x] `GET /api/users` — list all users (id, username, role, created_at) — admin only ✅
-- [x] `PATCH /api/users/{id}` — update role or username — admin only; cannot demote self ✅
-- [x] `DELETE /api/users/{id}` — delete user — admin only; cannot delete self ✅
-- [x] `POST /api/auth/change-password` — `{ current_password, new_password }` — any authenticated user; min 8 chars ✅
-- [x] 22 tests covering auth, role checks, self-protection guards, duplicate username, password validation — all passing ✅
-
-### MU-3 — `@require_role` guards on all remaining routes *(backend)* ✅
-- [x] `pipelines.py` — create/update/delete/run/clone/import/webhook-tokens → `require_role(['admin','editor'])` ✅
-- [x] `reports.py` — create/update/delete → `require_role(['admin','editor'])` ✅
-- [x] `emails.py` — create/update/delete → `require_role(['admin','editor'])` ✅
-- [x] `recipients.py` — create/update/delete → `require_role(['admin','editor'])` ✅
-- [x] `runs.py` — added `POST /runs/<id>/cancel` → `require_role(['admin','editor'])`; 409 if not running ✅
-- [x] `providers.py` — create/delete upgraded from `require_auth` → `require_role('admin')` ✅
-- [x] `connections.py` — update upgraded from `require_auth` → `require_role('admin')` ✅
-- [x] 21 RBAC spot-check tests in `tests/test_rbac.py` — viewer 403 on writes, 200 on reads; editor passes where expected — all 742 suite tests passing ✅
-
-### MU-4 — Audit log user attribution *(backend)* — partially done ✅
-- [x] `audit.py` — `_current_user()` reads `g.user_token['sub']` (username) and appends `by=<username>` to every log entry. All `audit.log_*` call sites covered. ✅
-- [ ] When MU-1 adds `user_id` to the JWT payload, optionally also log `user_id=<uuid>` alongside the username for cross-referencing with `ff_users`
-
-### MU-5 — Frontend role context *(frontend)* ✅
-- [x] `lib/types.ts` — added `Role` type + `CurrentUser` interface ✅
-- [x] `lib/api.ts` — `getMe()` calls `GET /api/auth/me` ✅
-- [x] `lib/auth.ts` — `useAuth` store extended with `user: CurrentUser | null` + `setUser`; `clearToken` also clears `user` ✅
-- [x] `useCurrentUser()` hook exported from `lib/auth.ts` — selector over store, no extra API calls ✅
-- [x] `Login.tsx` — calls `getMe()` + `setUser()` immediately after token so role is available before navigation ✅
-- [x] `App.tsx` — `AppBootstrap` component: `useEffect([token])` calls `getMe()` on every page load/refresh; clears token if call fails (expired token) ✅
-- [x] Login test updated to mock `getMe` + `setUser`; all 24 frontend tests passing ✅
-
-### MU-6 — User management UI *(frontend)* ✅
-- [x] New page `src/pages/Users.tsx` — admin-only; redirect non-admins to dashboard ✅
-- [x] Route `/settings/users` in `App.tsx`; admin-only nav item in `Layout.tsx` via `useCurrentUser()` ✅
-- [x] Users table: username col with "(you)" badge, inline role select (disabled for self), delete button ✅
-- [x] "Add User" modal: username + password + role selector → `POST /api/users` ✅
-- [x] "Change Password" card in Settings page (self-service, any user) ✅
-- [x] 24 frontend tests passing ✅
-
-### MU-7 — Frontend role-based visibility *(frontend)* ✅
-- [x] Connections — hide "Add Connection", "Edit", "Delete" for non-admins (`isAdmin = role === 'admin'`) ✅
-- [x] Providers — same page as Connections; handled in same component ✅
-- [x] Pipelines — hide "New Pipeline", Import, Run/Clone/Edit/Delete per-row for viewers ✅
-- [x] Dashboard — hide "Run Now", "Edit" for viewers in PipelineCard; hide "New Pipeline" button ✅
-- [x] Reports / Emails / Recipients — hide create/edit/delete for viewers ✅
-- [x] All via `useCurrentUser().role` — no API calls, instant from Zustand store ✅
-- [x] Connections test updated to mock `useCurrentUser` returning admin ✅
-- [x] 24 frontend tests passing ✅
-
----
-
-## After Multi-User Sprint
-
-*These two items are ready to implement once MU-1 through MU-7 are done.*
-
-### Celery Wiring — Complete the Task Queue Migration
-- [ ] `flowforge/engine/launcher.py` — replace `threading.Thread` call with `run_pipeline_task.delay(pipeline_id, triggered_by, run_id)`
-- [ ] Remove in-process `_semaphore` from `launcher.py` (Celery worker concurrency replaces it)
-- [ ] Verify end-to-end: trigger a pipeline run via API, confirm Celery worker picks it up and writes run history
-- [ ] (Optional) Add Flower dashboard service to `docker-compose.yml` for real-time task monitoring
-
-### Audit Log `user_id` Attribution — MU-4 *(optional follow-up)*
-- `audit.py` already logs `by=<username>` on every entry via `_current_user()` — username attribution is done ✅
-- [ ] After MU-1 adds `user_id` to the JWT, optionally also emit `user_id=<uuid>` in audit entries for UUID-based cross-referencing with `ff_users`
-
----
-
-## Critical Action Items (Post-Review May 2026)
-
-### P0 — UX & Confidence
-- [x] **Mobile/Responsive**: `@media` breakpoints (640px, 1024px, 1200px) added to `index.css`; responsive sidebar + card layout. Committed `9ff50ec`. ✅
-
-### P1 — Technical Debt & Scalability
-- [x] **Frontend Refactor**: Inline `style={{}}` replaced with Tailwind in `Dashboard.tsx`, `PipelineEdit.tsx`, `Layout.tsx`. ~12 dynamic computed values remain (bar colors, skeleton widths — acceptable). Committed `9ff50ec`. ✅
-- [x] **Task Queue (v2) — Scaffolded**: `celery_app.py`, `tasks.py`, Redis service + worker service in `docker-compose.yml`, `celery[redis]` in `requirements.txt`. Committed `d6272d1`. ⚠️ `launcher.py` still uses `threading.Thread` — wiring Celery into the launcher is the remaining step (see v2 High-Concurrency Track).
-
-### P1 — Security & Compliance
-- [ ] **RBAC**: *(In progress — see Multi-User Sprint above)*
-- [x] **Audit log user attribution** — `_current_user()` in `audit.py` logs `by=<username>` on every entry ✅ *(UUID follow-up after MU-1 — see After Multi-User Sprint)*
-
----
-
-## Feature Backlog
-
-### More Email Providers
-- [ ] SendGrid API
-- [ ] AWS SES
-- [ ] Mailgun
-
-### More Storage
-- [ ] AWS S3 upload step
-- [ ] Azure Blob upload step
-
-### More DB Support
-- [ ] MSSQL / SQL Server
-- [ ] Generic ODBC
-
-### Pipeline Features
-- [ ] Pipeline dependencies (run B after A)
-- [ ] Parallel step execution
-
-### Platform
-- [ ] Plugin system for community step types
-- [ ] Slack/Teams notifications (v2)
-
----
-
-## v2 Track — Multi-User Support
-
-*Required before FlowForge can be used by teams where more than one person logs in.*
-
-### Auth & Identity
-- [x] `ff_users` table — `role` column added (migration 0018) ✅
-- [x] `require_role` decorator in `auth.py` ✅
-- [x] `ff_token_blocklist` table for server-side revocation ✅
-- [ ] JWT carries `user_id` — see MU-1
-- [ ] User management API + UI — see MU-2 / MU-6
-- [ ] `ff_project_members` join table — deferred to v3
-- [ ] Password reset flow — deferred to v3
-
-### Role-Based Access Control
-- [x] `@require_role('admin')` on connections (create/delete) and providers ✅
-- [ ] Guards on all remaining routes — see MU-3
-- [ ] Frontend role visibility — see MU-5 / MU-7
-- [ ] Audit log `user_id` — see MU-4
-
-### Effort estimate: ~3 days backend + 1.5 days frontend (scoped, project-member access deferred)
-
----
-
-## v2 Track — High-Concurrency Support
-
-*Required before FlowForge can reliably handle 50+ simultaneous pipeline runs or horizontal scaling.*
-
-### Task Queue (biggest change)
-- [x] **`celery_app.py` + `tasks.py`** — `run_pipeline_task` Celery task defined; `celery[redis]` in requirements. Committed `d6272d1`. ✅
-- [x] **Redis service + Celery worker in `docker-compose.yml`** — `redis:7-alpine` + `worker` service wired. Committed `d6272d1`. ✅
-- [ ] **Wire `launcher.py` to Celery** — replace `threading.Thread` call in `launcher.launch_run` with `run_pipeline_task.delay(...)` and remove the in-process `_semaphore`
-- [ ] **Flower dashboard** (optional but recommended) — `celery -A flowforge.celery_app flower`; real-time task monitoring
-
-### Scheduler
-- [x] **APScheduler PostgreSQL jobstore** — `SQLAlchemyJobStore` in `scheduler.py`; jobs survive restarts ✅
-- [x] **Remove dead `_load_pipeline_jobs`** — replaced by `_sync_pipeline_jobs` + jobstore ✅
-
-### API & Infrastructure
-- [ ] **Gunicorn multi-worker deployment** — document `gunicorn -w 4 wsgi:app`; in-memory semaphore doesn't work across workers (resolved by Celery)
-- [ ] **PgBouncer or SQLAlchemy pool tuning** — prevent DB connection exhaustion under load; document `pool_size`, `max_overflow` settings
-- [ ] **Metrics endpoint** — `GET /api/metrics` returning Prometheus-compatible counters: runs queued, running, succeeded, failed; worker count; queue depth
-- [x] **Graceful shutdown** — `flowforge/engine/shutdown.py`; `SIGTERM` handler + `atexit`; `TimeoutStopSec=90` in systemd units ✅
-
-### Effort estimate: Celery migration alone ~1 week; rest is configuration (1–2 days)
-
----
-
-## v2 Track — Regulated Environments (Compliance / SOC2 / GDPR)
-
-*Required before FlowForge can be deployed in finance, healthcare, or any environment with a compliance review.*
-
-### Audit & Logging
-- [x] **Audit log completeness** — login, pipeline events, connection/provider config changes all logged ✅
-- [x] **Structured audit stdout** — `FLOWFORGE_AUDIT_STDOUT=true` emits JSON lines via `_JsonStdoutHandler` ✅
-- [x] **Log rotation** — `RotatingFileHandler` (10 MB × 5 backups) in `audit.py` ✅
-- [x] **Username attribution in every audit entry** — `_current_user()` reads `g.user_token['sub']`; all call sites covered ✅ *(UUID cross-reference optional after MU-1)*
-- [ ] **Audit log UI page** — admin-only view with filters (user, action type, date range)
-- [ ] **Retention policies** — configurable auto-purge of `ff_pipeline_runs` / `ff_step_runs` / audit log after N days
-
-### Identity & Access Hardening
-- [ ] **MFA (TOTP)** — time-based one-time password via `pyotp`; QR code enrollment in Settings; enforced per-user or globally by admin
-- [ ] **SSO / OAuth2 login** — "Sign in with Google" or "Sign in with Microsoft" using the MSAL library already installed; map to internal user records
-- [ ] **SAML support** — `python3-saml` for enterprise IdP integration (Okta, Azure AD, Ping)
-- [ ] **IP allowlisting** — global or per-project; `FLOWFORGE_ALLOWED_IPS` env var; reject requests outside the list at the API middleware level
-
-### Data Protection
-- [ ] **Report file encryption at rest** — encrypt output files on disk with the `FLOWFORGE_SECRET_KEY`; decrypt on download
-- [ ] **Secrets scanning in CI** — add `detect-secrets` or `truffleHog` GitHub Action to prevent credential commits
-- [x] **SAST in CI** — `bandit` (Python) + `npm audit` in GitHub Actions CI ✅
-- [ ] **GDPR data export** — `GET /api/admin/export-user-data?user_id=...`
-- [ ] **GDPR data deletion** — `DELETE /api/admin/users/{id}` — anonymize run history, remove credentials, delete user record
-
-### Compliance Documentation
-- [ ] **Security policy doc** — `docs/security.md`: credential encryption details, key rotation procedure, access control model, incident response contacts
-- [ ] **Data flow diagram** — what data touches FlowForge (query results, report files, email addresses) and where it is stored/transmitted
-- [ ] **Dependency audit** — `pip-audit` + `npm audit` in CI; fail build on critical CVEs
-
-### Effort estimate: 3–4 weeks for the full list; audit log + RBAC + MFA covers 80% of most internal compliance reviews
+## Platform
+- [ ] Plugin system — community step types loaded from a directory
+- [ ] `ff_project_members` join table — team-scoped project access (deferred from v2)
+- [ ] Password reset flow via email (deferred from v2)
+- [ ] Distributed Redis-backed concurrency lock (replaces per-process semaphore for horizontal scale)
 
 ---
 
@@ -246,10 +309,11 @@
 
 | Risk | Mitigation |
 |---|---|
-| ~~cx_Oracle requires Oracle Instant Client~~ | ✅ Resolved — migrated to `python-oracledb` (thin mode, pure Python, no Instant Client needed) |
-| M365 requires Azure AD app registration | Step-by-step guide in docs/email-providers.md; flowforge setup microsoft365 wizard |
-| Gmail OAuth2 token expiry | Refresh token handling; re-auth wizard in settings |
+| ~~cx_Oracle requires Oracle Instant Client~~ | ✅ Migrated to `python-oracledb` (thin mode, pure Python) |
+| M365 requires Azure AD app registration | Step-by-step guide in `docs/email-providers.md`; `flowforge setup microsoft365` wizard |
+| Gmail OAuth2 token expiry | Refresh token handling; re-auth wizard in Settings |
 | Drive folder ID opaque to users | Folder picker in frontend fetches Drive tree via API |
 | Smart attachment: Drive upload fails after report generated | Fallback: attach directly if Drive upload fails, log warning |
 | Large report query times out in Preview | Preview uses `LIMIT 20` wrapper around user query |
 | Oracle LOB columns break row serialization | OracleConnection reads LOB values explicitly before cursor close |
+| SonarCloud flags security hotspots | Review each hotspot; most will be acknowledged false positives with justification comments |

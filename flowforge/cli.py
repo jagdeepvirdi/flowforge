@@ -358,6 +358,41 @@ def db_seed():
             sys.exit(1)
 
 
+@cli.command()
+@click.option('--concurrency', '-c', default=2, show_default=True,
+              help='Number of concurrent worker threads.')
+@click.option('--loglevel', '-l', default='info', show_default=True,
+              help='Celery log level (debug|info|warning|error).')
+def worker(concurrency: int, loglevel: str):
+    """Start a Celery worker to execute pipeline tasks.
+
+    Requires FLOWFORGE_REDIS_URL to be set.  Run alongside the web server
+    (or scheduler) — tasks are dispatched automatically when Redis is configured.
+
+    \b
+    Example:
+        flowforge worker --concurrency 4 --loglevel info
+    """
+    redis_url = os.environ.get('FLOWFORGE_REDIS_URL', '')
+    if not redis_url:
+        click.echo(
+            'ERROR: FLOWFORGE_REDIS_URL is not set.\n'
+            'Set it to a Redis URL (e.g. redis://localhost:6379/0) and retry.',
+            err=True,
+        )
+        sys.exit(1)
+
+    from flowforge.celery_app import celery
+    click.echo(f'Starting Celery worker (concurrency={concurrency}, loglevel={loglevel})...')
+    celery.worker_main(argv=[
+        'worker',
+        '--concurrency', str(concurrency),
+        '--loglevel', loglevel,
+        '--without-gossip',
+        '--without-mingle',
+    ])
+
+
 @cli.command('import')
 @click.argument('file_path', type=click.Path(exists=True))
 @click.option('--overwrite', is_flag=True,

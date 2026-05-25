@@ -1,4 +1,5 @@
 import logging
+import os
 import threading
 from typing import Any
 
@@ -8,9 +9,12 @@ logger = logging.getLogger(__name__)
 
 
 def launch_run(pipeline: Pipeline, triggered_by: str, app: Any = None) -> tuple[dict, int]:
-    """Create a PipelineRun record and execute the pipeline in a background thread.
+    """Create a PipelineRun record and dispatch the pipeline for async execution.
 
-    Returns (json_dict, status_code) immediately; the run continues asynchronously.
+    When FLOWFORGE_REDIS_URL is set the run is dispatched as a Celery task;
+    otherwise it falls back to a background daemon thread.
+
+    Returns (json_dict, status_code) immediately.
     """
     if not pipeline.enabled:
         return {'error': 'Pipeline is disabled'}, 400
@@ -25,15 +29,26 @@ def launch_run(pipeline: Pipeline, triggered_by: str, app: Any = None) -> tuple[
     db.session.commit()
     run_id = run.id
 
-    flask_app = app or _current_app()
-    t = threading.Thread(
-        target=_run_in_thread,
-        args=(flask_app, pipeline.id, pipeline.name, triggered_by, run_id),
-        daemon=True,
-    )
-    t.start()
+    if _use_celery():
+        from flowforge.tasks import run_pipeline_task
+        run_pipeline_task.delay(pipeline.id, triggered_by, run_id)
+        logger.debug("Dispatched pipeline '%s' (run %s) to Celery.", pipeline.name, run_id)
+    else:
+        flask_app = app or _current_app()
+        t = threading.Thread(
+            target=_run_in_thread,
+            args=(flask_app, pipeline.id, pipeline.name, triggered_by, run_id),
+            daemon=True,
+        )
+        t.start()
+        logger.debug("Dispatched pipeline '%s' (run %s) in thread.", pipeline.name, run_id)
 
     return {'run_id': run_id, 'status': 'running', 'pipeline_name': pipeline.name}, 202
+
+
+def _use_celery() -> bool:
+    """Return True when a Redis broker URL is configured."""
+    return bool(os.environ.get('FLOWFORGE_REDIS_URL', ''))
 
 
 def _current_app():
