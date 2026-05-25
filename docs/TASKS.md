@@ -48,11 +48,11 @@
 
 > Foundation already in place: `ff_users` + `role` column, `require_role` decorator, `ff_token_blocklist`, `ff_projects`. Cutting `ff_project_members` and password-reset (v3). Estimated: ~3 days backend + 1.5 days frontend.
 
-### MU-1 — JWT carries `user_id` + `/api/auth/me` *(backend)*
-- [ ] `auth.py:generate_token` — include `user_id` in JWT payload (role already present)
-- [ ] `require_auth` — expose `g.current_user_id` after token decode (for audit log use)
-- [ ] `GET /api/auth/me` — return `{ id, username, role }` for the current token
-- [ ] Tests: verify `/api/auth/me` returns correct fields; verify old tokens without `user_id` are rejected cleanly
+### MU-1 — JWT carries `user_id` + `/api/auth/me` *(backend)* ✅
+- [x] `auth.py:generate_token` — `uid: user.id` already in JWT payload ✅
+- [x] `require_auth` — sets `g.current_user_id = payload.get('uid')` after token decode ✅
+- [x] `GET /api/auth/me` — returns `{ id, username, role }` for the current token; 401 for legacy tokens without `uid` ✅
+- [x] Tests: 3 new tests — `/api/auth/me` correct fields, requires auth, rejects legacy token without uid — all passing ✅
 
 ### MU-2 — User management API *(backend)*
 - [ ] `POST /api/users` — create user: `{ username, password, role }` — admin only

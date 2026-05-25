@@ -91,6 +91,7 @@ def require_auth(f):
         if not payload:
             return jsonify({'error': 'Invalid or expired token'}), 401
         g.user_token = payload
+        g.current_user_id = payload.get('uid')
         return f(*args, **kwargs)
     return wrapper
 

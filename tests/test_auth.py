@@ -127,6 +127,39 @@ def test_generate_token_has_jti(app):
         assert payload['jti']  # non-empty string
 
 
+def test_me_returns_user_fields(client, headers):
+    """GET /api/auth/me returns id, username, and role for a valid token."""
+    resp = client.get('/api/auth/me', headers=headers)
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert 'id' in data and data['id']
+    assert data['username'] == 'testadmin'
+    assert data['role'] == 'admin'
+
+
+def test_me_requires_auth(client):
+    """GET /api/auth/me with no token returns 401."""
+    resp = client.get('/api/auth/me')
+    assert resp.status_code == 401
+
+
+def test_me_rejects_legacy_token_without_uid(app, client):
+    """Tokens without a uid claim (pre-multi-user) get a clear 401 from /auth/me."""
+    import jwt as _jwt
+    from datetime import datetime, timedelta, timezone
+    with app.app_context():
+        secret = app.config.get('JWT_SECRET') or app.config['SECRET_KEY']
+        legacy_token = _jwt.encode({
+            'sub': 'testadmin',
+            'role': 'admin',
+            'iat': datetime.now(timezone.utc),
+            'exp': datetime.now(timezone.utc) + timedelta(hours=1),
+        }, secret, algorithm='HS256')
+    resp = client.get('/api/auth/me', headers={'Authorization': f'Bearer {legacy_token}'})
+    assert resp.status_code == 401
+    assert 'log in again' in resp.get_json()['error']
+
+
 def test_revoke_token_without_jti_returns_username(app):
     """Legacy tokens (no jti) are not blocklisted but revoke_token still returns the sub."""
     import jwt as _jwt
