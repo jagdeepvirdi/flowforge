@@ -10,10 +10,15 @@ RUN npm run build
 FROM python:3.11-slim
 WORKDIR /app
 
-COPY requirements.txt .
+# Install dependencies first (cached layer)
+COPY requirements.txt pyproject.toml README.md LICENSE ./
 RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
+# Copy source, then install the package itself to register the entry point
 COPY flowforge/ flowforge/
+COPY wsgi.py .
+RUN pip install --no-cache-dir --no-deps .
+
 COPY --from=frontend /build/dist/ frontend/dist/
 
 RUN mkdir -p output

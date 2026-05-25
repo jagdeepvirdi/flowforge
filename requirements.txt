@@ -17,6 +17,7 @@ flask-sqlalchemy==3.1.1
 # Database
 psycopg2-binary==2.9.9
 sqlalchemy==2.0.30
+alembic==1.13.1
 
 # Scheduling
 apscheduler==3.10.4

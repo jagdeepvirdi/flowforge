@@ -350,7 +350,7 @@ def db_seed():
             if db.session.query(User).first():
                 click.echo('Admin user already exists — skipping.')
                 return
-            db.session.add(User(username=username, password_hash=password_hash))
+            db.session.add(User(username=username, password_hash=password_hash, role='admin'))
             db.session.commit()
             click.echo(f'Admin user "{username}" created.')
         except Exception as e:

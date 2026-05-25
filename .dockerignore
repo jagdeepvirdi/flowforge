@@ -14,5 +14,6 @@ code/
 docs/
 tests/
 *.md
+!README.md
 Dockerfile
 docker-compose.yml
