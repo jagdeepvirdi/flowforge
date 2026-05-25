@@ -63,10 +63,9 @@
 - [ ] Take a screenshot of the SonarCloud dashboard for LinkedIn post
 
 ### 2.2 OpenSSF Scorecard (Security Credibility)
-- [ ] Enable the Scorecard GitHub Action (`.github/workflows/scorecard.yml`)
-- [ ] Review and fix the top-scoring checks: branch protection, signed commits, dependency pinning
-- [ ] Add **Scorecard** badge to README
-- [ ] Target score ≥ 7.0 / 10
+- [x] `.github/workflows/scorecard.yml` added — runs on push + weekly Saturday cron; publishes results to GitHub Security tab
+- [x] **Scorecard** badge added to README
+- [ ] Review actual score once first run completes; fix top checks if score < 7.0
 
 ### 2.3 OpenSSF Best Practices Badge (Self-Certification)
 - [ ] Complete the self-certification questionnaire at bestpractices.dev
@@ -74,41 +73,28 @@
 - [ ] Add **OpenSSF Best Practices** badge to README
 
 ### 2.4 Codecov (Test Coverage Visibility)
-- [ ] Add `codecov.yml` and upload step to GitHub Actions CI
-- [ ] Add **Coverage** badge to README
-- [ ] Target ≥ 80% coverage (currently strong — 742+ tests)
+- [x] `pytest --cov=flowforge --cov-report=xml` + `codecov/codecov-action@v4` added to `test.yml`
+- [x] **Coverage** badge added to README
+- [ ] Add `CODECOV_TOKEN` secret to GitHub repo settings (Settings → Secrets → Actions)
 
 ### 2.5 README Badge Row
-- [ ] Finalize the badge row at the top of README:
-  `Tests | SonarCloud Quality Gate | Scorecard | OpenSSF Passing | Coverage`
+- [x] Tests + Codecov + Scorecard badges in README
+- [ ] SonarCloud Quality Gate badge (blocked on 2.1 account setup)
+- [ ] OpenSSF Best Practices badge (blocked on 2.3 self-cert)
 
 ---
 
 ## Phase 3 — Documentation Polish (P1 — Contributor Readiness)
 
-### 3.1 CONTRIBUTING.md — Fast Setup (<5 minutes)
-- [ ] Verify the local dev setup section works end-to-end in under 5 minutes
-- [ ] Add a "Quick Dev Setup" section at the top (before the full guide):
-  ```bash
-  git clone ... && cd flowforge
-  cp .env.test.example .env.test
-  pip install -e ".[dev]"
-  flowforge db upgrade && flowforge db seed
-  cd frontend && npm install && npm run dev
-  ```
-- [ ] Add a "Running Tests" one-liner: `pytest tests/` and `npx vitest`
+### 3.1 CONTRIBUTING.md — Fast Setup (<5 minutes) ✅
+- [x] "Quick Dev Setup" section added at the top (5-command block, login hint)
+- [x] "Running Tests" one-liners for pytest and vitest
 
-### 3.2 docs/security.md (New File)
-- [ ] Credential encryption: AES-256-GCM, key derivation, where keys are stored
-- [ ] JWT: signing secret separation, token lifetime, revocation via blocklist
-- [ ] Access control model: role table, `require_role` decorator, frontend gating
-- [ ] Audit log: what is logged, where it goes, rotation policy
-- [ ] Key rotation procedure: how to rotate `FLOWFORGE_SECRET_KEY` without data loss
-- [ ] Incident response: who to contact, how to report a vulnerability (`SECURITY.md`)
+### 3.2 docs/security.md ✅
+- [x] Created — covers: AES-256-GCM encryption, key rotation, JWT + revocation, RBAC roles, audit log, template sandbox, input validation, transport security
 
-### 3.3 SECURITY.md (New File — GitHub Standard)
-- [ ] Create `SECURITY.md` at repo root — GitHub recognizes this and links it in the Security tab
-- [ ] Content: supported versions table, how to report a vulnerability (email or GitHub private advisory), response SLA
+### 3.3 SECURITY.md ✅
+- [x] Created at repo root — supported versions table, GitHub private advisory + email disclosure, response SLA
 
 ### 3.4 Getting-Started Quick Check
 - [ ] Run through `docs/getting-started.md` end-to-end — verify all commands and screenshots are current

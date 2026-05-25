@@ -4,6 +4,47 @@ Thanks for your interest in contributing. This guide covers how to get the devel
 
 ---
 
+## Quick Dev Setup
+
+Get a working dev environment in under 5 minutes:
+
+```bash
+git clone https://github.com/jagdeepvirdi/flowforge.git
+cd flowforge
+
+# Python backend
+python -m venv .venv
+source .venv/bin/activate          # macOS/Linux
+# .\.venv\Scripts\Activate.ps1    # Windows PowerShell
+pip install -e ".[dev]"
+
+# Database — needs a running PostgreSQL instance
+cp .env.example .env               # set FLOWFORGE_DB_URL + FLOWFORGE_SECRET_KEY
+flowforge db upgrade
+flowforge db seed                  # creates the admin user
+
+# Frontend
+cd frontend && npm install && npm run dev &
+cd ..
+
+# Backend
+flowforge web
+```
+
+Open `http://localhost:5173`. Default login: `admin` / the password you set in `.env`.
+
+## Running Tests
+
+```bash
+# Backend (needs FLOWFORGE_DB_URL pointing to a test DB)
+pytest tests/
+
+# Frontend unit tests
+cd frontend && npx vitest run
+```
+
+---
+
 ## Development Setup
 
 ### Requirements

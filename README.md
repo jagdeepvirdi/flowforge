@@ -3,6 +3,8 @@
 **Database-driven pipeline orchestrator. Configure everything from the UI — DB procedures, reports, email (Gmail/M365/SMTP), Google Drive, OneDrive, SFTP, smart attachments, scheduling. No YAML. No Airflow complexity.**
 
 [![Tests](https://github.com/jagdeepvirdi/flowforge/actions/workflows/test.yml/badge.svg)](https://github.com/jagdeepvirdi/flowforge/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/jagdeepvirdi/flowforge/graph/badge.svg)](https://codecov.io/gh/jagdeepvirdi/flowforge)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/jagdeepvirdi/flowforge/badge)](https://securityscorecards.dev/viewer/?uri=github.com/jagdeepvirdi/flowforge)
 
 ---
 
