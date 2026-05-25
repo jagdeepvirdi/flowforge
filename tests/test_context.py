@@ -354,3 +354,87 @@ def test_no_collision_warning_for_normal_vars(caplog):
         'overwrite' in m.lower() or 'collision' in m.lower() or 'shadow' in m.lower()
         for m in caplog.messages
     )
+
+
+# ── _SafeEnv allowlist mode ───────────────────────────────────────────────────
+
+def test_safe_env_allowlist_permits_listed_var(monkeypatch):
+    """When allowlist is set, a listed var is accessible."""
+    monkeypatch.setenv('FLOWFORGE_TEMPLATE_ENV_VARS', 'REPORT_DIR')
+    monkeypatch.setenv('REPORT_DIR', '/data/reports')
+    from flowforge.engine.context import build, render
+    ctx = build('test')
+    assert render('{{ env.REPORT_DIR }}', ctx) == '/data/reports'
+
+
+def test_safe_env_allowlist_blocks_unlisted_var(monkeypatch):
+    """When allowlist is set, an unlisted var is blocked even if it exists."""
+    monkeypatch.setenv('FLOWFORGE_TEMPLATE_ENV_VARS', 'REPORT_DIR')
+    monkeypatch.setenv('DB_HOST', 'myhost')
+    from flowforge.engine.context import build, render
+    ctx = build('test')
+    assert render('{{ env.DB_HOST }}', ctx) == ''
+
+
+def test_safe_env_allowlist_blocks_credential_vars(monkeypatch):
+    """When allowlist is set, credential vars not in the list are blocked."""
+    monkeypatch.setenv('FLOWFORGE_TEMPLATE_ENV_VARS', 'REPORT_DIR')
+    monkeypatch.setenv('FLOWFORGE_SECRET_KEY', 'should-not-leak')
+    from flowforge.engine.context import build, render
+    ctx = build('test')
+    assert render('{{ env.FLOWFORGE_SECRET_KEY }}', ctx) == ''
+
+
+def test_safe_env_allowlist_multiple_vars(monkeypatch):
+    """All vars in a comma-separated allowlist are accessible."""
+    monkeypatch.setenv('FLOWFORGE_TEMPLATE_ENV_VARS', 'VAR_A,VAR_B,VAR_C')
+    monkeypatch.setenv('VAR_A', 'alpha')
+    monkeypatch.setenv('VAR_B', 'beta')
+    monkeypatch.setenv('VAR_C', 'gamma')
+    from flowforge.engine.context import build, render
+    ctx = build('test')
+    assert render('{{ env.VAR_A }}', ctx) == 'alpha'
+    assert render('{{ env.VAR_B }}', ctx) == 'beta'
+    assert render('{{ env.VAR_C }}', ctx) == 'gamma'
+
+
+def test_safe_env_allowlist_spaces_trimmed(monkeypatch):
+    """Spaces around var names in the allowlist are trimmed."""
+    monkeypatch.setenv('FLOWFORGE_TEMPLATE_ENV_VARS', '  VAR_X ,  VAR_Y  ')
+    monkeypatch.setenv('VAR_X', 'x-value')
+    from flowforge.engine.context import build, render
+    ctx = build('test')
+    assert render('{{ env.VAR_X }}', ctx) == 'x-value'
+
+
+def test_safe_env_allowlist_missing_var_returns_empty(monkeypatch):
+    """An allowlisted var that isn't in os.environ returns empty string."""
+    monkeypatch.setenv('FLOWFORGE_TEMPLATE_ENV_VARS', 'NONEXISTENT_XYZ_123')
+    monkeypatch.delenv('NONEXISTENT_XYZ_123', raising=False)
+    from flowforge.engine.context import build, render
+    ctx = build('test')
+    assert render('{{ env.NONEXISTENT_XYZ_123 }}', ctx) == ''
+
+
+def test_safe_env_allowlist_empty_string_falls_back_to_blocklist(monkeypatch):
+    """Empty FLOWFORGE_TEMPLATE_ENV_VARS falls back to blocklist mode."""
+    monkeypatch.setenv('FLOWFORGE_TEMPLATE_ENV_VARS', '')
+    monkeypatch.setenv('FLOWFORGE_SECRET_KEY', 'must-not-leak')
+    monkeypatch.setenv('SAFE_CUSTOM_VAR', 'visible')
+    from flowforge.engine.context import build, render
+    ctx = build('test')
+    # Blocklist mode: FLOWFORGE_SECRET_KEY is blocked, safe var is visible
+    assert render('{{ env.FLOWFORGE_SECRET_KEY }}', ctx) == ''
+    assert render('{{ env.SAFE_CUSTOM_VAR }}', ctx) == 'visible'
+
+
+def test_safe_env_allowlist_credential_explicitly_listed(monkeypatch):
+    """If a credential is explicitly in the allowlist, it IS accessible.
+
+    This is intentional — allowlist mode is opt-in and explicit.
+    """
+    monkeypatch.setenv('FLOWFORGE_TEMPLATE_ENV_VARS', 'REPORT_DIR,MY_CUSTOM_KEY')
+    monkeypatch.setenv('MY_CUSTOM_KEY', 'custom-value')
+    from flowforge.engine.context import build, render
+    ctx = build('test')
+    assert render('{{ env.MY_CUSTOM_KEY }}', ctx) == 'custom-value'

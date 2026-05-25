@@ -3,6 +3,8 @@
 All tests use a temp log directory and an isolated logger so they don't
 touch the real audit.log and don't interfere with each other.
 """
+import io
+import json
 import logging
 import pytest
 from pathlib import Path
@@ -265,3 +267,103 @@ def test_audit_called_on_provider_delete(client, headers):
 
     mock_log.assert_called_once()
     assert mock_log.call_args[0][0] == 'DELETED'
+
+
+# ── _JsonStdoutHandler ────────────────────────────────────────────────────────
+
+def _make_log_record(message: str, level: int = logging.INFO) -> logging.LogRecord:
+    record = logging.LogRecord(
+        name='flowforge.audit',
+        level=level,
+        pathname='',
+        lineno=0,
+        msg=message,
+        args=(),
+        exc_info=None,
+    )
+    return record
+
+
+def test_json_stdout_handler_writes_to_stdout():
+    from flowforge.audit import _JsonStdoutHandler
+    handler = _JsonStdoutHandler()
+    buf = io.StringIO()
+    with patch('sys.stdout', buf):
+        handler.emit(_make_log_record('test message'))
+    output = buf.getvalue()
+    assert output.strip() != ''
+
+
+def test_json_stdout_handler_output_is_valid_json():
+    from flowforge.audit import _JsonStdoutHandler
+    handler = _JsonStdoutHandler()
+    buf = io.StringIO()
+    with patch('sys.stdout', buf):
+        handler.emit(_make_log_record('test message'))
+    payload = json.loads(buf.getvalue().strip())
+    assert isinstance(payload, dict)
+
+
+def test_json_stdout_handler_contains_message():
+    from flowforge.audit import _JsonStdoutHandler
+    handler = _JsonStdoutHandler()
+    buf = io.StringIO()
+    with patch('sys.stdout', buf):
+        handler.emit(_make_log_record('LOGIN SUCCESS user=alice'))
+    payload = json.loads(buf.getvalue().strip())
+    assert payload['message'] == 'LOGIN SUCCESS user=alice'
+
+
+def test_json_stdout_handler_contains_level():
+    from flowforge.audit import _JsonStdoutHandler
+    handler = _JsonStdoutHandler()
+    buf = io.StringIO()
+    with patch('sys.stdout', buf):
+        handler.emit(_make_log_record('msg', level=logging.INFO))
+    payload = json.loads(buf.getvalue().strip())
+    assert payload['level'] == 'INFO'
+
+
+def test_json_stdout_handler_contains_logger_name():
+    from flowforge.audit import _JsonStdoutHandler
+    handler = _JsonStdoutHandler()
+    buf = io.StringIO()
+    with patch('sys.stdout', buf):
+        handler.emit(_make_log_record('msg'))
+    payload = json.loads(buf.getvalue().strip())
+    assert payload['logger'] == 'flowforge.audit'
+
+
+def test_json_stdout_handler_ts_is_utc_iso_format():
+    from flowforge.audit import _JsonStdoutHandler
+    import re
+    handler = _JsonStdoutHandler()
+    buf = io.StringIO()
+    with patch('sys.stdout', buf):
+        handler.emit(_make_log_record('msg'))
+    payload = json.loads(buf.getvalue().strip())
+    # Expect YYYY-MM-DDTHH:MM:SSZ
+    assert re.match(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$', payload['ts']), payload['ts']
+
+
+def test_json_stdout_handler_ends_with_newline():
+    from flowforge.audit import _JsonStdoutHandler
+    handler = _JsonStdoutHandler()
+    buf = io.StringIO()
+    with patch('sys.stdout', buf):
+        handler.emit(_make_log_record('msg'))
+    assert buf.getvalue().endswith('\n')
+
+
+def test_json_stdout_handler_does_not_raise_on_broken_stdout():
+    from flowforge.audit import _JsonStdoutHandler
+
+    class BrokenStdout:
+        def write(self, s):
+            raise OSError('broken pipe')
+        def flush(self):
+            raise OSError('broken pipe')
+
+    handler = _JsonStdoutHandler()
+    with patch('sys.stdout', BrokenStdout()):
+        handler.emit(_make_log_record('msg'))  # must not raise

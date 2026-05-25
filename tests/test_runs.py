@@ -41,3 +41,38 @@ def test_trigger_run_disabled_pipeline(client, headers):
     # Should return 400 or 409 — pipeline is disabled
     assert run.status_code in (400, 409)
     client.delete(f'/api/pipelines/{pid}', headers=headers)
+
+
+# ── dashboard/summary endpoint ────────────────────────────────────────────────
+
+def test_dashboard_summary_returns_200(client, headers):
+    resp = client.get('/api/dashboard/summary', headers=headers)
+    assert resp.status_code == 200
+
+
+def test_dashboard_summary_has_pipeline_runs_key(client, headers):
+    resp = client.get('/api/dashboard/summary', headers=headers)
+    data = resp.get_json()
+    assert 'pipeline_runs' in data
+
+
+def test_dashboard_summary_pipeline_runs_is_dict(client, headers):
+    resp = client.get('/api/dashboard/summary', headers=headers)
+    data = resp.get_json()
+    assert isinstance(data['pipeline_runs'], dict)
+
+
+def test_dashboard_summary_requires_auth(client):
+    resp = client.get('/api/dashboard/summary')
+    assert resp.status_code == 401
+
+
+def test_dashboard_summary_with_project_id_filter(client, headers):
+    """project_id filter is accepted without error."""
+    resp = client.get(
+        '/api/dashboard/summary?project_id=00000000-0000-0000-0000-000000000000',
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data['pipeline_runs'] == {}

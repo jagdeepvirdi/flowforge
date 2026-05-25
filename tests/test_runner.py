@@ -248,3 +248,212 @@ def test_rows_key_present_for_non_capturing_step():
     assert received['steps']['plain_step']['rows'] == []
     assert received['steps']['plain_step']['table_html'] == ''
     assert received['steps']['plain_step']['kv_html'] == ''
+
+
+# ── Retry logic ───────────────────────────────────────────────────────────────
+
+def _make_retry_step(name, fail_count=0, on_error='stop', retry_count=0, retry_delay=0):
+    """Step that fails the first `fail_count` attempts then succeeds."""
+    attempt_box = [0]
+
+    class RetryStep(BaseStep):
+        def run(self, ctx):
+            attempt_box[0] += 1
+            if attempt_box[0] <= fail_count:
+                return StepResult(success=False, error='transient error')
+            return StepResult(success=True)
+
+    cfg = {'on_error': on_error, 'retry_count': retry_count, 'retry_delay_seconds': retry_delay}
+    step = RetryStep(name=name, config=cfg)
+    return step
+
+
+def _run_with_patches(steps, **kwargs):
+    from flowforge.engine.runner import run_pipeline
+    with patch('flowforge.engine.runner._create_run_record', return_value=None), \
+         patch('flowforge.engine.runner._write_step_run'), \
+         patch('flowforge.engine.runner._finish_run_record'), \
+         patch('time.sleep'):
+        return run_pipeline('Retry Test', steps, **kwargs)
+
+
+def test_retry_zero_retries_fails_immediately():
+    """With retry_count=0, a failing step fails without retrying."""
+    step = _make_retry_step('s', fail_count=1, retry_count=0, retry_delay=0)
+    result = _run_with_patches([step])
+    assert result.success is False
+    assert result.steps_failed == 1
+
+
+def test_retry_succeeds_on_second_attempt():
+    """Step that fails once and then succeeds with retry_count=1."""
+    step = _make_retry_step('s', fail_count=1, retry_count=1, retry_delay=0)
+    result = _run_with_patches([step])
+    assert result.success is True
+    assert result.steps_failed == 0
+
+
+def test_retry_exhausted_still_fails():
+    """Step that always fails uses all retries then marks failure."""
+    step = _make_retry_step('s', fail_count=5, retry_count=2, retry_delay=0)
+    result = _run_with_patches([step])
+    assert result.success is False
+
+
+def test_retry_calls_sleep_with_delay():
+    """time.sleep is called with the configured retry_delay_seconds."""
+    step = _make_retry_step('s', fail_count=1, retry_count=1, retry_delay=5)
+    from flowforge.engine.runner import run_pipeline
+    with patch('flowforge.engine.runner._create_run_record', return_value=None), \
+         patch('flowforge.engine.runner._write_step_run'), \
+         patch('flowforge.engine.runner._finish_run_record'), \
+         patch('time.sleep') as mock_sleep:
+        run_pipeline('Retry Test', [step])
+    mock_sleep.assert_called_with(5)
+
+
+def test_retry_count_capped_at_10():
+    """retry_count > 10 is silently capped to 10."""
+    attempt_box = [0]
+
+    class CountingStep(BaseStep):
+        def run(self, ctx):
+            attempt_box[0] += 1
+            return StepResult(success=False, error='always fails')
+
+    cfg = {'on_error': 'stop', 'retry_count': 999, 'retry_delay_seconds': 0}
+    step = CountingStep('s', config=cfg)
+    _run_with_patches([step])
+    # 1 initial + 10 retries = 11 calls max
+    assert attempt_box[0] <= 11
+
+
+def test_retry_delay_capped_at_3600():
+    """retry_delay_seconds > 3600 is capped to 3600."""
+    step = _make_retry_step('s', fail_count=1, retry_count=1, retry_delay=9999)
+    from flowforge.engine.runner import run_pipeline
+    with patch('flowforge.engine.runner._create_run_record', return_value=None), \
+         patch('flowforge.engine.runner._write_step_run'), \
+         patch('flowforge.engine.runner._finish_run_record'), \
+         patch('time.sleep') as mock_sleep:
+        run_pipeline('Retry Test', [step])
+    mock_sleep.assert_called_with(3600)
+
+
+def test_retry_negative_count_treated_as_zero():
+    """Negative retry_count is clamped to 0."""
+    step = _make_retry_step('s', fail_count=1, retry_count=-5, retry_delay=0)
+    result = _run_with_patches([step])
+    assert result.success is False
+    assert result.steps_failed == 1
+
+
+# ── Failure webhook ───────────────────────────────────────────────────────────
+
+def test_fire_failure_webhook_posts_json():
+    from flowforge.engine.runner import _fire_failure_webhook
+    payload = {'pipeline_name': 'Test', 'error_message': 'boom'}
+    with patch('urllib.request.urlopen') as mock_open:
+        mock_open.return_value.__enter__ = lambda s: s
+        mock_open.return_value.__exit__ = MagicMock(return_value=False)
+        _fire_failure_webhook('http://example.com/hook', payload)
+    mock_open.assert_called_once()
+    req = mock_open.call_args[0][0]
+    import json
+    body = json.loads(req.data)
+    assert body['pipeline_name'] == 'Test'
+    assert body['error_message'] == 'boom'
+
+
+def test_fire_failure_webhook_content_type_header():
+    from flowforge.engine.runner import _fire_failure_webhook
+    with patch('urllib.request.urlopen') as mock_open:
+        mock_open.return_value.__enter__ = lambda s: s
+        mock_open.return_value.__exit__ = MagicMock(return_value=False)
+        _fire_failure_webhook('http://example.com/hook', {})
+    req = mock_open.call_args[0][0]
+    assert req.get_header('Content-type') == 'application/json'
+
+
+def test_fire_failure_webhook_empty_url_does_nothing():
+    from flowforge.engine.runner import _fire_failure_webhook
+    with patch('urllib.request.urlopen') as mock_open:
+        _fire_failure_webhook('', {'pipeline_name': 'Test'})
+    mock_open.assert_not_called()
+
+
+def test_fire_failure_webhook_none_url_does_nothing():
+    from flowforge.engine.runner import _fire_failure_webhook
+    with patch('urllib.request.urlopen') as mock_open:
+        _fire_failure_webhook(None, {})
+    mock_open.assert_not_called()
+
+
+def test_fire_failure_webhook_error_does_not_propagate():
+    """Network errors in the webhook must not raise."""
+    from flowforge.engine.runner import _fire_failure_webhook
+    with patch('urllib.request.urlopen', side_effect=Exception('network error')):
+        _fire_failure_webhook('http://example.com/hook', {})  # must not raise
+
+
+def test_webhook_called_when_pipeline_fails():
+    from flowforge.engine.runner import run_pipeline
+    with patch('flowforge.engine.runner._create_run_record', return_value=None), \
+         patch('flowforge.engine.runner._write_step_run'), \
+         patch('flowforge.engine.runner._finish_run_record'), \
+         patch('flowforge.engine.runner._fire_failure_webhook') as mock_webhook:
+        run_pipeline(
+            'Test Pipeline',
+            [make_step('fail', success=False)],
+            on_failure_webhook_url='http://example.com/hook',
+        )
+    mock_webhook.assert_called_once()
+    url = mock_webhook.call_args[0][0]
+    assert url == 'http://example.com/hook'
+
+
+def test_webhook_not_called_when_pipeline_succeeds():
+    from flowforge.engine.runner import run_pipeline
+    with patch('flowforge.engine.runner._create_run_record', return_value=None), \
+         patch('flowforge.engine.runner._write_step_run'), \
+         patch('flowforge.engine.runner._finish_run_record'), \
+         patch('flowforge.engine.runner._fire_failure_webhook') as mock_webhook:
+        run_pipeline(
+            'Test Pipeline',
+            [make_step('ok', success=True)],
+            on_failure_webhook_url='http://example.com/hook',
+        )
+    mock_webhook.assert_not_called()
+
+
+def test_webhook_not_called_when_url_not_set():
+    from flowforge.engine.runner import run_pipeline
+    with patch('flowforge.engine.runner._create_run_record', return_value=None), \
+         patch('flowforge.engine.runner._write_step_run'), \
+         patch('flowforge.engine.runner._finish_run_record'), \
+         patch('flowforge.engine.runner._fire_failure_webhook') as mock_webhook:
+        run_pipeline('Test Pipeline', [make_step('fail', success=False)])
+    mock_webhook.assert_not_called()
+
+
+def test_webhook_payload_contains_expected_keys():
+    from flowforge.engine.runner import run_pipeline
+    captured = {}
+
+    def capture_webhook(url, payload):
+        captured.update(payload)
+
+    with patch('flowforge.engine.runner._create_run_record', return_value=None), \
+         patch('flowforge.engine.runner._write_step_run'), \
+         patch('flowforge.engine.runner._finish_run_record'), \
+         patch('flowforge.engine.runner._fire_failure_webhook', side_effect=capture_webhook):
+        run_pipeline(
+            'My Pipeline',
+            [make_step('bad_step', success=False, error_msg='DB timeout')],
+            on_failure_webhook_url='http://example.com/hook',
+        )
+
+    assert 'pipeline_name' in captured
+    assert 'error_step' in captured
+    assert 'error_message' in captured
+    assert captured['pipeline_name'] == 'My Pipeline'

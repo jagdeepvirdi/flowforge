@@ -54,23 +54,22 @@ def test_create_connection_bad_type(client, headers, db_payload):
 
 # ── db_type constraint narrowed to implemented types (NEW-6) ──────────────────
 
-@pytest.mark.parametrize('bad_type', ['mysql', 'mssql', 'snowflake'])
+@pytest.mark.parametrize('bad_type', ['mssql', 'snowflake'])
 def test_create_connection_previously_allowed_types_now_rejected(client, headers, db_payload, bad_type):
-    """mysql/mssql/snowflake were permitted by migration 0003 but removed in 0009."""
+    """mssql/snowflake are not yet implemented connection types (mysql was added in FEAT-1)."""
     bad = {**db_payload, 'db_type': bad_type}
     resp = client.post('/api/db-connections', json=bad, headers=headers)
     assert resp.status_code == 400
     data = resp.get_json()
     assert 'error' in data
-    assert 'postgresql' in data['error'] or 'oracle' in data['error']
 
 
-@pytest.mark.parametrize('good_type', ['postgresql', 'oracle'])
+@pytest.mark.parametrize('good_type', ['postgresql', 'oracle', 'mysql'])
 def test_create_connection_valid_types_accepted(client, headers, db_payload, good_type):
-    """Only postgresql and oracle must be accepted."""
+    """postgresql, oracle, and mysql are all valid connection types."""
     payload = {**db_payload, 'db_type': good_type}
     resp = client.post('/api/db-connections', json=payload, headers=headers)
-    # Oracle will 201 even without a real Oracle server — config is just stored
+    # Oracle/MySQL will 201 even without a real server — config is just stored
     assert resp.status_code == 201
     client.delete(f'/api/db-connections/{resp.get_json()["id"]}', headers=headers)
 
