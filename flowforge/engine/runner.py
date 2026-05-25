@@ -280,7 +280,7 @@ def _fire_failure_webhook(url: str, payload: dict) -> None:
             headers={'Content-Type': 'application/json'},
             method='POST',
         )
-        with urllib.request.urlopen(req, timeout=10):
+        with urllib.request.urlopen(req, timeout=10):  # nosec B310
             pass
         logger.info("Failure webhook delivered to %s", url)
     except Exception as exc:

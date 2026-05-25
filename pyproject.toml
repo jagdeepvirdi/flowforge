@@ -99,6 +99,7 @@ dev = [
     "pytest-mock>=3.12",
     "responses>=0.25",
     "ruff>=0.4",
+    "bandit[toml]>=1.7",
 ]
 
 [project.scripts]
@@ -112,6 +113,10 @@ Documentation = "https://github.com/jagdeepvirdi/flowforge/blob/main/docs/gettin
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["flowforge*"]
+
+[tool.bandit]
+exclude_dirs = ["tests", ".venv"]
+skips = ["B101"]   # assert_used — tests dir excluded; assert fine in application guards
 
 [tool.ruff]
 line-length = 100

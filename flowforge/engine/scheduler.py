@@ -174,19 +174,18 @@ def _run_pipeline_job(pipeline_id: str, pipeline_name: str) -> None:
         logger.error("Scheduler app not initialised — cannot run '%s'", pipeline_name)
         return
 
-    from flowforge.engine.loader import load_pipeline
-    from flowforge.engine.runner import run_pipeline
+    from flowforge.db.models import Pipeline, db
+    from flowforge.engine.launcher import launch_run
 
     try:
         with _app.app_context():
-            steps, pipeline_vars, secret_keys = load_pipeline(pipeline_id)
-            run_pipeline(
-                pipeline_name=pipeline_name,
-                steps=steps,
-                pipeline_vars=pipeline_vars,
-                triggered_by='scheduler',
-                pipeline_id=pipeline_id,
-                secret_var_keys=secret_keys,
-            )
+            pipeline = db.session.get(Pipeline, pipeline_id)
+            if not pipeline:
+                logger.error("Pipeline %s not found for scheduled run", pipeline_id)
+                return
+
+            res, status = launch_run(pipeline, triggered_by='scheduler', app=_app)
+            if status != 202:
+                logger.warning("Scheduled launch of '%s' deferred: %s", pipeline_name, res.get('error'))
     except Exception as e:
         logger.error("Scheduled run of '%s' failed: %s", pipeline_name, e)

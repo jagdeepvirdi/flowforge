@@ -75,6 +75,7 @@ def upload_file(
             f'{_GRAPH_BASE}/users/{user}/drive/items/{item_id}/createLink',
             json={'type': 'view', 'scope': 'anonymous'},
             headers={**headers, 'Content-Type': 'application/json'},
+            timeout=30,
         )
         resp.raise_for_status()
         url = resp.json()['link']['webUrl']
@@ -91,6 +92,7 @@ def _upload_direct(path_prefix: str, file_path: Path, headers: dict, requests) -
         f'{path_prefix}/content',
         data=data,
         headers={**headers, 'Content-Type': 'application/octet-stream'},
+        timeout=30,
     )
     resp.raise_for_status()
     return resp.json()['id']
@@ -103,6 +105,7 @@ def _upload_session(
         f'{path_prefix}/createUploadSession',
         json={'item': {'@microsoft.graph.conflictBehavior': 'rename'}},
         headers={**headers, 'Content-Type': 'application/json'},
+        timeout=30,
     )
     session_resp.raise_for_status()
     upload_url = session_resp.json()['uploadUrl']
@@ -122,6 +125,7 @@ def _upload_session(
                     'Content-Length': str(len(chunk)),
                     'Content-Range': f'bytes {offset}-{end}/{file_size}',
                 },
+                timeout=300,
             )
             resp.raise_for_status()
             offset += len(chunk)

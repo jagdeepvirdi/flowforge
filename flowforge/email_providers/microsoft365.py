@@ -85,6 +85,7 @@ class Microsoft365Provider(EmailProvider):
                     'Authorization': f'Bearer {self._get_token()}',
                     'Content-Type': 'application/json',
                 },
+                timeout=30,
             )
             resp.raise_for_status()
             logger.info("Email sent to %d recipient(s) via Microsoft Graph", len(all_recipients))

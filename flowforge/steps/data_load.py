@@ -279,12 +279,12 @@ class DataLoadStep(BaseStep):
 
     def _bulk_load(self, conn, table: str, mode: str, columns: list[str], rows: list[tuple], chunk_size: int) -> int:
         if mode == 'replace':
-            conn.execute_write(f"TRUNCATE TABLE {table}")
+            conn.execute_write(f"TRUNCATE TABLE {table}")  # nosec B608
             logger.debug("Truncated %s", table)
 
         col_list = ', '.join(columns)
         placeholders = conn.make_placeholders(len(columns))
-        insert_sql = f"INSERT INTO {table} ({col_list}) VALUES ({placeholders})"
+        insert_sql = f"INSERT INTO {table} ({col_list}) VALUES ({placeholders})"  # nosec B608
 
         total = 0
         for i in range(0, len(rows), chunk_size):

@@ -51,7 +51,7 @@ def _sftp_connect(
     else:
         # AutoAddPolicy trusts any host key on first connect (default, TOFU).
         # Set FLOWFORGE_SFTP_STRICT_HOSTKEYS=true to require known_hosts verification.
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # nosec B507
 
     connect_kwargs: dict[str, Any] = dict(
         hostname=host,

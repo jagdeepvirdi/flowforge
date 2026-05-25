@@ -99,6 +99,7 @@ def update_bulk_load_config(config_id):
             setattr(cfg, field, value)
 
     db.session.commit()
+    audit.log_bulk_load_change('UPDATED', cfg.name, cfg.id)
     return jsonify(_cfg_dict(cfg))
 
 

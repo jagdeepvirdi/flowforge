@@ -87,6 +87,7 @@ def update_project(project_id):
             setattr(project, field, data[field])
 
     db.session.commit()
+    audit.log_project_change('UPDATED', project.name, project.id)
     return jsonify(_project_dict(project))
 
 

@@ -66,6 +66,13 @@ def _get_logger() -> logging.Logger:
         _logger = logger
     return _logger
 
+def _current_user() -> str:
+    try:
+        from flask import g
+        return g.user_token.get('sub', 'system')
+    except (RuntimeError, AttributeError):
+        return 'system'
+
 
 def log_login(username: str, success: bool, remote_addr: str = '') -> None:
     outcome = 'SUCCESS' if success else 'FAILED'
@@ -83,19 +90,44 @@ def log_pipeline_run(
     status: str,
 ) -> None:
     _get_logger().info(
-        'PIPELINE  %-8s  pipeline=%-30r  triggered_by=%-10s  run_id=%s',
-        status.upper(), pipeline_name, triggered_by, run_id,
+        'PIPELINE  %-8s  pipeline=%-30r  triggered_by=%-10s  run_id=%s  by=%s',
+        status.upper(), pipeline_name, triggered_by, run_id, _current_user(),
     )
 
 
 def log_connection_change(action: str, name: str, conn_id: str) -> None:
     """action: CREATED | UPDATED | DELETED"""
-    _get_logger().info('CONNECTION %-7s  name=%-30r  id=%s', action.upper(), name, conn_id)
+    _get_logger().info('CONNECTION %-7s  name=%-30r  id=%s  by=%s', action.upper(), name, conn_id, _current_user())
 
 
 def log_provider_change(action: str, name: str, provider_id: str) -> None:
     """action: CREATED | UPDATED | DELETED"""
-    _get_logger().info('PROVIDER   %-7s  name=%-30r  id=%s', action.upper(), name, provider_id)
+    _get_logger().info('PROVIDER   %-7s  name=%-30r  id=%s  by=%s', action.upper(), name, provider_id, _current_user())
+
+
+def log_pipeline_change(action: str, name: str, pipeline_id: str) -> None:
+    """action: CREATED | UPDATED | DELETED | CLONED | IMPORTED"""
+    _get_logger().info('PIPELINE_CFG %-7s name=%-30r  id=%s  by=%s', action.upper(), name, pipeline_id, _current_user())
+
+
+def log_report_change(action: str, name: str, report_id: str) -> None:
+    """action: CREATED | UPDATED | DELETED"""
+    _get_logger().info('REPORT_CFG   %-7s name=%-30r  id=%s  by=%s', action.upper(), name, report_id, _current_user())
+
+
+def log_bulk_load_change(action: str, name: str, config_id: str) -> None:
+    """action: CREATED | UPDATED | DELETED"""
+    _get_logger().info('BULKLOAD_CFG %-7s name=%-30r  id=%s  by=%s', action.upper(), name, config_id, _current_user())
+
+
+def log_recipient_change(action: str, name: str, group_id: str) -> None:
+    """action: CREATED | UPDATED | DELETED"""
+    _get_logger().info('RECIPIENTS   %-7s name=%-30r  id=%s  by=%s', action.upper(), name, group_id, _current_user())
+
+
+def log_project_change(action: str, name: str, project_id: str) -> None:
+    """action: CREATED | UPDATED | DELETED"""
+    _get_logger().info('PROJECT      %-7s name=%-30r  id=%s  by=%s', action.upper(), name, project_id, _current_user())
 
 
 def log_email_sent(

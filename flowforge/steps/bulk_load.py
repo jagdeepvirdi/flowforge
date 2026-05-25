@@ -277,12 +277,12 @@ def _load_python_fallback(
             cols = [f'col{i}' for i in range(len(data_rows[0]))]
 
         if load_mode == 'replace':
-            cur.execute(f'TRUNCATE TABLE {target_table}')
+            cur.execute(f'TRUNCATE TABLE {target_table}')  # nosec B608
             db_conn.commit()
 
         placeholders = ', '.join(['%s'] * len(cols))
         col_names    = ', '.join(cols)
-        sql = f'INSERT INTO {target_table} ({col_names}) VALUES ({placeholders})'
+        sql = f'INSERT INTO {target_table} ({col_names}) VALUES ({placeholders})'  # nosec B608
 
         CHUNK = 10_000
         records_loaded = 0
@@ -342,7 +342,7 @@ def _load_postgres_copy(
             data_lines = data_lines[:-footer_rows]
 
         if load_mode == 'replace':
-            cur.execute(f'TRUNCATE TABLE {target_table}')
+            cur.execute(f'TRUNCATE TABLE {target_table}')  # nosec B608
             db_conn.commit()
 
         data_io = io.StringIO(''.join(data_lines))

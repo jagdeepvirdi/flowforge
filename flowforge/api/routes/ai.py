@@ -56,7 +56,7 @@ def _ollama_generate(prompt: str, model: str, *, json_mode: bool = True, timeout
         headers={'Content-Type': 'application/json'},
         method='POST',
     )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
+    with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310
         result = json.loads(resp.read())
     return result.get('response', '')
 

@@ -95,7 +95,7 @@ def web():
     from flowforge.engine import shutdown
     shutdown.install_handler(app)
     click.echo(f"Starting FlowForge on http://localhost:{port}")
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=False)  # nosec B104
     shutdown.graceful_exit(app)
 
 

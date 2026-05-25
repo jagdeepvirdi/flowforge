@@ -67,7 +67,7 @@ def get_provider(provider_id):
 
 
 @bp.put('/email-providers/<uuid:provider_id>')
-@require_auth
+@require_role('admin')
 def update_provider(provider_id):
     provider = db.session.get(EmailProvider, str(provider_id))
     if not provider:

@@ -77,9 +77,9 @@ class DbQueryStep(BaseStep):
                     if mode in ('replace', 'truncate_insert'):
                         # Table name is from trusted config (not user input), so
                         # direct interpolation here is acceptable.
-                        conn.execute_write(f'TRUNCATE TABLE {output_table}')
+                        conn.execute_write(f'TRUNCATE TABLE {output_table}')  # nosec B608
                     placeholders = ', '.join(['%s'] * len(raw_rows[0]))
-                    insert_sql = f'INSERT INTO {output_table} VALUES ({placeholders})'
+                    insert_sql = f'INSERT INTO {output_table} VALUES ({placeholders})'  # nosec B608
                     for row in raw_rows:
                         conn.execute_write(insert_sql, tuple(row))
 

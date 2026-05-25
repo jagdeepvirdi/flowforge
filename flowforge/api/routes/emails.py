@@ -134,7 +134,27 @@ def preview_email_config(config_id):
         return jsonify({'error': 'Email config not found'}), 404
 
     from flowforge.engine.context import build, render
-    ctx = build(pipeline_name='Sample Pipeline')
+    # Build context with sample step results so previews are more realistic
+    sample_steps = {
+        'report': {
+            'output_path': '/tmp/sample_report.xlsx',  # nosec B108
+            'drive_url': 'https://drive.google.com/open?id=sample',
+            'rows_affected': 124,
+            'duration_sec': 12.5,
+            'rows': [
+                {'id': 1, 'name': 'Item A', 'value': 100},
+                {'id': 2, 'name': 'Item B', 'value': 200},
+            ],
+            'table_html': (
+                '<table border="1"><thead><tr><th>ID</th><th>Name</th><th>Value</th></tr></thead>'
+                '<tbody><tr><td>1</td><td>Item A</td><td>100</td></tr>'
+                '<tr><td>2</td><td>Item B</td><td>200</td></tr></tbody></table>'
+            ),
+            'kv_html': '<dl><dt>ID</dt><dd>1</dd><dt>Name</dt><dd>Item A</dd></dl>',
+            'ai_summary': 'The dataset shows a healthy distribution of values with Item B being the highest.',
+        }
+    }
+    ctx = build(pipeline_name='Sample Pipeline', step_results=sample_steps)
 
     try:
         rendered_subject = render(config.subject or '', ctx)
