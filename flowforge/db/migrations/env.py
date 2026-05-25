@@ -18,6 +18,15 @@ if config.config_file_name is not None:
 from flowforge.db.models import db  # noqa: E402
 target_metadata = db.metadata
 
+# Tables managed outside of Alembic — APScheduler creates apscheduler_jobs itself.
+_EXCLUDE_TABLES = frozenset({'apscheduler_jobs'})
+
+
+def _include_object(obj, name, type_, reflected, compare_to):
+    if type_ == 'table' and name in _EXCLUDE_TABLES:
+        return False
+    return True
+
 
 def _db_url() -> str:
     url = os.environ.get('FLOWFORGE_DB_URL')
@@ -35,6 +44,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={'paramstyle': 'named'},
+        include_object=_include_object,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -45,7 +55,11 @@ def run_migrations_online() -> None:
     cfg['sqlalchemy.url'] = _db_url()
     connectable = engine_from_config(cfg, prefix='sqlalchemy.', poolclass=pool.NullPool)
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            include_object=_include_object,
+        )
         with context.begin_transaction():
             context.run_migrations()
 

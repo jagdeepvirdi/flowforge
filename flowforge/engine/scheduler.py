@@ -24,7 +24,17 @@ def start_scheduler(app) -> None:
     _app = app
 
     db_url = os.environ.get('FLOWFORGE_DB_URL', '')
-    jobstores = {'default': SQLAlchemyJobStore(url=db_url)} if db_url else {}
+    if db_url:
+        jobstores = {'default': SQLAlchemyJobStore(url=db_url)}
+        # Log host/db portion only — never log credentials
+        _safe_url = db_url.split('@')[-1] if '@' in db_url else db_url
+        logger.info("Jobstore: PostgreSQL (%s) — jobs survive scheduler restarts.", _safe_url)
+    else:
+        jobstores = {}
+        logger.warning(
+            "FLOWFORGE_DB_URL is not set — using in-memory jobstore. "
+            "All scheduled jobs will be lost on scheduler restart."
+        )
 
     _scheduler = BlockingScheduler(jobstores=jobstores, timezone='UTC')
 
