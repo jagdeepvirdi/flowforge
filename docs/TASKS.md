@@ -58,8 +58,9 @@
 ### 2.1 SonarCloud (Highest Priority Badge)
 - [x] SonarCloud account created, repo linked, `SONAR_TOKEN` added to GitHub secrets
 - [x] `sonar-project.properties` added; SonarCloud scan step wired into `test.yml` (runs after pytest coverage)
-- [ ] Check first scan results — fix any Critical/Blocker issues
-- [ ] Add **Quality Gate** badge to README once first scan passes
+- [x] First scan passed — CI green
+- [x] **Quality Gate** badge added to README
+- [ ] Review scan results for any Critical/Blocker issues to fix
 - [ ] Take a screenshot of the SonarCloud dashboard for LinkedIn post
 
 ### 2.2 OpenSSF Scorecard (Security Credibility)
