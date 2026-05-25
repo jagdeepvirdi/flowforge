@@ -16,6 +16,15 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   app:
     build: .
     restart: unless-stopped
@@ -26,8 +35,11 @@ services:
         required: false
     environment:
       FLOWFORGE_DB_URL: postgresql://flowforge:flowforge@db:5432/flowforge
+      FLOWFORGE_REDIS_URL: redis://redis:6379/0
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     volumes:
       - output_files:/app/output
@@ -47,8 +59,27 @@ services:
         required: false
     environment:
       FLOWFORGE_DB_URL: postgresql://flowforge:flowforge@db:5432/flowforge
+      FLOWFORGE_REDIS_URL: redis://redis:6379/0
     depends_on:
       app:
+        condition: service_healthy
+    volumes:
+      - output_files:/app/output
+
+  worker:
+    build: .
+    restart: unless-stopped
+    command: ["celery", "-A", "flowforge.celery_app", "worker", "--loglevel=info"]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      FLOWFORGE_DB_URL: postgresql://flowforge:flowforge@db:5432/flowforge
+      FLOWFORGE_REDIS_URL: redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     volumes:
       - output_files:/app/output
