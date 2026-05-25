@@ -12,18 +12,9 @@ from flowforge.api.validators import validate_pipeline, validate_pipeline_variab
 from flowforge import audit
 from flowforge.crypto import decrypt_value, encrypt_value
 from flowforge.db.models import DEFAULT_PROJECT_ID, Pipeline, PipelineRun, PipelineVariable, Project, WebhookToken, db
+from flowforge.engine.launcher import launch_run
 
 bp = Blueprint('pipelines', __name__)
-
-_semaphore: threading.Semaphore | None = None
-
-
-def _get_semaphore() -> threading.Semaphore:
-    global _semaphore
-    if _semaphore is None:
-        limit = int(os.environ.get('FLOWFORGE_MAX_CONCURRENT_RUNS', '5'))
-        _semaphore = threading.Semaphore(limit)
-    return _semaphore
 
 
 def _validate_cron(expr: str) -> str | None:
@@ -168,6 +159,7 @@ def create_pipeline():
         ))
 
     db.session.commit()
+    audit.log_pipeline_change('CREATED', pipeline.name, pipeline.id)
     return jsonify(_pipeline_dict(pipeline)), 201
 
 
@@ -268,6 +260,7 @@ def clone_pipeline(pipeline_id):
         ))
 
     db.session.commit()
+    audit.log_pipeline_change('CLONED', clone.name, clone.id)
     return jsonify(_pipeline_dict(clone)), 201
 
 
@@ -403,86 +396,6 @@ def import_pipeline():
     return jsonify(_pipeline_dict(pipeline)), 201
 
 
-def _launch_run(pipeline: Pipeline, triggered_by: str):
-    """Shared run-dispatch logic used by both UI trigger and webhook trigger.
-
-    Returns a Flask response tuple (json, status_code).
-    """
-    import concurrent.futures
-    from datetime import datetime, timezone
-    from flask import current_app
-    from flowforge.engine.loader import load_pipeline
-    from flowforge.engine.runner import run_pipeline
-
-    if not pipeline.enabled:
-        return jsonify({'error': 'Pipeline is disabled'}), 400
-
-    sem = _get_semaphore()
-    if not sem.acquire(blocking=False):
-        return jsonify({'error': 'Too many concurrent pipeline runs. Try again later.'}), 429
-
-    run = PipelineRun(
-        pipeline_id=pipeline.id,
-        pipeline_name=pipeline.name,
-        status='running',
-        triggered_by=triggered_by,
-    )
-    db.session.add(run)
-    db.session.commit()
-    run_id = run.id
-
-    try:
-        steps, pipeline_vars, secret_keys = load_pipeline(pipeline.id)
-    except Exception as e:
-        run.status = 'failed'
-        run.error_message = f'Failed to load pipeline: {e}'
-        run.finished_at = datetime.now(timezone.utc)
-        db.session.commit()
-        sem.release()
-        return jsonify({'error': f'Failed to load pipeline: {e}'}), 500
-
-    app = current_app._get_current_object()
-    pid = pipeline.id
-    pname = pipeline.name
-    timeout_minutes = pipeline.timeout_minutes or 60
-    failure_webhook = pipeline.on_failure_webhook_url
-
-    def _run_in_background():
-        timeout_secs = timeout_minutes * 60
-
-        def _run_with_ctx():
-            with app.app_context():
-                run_pipeline(
-                    pipeline_name=pname,
-                    steps=steps,
-                    pipeline_vars=pipeline_vars,
-                    triggered_by=triggered_by,
-                    pipeline_id=pid,
-                    existing_run_id=run_id,
-                    secret_var_keys=secret_keys,
-                    on_failure_webhook_url=failure_webhook,
-                )
-
-        try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(_run_with_ctx)
-                try:
-                    future.result(timeout=timeout_secs)
-                except concurrent.futures.TimeoutError:
-                    with app.app_context():
-                        timed_out = db.session.get(PipelineRun, run_id)
-                        if timed_out and timed_out.status == 'running':
-                            timed_out.status = 'failed'
-                            timed_out.error_message = 'Pipeline timed out'
-                            timed_out.finished_at = datetime.now(timezone.utc)
-                            db.session.commit()
-        finally:
-            sem.release()
-
-    threading.Thread(target=_run_in_background, daemon=True).start()
-    return jsonify({'run_id': run_id, 'status': 'running', 'pipeline_name': pname}), 202
-
-
 @bp.post('/pipelines/<uuid:pipeline_id>/run')
 @require_auth
 @limiter.limit('10 per minute')
@@ -490,7 +403,8 @@ def trigger_run(pipeline_id):
     pipeline = db.session.get(Pipeline, str(pipeline_id))
     if not pipeline:
         return jsonify({'error': 'Pipeline not found'}), 404
-    return _launch_run(pipeline, triggered_by='web_ui')
+    res, code = launch_run(pipeline, triggered_by='web_ui')
+    return jsonify(res), code
 
 
 @bp.get('/pipelines/<uuid:pipeline_id>/runs')
@@ -556,11 +470,11 @@ def trigger_via_webhook(pipeline_id):
     except Exception:
         db.session.rollback()
 
-    resp, status = _launch_run(pipeline, triggered_by='api')
+    resp, status = launch_run(pipeline, triggered_by='api')
     if status == 202:
-        run_id = resp.get_json().get('run_id', '')
+        run_id = resp.get('run_id', '')
         audit.log_webhook_trigger(pipeline.name, run_id, remote_addr=request.remote_addr or '')
-    return resp, status
+    return jsonify(resp), status
 
 
 @bp.get('/pipelines/<uuid:pipeline_id>/webhook-tokens')
@@ -610,3 +524,4 @@ def revoke_webhook_token(pipeline_id, token_id):
     db.session.delete(wt)
     db.session.commit()
     return jsonify({'deleted': str(token_id)})
+

@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 
 import flowforge.audit as audit
-from flowforge.api.auth import require_auth
+from flowforge.api.auth import require_auth, require_role
 from flowforge.api.validators import validate_connection
 from flowforge.crypto import decrypt_config, encrypt_config
 from flowforge.db.models import DbConnection, db
@@ -37,7 +37,7 @@ def list_connections():
 
 
 @bp.post('/db-connections')
-@require_auth
+@require_role('admin')
 def create_connection():
     data = request.get_json() or {}
     if not data.get('name'):
@@ -98,7 +98,7 @@ def update_connection(conn_id):
 
 
 @bp.delete('/db-connections/<uuid:conn_id>')
-@require_auth
+@require_role('admin')
 def delete_connection(conn_id):
     conn = db.session.get(DbConnection, str(conn_id))
     if not conn:

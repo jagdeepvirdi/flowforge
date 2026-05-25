@@ -41,10 +41,14 @@ class Project(db.Model):
 
 class User(db.Model):
     __tablename__ = 'ff_users'
+    __table_args__ = (
+        CheckConstraint("role IN ('admin', 'editor', 'viewer')", name='ck_user_role'),
+    )
 
     id            = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
     username      = Column(String(100), nullable=False, unique=True)
     password_hash = Column(String(255), nullable=False)
+    role          = Column(String(20), nullable=False, default='editor')
     created_at    = Column(DateTime(timezone=True), default=_utcnow)
 
 
