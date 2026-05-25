@@ -76,3 +76,37 @@ def test_dashboard_summary_with_project_id_filter(client, headers):
     assert resp.status_code == 200
     data = resp.get_json()
     assert data['pipeline_runs'] == {}
+
+
+def test_export_runs_as_csv(client, headers):
+    resp = client.get('/api/runs/export?format=csv', headers=headers)
+    assert resp.status_code == 200
+    assert 'text/csv' in resp.content_type
+    assert 'attachment; filename=run_history.csv' in resp.headers.get('Content-Disposition', '')
+    
+    csv_content = resp.data.decode('utf-8')
+    lines = csv_content.strip().split('\n')
+    assert len(lines) >= 1
+    header = lines[0]
+    assert 'Pipeline Name' in header
+    assert 'Run ID' in header
+    assert 'Status' in header
+    assert 'Triggered By' in header
+
+
+def test_export_runs_with_filters(client, headers):
+    resp = client.get('/api/runs/export?format=csv&status=success', headers=headers)
+    assert resp.status_code == 200
+    assert 'text/csv' in resp.content_type
+
+
+def test_export_runs_invalid_format(client, headers):
+    resp = client.get('/api/runs/export?format=xlsx', headers=headers)
+    assert resp.status_code == 400
+    data = resp.get_json()
+    assert 'Only CSV format is supported' in data.get('error', '')
+
+
+def test_export_runs_requires_auth(client):
+    resp = client.get('/api/runs/export?format=csv')
+    assert resp.status_code == 401
