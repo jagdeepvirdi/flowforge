@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-05-25 *(Initial Public Release)*
+
+This is the first public release of FlowForge. It incorporates all the
+features developed across the v1.1.0 and v1.2.0 milestones documented
+below — see those entries for the full feature breakdown.
+
+**Highlights**
+- `docker compose up` brings up the full stack (API, frontend, PostgreSQL, scheduler, Redis, Celery worker)
+- 10 step types: `db_procedure`, `db_query`, `report`, `email`, `drive_upload`, `onedrive_upload`, `sftp_transfer`, `ai_analyze`, `bulk_load`, `data_load`
+- Email providers: Gmail (OAuth2), Microsoft 365 (MSAL + Graph API), generic SMTP
+- Database connectors: PostgreSQL, Oracle, MySQL/MariaDB
+- Multi-user roles: `admin`, `editor`, `viewer`
+- Celery/Redis task queue with thread fallback
+- 842 tests, ≥ 80 % coverage
+
 ## [1.2.0] — 2026-05-25
 
 ### Added
@@ -356,7 +371,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `flowforge[pdf]` — `weasyprint`
 - `flowforge[dev]` — `pytest`, `pytest-mock`, `responses`, `pytest-cov`
 
-[Unreleased]: https://github.com/jagdeepvirdi/flowforge/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/jagdeepvirdi/flowforge/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.5...v1.0.0
 [1.2.0]: https://github.com/jagdeepvirdi/flowforge/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.5...v1.1.0
 [0.1.5]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.4...v0.1.5
