@@ -491,5 +491,51 @@ body {
 .badge-success  { display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 8px;border-radius:999px;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.01em;background:var(--success-soft);color:#4ADE80; }
 .badge-danger   { display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 8px;border-radius:999px;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.01em;background:var(--failure-soft);color:#F87171; }
 .badge-running  { display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 8px;border-radius:999px;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.01em;background:var(--running-soft);color:#60A5FA; }
-.badge-muted    { display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 8px;border-radius:999px;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.01em;background:var(--surface-3);color:var(--text-muted); }
-.badge-accent   { display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 8px;border-radius:999px;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.01em;background:var(--accent-soft);color:#FB923C; }
+/* ── Responsive ─────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .ff-sidebar {
+    position: fixed;
+    z-index: 100;
+    left: -240px;
+    top: 0; bottom: 0;
+    transition: left 0.2s ease-in-out;
+  }
+  .ff-sidebar.open { left: 0; box-shadow: 0 0 40px rgba(0,0,0,0.8); }
+  .ff-sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(2px);
+    z-index: 90;
+  }
+  .topbar { padding: 0 16px; }
+  .scroll { padding: 20px 16px 40px; }
+  .page-h { flex-direction: column; align-items: flex-start; gap: 12px; }
+}
+
+@media (max-width: 640px) {
+  .topbar .tb-search { display: none; }
+  .topbar .crumb { font-size: 12px; }
+}
+
+/* ── Utility Grids ──────────────────────────────────── */
+.grid-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+.grid-pipelines {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 1200px) {
+  .grid-stats { grid-template-columns: repeat(2, 1fr); }
+  .grid-pipelines { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .grid-stats { grid-template-columns: 1fr; }
+  .grid-pipelines { grid-template-columns: 1fr; }
+}

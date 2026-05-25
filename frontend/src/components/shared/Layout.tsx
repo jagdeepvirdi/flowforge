@@ -46,6 +46,7 @@ const SPARKS = [8, 6, 9, 5, 12, 10, 14, 9, 11, 16, 13, 18, 15, 19]
 export default function Layout() {
   const { clearToken } = useAuth()
   const navigate = useNavigate()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const { data: todayRuns = [] } = useQuery({
     queryKey: ['runs-today'],
@@ -60,10 +61,27 @@ export default function Layout() {
 
   return (
     <div className="ff-app">
+      {/* Sidebar Overlay (Mobile) */}
+      {sidebarOpen && (
+        <div className="ff-sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+      )}
+
       {/* Sidebar */}
-      <aside className="ff-sidebar">
+      <aside className={`ff-sidebar ${sidebarOpen ? 'open' : ''}`}>
+        {/* Mobile Close Button */}
+        <button
+          className="lg:hidden absolute top-4 right-4 text-text-muted hover:text-text"
+          onClick={() => setSidebarOpen(false)}
+          style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'none' }}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+
         {/* Brand */}
-        <div className="ff-brand">
+        <div className="flex items-center gap-2.5 p-[4px_8px_6px]">
           <div className="ff-logo">
             <svg width="18" height="20" viewBox="0 0 24 26" aria-hidden="true">
               <defs>
@@ -77,10 +95,10 @@ export default function Layout() {
               <path d="M12 9c.4 1.5-.2 2.6-.9 3.5-.6.8-.6 1.8 0 2.5.4.5.9.8 1.5 1-1.5-.2-2.4-1.3-2.4-2.6 0-1.5 1.4-2.4 1.8-4.4z" fill="#FED7AA" opacity="0.7" />
             </svg>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.01em', lineHeight: 1.1 }}>FlowForge</span>
-            <span style={{ fontSize: 10.5, color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--success)', boxShadow: '0 0 6px var(--success)' }} />
+          <div className="flex flex-col">
+            <span className="text-[14px] font-bold text-[var(--text)] tracking-tight leading-tight">FlowForge</span>
+            <span className="text-[10.5px] text-[var(--text-muted)] font-mono flex items-center gap-1.5 mt-0.5">
+              <span className="w-1.25 h-1.25 rounded-full bg-[var(--success)] shadow-[0_0_6px_var(--success)]" />
               production
             </span>
           </div>
@@ -90,11 +108,11 @@ export default function Layout() {
         <nav className="ff-nav">
           <div className="ff-nav-section">
             {NAV_MAIN.map(({ to, label, icon }) => (
-              <NavLink key={to} to={to} className={({ isActive }) => `ff-nav-item${isActive ? ' active' : ''}`}>
+              <NavLink key={to} to={to} className={({ isActive }) => `ff-nav-item${isActive ? ' active' : ''}`} onClick={() => setSidebarOpen(false)}>
                 {({ isActive }) => (
                   <>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)' }}><NavIcon name={icon} /></span>
+                    <span className="flex items-center gap-2.5">
+                      <span className={isActive ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}><NavIcon name={icon} /></span>
                       {label}
                     </span>
                     {isActive && <span className="ff-active-bar" />}
@@ -108,11 +126,11 @@ export default function Layout() {
 
           <div className="ff-nav-section">
             {NAV_SYSTEM.map(({ to, label, icon }) => (
-              <NavLink key={to} to={to} className={({ isActive }) => `ff-nav-item${isActive ? ' active' : ''}`}>
+              <NavLink key={to} to={to} className={({ isActive }) => `ff-nav-item${isActive ? ' active' : ''}`} onClick={() => setSidebarOpen(false)}>
                 {({ isActive }) => (
                   <>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)' }}><NavIcon name={icon} /></span>
+                    <span className="flex items-center gap-2.5">
+                      <span className={isActive ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}><NavIcon name={icon} /></span>
                       {label}
                     </span>
                     {isActive && <span className="ff-active-bar" />}
@@ -122,10 +140,9 @@ export default function Layout() {
             ))}
             <button
               onClick={() => { apiLogout().catch(() => {}).finally(() => { clearToken(); navigate('/login') }) }}
-              className="ff-nav-item"
-              style={{ border: 'none', background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer', fontSize: 13, color: 'var(--text-muted)' }}
+              className="ff-nav-item border-none bg-transparent w-full text-left cursor-pointer text-[13px] text-[var(--text-muted)]"
             >
-              <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span className="flex items-center gap-2.5">
                 <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
                 </svg>
@@ -137,21 +154,21 @@ export default function Layout() {
 
         {/* Footer stat card */}
         <div className="ff-stat-card">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Today</span>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] text-[var(--text-muted)] uppercase tracking-wider font-semibold">Today</span>
             {runsCount > 0 && (
-              <span style={{ fontSize: 10.5, color: 'var(--success-text)', fontWeight: 600 }}>
+              <span className="text-[10.5px] text-[var(--success-text)] font-semibold">
                 {successCount}/{runsCount} ok
               </span>
             )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 8 }}>
-            <span style={{ fontSize: 22, fontWeight: 600, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '-0.02em', color: 'var(--text)' }}>{runsCount}</span>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>run{runsCount !== 1 ? 's' : ''}</span>
+          <div className="flex items-baseline gap-1 mb-2">
+            <span className="text-[22px] font-semibold font-mono tracking-tight text-[var(--text)]">{runsCount}</span>
+            <span className="text-[11px] text-[var(--text-muted)]">run{runsCount !== 1 ? 's' : ''}</span>
           </div>
-          <div className="sparkbars" style={{ height: 22 }}>
+          <div className="sparkbars h-[22px]">
             {sparkNorm.map((h, i) => (
-              <span key={i} style={{ height: h, background: i === sparkNorm.length - 1 ? 'var(--accent)' : 'var(--border)', width: 4, borderRadius: 1 }} />
+              <span key={i} className={`w-1 rounded-[1px] ${i === sparkNorm.length - 1 ? 'bg-[var(--accent)]' : 'bg-[var(--border)]'}`} style={{ height: h }} />
             ))}
           </div>
         </div>
@@ -159,6 +176,21 @@ export default function Layout() {
 
       {/* Main content */}
       <main className="ff-main">
+        {/* Mobile Hamburger */}
+        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--border)', background: 'var(--bg)', gap: 12 }} className="lg:hidden">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)', padding: 0 }}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>FlowForge</span>
+        </div>
+
         <RouteErrorBoundary>
           <Outlet />
         </RouteErrorBoundary>

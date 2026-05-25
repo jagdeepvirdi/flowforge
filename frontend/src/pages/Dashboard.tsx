@@ -64,45 +64,44 @@ function PipelineCard({ pipeline, runs }: { pipeline: Pipeline; runs: PipelineRu
   const barColor = (b: string) => b === 'ok' ? 'var(--success)' : b === 'fail' ? 'var(--failure)' : b === 'run' ? 'var(--running)' : 'var(--border)'
 
   return (
-    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 16 }}>
+    <div className="card flex flex-col gap-3.5 p-4">
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.01em', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-[var(--text)] tracking-tight mb-0.5 truncate">
             {pipeline.name}
           </div>
           {pipeline.description && (
-            <div style={{ fontSize: 11.5, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pipeline.description}</div>
+            <div className="text-[11.5px] text-[var(--text-muted)] truncate">{pipeline.description}</div>
           )}
         </div>
         <StatusBadge status={lastRun?.status ?? 'idle'} animate />
       </div>
 
       {/* Meta row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, padding: '12px 0', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
+      <div className="grid grid-cols-3 gap-3 py-3 border-y border-[var(--border)]">
         <MetaCol label="Last run" icon={<Clock size={10} />} value={lastRun ? fmtRel(lastRun.started_at) : '—'} />
         <MetaCol label="Duration" value={fmtDur(lastRun?.duration_ms ?? null)} mono />
         <MetaCol label="Next run" icon={<Calendar size={10} />} value={pipeline.schedule ? fmtNext(pipeline.next_run) : '—'} />
       </div>
 
       {/* Run mini-bars */}
-      <div style={{ display: 'flex', gap: 2 }}>
+      <div className="flex gap-0.5">
         {bars.map((b, i) => (
-          <span key={i} style={{ flex: 1, height: 22, borderRadius: 2, background: barColor(b), opacity: b === 'idle' ? 0.5 : 0.85 }} />
+          <span key={i} className="flex-1 h-[22px] rounded-[2px]" style={{ background: barColor(b), opacity: b === 'idle' ? 0.5 : 0.85 }} />
         ))}
       </div>
 
       {/* Footer */}
-      <div style={{ display: 'flex', gap: 6 }}>
-        <Link to={`/runs?pipeline=${pipeline.id}`} className="btn btn-sm" style={{ flex: 1 }}>
+      <div className="flex gap-1.5">
+        <Link to={`/runs?pipeline=${pipeline.id}`} className="btn btn-sm flex-1">
           <History size={12} /> Runs
         </Link>
-        <Link to={`/pipelines/${pipeline.id}/edit`} className="btn btn-sm" style={{ flex: 1 }}>
+        <Link to={`/pipelines/${pipeline.id}/edit`} className="btn btn-sm flex-1">
           <Pencil size={12} /> Edit
         </Link>
         <button
-          className="btn btn-primary btn-sm"
-          style={{ flex: 1.4 }}
+          className="btn btn-primary btn-sm flex-[1.4]"
           onClick={() => trigger()}
           disabled={isPending || isRunning || !pipeline.enabled}
         >
@@ -116,10 +115,10 @@ function PipelineCard({ pipeline, runs }: { pipeline: Pipeline; runs: PipelineRu
 
 function MetaCol({ label, value, icon, mono }: { label: string; value: string; icon?: React.ReactNode; mono?: boolean }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <span style={{ fontSize: 10.5, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 500 }}>{label}</span>
-      <span style={{ fontSize: 12.5, color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: 4, fontFamily: mono ? 'JetBrains Mono, monospace' : 'inherit' }}>
-        {icon && <span style={{ color: 'var(--text-muted)' }}>{icon}</span>}
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10.5px] text-[var(--text-muted)] uppercase tracking-wider font-medium">{label}</span>
+      <span className={`text-[12.5px] text-[var(--text-2)] flex items-center gap-1 ${mono ? 'font-mono' : ''}`}>
+        {icon && <span className="text-[var(--text-muted)]">{icon}</span>}
         {value}
       </span>
     </div>
@@ -170,50 +169,50 @@ export default function Dashboard() {
       <TopBar crumbs={['Workspace', 'Dashboard']} />
       <div className="scroll">
         <div className="page-h">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="flex flex-col gap-2">
             <Sk h={28} r={6} style={{ width: 140 }} />
             <Sk h={14} style={{ width: 260 }} />
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 28 }}>
+        <div className="grid-stats mb-7">
           {[0,1,2,3].map(i => (
-            <div key={i} className="card" style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div key={i} className="card p-[16px_18px] flex flex-col gap-2.5">
               <Sk h={11} style={{ width: 80 }} />
               <Sk h={28} r={6} style={{ width: 60 }} />
             </div>
           ))}
         </div>
-        <div className="sec-h" style={{ marginBottom: 14 }}>
+        <div className="sec-h mb-3.5">
           <Sk h={18} r={4} style={{ width: 80 }} />
           <Sk h={14} r={4} style={{ width: 60 }} />
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+        <div className="grid-pipelines">
           {[0,1,2].map(i => (
-            <div key={i} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div key={i} className="card flex flex-col gap-3.5 p-4">
+              <div className="flex justify-between gap-3">
+                <div className="flex-1 flex flex-col gap-1.5">
                   <Sk h={14} style={{ width: '55%' }} />
                   <Sk h={11} style={{ width: '40%' }} />
                 </div>
                 <Sk h={20} r={4} style={{ width: 60, flexShrink: 0 }} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, padding: '12px 0', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
+              <div className="grid grid-cols-3 gap-3 py-3 border-y border-[var(--border)]">
                 {[0,1,2].map(j => (
-                  <div key={j} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div key={j} className="flex flex-col gap-1">
                     <Sk h={10} style={{ width: '60%' }} />
                     <Sk h={12} style={{ width: '80%' }} />
                   </div>
                 ))}
               </div>
-              <div style={{ display: 'flex', gap: 2 }}>
+              <div className="flex gap-0.5">
                 {Array.from({ length: 14 }).map((_, j) => (
-                  <div key={j} style={{ flex: 1, height: 22, borderRadius: 2, background: 'var(--border)', opacity: 0.5 }} />
+                  <div key={j} className="flex-1 h-[22px] rounded-[2px] bg-[var(--border)] opacity-50" />
                 ))}
               </div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <Sk h={28} r={6} style={{ flex: 1, width: 'auto' }} />
-                <Sk h={28} r={6} style={{ flex: 1, width: 'auto' }} />
-                <Sk h={28} r={6} style={{ flex: 1.4, width: 'auto' }} />
+              <div className="flex gap-1.5">
+                <Sk h={28} r={6} className="flex-1 w-auto" />
+                <Sk h={28} r={6} className="flex-1 w-auto" />
+                <Sk h={28} r={6} className="flex-[1.4] w-auto" />
               </div>
             </div>
           ))}
@@ -240,11 +239,11 @@ export default function Dashboard() {
         </div>
 
         {/* Stats row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 28 }}>
+        <div className="grid-stats mb-7">
           {stats.map((s, i) => (
-            <div key={i} className="card" style={{ padding: '16px 18px' }}>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: 8 }}>{s.label}</div>
-              <div style={{ fontSize: 28, fontWeight: 600, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '-0.02em', color: s.danger ? 'var(--failure-text)' : 'var(--text)' }}>
+            <div key={i} className="card p-[16px_18px]">
+              <div className="text-[11px] text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-2">{s.label}</div>
+              <div className={`text-[28px] font-semibold font-mono tracking-tight ${s.danger ? 'text-[var(--failure-text)]' : 'text-[var(--text)]'}`}>
                 {s.value}
               </div>
             </div>
@@ -254,7 +253,7 @@ export default function Dashboard() {
         {/* Pipeline grid */}
         <div className="sec-h">
           <h2>Pipelines</h2>
-          <Link to="/pipelines" style={{ fontSize: 12, color: 'var(--text-3)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Link to="/pipelines" className="text-[12px] text-[var(--text-3)] no-underline flex items-center gap-1">
             View all →
           </Link>
         </div>
@@ -265,7 +264,7 @@ export default function Dashboard() {
             <Link to="/pipelines/new" className="btn btn-primary">Create your first pipeline</Link>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 28 }}>
+          <div className="grid-pipelines mb-7">
             {pipelines.map(p => <PipelineCard key={p.id} pipeline={p} runs={pipelineRunsMap[p.id] ?? []} />)}
           </div>
         )}
@@ -275,30 +274,30 @@ export default function Dashboard() {
           <>
             <div className="sec-h">
               <h2>Recent failures</h2>
-              <Link to="/runs?status=failed" style={{ fontSize: 12, color: 'var(--text-3)', textDecoration: 'none' }}>View all failures →</Link>
+              <Link to="/runs?status=failed" className="text-[12px] text-[var(--text-3)] no-underline">View all failures →</Link>
             </div>
-            <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
+            <div className="card overflow-hidden p-0">
               <table className="tbl">
                 <thead>
                   <tr>
-                    <th style={{ width: 20 }} />
+                    <th className="w-5" />
                     <th>Pipeline · Step</th>
                     <th>Error</th>
-                    <th style={{ width: 90 }}>When</th>
-                    <th style={{ width: 80 }} />
+                    <th className="w-[90px]">When</th>
+                    <th className="w-20" />
                   </tr>
                 </thead>
                 <tbody>
                   {failedToday.slice(0, 5).map(r => (
                     <tr key={r.id}>
-                      <td><span style={{ width: 6, height: 6, display: 'inline-block', borderRadius: '50%', background: 'var(--failure)' }} /></td>
+                      <td><span className="w-1.5 h-1.5 inline-block rounded-full bg-[var(--failure)]" /></td>
                       <td>
-                        <div style={{ fontWeight: 500, color: 'var(--text)' }}>{r.pipeline_name}</div>
-                        {r.error_step && <div className="mono" style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>→ {r.error_step}</div>}
+                        <div className="font-medium text-[var(--text)]">{r.pipeline_name}</div>
+                        {r.error_step && <div className="mono text-[11px] text-[var(--text-muted)] mt-0.5">→ {r.error_step}</div>}
                       </td>
-                      <td style={{ color: 'var(--text-3)', fontSize: 12, maxWidth: 360 }}>{r.error_message ?? '—'}</td>
-                      <td className="mono" style={{ color: 'var(--text-muted)', fontSize: 11.5 }}>{fmtRel(r.started_at)}</td>
-                      <td style={{ textAlign: 'right' }}>
+                      <td className="text-[var(--text-3)] text-xs max-w-[360px]">{r.error_message ?? '—'}</td>
+                      <td className="mono text-[var(--text-muted)] text-[11.5px]">{fmtRel(r.started_at)}</td>
+                      <td className="text-right">
                         <Link to={`/runs/${r.id}`} className="btn btn-sm btn-ghost">View</Link>
                       </td>
                     </tr>

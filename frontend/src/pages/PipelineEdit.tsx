@@ -161,39 +161,39 @@ export default function PipelineEdit() {
   if (!isNew && isLoading) return (
     <>
       <TopBar crumbs={crumbs} actions={
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Sk h={28} r={6} style={{ width: 68 }} />
-          <Sk h={28} r={6} style={{ width: 68 }} />
+        <div className="flex gap-2">
+          <Sk h={28} r={6} className="w-[68px]" />
+          <Sk h={28} r={6} className="w-[68px]" />
         </div>
       } />
       <div className="scroll">
-        <div className="card" style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <Sk h={13} style={{ width: 55 }} />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="card mb-4 flex flex-col gap-3">
+          <Sk h={13} className="w-[55px]" />
+          <div className="grid grid-cols-2 gap-3">
             {[0,1,2,3].map(i => (
               <div key={i} className="field">
-                <Sk h={12} style={{ width: 70, marginBottom: 6 }} />
+                <Sk h={12} className="w-[70px] mb-1.5" />
                 <Sk h={34} r={6} />
               </div>
             ))}
           </div>
           <div className="field">
-            <Sk h={12} style={{ width: 80, marginBottom: 6 }} />
+            <Sk h={12} className="w-[80px] mb-1.5" />
             <Sk h={64} r={6} />
           </div>
         </div>
-        <div className="card" style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <Sk h={13} style={{ width: 100 }} />
+        <div className="card mb-4 flex flex-col gap-3">
+          <Sk h={13} className="w-[100px]" />
           {[0,1].map(i => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 10, alignItems: 'center' }}>
+            <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2.5 items-center">
               <Sk h={34} r={6} />
               <Sk h={34} r={6} />
-              <Sk h={28} r={6} style={{ width: 28 }} />
+              <Sk h={28} r={6} className="w-7" />
             </div>
           ))}
         </div>
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <Sk h={13} style={{ width: 80 }} />
+        <div className="card flex flex-col gap-3">
+          <Sk h={13} className="w-20" />
           <Sk h={64} r={6} />
           <Sk h={64} r={6} />
         </div>
@@ -206,7 +206,7 @@ export default function PipelineEdit() {
       <TopBar
         crumbs={crumbs}
         actions={
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="flex gap-2">
             <Link to="/pipelines" className="btn btn-sm"><ArrowLeft size={12} /> Back</Link>
             <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
               {saving ? <Spinner size={12} /> : <Save size={12} />} Save
@@ -217,20 +217,20 @@ export default function PipelineEdit() {
 
       <div className="scroll">
         {error && (
-          <div style={{ marginBottom: 14, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 7, fontSize: 12.5, color: 'var(--failure-text)' }}>{error}</div>
+          <div className="mb-3.5 p-[8px_12px] bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.2)] rounded-[7px] text-[12.5px] text-[var(--failure-text)]">{error}</div>
         )}
 
         {/* Basic info */}
-        <div className="card" style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Details</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="card mb-4 flex flex-col gap-3">
+          <div className="text-xs font-semibold text-[var(--text)]">Details</div>
+          <div className="grid grid-cols-2 gap-3">
             <div className="field">
               <label>Name *</label>
               <input className="input" data-testid="pipeline-name" value={name} onChange={e => { setName(e.target.value); if (fieldErrors.name) setFieldErrors(f => ({ ...f, name: '' })) }} />
-              {fieldErrors.name && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{fieldErrors.name}</span>}
+              {fieldErrors.name && <span className="text-[11.5px] text-[var(--failure)]">{fieldErrors.name}</span>}
             </div>
             <div className="field">
-              <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <label className="flex items-center gap-1">
                 Schedule
                 <FieldTooltip field="cron" />
               </label>
@@ -243,30 +243,30 @@ export default function PipelineEdit() {
             <label>Description</label>
             <input className="input" value={desc} onChange={e => setDesc(e.target.value)} />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
-              <input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} style={{ accentColor: 'var(--accent)', width: 15, height: 15 }} />
-              <span style={{ color: 'var(--text)' }}>Enabled</span>
+          <div className="flex items-center gap-5">
+            <label className="flex items-center gap-2 cursor-pointer text-[13px]">
+              <input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} className="accent-[var(--accent)] w-[15px] h-[15px]" />
+              <span className="text-[var(--text)]">Enabled</span>
             </label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 11.5, color: 'var(--text-muted)', fontWeight: 500 }}>Timeout (min)</span>
-              <input className="input" type="number" min={1} value={timeout} onChange={e => { setTimeout_(+e.target.value); if (fieldErrors.timeout) setFieldErrors(f => ({ ...f, timeout: '' })) }} style={{ width: 70, height: 30, padding: '4px 8px', fontSize: 12 }} />
-              {fieldErrors.timeout && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{fieldErrors.timeout}</span>}
+            <div className="flex items-center gap-2">
+              <span className="text-[11.5px] text-[var(--text-muted)] font-medium">Timeout (min)</span>
+              <input className="input w-[70px] h-[30px] p-[4px_8px] text-xs" type="number" min={1} value={timeout} onChange={e => { setTimeout_(+e.target.value); if (fieldErrors.timeout) setFieldErrors(f => ({ ...f, timeout: '' })) }} />
+              {fieldErrors.timeout && <span className="text-[11.5px] text-[var(--failure)]">{fieldErrors.timeout}</span>}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-              <span style={{ fontSize: 11.5, color: 'var(--text-muted)', fontWeight: 500, whiteSpace: 'nowrap' }}>Failure webhook</span>
-              <input className="input" type="url" placeholder="https://hooks.slack.com/…" value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} style={{ flex: 1, height: 30, padding: '4px 8px', fontSize: 12 }} />
+            <div className="flex items-center gap-2 flex-1">
+              <span className="text-[11.5px] text-[var(--text-muted)] font-medium whitespace-nowrap">Failure webhook</span>
+              <input className="input flex-1 h-[30px] p-[4px_8px] text-xs" type="url" placeholder="https://hooks.slack.com/…" value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} />
             </div>
           </div>
         </div>
 
         {/* Pipeline Variables */}
-        <div className="card" style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <div className="card mb-4">
+          <div className="flex items-center justify-between mb-2.5">
             <div>
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Pipeline Variables</span>
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>
-                available as <code style={{ fontSize: 11, background: 'var(--surface)', padding: '1px 5px', borderRadius: 3 }}>{'{{ var_name }}'}</code> in all step configs
+              <span className="text-xs font-semibold text-[var(--text)]">Pipeline Variables</span>
+              <span className="text-[11px] text-[var(--text-muted)] ml-2">
+                available as <code className="text-[11px] bg-[var(--surface)] p-[1px_5px] rounded-[3px]">{'{{ var_name }}'}</code> in all step configs
               </span>
             </div>
             <button
@@ -279,35 +279,33 @@ export default function PipelineEdit() {
           </div>
 
           {vars.length === 0 ? (
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
+            <p className="text-xs text-[var(--text-muted)] m-0">
               No variables. Add one to pass constants like currency codes, environment names, or date ranges to all steps.
             </p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className="flex flex-col gap-1.5">
               {/* Header */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 8, paddingBottom: 4, borderBottom: '1px solid var(--border)' }}>
+              <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-2 pb-1 border-b border-[var(--border)]">
                 {(['Name', 'Value', 'Secret', ''] as const).map(h => (
-                  <span key={h} style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>{h}</span>
+                  <span key={h} className="text-[11px] text-[var(--text-muted)] font-semibold">{h}</span>
                 ))}
               </div>
               {vars.map((v, i) => (
-                <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 8, alignItems: 'center' }}>
+                <div key={i} className="grid grid-cols-[1fr_1fr_auto_auto] gap-2 items-center">
                   <input
-                    className="input mono-input"
+                    className="input mono-input !text-xs !h-[30px]"
                     placeholder="currency"
                     value={v.key}
                     onChange={e => setVars(prev => prev.map((r, j) => j === i ? { ...r, key: e.target.value } : r))}
-                    style={{ fontSize: 12, height: 30 }}
                   />
                   <input
-                    className="input"
+                    className="input !text-xs !h-[30px]"
                     placeholder={v.is_secret ? '(unchanged)' : 'USD'}
                     value={v.value}
                     type={v.is_secret ? 'password' : 'text'}
                     onChange={e => setVars(prev => prev.map((r, j) => j === i ? { ...r, value: e.target.value } : r))}
-                    style={{ fontSize: 12, height: 30 }}
                   />
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 12, color: 'var(--text-muted)' }}>
+                  <label className="flex items-center gap-1.5 cursor-pointer whitespace-nowrap text-xs text-[var(--text-muted)]">
                     <input
                       type="checkbox"
                       checked={v.is_secret}
@@ -318,15 +316,15 @@ export default function PipelineEdit() {
                   <button
                     type="button"
                     onClick={() => setVars(prev => prev.filter((_, j) => j !== i))}
-                    style={{ background: 'transparent', border: 'none', color: 'var(--failure)', cursor: 'pointer', padding: 4 }}
+                    className="bg-transparent border-none text-[var(--failure)] cursor-pointer p-1"
                     title="Remove variable"
                   >
                     <Trash2 size={13} />
                   </button>
                 </div>
               ))}
-              <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '4px 0 0' }}>
-                Built-in date vars: <code style={{ fontSize: 11 }}>{'{{ current_date }}'}</code> <code style={{ fontSize: 11 }}>{'{{ month_start_ts }}'}</code> <code style={{ fontSize: 11 }}>{'{{ prev_month_start_ts }}'}</code> <code style={{ fontSize: 11 }}>{'{{ last_success_at }}'}</code>
+              <p className="text-[11px] text-[var(--text-muted)] mt-1 mb-0">
+                Built-in date vars: <code className="text-[11px]">{'{{ current_date }}'}</code> <code className="text-[11px]">{'{{ month_start_ts }}'}</code> <code className="text-[11px]">{'{{ prev_month_start_ts }}'}</code> <code className="text-[11px]">{'{{ last_success_at }}'}</code>
               </p>
             </div>
           )}
@@ -336,10 +334,10 @@ export default function PipelineEdit() {
         {!isNew && id && <WebhookCard pipelineId={id} />}
 
         {/* Steps */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Steps <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', fontSize: 11 }}>({steps.length})</span></span>
-            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold text-[var(--text)]">Steps <span className="font-mono text-[var(--text-muted)] text-[11px]">({steps.length})</span></span>
+            <div className="flex gap-1 flex-wrap justify-end">
               {STEP_TYPES.map(t => (
                 <button key={t} className="btn btn-sm" onClick={() => addNewStep(t)}>
                   <Plus size={10} /> {t.replace(/_/g, ' ')}
@@ -369,7 +367,7 @@ export default function PipelineEdit() {
           </RouteErrorBoundary>
 
           {steps.length === 0 && (
-            <div className="card ff-empty" style={{ borderStyle: 'dashed', padding: '24px 0' }}>
+            <div className="card ff-empty border-dashed py-6">
               <p className="msg">Add steps using the buttons above.</p>
             </div>
           )}
@@ -422,44 +420,41 @@ function WebhookCard({ pipelineId }: { pipelineId: string }) {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const muted: React.CSSProperties = { fontSize: 11.5, color: 'var(--text-muted)' }
-
   return (
-    <div className="card" style={{ marginBottom: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <LinkIcon size={13} color="var(--text-muted)" />
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Webhook / API Trigger</span>
+    <div className="card mb-4">
+      <div className="flex items-center justify-between mb-2.5">
+        <div className="flex items-center gap-2">
+          <LinkIcon size={13} className="text-[var(--text-muted)]" />
+          <span className="text-xs font-semibold text-[var(--text)]">Webhook / API Trigger</span>
         </div>
       </div>
 
-      <p style={{ ...muted, marginBottom: 12, marginTop: 0 }}>
+      <p className="text-[11.5px] text-[var(--text-muted)] mb-3 mt-0">
         Trigger this pipeline from external systems using{' '}
-        <code style={{ fontSize: 11, background: 'var(--surface)', padding: '1px 5px', borderRadius: 3 }}>
+        <code className="text-[11px] bg-[var(--surface)] p-[1px_5px] rounded-[3px]">
           POST /api/pipelines/{pipelineId.slice(0, 8)}…/trigger?token=&lt;token&gt;
         </code>
       </p>
 
       {/* New token after creation — show URL once */}
       {justCreated && (
-        <div style={{ marginBottom: 12, padding: '10px 12px', background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 6 }}>
-          <div style={{ fontSize: 11.5, color: 'var(--success-text)', fontWeight: 600, marginBottom: 6 }}>
+        <div className="mb-3 p-[10px_12px] bg-[rgba(34,197,94,0.06)] border border-[rgba(34,197,94,0.2)] rounded-md">
+          <div className="text-[11.5px] text-[var(--success-text)] font-semibold mb-1.5">
             Token created — copy the URL now. It will not be shown again.
           </div>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <div className="flex gap-1.5 items-center">
             <input
               readOnly
               value={triggerUrl}
-              style={{ flex: 1, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 5, padding: '5px 8px', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text)', outline: 'none' }}
+              className="flex-1 bg-[var(--bg)] border border-[var(--border)] rounded-[5px] p-[5px_8px] text-[11px] font-mono text-[var(--text)] outline-none"
             />
             <button className="btn btn-sm" onClick={handleCopy} title="Copy URL">
               <Copy size={11} /> {copied ? 'Copied!' : 'Copy'}
             </button>
             <button
-              className="btn btn-sm"
+              className="btn btn-sm text-[var(--text-muted)]"
               onClick={() => setJustCreated(null)}
               title="Dismiss"
-              style={{ color: 'var(--text-muted)' }}
             >
               ✕
             </button>
@@ -469,22 +464,21 @@ function WebhookCard({ pipelineId }: { pipelineId: string }) {
 
       {/* Token list */}
       {isLoading ? (
-        <p style={muted}>Loading…</p>
+        <p className="text-[11.5px] text-[var(--text-muted)]">Loading…</p>
       ) : tokens.length === 0 && !justCreated ? (
-        <p style={{ ...muted, marginBottom: 12 }}>No tokens yet. Generate one below to enable API triggers.</p>
+        <p className="text-[11.5px] text-[var(--text-muted)] mb-3">No tokens yet. Generate one below to enable API triggers.</p>
       ) : (
-        <div style={{ marginBottom: 12 }}>
+        <div className="mb-3">
           {tokens.map(t => (
-            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
-              <span style={{ flex: 1, fontSize: 12, color: 'var(--text)' }}>{t.label || <em style={{ color: 'var(--text-muted)' }}>unlabelled</em>}</span>
-              <span style={{ ...muted, fontFamily: 'var(--font-mono)', fontSize: 10.5 }}>
+            <div key={t.id} className="flex items-center gap-2 py-1.5 border-b border-[var(--border)]">
+              <span className="flex-1 text-xs text-[var(--text)]">{t.label || <em className="text-[var(--text-muted)]">unlabelled</em>}</span>
+              <span className="text-[10.5px] text-[var(--text-muted)] font-mono">
                 {t.last_used_at ? `last used ${new Date(t.last_used_at).toLocaleDateString()}` : 'never used'}
               </span>
               <button
-                className="btn btn-sm"
+                className="btn btn-sm text-[var(--failure-text)]"
                 onClick={() => handleRevoke(t.id)}
                 title="Revoke token"
-                style={{ color: 'var(--failure-text)' }}
               >
                 <Trash2 size={11} /> Revoke
               </button>
@@ -494,13 +488,12 @@ function WebhookCard({ pipelineId }: { pipelineId: string }) {
       )}
 
       {/* Create new token */}
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+      <div className="flex gap-1.5 items-center">
         <input
-          className="input"
+          className="input !h-8 !text-xs flex-1"
           placeholder="Label (e.g. GitHub Actions, Zapier)"
           value={newLabel}
           onChange={e => setNewLabel(e.target.value)}
-          style={{ flex: 1, height: 32, fontSize: 12 }}
           onKeyDown={e => e.key === 'Enter' && !creating && handleCreate()}
         />
         <button
@@ -582,13 +575,11 @@ function CronBuilder({ defaultValue, onChange }: { defaultValue: string; onChang
   })
 
   const upd = (key: keyof CronState, val: number) => setCronState(s => ({ ...s, [key]: val }))
-  const muted: React.CSSProperties = { fontSize: 12.5, color: 'var(--text-3)' }
-  const row:   React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={row}>
-        <select className="input" value={freq} onChange={e => setFreq(e.target.value as Freq)} style={{ height: 34, width: 160 }}>
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        <select className="input !h-[34px] !w-40" value={freq} onChange={e => setFreq(e.target.value as Freq)}>
           <option value="none">No schedule</option>
           <option value="minutely">Every N minutes</option>
           <option value="hourly">Hourly</option>
@@ -599,54 +590,54 @@ function CronBuilder({ defaultValue, onChange }: { defaultValue: string; onChang
         </select>
 
         {freq === 'minutely' && (<>
-          <span style={muted}>every</span>
-          <input className="input" type="number" min={1} max={59} value={state.n} onChange={e => upd('n', +e.target.value)} style={{ width: 64, height: 34 }} />
-          <span style={muted}>minutes</span>
+          <span className="text-[12.5px] text-[var(--text-3)]">every</span>
+          <input className="input !w-16 !h-[34px]" type="number" min={1} max={59} value={state.n} onChange={e => upd('n', +e.target.value)} />
+          <span className="text-[12.5px] text-[var(--text-3)]">minutes</span>
         </>)}
 
         {freq === 'hourly' && (<>
-          <span style={muted}>at</span>
-          <span style={{ ...muted, fontFamily: 'var(--font-mono)' }}>:</span>
-          <input className="input" type="number" min={0} max={59} value={state.minute} onChange={e => upd('minute', +e.target.value)} style={{ width: 64, height: 34 }} title="Minute past the hour (0–59)" />
-          <span style={muted}>each hour</span>
+          <span className="text-[12.5px] text-[var(--text-3)]">at</span>
+          <span className="text-[12.5px] text-[var(--text-3)] font-mono">:</span>
+          <input className="input !w-16 !h-[34px]" type="number" min={0} max={59} value={state.minute} onChange={e => upd('minute', +e.target.value)} title="Minute past the hour (0–59)" />
+          <span className="text-[12.5px] text-[var(--text-3)]">each hour</span>
         </>)}
 
         {(freq === 'daily' || freq === 'weekly' || freq === 'monthly') && (<>
-          <span style={muted}>at</span>
-          <select className="input" value={state.hour} onChange={e => upd('hour', +e.target.value)} style={{ height: 34, width: 80 }}>
+          <span className="text-[12.5px] text-[var(--text-3)]">at</span>
+          <select className="input !h-[34px] !w-20" value={state.hour} onChange={e => upd('hour', +e.target.value)}>
             {Array.from({length: 24}, (_, i) => <option key={i} value={i}>{String(i).padStart(2,'0')}:00</option>)}
           </select>
-          <input className="input" type="number" min={0} max={59} value={state.minute} onChange={e => upd('minute', +e.target.value)} style={{ width: 56, height: 34 }} title="Minute (0–59)" />
+          <input className="input !w-14 !h-[34px]" type="number" min={0} max={59} value={state.minute} onChange={e => upd('minute', +e.target.value)} title="Minute (0–59)" />
         </>)}
 
         {freq === 'weekly' && (<>
-          <span style={muted}>on</span>
-          <select className="input" value={state.weekday} onChange={e => upd('weekday', +e.target.value)} style={{ height: 34, width: 110 }}>
+          <span className="text-[12.5px] text-[var(--text-3)]">on</span>
+          <select className="input !h-[34px] !w-[110px]" value={state.weekday} onChange={e => upd('weekday', +e.target.value)}>
             {DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
           </select>
         </>)}
 
         {freq === 'monthly' && (<>
-          <span style={muted}>on day</span>
-          <input className="input" type="number" min={1} max={31} value={state.monthDay} onChange={e => upd('monthDay', +e.target.value)} style={{ width: 64, height: 34 }} />
+          <span className="text-[12.5px] text-[var(--text-3)]">on day</span>
+          <input className="input !w-16 !h-[34px]" type="number" min={1} max={31} value={state.monthDay} onChange={e => upd('monthDay', +e.target.value)} />
         </>)}
 
         {freq === 'custom' && (
-          <input className="input mono-input" value={rawCron} onChange={e => setRawCron(e.target.value)} placeholder="0 8 * * 1-5" style={{ width: 160, height: 34 }} />
+          <input className="input mono-input !w-40 !h-[34px]" value={rawCron} onChange={e => setRawCron(e.target.value)} placeholder="0 8 * * 1-5" />
         )}
       </div>
 
       {currentCron && freq !== 'custom' && (
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-dim)' }}>
+        <div className="font-mono text-[11px] text-[var(--text-dim)]">
           {currentCron}
         </div>
       )}
 
       {nextData?.next_runs && nextData.next_runs.length > 0 && (
-        <div style={{ fontSize: 11.5, color: 'var(--text-muted)', display: 'flex', flexWrap: 'wrap', gap: '4px 14px' }}>
-          <span style={{ color: 'var(--text-dim)', fontWeight: 500, marginRight: 4 }}>Next runs:</span>
+        <div className="text-[11.5px] text-[var(--text-muted)] flex flex-wrap gap-[4px_14px]">
+          <span className="text-[var(--text-dim)] font-medium mr-1">Next runs:</span>
           {nextData.next_runs.map((t, i) => (
-            <span key={i} style={{ fontFamily: 'var(--font-mono)' }}>
+            <span key={i} className="font-mono">
               {new Date(t).toLocaleString('en-US', { weekday:'short', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', timeZoneName:'short' })}
             </span>
           ))}
