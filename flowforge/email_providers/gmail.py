@@ -80,7 +80,7 @@ class GmailProvider(EmailProvider):
             logger.info("Email sent to %d recipient(s) via Gmail API", len(all_recipients))
             return EmailResult(success=True, recipients=all_recipients)
         except Exception as e:
-            logger.error("Gmail API send failed: %s", e)
+            logger.exception("Gmail API send failed")
             return EmailResult(success=False, error=str(e))
 
     def test(self) -> tuple[bool, str]:
@@ -92,5 +92,5 @@ class GmailProvider(EmailProvider):
             self._creds.refresh(Request())
             return True, f"Connected ({self.sender})"
         except Exception as e:
-            logger.error("Gmail test failed: %s", e)
+            logger.exception("Gmail test failed")
             return False, str(e)

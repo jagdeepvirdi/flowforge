@@ -64,7 +64,12 @@ function PipelineCard({ pipeline, runs }: { pipeline: Pipeline; runs: PipelineRu
     return 'idle'
   })
 
-  const barColor = (b: string) => b === 'ok' ? 'var(--success)' : b === 'fail' ? 'var(--failure)' : b === 'run' ? 'var(--running)' : 'var(--border)'
+  const barColor = (b: string) => {
+    if (b === 'ok') return 'var(--success)'
+    if (b === 'fail') return 'var(--failure)'
+    if (b === 'run') return 'var(--running)'
+    return 'var(--border)'
+  }
 
   return (
     <div className="card flex flex-col gap-3.5 p-4">
@@ -91,13 +96,13 @@ function PipelineCard({ pipeline, runs }: { pipeline: Pipeline; runs: PipelineRu
       {/* Run mini-bars */}
       <div className="flex gap-0.5">
         {bars.map((b, i) => (
-          <span key={i} className="flex-1 h-[22px] rounded-[2px]" style={{ background: barColor(b), opacity: b === 'idle' ? 0.5 : 0.85 }} />
+          <span key={i + '-' + b} className="flex-1 h-[22px] rounded-[2px]" style={{ background: barColor(b), opacity: b === 'idle' ? 0.5 : 0.85 }} />
         ))}
       </div>
 
       {/* Footer */}
       <div className="flex gap-1.5">
-        <Link to={`/runs?pipeline=${pipeline.id}`} className={`btn btn-sm ${canEdit ? 'flex-1' : 'flex-1'}`}>
+        <Link to={`/runs?pipeline=${pipeline.id}`} className="btn btn-sm flex-1">
           <History size={12} /> Runs
         </Link>
         {canEdit && (
@@ -215,7 +220,7 @@ export default function Dashboard() {
               </div>
               <div className="flex gap-0.5">
                 {Array.from({ length: 14 }).map((_, j) => (
-                  <div key={j} className="flex-1 h-[22px] rounded-[2px] bg-[var(--border)] opacity-50" />
+                  <div key={'sk-bar-' + j} className="flex-1 h-[22px] rounded-[2px] bg-[var(--border)] opacity-50" />
                 ))}
               </div>
               <div className="flex gap-1.5">
@@ -249,8 +254,8 @@ export default function Dashboard() {
 
         {/* Stats row */}
         <div className="grid-stats mb-7">
-          {stats.map((s, i) => (
-            <div key={i} className="card p-[16px_18px]">
+          {stats.map((s) => (
+            <div key={s.label} className="card p-[16px_18px]">
               <div className="text-[11px] text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-2">{s.label}</div>
               <div className={`text-[28px] font-semibold font-mono tracking-tight ${s.danger ? 'text-[var(--failure-text)]' : 'text-[var(--text)]'}`}>
                 {s.value}

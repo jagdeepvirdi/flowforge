@@ -58,7 +58,25 @@ const emptyMail = (): MailForm => ({
   is_default: false,
 })
 
-// ── field helpers ────────────────────────────────────────────────────────────
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+function defaultDbPort(dbType: string): string {
+  if (dbType === 'oracle') return '1521'
+  if (dbType === 'mysql')  return '3306'
+  return '5432'
+}
+
+function buildMailProviderConfig(form: MailForm): Record<string, unknown> {
+  const config: Record<string, unknown> = { sender: form.sender }
+  if (form.provider_type === 'smtp') {
+    Object.assign(config, { host: form.host, port: Number(form.port), username: form.username, password: form.password, use_tls: form.use_tls })
+  } else if (form.provider_type === 'gmail') {
+    Object.assign(config, { client_id: form.client_id, client_secret: form.client_secret, refresh_token: form.refresh_token })
+  } else {
+    Object.assign(config, { tenant_id: form.tenant_id, client_id: form.client_id, client_secret: form.client_secret })
+  }
+  return config
+}
 
 function Field({ label, children, tooltip }: { label: string; children: React.ReactNode; tooltip?: React.ReactNode }) {
   return (
@@ -130,9 +148,9 @@ export default function Connections() {
     if (tab === 'db') {
       getDbConnection(id).then(data => {
         const cfg = (data as any).config ?? {}
-        const defaultPort = data.db_type === 'oracle' ? 1521 : data.db_type === 'mysql' ? 3306 : 5432
+        const port = String(cfg.port ?? defaultDbPort(data.db_type))
         setDbForm({ name: data.name, db_type: data.db_type as DbForm['db_type'], is_default: data.is_default,
-          host: cfg.host ?? '', port: String(cfg.port ?? defaultPort), database: cfg.database ?? '',
+          host: cfg.host ?? '', port, database: cfg.database ?? '',
           username: cfg.username ?? '', password: '***' })
       }).catch(() => setFormError('Failed to load connection details'))
     } else {
@@ -160,17 +178,7 @@ export default function Connections() {
 
   function submitMail(e: React.FormEvent) {
     e.preventDefault(); setFormError('')
-    const config: Record<string, unknown> = { sender: mailForm.sender }
-    if (mailForm.provider_type === 'smtp') {
-      Object.assign(config, { host: mailForm.host, port: Number(mailForm.port),
-        username: mailForm.username, password: mailForm.password, use_tls: mailForm.use_tls })
-    } else if (mailForm.provider_type === 'gmail') {
-      Object.assign(config, { client_id: mailForm.client_id, client_secret: mailForm.client_secret, refresh_token: mailForm.refresh_token })
-    } else {
-      Object.assign(config, { tenant_id: mailForm.tenant_id,
-        client_id: mailForm.client_id, client_secret: mailForm.client_secret })
-    }
-    const payload = { name: mailForm.name, provider_type: mailForm.provider_type, is_default: mailForm.is_default, config }
+    const payload = { name: mailForm.name, provider_type: mailForm.provider_type, is_default: mailForm.is_default, config: buildMailProviderConfig(mailForm) }
     if (editId) saveMail({ id: editId, data: payload })
     else addMail(payload)
   }
@@ -204,6 +212,11 @@ export default function Connections() {
   ]
 
   const submitting = addingDb || addingMail || savingDb || savingMail
+
+  const testBg     = modalTest.status === 'ok' ? 'rgba(34,197,94,0.08)'  : (modalTest.status === 'fail' ? 'rgba(239,68,68,0.08)' : 'var(--surface-2)')
+  const testBorder = modalTest.status === 'ok' ? 'rgba(34,197,94,0.3)'   : (modalTest.status === 'fail' ? 'rgba(239,68,68,0.2)'  : 'var(--border)')
+  const testColor  = modalTest.status === 'ok' ? 'var(--success-text)'   : (modalTest.status === 'fail' ? 'var(--failure-text)'  : 'var(--text-3)')
+  const dotBg      = modalTest.status === 'ok' ? 'var(--success-text)'   : (modalTest.status === 'fail' ? 'var(--failure)'       : 'var(--text-muted)')
 
   return (
     <>
@@ -453,8 +466,7 @@ export default function Connections() {
                 <Field label="Type">
                   <select className="input" value={dbForm.db_type} onChange={e => {
                     const t = e.target.value as DbForm['db_type']
-                    const defaultPort = t === 'oracle' ? '1521' : t === 'mysql' ? '3306' : '5432'
-                    setDbForm(f => ({ ...f, db_type: t, port: defaultPort }))
+                    setDbForm(f => ({ ...f, db_type: t, port: defaultDbPort(t) }))
                   }}>
                     <option value="postgresql">PostgreSQL</option>
                     <option value="oracle">Oracle</option>
@@ -463,7 +475,7 @@ export default function Connections() {
                 </Field>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: 10 }}>
-                  <Field label="Host" tooltip={<FieldTooltip field={dbForm.db_type === 'oracle' ? 'oracle_connection' : dbForm.db_type === 'mysql' ? 'db_host_port' : 'db_host_port'} />}>
+                  <Field label="Host" tooltip={<FieldTooltip field={dbForm.db_type === 'oracle' ? 'oracle_connection' : 'db_host_port'} />}>
                     <input className="input" value={dbForm.host} onChange={e => setDbForm(f => ({ ...f, host: e.target.value }))} placeholder="localhost" required />
                   </Field>
                   <Field label="Port">
@@ -492,7 +504,7 @@ export default function Connections() {
                 {formError && <div style={{ fontSize: 12.5, color: 'var(--failure-text)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, padding: '8px 12px' }}>{formError}</div>}
 
                 {modalTest.status !== 'idle' && (
-                  <div style={{ fontSize: 12, padding: '7px 12px', borderRadius: 6, background: modalTest.status === 'ok' ? 'rgba(34,197,94,0.08)' : modalTest.status === 'fail' ? 'rgba(239,68,68,0.08)' : 'var(--surface-2)', border: `1px solid ${modalTest.status === 'ok' ? 'rgba(34,197,94,0.3)' : modalTest.status === 'fail' ? 'rgba(239,68,68,0.2)' : 'var(--border)'}`, color: modalTest.status === 'ok' ? 'var(--success-text)' : modalTest.status === 'fail' ? 'var(--failure-text)' : 'var(--text-3)' }}>
+                  <div style={{ fontSize: 12, padding: '7px 12px', borderRadius: 6, background: testBg, border: `1px solid ${testBorder}`, color: testColor }}>
                     {modalTest.status === 'testing' ? 'Testing connection…' : modalTest.msg}
                   </div>
                 )}
@@ -500,7 +512,7 @@ export default function Connections() {
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
                   <button type="button" className="btn btn-sm" onClick={closeModal}>Cancel</button>
                   <button type="button" className="btn btn-sm" onClick={runModalTest} disabled={modalTest.status === 'testing'}>
-                    {modalTest.status === 'testing' ? <Spinner size={11} /> : <span style={{ width: 6, height: 6, borderRadius: '50%', background: modalTest.status === 'ok' ? 'var(--success-text)' : modalTest.status === 'fail' ? 'var(--failure)' : 'var(--text-muted)' }} />}
+                    {modalTest.status === 'testing' ? <Spinner size={11} /> : <span style={{ width: 6, height: 6, borderRadius: '50%', background: dotBg }} />}
                     Test
                   </button>
                   <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>

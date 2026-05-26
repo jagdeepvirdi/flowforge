@@ -101,20 +101,17 @@ class AiAnalyzeStep(BaseStep):
             return StepResult(success=False, error='ai_analyze: query is required')
 
         prompt_template = self.config.get('prompt', 'Summarise this dataset in 3 sentences.')
-        output_var  = (self.config.get('output_variable') or 'ai_summary').strip()
-        provider    = (self.config.get('provider') or 'ollama').lower().strip()
-        max_rows    = min(int(self.config.get('max_rows', _MAX_ROWS_DEFAULT)), _MAX_ROWS_HARD_CAP)
+        output_var    = (self.config.get('output_variable') or 'ai_summary').strip()
+        provider      = (self.config.get('provider') or 'ollama').lower().strip()
+        max_rows      = min(int(self.config.get('max_rows', _MAX_ROWS_DEFAULT)), _MAX_ROWS_HARD_CAP)
         connection_id = self.config.get('connection_id', '')
 
         sql    = render(query_template,  context)
         prompt = render(prompt_template, context)
 
-        # ── 1. Execute query ────────────────────────────────────────────────
-        try:
-            rows, columns = self._execute_query(connection_id, sql)
-        except Exception as exc:
-            logger.error("ai_analyze: query failed: %s", exc)
-            return StepResult(success=False, error=f'Query failed: {exc}')
+        rows, columns, err = self._run_query_or_fail(connection_id, sql)
+        if err:
+            return StepResult(success=False, error=err)
 
         total_rows = len(rows)
         data_rows  = rows[:max_rows]
@@ -122,36 +119,19 @@ class AiAnalyzeStep(BaseStep):
         if total_rows > max_rows:
             data_text += f'\n\n[Showing first {max_rows} of {total_rows} rows]'
 
-        logger.info(
-            "ai_analyze: %d rows returned; sending %d to %s",
-            total_rows, len(data_rows), provider,
-        )
+        logger.info("ai_analyze: %d rows returned; sending %d to %s", total_rows, len(data_rows), provider)
 
-        # ── 2. Build prompt ─────────────────────────────────────────────────
         full_prompt = (
             'You are a data analyst. Below is the result of a SQL query.\n\n'
             f'{data_text}\n\n'
             f'Task: {prompt}'
         )
 
-        # ── 3. Call AI provider ─────────────────────────────────────────────
-        try:
-            summary = self._call_provider(provider, full_prompt)
-        except urllib.error.URLError as exc:
-            ollama_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
-            return StepResult(
-                success=False,
-                error=f'Ollama is not reachable at {ollama_url}. Is it running? ({exc})',
-            )
-        except Exception as exc:
-            logger.error("ai_analyze: LLM call failed: %s", exc)
-            return StepResult(success=False, error=f'AI call failed: {exc}')
+        summary, err = self._call_provider_or_fail(provider, full_prompt)
+        if err:
+            return StepResult(success=False, error=err)
 
-        logger.info(
-            "ai_analyze: response stored in '{{ %s }}' (%d chars)",
-            output_var, len(summary),
-        )
-
+        logger.info("ai_analyze: response stored in '{{ %s }}' (%d chars)", output_var, len(summary))
         step_log = (
             f'Provider : {provider}\n'
             f'Rows     : {total_rows} returned, {len(data_rows)} sent to LLM\n'
@@ -168,12 +148,29 @@ class AiAnalyzeStep(BaseStep):
 
     # ── helpers ────────────────────────────────────────────────────────────────
 
+    def _run_query_or_fail(self, connection_id: str, sql: str) -> tuple[list, list[str], str]:
+        try:
+            rows, columns = self._execute_query(connection_id, sql)
+            return rows, columns, ''
+        except Exception as exc:
+            logger.exception("ai_analyze: query failed")
+            return [], [], f'Query failed: {exc}'
+
+    def _call_provider_or_fail(self, provider: str, prompt: str) -> tuple[str, str]:
+        try:
+            return self._call_provider(provider, prompt), ''
+        except urllib.error.URLError as exc:
+            ollama_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
+            return '', f'Ollama is not reachable at {ollama_url}. Is it running? ({exc})'
+        except Exception as exc:
+            logger.exception("ai_analyze: LLM call failed")
+            return '', f'AI call failed: {exc}'
+
     def _execute_query(self, connection_id: str, sql: str) -> tuple[list[tuple], list[str]]:
         if connection_id:
             from flowforge.connections.factory import get_connection
             with get_connection(connection_id) as conn:
                 return conn.execute_query_with_columns(sql)
-        # Fallback: env-var PostgreSQL connection
         from flowforge.connections.postgres import PostgreSQLConnection
         with PostgreSQLConnection(
             host=os.environ.get('DB_HOST', ''),
@@ -187,6 +184,5 @@ class AiAnalyzeStep(BaseStep):
         if provider == 'claude':
             model = self.config.get('model') or 'claude-haiku-4-5-20251001'
             return _call_claude(prompt, model)
-        # Default: ollama
         model = self.config.get('model') or os.environ.get('OLLAMA_QUERY_MODEL', 'llama3.2:3b')
         return _call_ollama(prompt, model)

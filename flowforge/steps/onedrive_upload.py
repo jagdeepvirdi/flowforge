@@ -31,5 +31,5 @@ class OneDriveUploadStep(BaseStep):
             logger.info("Uploaded '%s' → %s", file_path.name, drive_url)
             return StepResult(success=True, drive_url=drive_url)
         except Exception as e:
-            logger.error("OneDrive upload failed: %s", e)
+            logger.exception("OneDrive upload failed")
             return StepResult(success=False, error=str(e))

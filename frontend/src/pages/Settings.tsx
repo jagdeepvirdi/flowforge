@@ -71,18 +71,18 @@ function ChangePasswordCard() {
       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Change Password</div>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div className="field">
-          <label>Current Password</label>
-          <input className="input" type="password" value={form.current_password}
+          <label htmlFor="settings-current-password">Current Password</label>
+          <input id="settings-current-password" className="input" type="password" value={form.current_password}
             onChange={e => setForm(f => ({ ...f, current_password: e.target.value }))} required />
         </div>
         <div className="field">
-          <label>New Password</label>
-          <input className="input" type="password" value={form.new_password}
+          <label htmlFor="settings-new-password">New Password</label>
+          <input id="settings-new-password" className="input" type="password" value={form.new_password}
             onChange={e => setForm(f => ({ ...f, new_password: e.target.value }))} required />
         </div>
         <div className="field">
-          <label>Confirm New Password</label>
-          <input className="input" type="password" value={form.confirm}
+          <label htmlFor="settings-confirm-password">Confirm New Password</label>
+          <input id="settings-confirm-password" className="input" type="password" value={form.confirm}
             onChange={e => setForm(f => ({ ...f, confirm: e.target.value }))} required />
         </div>
         {error && (
@@ -112,6 +112,10 @@ export default function Settings() {
     staleTime: 30_000,
   })
 
+  const driveLabel = !status ? '' : status.drive.configured
+    ? (status.drive.folder_id ? 'Drive · folder set' : 'Drive · no folder')
+    : 'Drive not configured'
+
   return (
     <>
       <TopBar crumbs={['Workspace', 'Settings']} helpTopic="settings" />
@@ -138,12 +142,7 @@ export default function Settings() {
                       ok={status.gmail.configured}
                       label={status.gmail.configured ? `Gmail · ${status.gmail.sender}` : 'Gmail not configured'}
                     />
-                    <StatusBadge
-                      ok={status.drive.configured}
-                      label={status.drive.configured
-                        ? status.drive.folder_id ? 'Drive · folder set' : 'Drive · no folder'
-                        : 'Drive not configured'}
-                    />
+                    <StatusBadge ok={status.drive.configured} label={driveLabel} />
                   </div>
                 )
               }

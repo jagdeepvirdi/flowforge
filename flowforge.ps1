@@ -3,7 +3,11 @@
 #   .\flowforge.ps1 start              # dev mode (Flask debug + Vite HMR + scheduler)
 #   .\flowforge.ps1 start -Mode prod   # prod mode (build frontend + waitress + scheduler)
 #   .\flowforge.ps1 start -Mode prod -UseWaitress
-#   .\flowforge.ps1 stop               # stop Flask API, Vite dev server, and scheduler
+#   .\flowforge.ps1 stop               # stop Flask API, Vite dev server, scheduler, and worker
+#
+# Celery worker (optional):
+#   If FLOWFORGE_REDIS_URL is set in .env, a Celery worker is started automatically
+#   alongside the API in both dev and prod modes.
 
 param(
     [Parameter(Mandatory, Position = 0)]
@@ -37,16 +41,17 @@ if ($Action -eq 'stop') {
         }
     }
 
-    function Stop-Scheduler {
+    function Stop-ByPattern {
+        param([string]$Pattern, [string]$Label)
         $procs = Get-CimInstance Win32_Process -Filter "Name='python.exe'" -ErrorAction SilentlyContinue |
-                 Where-Object { $_.CommandLine -like '*flowforge*schedule*' }
+                 Where-Object { $_.CommandLine -like $Pattern }
         if ($procs) {
             foreach ($proc in $procs) {
                 Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue
-                Write-Host "  Stopped Scheduler (PID $($proc.ProcessId))" -ForegroundColor Green
+                Write-Host "  Stopped $Label (PID $($proc.ProcessId))" -ForegroundColor Green
             }
         } else {
-            Write-Host "  Scheduler not running" -ForegroundColor Gray
+            Write-Host "  $Label not running" -ForegroundColor Gray
         }
     }
 
@@ -67,9 +72,10 @@ if ($Action -eq 'stop') {
 
     $ffPort = if ($env:FLOWFORGE_PORT) { [int]$env:FLOWFORGE_PORT } else { 5000 }
 
-    Stop-ByPort   -Port $ffPort -Label 'Flask API'
-    Stop-ByPort   -Port 5173    -Label 'Vite UI'
-    Stop-Scheduler
+    Stop-ByPort    -Port $ffPort -Label 'Flask API'
+    Stop-ByPort    -Port 5173    -Label 'Vite UI'
+    Stop-ByPattern -Pattern '*flowforge*schedule*' -Label 'Scheduler'
+    Stop-ByPattern -Pattern '*flowforge*worker*'   -Label 'Celery worker'
 
     Get-Job | Where-Object { $_.State -in 'Running','Stopped' } | ForEach-Object {
         Stop-Job   $_ -ErrorAction SilentlyContinue
@@ -127,13 +133,18 @@ $envLoader = {
 
 # ── DEV MODE ─────────────────────────────────────────────────────────────────
 if ($Mode -eq 'dev') {
+    $hasRedis = [bool]$env:FLOWFORGE_REDIS_URL
+
     Write-Host ''
     Write-Host 'Starting FlowForge in DEV mode...' -ForegroundColor Yellow
     Write-Host "  API       -> http://localhost:$resolvedPort" -ForegroundColor Green
     Write-Host '  UI        -> http://localhost:5173'          -ForegroundColor Green
     Write-Host '  Scheduler -> running alongside API'          -ForegroundColor Green
+    if ($hasRedis) {
+        Write-Host '  Worker    -> Celery worker (Redis detected)' -ForegroundColor Green
+    }
     Write-Host ''
-    Write-Host 'Press Ctrl+C to stop all three processes.' -ForegroundColor Gray
+    Write-Host 'Press Ctrl+C to stop all processes.' -ForegroundColor Gray
     Write-Host ''
 
     $apiJob = Start-Job -ScriptBlock {
@@ -157,22 +168,40 @@ if ($Mode -eq 'dev') {
         npm run dev 2>&1
     } -ArgumentList $root
 
+    $workerJob = $null
+    if ($hasRedis) {
+        $workerJob = Start-Job -ScriptBlock {
+            param($root, $envLoader)
+            Set-Location $root
+            $python = & ([scriptblock]::Create($envLoader)) $root
+            & $python -m flowforge.cli worker 2>&1
+        } -ArgumentList $root, $envLoader.ToString()
+        Write-Host "[work]  Celery worker started (Job $($workerJob.Id))" -ForegroundColor DarkGreen
+    }
+
+    $allJobs = @($apiJob, $schedJob, $uiJob) + @($workerJob | Where-Object { $_ })
+
     try {
         while ($true) {
-            $apiOut   = Receive-Job $apiJob
-            $schedOut = Receive-Job $schedJob
-            $uiOut    = Receive-Job $uiJob
+            $apiOut    = Receive-Job $apiJob
+            $schedOut  = Receive-Job $schedJob
+            $uiOut     = Receive-Job $uiJob
             if ($apiOut)   { $apiOut   | ForEach-Object { Write-Host "[api]   $_" -ForegroundColor Blue } }
             if ($schedOut) { $schedOut | ForEach-Object { Write-Host "[sched] $_" -ForegroundColor DarkYellow } }
             if ($uiOut)    { $uiOut    | ForEach-Object { Write-Host "[ui]    $_" -ForegroundColor Magenta } }
+            if ($workerJob) {
+                $workOut = Receive-Job $workerJob
+                if ($workOut) { $workOut | ForEach-Object { Write-Host "[work]  $_" -ForegroundColor DarkGreen } }
+                if ($workerJob.State -eq 'Failed') { Write-Warning 'Worker job failed'; break }
+            }
             if ($apiJob.State   -eq 'Failed') { Write-Warning 'API job failed';       break }
             if ($schedJob.State -eq 'Failed') { Write-Warning 'Scheduler job failed'; break }
             if ($uiJob.State    -eq 'Failed') { Write-Warning 'UI job failed';        break }
             Start-Sleep -Milliseconds 300
         }
     } finally {
-        Stop-Job   $apiJob, $schedJob, $uiJob -ErrorAction SilentlyContinue
-        Remove-Job $apiJob, $schedJob, $uiJob -ErrorAction SilentlyContinue
+        Stop-Job   $allJobs -ErrorAction SilentlyContinue
+        Remove-Job $allJobs -ErrorAction SilentlyContinue
         Write-Host ''
         Write-Host 'Stopped.' -ForegroundColor Red
     }
@@ -199,6 +228,18 @@ if ($Mode -eq 'prod') {
     } -ArgumentList $root, $envLoader.ToString()
 
     Write-Host '[sched] Scheduler started' -ForegroundColor DarkYellow
+
+    $workerJob = $null
+    if ($env:FLOWFORGE_REDIS_URL) {
+        $workerJob = Start-Job -ScriptBlock {
+            param($root, $envLoader)
+            Set-Location $root
+            $python = & ([scriptblock]::Create($envLoader)) $root
+            & $python -m flowforge.cli worker 2>&1
+        } -ArgumentList $root, $envLoader.ToString()
+        Write-Host "[work]  Celery worker started (Job $($workerJob.Id))" -ForegroundColor DarkGreen
+    }
+
     Write-Host ''
     Write-Host "Listening on http://0.0.0.0:$resolvedPort" -ForegroundColor Green
     Write-Host ''
@@ -219,10 +260,15 @@ serve(app, host='0.0.0.0', port=$resolvedPort, threads=8)
             & $python -m flask --app flowforge.api.app:create_app run --host 0.0.0.0 --port $resolvedPort
         }
     } finally {
-        # Drain any scheduler output before stopping
+        # Drain output before stopping background jobs
         Receive-Job $schedJob | ForEach-Object { Write-Host "[sched] $_" -ForegroundColor DarkYellow }
+        if ($workerJob) {
+            Receive-Job $workerJob | ForEach-Object { Write-Host "[work]  $_" -ForegroundColor DarkGreen }
+            Stop-Job   $workerJob -ErrorAction SilentlyContinue
+            Remove-Job $workerJob -ErrorAction SilentlyContinue
+        }
         Stop-Job   $schedJob -ErrorAction SilentlyContinue
         Remove-Job $schedJob -ErrorAction SilentlyContinue
-        Write-Host 'Scheduler stopped.' -ForegroundColor Red
+        Write-Host 'Background processes stopped.' -ForegroundColor Red
     }
 }

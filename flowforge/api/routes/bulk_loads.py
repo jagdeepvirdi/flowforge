@@ -6,6 +6,9 @@ from flowforge.db.models import BulkLoadConfig, db
 
 bp = Blueprint('bulk_loads', __name__)
 
+# ── constants ──
+_NOT_FOUND = 'Bulk load config not found'
+
 
 def _cfg_dict(c: BulkLoadConfig) -> dict:
     return {
@@ -74,7 +77,7 @@ def create_bulk_load_config():
 def get_bulk_load_config(config_id):
     cfg = db.session.get(BulkLoadConfig, str(config_id))
     if not cfg:
-        return jsonify({'error': 'Bulk load config not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
     return jsonify(_cfg_dict(cfg))
 
 
@@ -83,7 +86,7 @@ def get_bulk_load_config(config_id):
 def update_bulk_load_config(config_id):
     cfg = db.session.get(BulkLoadConfig, str(config_id))
     if not cfg:
-        return jsonify({'error': 'Bulk load config not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
 
     data = request.get_json() or {}
     fields = (
@@ -109,7 +112,7 @@ def update_bulk_load_config(config_id):
 def delete_bulk_load_config(config_id):
     cfg = db.session.get(BulkLoadConfig, str(config_id))
     if not cfg:
-        return jsonify({'error': 'Bulk load config not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
     db.session.delete(cfg)
     db.session.commit()
     return jsonify({'deleted': str(config_id)})

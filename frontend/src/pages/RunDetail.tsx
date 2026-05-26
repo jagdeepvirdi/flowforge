@@ -68,10 +68,101 @@ function AnomalyRow({ label, metric, a, aiEnabled, narrative, narrating, onNarra
   )
 }
 
+function StepStatusIcon({ status, stepOrder, statusColor }: { status: string; stepOrder: number; statusColor: string }) {
+  if (status === 'success') return <CheckCircle size={12} />
+  if (status === 'failed')  return <XCircle size={12} />
+  if (status === 'running') return <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor, animation: 'ff-pulse 1.4s infinite' }} />
+  return <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700 }}>{stepOrder}</span>
+}
+
+function StepLogsTab({ s, diagnosisPanel }: { s: StepRun; diagnosisPanel: React.ReactNode }) {
+  return (
+    <>
+      {s.error_message && (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, color: 'var(--failure-text)', whiteSpace: 'pre-wrap', marginBottom: 6 }}>
+            {s.error_message}
+          </div>
+          {diagnosisPanel}
+        </div>
+      )}
+      {s.logs
+        ? <pre style={{ color: 'var(--text-2)', background: 'var(--bg)', margin: 0, whiteSpace: 'pre-wrap', maxHeight: 240, overflow: 'auto' }}>{s.logs}</pre>
+        : !s.error_message && <span style={{ color: 'var(--text-dim)' }}>No logs for this step.</span>}
+    </>
+  )
+}
+
+function StepOutputTab({ s }: { s: StepRun }) {
+  const [downloading, setDownloading] = useState(false)
+  async function handleDownload() {
+    if (!s.output_path) return
+    setDownloading(true)
+    try {
+      const filename = s.output_path.split(/[\\/]/).pop() ?? 'output'
+      await downloadStepOutput(s.id, filename)
+    } finally {
+      setDownloading(false)
+    }
+  }
+  const hasOutput = s.output_path || s.drive_url || s.email_sent_to.length > 0 || s.rows_affected != null
+  return (
+    <>
+      {s.output_path && (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: 11, marginBottom: 6 }}>{s.output_path.split(/[\\/]/).pop()}</div>
+          <button
+            onClick={handleDownload}
+            disabled={downloading}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '6px 12px', borderRadius: 6, border: '1px solid var(--border-strong)',
+              background: downloading ? 'var(--surface)' : 'var(--surface-2)',
+              color: downloading ? 'var(--text-dim)' : 'var(--text)',
+              fontSize: 12, cursor: downloading ? 'default' : 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            <Download size={12} />
+            {downloading ? 'Downloading…' : 'Download file'}
+          </button>
+        </div>
+      )}
+      {s.drive_url && (
+        <a href={s.drive_url} target="_blank" rel="noreferrer" style={{ color: 'var(--running-text)', display: 'inline-flex', alignItems: 'center', gap: 5, marginBottom: 6, fontSize: 12 }}>
+          View in Drive <ExternalLink size={11} />
+        </a>
+      )}
+      {s.email_sent_to.length > 0 && (
+        <div style={{ color: 'var(--text-3)', marginBottom: 6 }}>
+          Sent to: {s.email_sent_to.map(addr => (
+            <span key={addr} className="chip" style={{ marginLeft: 6, height: 20, fontSize: 11 }}>{addr}</span>
+          ))}
+        </div>
+      )}
+      {s.rows_affected != null && (
+        <div style={{ color: 'var(--text-3)' }}>Rows affected: <span style={{ color: 'var(--text-2)' }}>{s.rows_affected.toLocaleString()}</span></div>
+      )}
+      {!hasOutput && <span style={{ color: 'var(--text-dim)' }}>No output recorded.</span>}
+    </>
+  )
+}
+
+function StepInfoTab({ s }: { s: StepRun }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, color: 'var(--text-3)' }}>
+      <div>Type: <span style={{ color: 'var(--text-2)' }}>{s.step_type}</span></div>
+      <div>Order: <span style={{ color: 'var(--text-2)' }}>#{s.step_order}</span></div>
+      <div>Status: <span style={{ color: 'var(--text-2)' }}>{s.status}</span></div>
+      <div>Started: <span style={{ color: 'var(--text-2)' }}>{new Date(s.started_at).toLocaleTimeString()}</span></div>
+      {s.finished_at && <div>Finished: <span style={{ color: 'var(--text-2)' }}>{new Date(s.finished_at).toLocaleTimeString()}</span></div>}
+      {s.duration_ms != null && <div>Duration: <span style={{ color: 'var(--text-2)' }}>{s.duration_ms}ms</span></div>}
+    </div>
+  )
+}
+
 function TimelineStep({ s, last, aiEnabled, anomaly }: { s: StepRun; last: boolean; aiEnabled: boolean; anomaly: StepAnomaly | null }) {
   const [open, setOpen]           = useState(s.status === 'failed' || !!anomaly)
   const [activeTab, setActiveTab] = useState(0)
-  const [downloading, setDownloading] = useState(false)
   const [diagnosis, setDiagnosis] = useState<string | null>(null)
   const [diagnosing, setDiagnosing] = useState(false)
   const [rowsNarrative, setRowsNarrative] = useState<string | null>(null)
@@ -106,18 +197,38 @@ function TimelineStep({ s, last, aiEnabled, anomaly }: { s: StepRun; last: boole
     }
   }
 
-  async function handleDownload() {
-    if (!s.output_path) return
-    setDownloading(true)
-    try {
-      const filename = s.output_path.split(/[\\/]/).pop() ?? 'output'
-      await downloadStepOutput(s.id, filename)
-    } finally {
-      setDownloading(false)
-    }
-  }
   const typeMeta = TYPE_META[s.step_type] ?? { cls: 'tbadge-query', label: s.step_type }
   const statusColor = STATUS_COLOR[s.status] ?? 'var(--text-dim)'
+  const durationColor = s.status === 'success' ? 'var(--success-text)' : (s.status === 'running' ? 'var(--running-text)' : 'var(--text-dim)')
+
+  const diagnosisPanelResult = diagnosis !== null ? (
+    <div style={{ padding: '10px 12px', background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: '#F97316', display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'inherit' }}>
+          <Lightbulb size={11} /> AI Diagnosis
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'inherit' }}>via Ollama</span>
+          <button onClick={() => setDiagnosis(null)} style={{ display: 'flex', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0 }}>
+            <X size={12} />
+          </button>
+        </div>
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+        {diagnosis}
+      </div>
+    </div>
+  ) : null
+  const diagnosisPanel = diagnosisPanelResult ?? (aiEnabled ? (
+    <button
+      onClick={handleDiagnose}
+      disabled={diagnosing}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 9px', borderRadius: 4, border: '1px solid rgba(249,115,22,0.3)', background: 'rgba(249,115,22,0.06)', color: '#F97316', cursor: diagnosing ? 'default' : 'pointer', fontFamily: 'inherit', opacity: diagnosing ? 0.7 : 1 }}
+    >
+      <Lightbulb size={11} />
+      {diagnosing ? 'Diagnosing…' : 'Explain this error'}
+    </button>
+  ) : null)
 
   return (
     <div style={{ display: 'flex', gap: 14, position: 'relative' }}>
@@ -133,10 +244,7 @@ function TimelineStep({ s, last, aiEnabled, anomaly }: { s: StepRun; last: boole
           zIndex: 1,
           boxShadow: s.status === 'running' ? `0 0 0 4px rgba(59,130,246,0.15)` : 'none',
         }}>
-          {s.status === 'success' ? <CheckCircle size={12} />
-            : s.status === 'failed' ? <XCircle size={12} />
-            : s.status === 'running' ? <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor, animation: 'ff-pulse 1.4s infinite' }} />
-            : <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700 }}>{s.step_order}</span>}
+          <StepStatusIcon status={s.status} stepOrder={s.step_order} statusColor={statusColor} />
         </div>
         {!last && <div style={{ flex: 1, width: 2, background: 'var(--border)', marginTop: 2 }} />}
       </div>
@@ -160,7 +268,7 @@ function TimelineStep({ s, last, aiEnabled, anomaly }: { s: StepRun; last: boole
             {s.rows_affected != null && <span>{s.rows_affected.toLocaleString()} rows</span>}
             {anomaly && <span title="Statistical anomaly detected" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: '#F97316' }}><AlertTriangle size={12} /> anomaly</span>}
           </span>
-          <span className="mono" style={{ fontSize: 11.5, color: s.status === 'success' ? 'var(--success-text)' : s.status === 'running' ? 'var(--running-text)' : 'var(--text-dim)', minWidth: 50, textAlign: 'right' }}>
+          <span className="mono" style={{ fontSize: 11.5, color: durationColor, minWidth: 50, textAlign: 'right' }}>
             {fmtDur(s.duration_ms)}
           </span>
           {open ? <ChevronUp size={14} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />}
@@ -213,102 +321,9 @@ function TimelineStep({ s, last, aiEnabled, anomaly }: { s: StepRun; last: boole
 
             {/* Content */}
             <div style={{ padding: '12px 16px', fontFamily: 'JetBrains Mono, monospace', fontSize: 11.5, lineHeight: 1.7 }}>
-              {activeTab === 0 && (<>
-                {s.error_message && (
-                  <div style={{ marginBottom: 10 }}>
-                    {/* Error text */}
-                    <div style={{ padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, color: 'var(--failure-text)', whiteSpace: 'pre-wrap', marginBottom: 6 }}>
-                      {s.error_message}
-                    </div>
-
-                    {/* Diagnosis panel or trigger button */}
-                    {diagnosis !== null ? (
-                      <div style={{ padding: '10px 12px', background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: 6 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: '#F97316', display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'inherit' }}>
-                            <Lightbulb size={11} /> AI Diagnosis
-                          </span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'inherit' }}>via Ollama</span>
-                            <button onClick={() => setDiagnosis(null)} style={{ display: 'flex', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0 }}>
-                              <X size={12} />
-                            </button>
-                          </div>
-                        </div>
-                        <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
-                          {diagnosis}
-                        </div>
-                      </div>
-                    ) : aiEnabled ? (
-                      <button
-                        onClick={handleDiagnose}
-                        disabled={diagnosing}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 9px', borderRadius: 4, border: '1px solid rgba(249,115,22,0.3)', background: 'rgba(249,115,22,0.06)', color: '#F97316', cursor: diagnosing ? 'default' : 'pointer', fontFamily: 'inherit', opacity: diagnosing ? 0.7 : 1 }}
-                      >
-                        <Lightbulb size={11} />
-                        {diagnosing ? 'Diagnosing…' : 'Explain this error'}
-                      </button>
-                    ) : null}
-                  </div>
-                )}
-                {s.logs
-                  ? <pre style={{ color: 'var(--text-2)', background: 'var(--bg)', margin: 0, whiteSpace: 'pre-wrap', maxHeight: 240, overflow: 'auto' }}>{s.logs}</pre>
-                  : !s.error_message && <span style={{ color: 'var(--text-dim)' }}>No logs for this step.</span>}
-              </>)}
-
-              {activeTab === 1 && (<>
-                {s.output_path && (
-                  <div style={{ marginBottom: 10 }}>
-                    <div style={{ color: 'var(--text-muted)', fontSize: 11, marginBottom: 6 }}>
-                      {s.output_path.split(/[\\/]/).pop()}
-                    </div>
-                    <button
-                      onClick={handleDownload}
-                      disabled={downloading}
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 6,
-                        padding: '6px 12px', borderRadius: 6, border: '1px solid var(--border-strong)',
-                        background: downloading ? 'var(--surface)' : 'var(--surface-2)',
-                        color: downloading ? 'var(--text-dim)' : 'var(--text)',
-                        fontSize: 12, cursor: downloading ? 'default' : 'pointer',
-                        fontFamily: 'inherit',
-                      }}
-                    >
-                      <Download size={12} />
-                      {downloading ? 'Downloading…' : 'Download file'}
-                    </button>
-                  </div>
-                )}
-                {s.drive_url && (
-                  <a href={s.drive_url} target="_blank" rel="noreferrer" style={{ color: 'var(--running-text)', display: 'inline-flex', alignItems: 'center', gap: 5, marginBottom: 6, fontSize: 12 }}>
-                    View in Drive <ExternalLink size={11} />
-                  </a>
-                )}
-                {s.email_sent_to.length > 0 && (
-                  <div style={{ color: 'var(--text-3)', marginBottom: 6 }}>
-                    Sent to: {s.email_sent_to.map(addr => (
-                      <span key={addr} className="chip" style={{ marginLeft: 6, height: 20, fontSize: 11 }}>{addr}</span>
-                    ))}
-                  </div>
-                )}
-                {s.rows_affected != null && (
-                  <div style={{ color: 'var(--text-3)' }}>Rows affected: <span style={{ color: 'var(--text-2)' }}>{s.rows_affected.toLocaleString()}</span></div>
-                )}
-                {!s.output_path && !s.drive_url && s.email_sent_to.length === 0 && s.rows_affected == null && (
-                  <span style={{ color: 'var(--text-dim)' }}>No output recorded.</span>
-                )}
-              </>)}
-
-              {activeTab === 2 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, color: 'var(--text-3)' }}>
-                  <div>Type: <span style={{ color: 'var(--text-2)' }}>{s.step_type}</span></div>
-                  <div>Order: <span style={{ color: 'var(--text-2)' }}>#{s.step_order}</span></div>
-                  <div>Status: <span style={{ color: 'var(--text-2)' }}>{s.status}</span></div>
-                  <div>Started: <span style={{ color: 'var(--text-2)' }}>{new Date(s.started_at).toLocaleTimeString()}</span></div>
-                  {s.finished_at && <div>Finished: <span style={{ color: 'var(--text-2)' }}>{new Date(s.finished_at).toLocaleTimeString()}</span></div>}
-                  {s.duration_ms != null && <div>Duration: <span style={{ color: 'var(--text-2)' }}>{s.duration_ms}ms</span></div>}
-                </div>
-              )}
+              {activeTab === 0 && <StepLogsTab s={s} diagnosisPanel={diagnosisPanel} />}
+              {activeTab === 1 && <StepOutputTab s={s} />}
+              {activeTab === 2 && <StepInfoTab s={s} />}
             </div>
           </div>
         )}
@@ -397,12 +412,13 @@ export default function RunDetail() {
         <div style={{ marginBottom: 20 }}>
           <div style={{ display: 'flex', gap: 2, height: 6, borderRadius: 4, overflow: 'hidden', background: 'var(--surface-2)' }}>
             {steps.map((s, i) => {
+              const barBackground = s.status === 'success' ? 'var(--success)'
+                : s.status === 'running' ? 'linear-gradient(90deg,var(--running),var(--running-text))'
+                : (s.status === 'failed' ? 'var(--failure)' : 'var(--surface-2)')
               return (
                 <div key={i} style={{
                   flex: s.status === 'success' || s.status === 'running' ? (s.duration_ms ?? 1) : 1,
-                  background: s.status === 'success' ? 'var(--success)'
-                    : s.status === 'running' ? 'linear-gradient(90deg,var(--running),var(--running-text))'
-                    : s.status === 'failed' ? 'var(--failure)' : 'var(--surface-2)',
+                  background: barBackground,
                   position: 'relative',
                   overflow: 'hidden',
                 }}>

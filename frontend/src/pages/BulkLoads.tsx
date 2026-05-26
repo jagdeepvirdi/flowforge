@@ -41,7 +41,7 @@ export default function BulkLoads() {
             </thead>
             <tbody>
               {Array.from({ length: 5 }).map((_, i) => (
-                <tr key={i}>
+                <tr key={'sk-' + i}>
                   <td><Sk h={14} style={{ width: '70%' }} /></td>
                   <td><Sk h={14} style={{ width: '80%' }} /></td>
                   <td><Sk h={14} style={{ width: '75%' }} /></td>

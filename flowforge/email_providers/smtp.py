@@ -72,7 +72,7 @@ class SMTPProvider(EmailProvider):
             logger.info("Email sent to %d recipient(s) via %s:%s", len(all_recipients), self.host, self.port)
             return EmailResult(success=True, recipients=all_recipients)
         except Exception as e:
-            logger.error("SMTP send failed: %s", e)
+            logger.exception("SMTP send failed")
             return EmailResult(success=False, error=str(e))
 
     def test(self) -> tuple[bool, str]:
@@ -89,5 +89,5 @@ class SMTPProvider(EmailProvider):
             server.quit()
             return True, f"Connected to {self.host}:{self.port}"
         except Exception as e:
-            logger.error("SMTP test failed: %s", e)
+            logger.exception("SMTP test failed")
             return False, str(e)

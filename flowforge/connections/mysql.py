@@ -85,7 +85,7 @@ class MySQLConnection(BaseConnection):
             self.execute_query("SELECT 1")
             return True, int((time.monotonic() - start) * 1000)
         except Exception as e:
-            logger.error("MySQL connection test failed: %s", e)
+            logger.exception("MySQL connection test failed")
             return False, 0
 
     def close(self) -> None:

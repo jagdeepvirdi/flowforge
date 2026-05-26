@@ -48,7 +48,7 @@ function ProviderGuide({ guide }: { guide: ProviderSetupGuide }) {
       {/* Steps */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {guide.steps.map((step, i) => (
-          <div key={i} style={{ border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
+          <div key={step.label} style={{ border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
             <button
               onClick={() => setOpenStep(openStep === i ? null : i)}
               style={{
@@ -87,8 +87,8 @@ function ProviderGuide({ guide }: { guide: ProviderSetupGuide }) {
       </button>
       {showTrouble && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {guide.troubleshooting.map((t, i) => (
-            <div key={i} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px' }}>
+          {guide.troubleshooting.map((t) => (
+            <div key={t.error} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px' }}>
               <div style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'var(--failure)', marginBottom: 3 }}>{t.error}</div>
               <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{t.fix}</div>
             </div>
@@ -122,8 +122,8 @@ function HelpTab({ topic }: { topic: string }) {
           <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Step Tips</div>
           <p style={{ fontSize: 13, color: 'var(--text-3)', margin: '0 0 10px', lineHeight: 1.6 }}>{stepHint.summary}</p>
           <ul style={{ margin: 0, padding: '0 0 0 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {stepHint.tips.map((tip, i) => (
-              <li key={i} style={{ fontSize: 12.5, color: 'var(--text-3)', lineHeight: 1.5 }}>{tip}</li>
+            {stepHint.tips.map((tip) => (
+              <li key={tip} style={{ fontSize: 12.5, color: 'var(--text-3)', lineHeight: 1.5 }}>{tip}</li>
             ))}
           </ul>
         </div>
@@ -183,7 +183,11 @@ export default function HelpDrawer() {
     <>
       {/* Overlay */}
       <div
+        role="button"
+        tabIndex={0}
+        aria-label="Close help"
         onClick={closeHelp}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') closeHelp() }}
         style={{
           position: 'fixed', inset: 0, zIndex: 200,
           background: 'rgba(0,0,0,0.4)',

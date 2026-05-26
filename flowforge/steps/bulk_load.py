@@ -20,127 +20,140 @@ from flowforge.steps.base import BaseStep, StepResult, validate_identifier
 logger = logging.getLogger(__name__)
 
 
+def _resolve_run_config(step_cfg: dict, context: dict, render) -> tuple[dict | None, StepResult | None]:
+    """Resolve and validate bulk-load config. Returns (cfg, None) or (None, error_result)."""
+    bulk_load_config_id = step_cfg.get('bulk_load_config_id', '')
+    if bulk_load_config_id:
+        cfg = _load_bulk_load_config(bulk_load_config_id)
+        if cfg is None:
+            return None, StepResult(success=False, error=f'bulk_load: config not found: {bulk_load_config_id}')
+    else:
+        cfg = step_cfg
+
+    connection_id   = cfg.get('connection_id', '')
+    source_dir      = render(cfg.get('source_directory', ''), context)
+    target_table    = render(cfg.get('target_table', ''), context)
+    delimiter       = cfg.get('delimiter', ',')
+    archive_dir_tpl = cfg.get('archive_directory', '') or ''
+
+    if not connection_id:
+        return None, StepResult(success=False, error='bulk_load: connection_id is required')
+    if not source_dir:
+        return None, StepResult(success=False, error='bulk_load: source_directory is required')
+    if not target_table:
+        return None, StepResult(success=False, error='bulk_load: target_table is required')
+    if len(delimiter) != 1 or not delimiter.isprintable() or delimiter in ("'", '"', '\\'):
+        return None, StepResult(
+            success=False,
+            error=f"bulk_load: invalid delimiter {delimiter!r} — must be a single printable non-quote character",
+        )
+    try:
+        validate_identifier(target_table, 'target_table')
+    except ValueError as e:
+        return None, StepResult(success=False, error=f'bulk_load: {e}')
+
+    return {
+        'connection_id':       connection_id,
+        'source_dir':          source_dir,
+        'file_prefix':         cfg.get('file_prefix', '') or '',
+        'file_prefix_exclude': cfg.get('file_prefix_exclude', '') or '',
+        'file_type':           cfg.get('file_type', 'csv').lower().lstrip('.'),
+        'delimiter':           delimiter,
+        'header_rows':         int(cfg.get('header_rows', 1)),
+        'footer_rows':         int(cfg.get('footer_rows', 0)),
+        'target_table':        target_table,
+        'load_mode':           cfg.get('load_mode', 'append'),
+        'column_mapping':      cfg.get('column_mapping') or [],
+        'use_sqlloader':       bool(cfg.get('use_sqlloader', False)),
+        'archive_dir':         render(archive_dir_tpl, context) if archive_dir_tpl else '',
+        'on_no_files':         cfg.get('on_no_files', 'skip'),
+    }, None
+
+
+def _handle_no_files(source_dir: str, file_prefix: str, ext: str, on_no_files: str) -> StepResult:
+    msg = f'bulk_load: no files found in {source_dir} matching prefix={file_prefix!r} ext={ext!r}'
+    if on_no_files == 'skip':
+        logger.info('%s — skipping (on_no_files=skip)', msg)
+        return StepResult(
+            success=True, logs=msg + ' — skipped.',
+            files_found=0, files_loaded=0, files_failed=0,
+            records_loaded=0, records_failed=0, duration_sec=0.0,
+        )
+    return StepResult(success=False, error=msg)
+
+
+def _dispatch_single_file(
+    db_type: str,
+    use_sqlloader: bool,
+    conn_cfg: dict,
+    file_path: Path,
+    delimiter: str,
+    header_rows: int,
+    footer_rows: int,
+    target_table: str,
+    load_mode: str,
+    column_mapping,
+) -> tuple[int, int, str]:
+    if db_type == 'oracle' and use_sqlloader:
+        return _load_sqlloader(conn_cfg, file_path, delimiter, header_rows, footer_rows, target_table, load_mode, column_mapping)
+    if db_type == 'postgresql':
+        return _load_postgres_copy(conn_cfg, file_path, delimiter, header_rows, footer_rows, target_table, load_mode, column_mapping)
+    return _load_python_fallback(conn_cfg, file_path, delimiter, header_rows, footer_rows, target_table, load_mode, column_mapping)
+
+
 class BulkLoadStep(BaseStep):
     step_type = 'bulk_load'
 
     def run(self, context: dict[str, Any]) -> StepResult:
         from flowforge.engine.context import render
 
-        step_cfg = self.config
+        cfg, err = _resolve_run_config(self.config, context, render)
+        if err:
+            return err
 
-        # Resolve config: prefer bulk_load_config_id (standalone config), fall back to inline
-        bulk_load_config_id = step_cfg.get('bulk_load_config_id', '')
-        if bulk_load_config_id:
-            cfg = _load_bulk_load_config(bulk_load_config_id)
-            if cfg is None:
-                return StepResult(success=False, error=f'bulk_load: config not found: {bulk_load_config_id}')
-        else:
-            cfg = step_cfg
-
-        connection_id       = cfg.get('connection_id', '')
-        source_dir          = render(cfg.get('source_directory', ''), context)
-        file_prefix         = cfg.get('file_prefix', '') or ''
-        file_prefix_exclude = cfg.get('file_prefix_exclude', '') or ''
-        file_type           = cfg.get('file_type', 'csv').lower().lstrip('.')
-        delimiter           = cfg.get('delimiter', ',')
-        header_rows         = int(cfg.get('header_rows', 1))
-        footer_rows         = int(cfg.get('footer_rows', 0))
-        target_table        = render(cfg.get('target_table', ''), context)
-        load_mode           = cfg.get('load_mode', 'append')
-        column_mapping      = cfg.get('column_mapping') or []
-        use_sqlloader       = bool(cfg.get('use_sqlloader', False))
-        archive_dir_tpl     = cfg.get('archive_directory', '') or ''
-        archive_dir         = render(archive_dir_tpl, context) if archive_dir_tpl else ''
-        on_no_files         = cfg.get('on_no_files', 'skip')
-
-        if not connection_id:
-            return StepResult(success=False, error='bulk_load: connection_id is required')
-        if not source_dir:
-            return StepResult(success=False, error='bulk_load: source_directory is required')
-        if not target_table:
-            return StepResult(success=False, error='bulk_load: target_table is required')
-        if len(delimiter) != 1 or not delimiter.isprintable() or delimiter in ("'", '"', '\\'):
-            return StepResult(
-                success=False,
-                error=f"bulk_load: invalid delimiter {delimiter!r} — must be a single printable non-quote character",
-            )
-        try:
-            validate_identifier(target_table, 'target_table')
-        except ValueError as e:
-            return StepResult(success=False, error=f'bulk_load: {e}')
-
-        src_path = Path(source_dir)
+        src_path = Path(cfg['source_dir'])
         if not src_path.is_dir():
-            return StepResult(success=False, error=f'bulk_load: source_directory not found: {source_dir}')
+            return StepResult(success=False, error=f"bulk_load: source_directory not found: {cfg['source_dir']}")
 
-        ext = f'.{file_type}'
+        ext = f".{cfg['file_type']}"
         files = sorted(
             f for f in src_path.iterdir()
             if f.is_file()
             and f.suffix.lower() == ext
-            and (not file_prefix or f.name.startswith(file_prefix))
-            and (not file_prefix_exclude or not f.name.startswith(file_prefix_exclude))
+            and (not cfg['file_prefix'] or f.name.startswith(cfg['file_prefix']))
+            and (not cfg['file_prefix_exclude'] or not f.name.startswith(cfg['file_prefix_exclude']))
         )
         files_found = len(files)
 
         if files_found == 0:
-            msg = (
-                f'bulk_load: no files found in {source_dir} '
-                f'matching prefix={file_prefix!r} ext={ext!r}'
-            )
-            if on_no_files == 'skip':
-                logger.info('%s — skipping (on_no_files=skip)', msg)
-                return StepResult(
-                    success=True,
-                    logs=msg + ' — skipped.',
-                    files_found=0, files_loaded=0, files_failed=0,
-                    records_loaded=0, records_failed=0, duration_sec=0.0,
-                )
-            return StepResult(success=False, error=msg)
+            return _handle_no_files(cfg['source_dir'], cfg['file_prefix'], ext, cfg['on_no_files'])
 
         try:
-            conn_cfg = _resolve_connection(connection_id)
+            conn_cfg = _resolve_connection(cfg['connection_id'])
         except Exception as e:
             return StepResult(success=False, error=f'bulk_load: could not open connection: {e}')
 
         db_type = conn_cfg.get('_db_type', 'postgresql')
-
         t_start = time.monotonic()
-        files_loaded = 0
-        files_failed = 0
-        total_records_loaded = 0
-        total_records_failed = 0
+        files_loaded = files_failed = total_records_loaded = total_records_failed = 0
         log_lines: list[str] = []
 
         for file_path in files:
             try:
-                if db_type == 'oracle' and use_sqlloader:
-                    loaded, failed, file_log = _load_sqlloader(
-                        conn_cfg, file_path, delimiter, header_rows, footer_rows,
-                        target_table, load_mode, column_mapping,
-                    )
-                elif db_type == 'postgresql':
-                    loaded, failed, file_log = _load_postgres_copy(
-                        conn_cfg, file_path, delimiter, header_rows, footer_rows,
-                        target_table, load_mode, column_mapping,
-                    )
-                else:
-                    loaded, failed, file_log = _load_python_fallback(
-                        conn_cfg, file_path, delimiter, header_rows, footer_rows,
-                        target_table, load_mode, column_mapping,
-                    )
-
+                loaded, failed, file_log = _dispatch_single_file(
+                    db_type, cfg['use_sqlloader'], conn_cfg, file_path,
+                    cfg['delimiter'], cfg['header_rows'], cfg['footer_rows'],
+                    cfg['target_table'], cfg['load_mode'], cfg['column_mapping'],
+                )
                 total_records_loaded += loaded
                 total_records_failed += failed
                 log_lines.append(f'[OK]  {file_path.name}: {loaded} loaded, {failed} failed\n{file_log}')
                 files_loaded += 1
-
-                if archive_dir:
-                    _archive_file(file_path, archive_dir)
-
+                if cfg['archive_dir']:
+                    _archive_file(file_path, cfg['archive_dir'])
             except Exception as e:
                 files_failed += 1
-                logger.error('bulk_load: error loading %s: %s', file_path.name, e)
+                logger.exception('bulk_load: error loading %s', file_path.name)
                 log_lines.append(f'[ERR] {file_path.name}: {e}')
 
         duration_sec = round(time.monotonic() - t_start, 2)
@@ -150,13 +163,11 @@ class BulkLoadStep(BaseStep):
             f'{duration_sec}s'
         )
         logger.info(summary)
-        all_logs = summary + '\n\n' + '\n'.join(log_lines)
         success = files_failed == 0
-
         return StepResult(
             success=success,
             rows_affected=total_records_loaded,
-            logs=all_logs,
+            logs=summary + '\n\n' + '\n'.join(log_lines),
             error='' if success else f'{files_failed} file(s) failed to load',
             files_found=files_found,
             files_loaded=files_loaded,
@@ -366,6 +377,32 @@ def _load_postgres_copy(
 
 # ─── Oracle SQL*Loader ─────────────────────────────────────────────────────────
 
+def _parse_sqlldr_counts(log_text: str) -> tuple[int, int]:
+    """Extract loaded/failed row counts from a SQL*Loader log."""
+    loaded = failed = 0
+    for line in log_text.splitlines():
+        low = line.lower()
+        if 'rows successfully loaded' in low or 'row successfully loaded' in low:
+            for tok in line.split():
+                if tok.isdigit():
+                    loaded = int(tok)
+                    break
+        if 'rows not loaded due to data errors' in low:
+            for tok in line.split():
+                if tok.isdigit():
+                    failed = int(tok)
+                    break
+    return loaded, failed
+
+
+def _read_bad_file(bad_file: Path) -> str:
+    if not bad_file.exists() or bad_file.stat().st_size == 0:
+        return ''
+    with open(bad_file, encoding='utf-8', errors='replace') as bf:
+        bad_lines = bf.readlines()[:50]
+    return '\nRejected rows (.bad, first 50):\n' + ''.join(bad_lines)
+
+
 def _load_sqlloader(
     conn_cfg: dict,
     file_path: Path,
@@ -438,28 +475,8 @@ def _load_sqlloader(
         subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
 
         log_text = log_file.read_text(errors='replace') if log_file.exists() else ''
-
-        records_loaded = 0
-        records_failed = 0
-        for line in log_text.splitlines():
-            low = line.lower()
-            if 'rows successfully loaded' in low or 'row successfully loaded' in low:
-                for tok in line.split():
-                    if tok.isdigit():
-                        records_loaded = int(tok)
-                        break
-            if 'rows not loaded due to data errors' in low:
-                for tok in line.split():
-                    if tok.isdigit():
-                        records_failed = int(tok)
-                        break
-
-        bad_content = ''
-        if bad_file.exists() and bad_file.stat().st_size > 0:
-            with open(bad_file, encoding='utf-8', errors='replace') as bf:
-                bad_lines = bf.readlines()[:50]
-            bad_content = '\nRejected rows (.bad, first 50):\n' + ''.join(bad_lines)
-
+        records_loaded, records_failed = _parse_sqlldr_counts(log_text)
+        bad_content = _read_bad_file(bad_file)
         summary = f'SQL*Loader: {records_loaded} loaded, {records_failed} failed\n{log_text}{bad_content}'
         return records_loaded, records_failed, summary
     finally:

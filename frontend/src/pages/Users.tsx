@@ -42,12 +42,6 @@ export default function Users() {
   const [form, setForm]         = useState<AddForm>(emptyForm())
   const [formError, setFormError] = useState('')
 
-  // Admin guard
-  if (me && me.role !== 'admin') {
-    navigate('/dashboard', { replace: true })
-    return null
-  }
-
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: getUsers,
@@ -73,6 +67,77 @@ export default function Users() {
     mutationFn: deleteUser,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
   })
+
+  // Admin guard — hooks above, safe to return early here
+  if (me && me.role !== 'admin') {
+    navigate('/dashboard', { replace: true })
+    return null
+  }
+
+  const usersTableContent = isLoading ? (
+    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {[1, 2, 3].map(i => <Sk key={i} style={{ height: 36 }} />)}
+    </div>
+  ) : users.length === 0 ? (
+    <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+      No users yet.
+    </div>
+  ) : (
+    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <thead>
+        <tr style={{ borderBottom: '1px solid var(--border)' }}>
+          {['Username', 'Role', 'Created', ''].map(h => (
+            <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {h}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {users.map((user, i) => (
+          <tr key={user.id} style={{ borderBottom: i < users.length - 1 ? '1px solid var(--border)' : 'none' }}>
+            <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>
+              {user.username}
+              {user.id === me?.id && (
+                <span style={{ marginLeft: 6, fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 400 }}>(you)</span>
+              )}
+            </td>
+            <td style={{ padding: '12px 16px' }}>
+              {user.id === me?.id ? (
+                <RoleBadge role={user.role} />
+              ) : (
+                <select
+                  className="input"
+                  value={user.role}
+                  style={{ fontSize: 12, padding: '3px 8px', width: 'auto' }}
+                  disabled={roleMut.isPending}
+                  onChange={e => roleMut.mutate({ id: user.id, role: e.target.value as Role })}
+                >
+                  {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              )}
+            </td>
+            <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+              {user.created_at ? new Date(user.created_at).toLocaleDateString() : '—'}
+            </td>
+            <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+              {user.id !== me?.id && (
+                <button
+                  className="btn"
+                  style={{ padding: '4px 8px', color: 'var(--failure-text)' }}
+                  disabled={deleteMut.isPending}
+                  onClick={() => handleDelete(user)}
+                  title="Delete user"
+                >
+                  {deleteMut.isPending ? <Spinner size={13} /> : <Trash2 size={13} />}
+                </button>
+              )}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
 
   function handleAdd(e: React.FormEvent) {
     e.preventDefault()
@@ -115,8 +180,9 @@ export default function Users() {
               <h3 style={{ margin: '0 0 18px', fontSize: 14, fontWeight: 600 }}>Add User</h3>
               <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div className="field">
-                  <label>Username</label>
+                  <label htmlFor="user-form-username">Username</label>
                   <input
+                    id="user-form-username"
                     className="input"
                     value={form.username}
                     onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
@@ -125,8 +191,9 @@ export default function Users() {
                   />
                 </div>
                 <div className="field">
-                  <label>Password</label>
+                  <label htmlFor="user-form-password">Password</label>
                   <input
+                    id="user-form-password"
                     className="input"
                     type="password"
                     value={form.password}
@@ -135,8 +202,9 @@ export default function Users() {
                   />
                 </div>
                 <div className="field">
-                  <label>Role</label>
+                  <label htmlFor="user-form-role">Role</label>
                   <select
+                    id="user-form-role"
                     className="input"
                     value={form.role}
                     onChange={e => setForm(f => ({ ...f, role: e.target.value as Role }))}
@@ -162,70 +230,7 @@ export default function Users() {
 
         {/* Users table */}
         <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
-          {isLoading ? (
-            <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {[1, 2, 3].map(i => <Sk key={i} style={{ height: 36 }} />)}
-            </div>
-          ) : users.length === 0 ? (
-            <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-              No users yet.
-            </div>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                  {['Username', 'Role', 'Created', ''].map(h => (
-                    <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user, i) => (
-                  <tr key={user.id} style={{ borderBottom: i < users.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>
-                      {user.username}
-                      {user.id === me?.id && (
-                        <span style={{ marginLeft: 6, fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 400 }}>(you)</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      {user.id === me?.id ? (
-                        <RoleBadge role={user.role} />
-                      ) : (
-                        <select
-                          className="input"
-                          value={user.role}
-                          style={{ fontSize: 12, padding: '3px 8px', width: 'auto' }}
-                          disabled={roleMut.isPending}
-                          onChange={e => roleMut.mutate({ id: user.id, role: e.target.value as Role })}
-                        >
-                          {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                        </select>
-                      )}
-                    </td>
-                    <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                      {user.created_at ? new Date(user.created_at).toLocaleDateString() : '—'}
-                    </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                      {user.id !== me?.id && (
-                        <button
-                          className="btn"
-                          style={{ padding: '4px 8px', color: 'var(--failure-text)' }}
-                          disabled={deleteMut.isPending}
-                          onClick={() => handleDelete(user)}
-                          title="Delete user"
-                        >
-                          {deleteMut.isPending ? <Spinner size={13} /> : <Trash2 size={13} />}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          {usersTableContent}
         </div>
       </div>
     </>

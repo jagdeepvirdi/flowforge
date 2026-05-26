@@ -65,7 +65,7 @@ export default function Layout() {
     <div className="ff-app">
       {/* Sidebar Overlay (Mobile) */}
       {sidebarOpen && (
-        <div className="ff-sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+        <div className="ff-sidebar-overlay" role="button" tabIndex={0} aria-label="Close sidebar" onClick={() => setSidebarOpen(false)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setSidebarOpen(false) }} />
       )}
 
       {/* Sidebar */}
@@ -183,7 +183,7 @@ export default function Layout() {
           </div>
           <div className="sparkbars h-[22px]">
             {sparkNorm.map((h, i) => (
-              <span key={i} className={`w-1 rounded-[1px] ${i === sparkNorm.length - 1 ? 'bg-[var(--accent)]' : 'bg-[var(--border)]'}`} style={{ height: h }} />
+              <span key={i + '-' + h} className={`w-1 rounded-[1px] ${i === sparkNorm.length - 1 ? 'bg-[var(--accent)]' : 'bg-[var(--border)]'}`} style={{ height: h }} />
             ))}
           </div>
         </div>

@@ -192,7 +192,7 @@ class SftpTransferStep(BaseStep):
         except ValueError as exc:
             return StepResult(success=False, error=str(exc))
         except Exception as exc:
-            logger.error("SFTP transfer failed: %s", exc)
+            logger.exception("SFTP transfer failed")
             return StepResult(success=False, error=f'SFTP error: {exc}')
 
     # ── download ───────────────────────────────────────────────────────────────
@@ -282,7 +282,7 @@ class SftpTransferStep(BaseStep):
             except Exception as exc:
                 failed += 1
                 errors.append(f'{entry.filename}: {exc}')
-                logger.error("SFTP download failed for %s: %s", entry.filename, exc)
+                logger.exception("SFTP download failed for %s", entry.filename)
 
         log_lines = [
             f'Remote dir  : {remote_dir}',

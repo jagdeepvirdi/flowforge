@@ -32,10 +32,15 @@ export default function PageIntro({ page }: Props) {
       marginBottom: 16,
       overflow: 'hidden',
     }}>
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: '10px 14px', cursor: 'pointer',
-      }} onClick={() => setCollapsed(c => !c)}>
+      <button
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '10px 14px', cursor: 'pointer',
+          width: '100%', background: 'transparent', border: 'none', textAlign: 'left',
+        }}
+        aria-expanded={!collapsed}
+        onClick={() => setCollapsed(c => !c)}
+      >
         <HelpCircle size={14} style={{ color: 'var(--accent)', flexShrink: 0 }} />
         <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', flex: 1 }}>{card.title}</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -51,7 +56,7 @@ export default function PageIntro({ page }: Props) {
           )}
           {collapsed ? <ChevronDown size={13} style={{ color: 'var(--text-muted)' }} /> : <ChevronUp size={13} style={{ color: 'var(--text-muted)' }} />}
         </div>
-      </div>
+      </button>
 
       {!collapsed && (
         <div style={{ padding: '0 14px 12px 38px' }}>

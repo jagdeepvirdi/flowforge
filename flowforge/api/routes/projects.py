@@ -9,6 +9,9 @@ from flowforge.db.models import (
 
 bp = Blueprint('projects', __name__)
 
+# ── constants ──
+_NOT_FOUND = 'Project not found'
+
 
 def _project_dict(p: Project) -> dict:
     return {
@@ -69,7 +72,7 @@ def create_project():
 def get_project(project_id):
     project = db.session.get(Project, str(project_id))
     if not project:
-        return jsonify({'error': 'Project not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
     result = _project_dict(project)
     result['resource_counts'] = _resource_counts(str(project_id))
     return jsonify(result)
@@ -80,7 +83,7 @@ def get_project(project_id):
 def update_project(project_id):
     project = db.session.get(Project, str(project_id))
     if not project:
-        return jsonify({'error': 'Project not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
 
     data = request.get_json() or {}
     for field in ('name', 'description', 'color'):
@@ -97,7 +100,7 @@ def update_project(project_id):
 def delete_project(project_id):
     project = db.session.get(Project, str(project_id))
     if not project:
-        return jsonify({'error': 'Project not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
     if project.is_default:
         return jsonify({'error': 'The Default project cannot be deleted'}), 400
 

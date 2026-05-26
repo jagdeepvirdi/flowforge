@@ -8,6 +8,9 @@ from flowforge.db.models import User, db
 
 bp = Blueprint('users', __name__)
 
+# ── constants ──
+_NOT_FOUND = 'User not found'
+
 _VALID_ROLES = {'admin', 'editor', 'viewer'}
 
 
@@ -55,7 +58,7 @@ def create_user():
 def update_user(user_id):
     user = db.session.get(User, str(user_id))
     if not user:
-        return jsonify({'error': 'User not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
 
     data = request.get_json(silent=True) or {}
     new_role = data.get('role')
@@ -87,7 +90,7 @@ def delete_user(user_id):
 
     user = db.session.get(User, str(user_id))
     if not user:
-        return jsonify({'error': 'User not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
 
     username = user.username
     db.session.delete(user)
@@ -110,7 +113,7 @@ def change_password():
 
     user = db.session.get(User, g.current_user_id)
     if not user:
-        return jsonify({'error': 'User not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
     if not bcrypt.checkpw(current_pw.encode(), user.password_hash.encode()):
         return jsonify({'error': 'Current password is incorrect'}), 401
 
