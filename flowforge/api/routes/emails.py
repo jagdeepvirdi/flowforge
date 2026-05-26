@@ -1,3 +1,6 @@
+import tempfile
+from pathlib import Path
+
 from flask import Blueprint, jsonify, request
 
 from flowforge.api.auth import require_auth, require_role
@@ -140,7 +143,7 @@ def preview_email_config(config_id):
     # Build context with sample step results so previews are more realistic
     sample_steps = {
         'report': {
-            'output_path': '/tmp/sample_report.xlsx',  # nosec B108  # NOSONAR
+            'output_path': str(Path(tempfile.gettempdir()) / 'sample_report.xlsx'),
             'drive_url': 'https://drive.google.com/open?id=sample',
             'rows_affected': 124,
             'duration_sec': 12.5,
