@@ -291,7 +291,7 @@ export default function PipelineEdit() {
                 ))}
               </div>
               {vars.map((v, i) => (
-                <div key={i} className="grid grid-cols-[1fr_1fr_auto_auto] gap-2 items-center">
+                <div key={v.key + '-' + i} className="grid grid-cols-[1fr_1fr_auto_auto] gap-2 items-center">
                   <input
                     className="input mono-input !text-xs !h-[30px]"
                     placeholder="currency"
@@ -559,7 +559,7 @@ function CronBuilder({ defaultValue, onChange }: { defaultValue: string; onChang
   const [rawCron, setRawCron] = useState(defaultValue)
   const mounted = useRef(false)
 
-  const currentCron = freq === 'custom' ? rawCron : freq === 'none' ? '' : buildCronStr(freq, state)
+  const currentCron = freq === 'custom' ? rawCron : (freq === 'none' ? '' : buildCronStr(freq, state))
 
   useEffect(() => {
     if (!mounted.current) { mounted.current = true; return }
@@ -605,7 +605,7 @@ function CronBuilder({ defaultValue, onChange }: { defaultValue: string; onChang
         {(freq === 'daily' || freq === 'weekly' || freq === 'monthly') && (<>
           <span className="text-[12.5px] text-[var(--text-3)]">at</span>
           <select className="input !h-[34px] !w-20" value={state.hour} onChange={e => upd('hour', +e.target.value)}>
-            {Array.from({length: 24}, (_, i) => <option key={i} value={i}>{String(i).padStart(2,'0')}:00</option>)}
+            {Array.from({length: 24}, (_, i) => <option key={'hour-' + i} value={i}>{String(i).padStart(2,'0')}:00</option>)}
           </select>
           <input className="input !w-14 !h-[34px]" type="number" min={0} max={59} value={state.minute} onChange={e => upd('minute', +e.target.value)} title="Minute (0–59)" />
         </>)}
@@ -613,7 +613,7 @@ function CronBuilder({ defaultValue, onChange }: { defaultValue: string; onChang
         {freq === 'weekly' && (<>
           <span className="text-[12.5px] text-[var(--text-3)]">on</span>
           <select className="input !h-[34px] !w-[110px]" value={state.weekday} onChange={e => upd('weekday', +e.target.value)}>
-            {DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
+            {DAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}
           </select>
         </>)}
 
@@ -636,8 +636,8 @@ function CronBuilder({ defaultValue, onChange }: { defaultValue: string; onChang
       {nextData?.next_runs && nextData.next_runs.length > 0 && (
         <div className="text-[11.5px] text-[var(--text-muted)] flex flex-wrap gap-[4px_14px]">
           <span className="text-[var(--text-dim)] font-medium mr-1">Next runs:</span>
-          {nextData.next_runs.map((t, i) => (
-            <span key={i} className="font-mono">
+          {nextData.next_runs.map((t) => (
+            <span key={t} className="font-mono">
               {new Date(t).toLocaleString('en-US', { weekday:'short', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', timeZoneName:'short' })}
             </span>
           ))}

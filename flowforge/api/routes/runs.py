@@ -10,6 +10,9 @@ from flowforge.api.auth import require_auth, require_role
 from flowforge.api.serializers import run_dict, step_run_dict
 from flowforge.db.models import Pipeline, PipelineRun, db
 
+# ── constants ──
+_NOT_FOUND = 'Run not found'
+
 _ANOMALY_MIN_HISTORY = 5
 _ANOMALY_THRESHOLD   = 2.0   # z-score
 
@@ -105,7 +108,7 @@ def list_runs():
 def get_run(run_id):
     run = db.session.get(PipelineRun, str(run_id))
     if not run:
-        return jsonify({'error': 'Run not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
     return jsonify(run_dict(run, include_steps=True))
 
 
@@ -115,7 +118,7 @@ def get_run_anomalies(run_id):
     """Return statistical anomalies (>2σ) for each step in this run vs its 30-run history."""
     run = db.session.get(PipelineRun, str(run_id))
     if not run:
-        return jsonify({'error': 'Run not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
     if not run.pipeline_id:
         return jsonify([])
 
@@ -182,7 +185,7 @@ def cancel_run(run_id):
     from datetime import datetime, timezone
     run = db.session.get(PipelineRun, str(run_id))
     if not run:
-        return jsonify({'error': 'Run not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
     if run.status not in ('running', 'pending'):
         return jsonify({'error': f'Cannot cancel a run with status {run.status!r}'}), 409
     run.status = 'cancelled'

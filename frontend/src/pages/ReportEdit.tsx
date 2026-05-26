@@ -213,7 +213,7 @@ export default function ReportEdit() {
             <div key={label as string} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <Sk h={13} style={{ width: 80 }} />
               {Array.from({ length: rows as number }).map((_, i) => (
-                <div key={i} className="field">
+                <div key={'sk-row-' + i} className="field">
                   <Sk h={12} style={{ width: 70, marginBottom: 6 }} />
                   <Sk h={34} r={6} />
                 </div>
@@ -303,7 +303,9 @@ export default function ReportEdit() {
             <div className="field">
               <label>Format</label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
-                {(['excel', 'csv', 'pdf', 'json'] as ReportFormat[]).map(f => (
+                {(['excel', 'csv', 'pdf', 'json'] as ReportFormat[]).map(f => {
+                  const formatLabel = f === 'excel' ? 'Excel' : (f === 'csv' ? 'CSV' : (f === 'pdf' ? 'PDF' : 'JSON'))
+                  return (
                   <button key={f} type="button" onClick={() => {
                     setValue('format', f)
                     setValue('filename', getValues('filename').replace(/\.(xlsx|csv|pdf|json)$/, '') + FORMAT_EXT[f])
@@ -321,9 +323,10 @@ export default function ReportEdit() {
                     boxShadow: format === f ? '0 0 0 3px rgba(249,115,22,0.1)' : 'none',
                   }}>
                     {format === f && <Check size={12} />}
-                    {f === 'excel' ? 'Excel' : f === 'csv' ? 'CSV' : f === 'pdf' ? 'PDF' : 'JSON'}
+                    {formatLabel}
                   </button>
-                ))}
+                  )
+                })}
               </div>
             </div>
 

@@ -98,7 +98,7 @@ function ChartBody({ config, data }: { config: ChartConfig; data: Record<string,
           outerRadius={110}
           innerRadius={42}
         >
-          {pieData.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
+          {pieData.map((entry, i) => <Cell key={entry.name} fill={PALETTE[i % PALETTE.length]} />)}
         </Pie>
         <Tooltip {...tipStyle} />
         <Legend iconSize={10} wrapperStyle={{ fontSize: 11, color: '#94A3B8' }} />

@@ -106,7 +106,7 @@ class DbQueryStep(BaseStep):
                 kv_html=kv_html,
             )
         except Exception as e:
-            logger.error("DB query step failed: %s", e)
+            logger.exception("DB query step failed")
             return StepResult(success=False, error=str(e))
 
     def _get_connection(self):

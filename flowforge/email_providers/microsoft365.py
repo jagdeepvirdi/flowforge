@@ -91,7 +91,7 @@ class Microsoft365Provider(EmailProvider):
             logger.info("Email sent to %d recipient(s) via Microsoft Graph", len(all_recipients))
             return EmailResult(success=True, recipients=all_recipients)
         except Exception as e:
-            logger.error("Microsoft 365 send failed: %s", e)
+            logger.exception("Microsoft 365 send failed")
             return EmailResult(success=False, error=str(e))
 
     def test(self) -> tuple[bool, str]:
@@ -99,5 +99,5 @@ class Microsoft365Provider(EmailProvider):
             self._get_token()
             return True, f"Connected ({self.sender})"
         except Exception as e:
-            logger.error("Microsoft 365 test failed: %s", e)
+            logger.exception("Microsoft 365 test failed")
             return False, str(e)

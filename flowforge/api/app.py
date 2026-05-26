@@ -13,6 +13,9 @@ from flowforge.db.models import db
 
 limiter = Limiter(key_func=get_remote_address, default_limits=[])
 
+# ── constants ──
+_NOT_FOUND = 'Not found'
+
 _DIST = Path(__file__).parent.parent.parent / 'frontend' / 'dist'
 _DOCS = Path(__file__).parent.parent.parent / 'docs'
 
@@ -31,7 +34,7 @@ def create_app(config: dict | None = None) -> Flask:
     app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB — prevents OOM on large POST bodies
 
     # AES-256 encryption key — used exclusively by flowforge/crypto.py
-    app.config['SECRET_KEY'] = os.environ.get('FLOWFORGE_SECRET_KEY', '')  # NOSONAR: value from env, not hardcoded
+    app.config['SECRET_KEY'] = os.environ.get('FLOWFORGE_SECRET_KEY', '')  # NOSONAR
 
     # JWT signing secret — separate from the encryption key (SEC-2)
     # Falls back to SECRET_KEY for backward compatibility; set FLOWFORGE_JWT_SECRET in production.
@@ -140,14 +143,14 @@ def _register_blueprints(app: Flask) -> None:
             return jsonify({'error': 'Docs not found'}), 404
         file_path = (_DOCS / filename).resolve()
         if not str(file_path).startswith(str(_DOCS.resolve())):
-            return jsonify({'error': 'Not found'}), 404
+            return jsonify({'error': _NOT_FOUND}), 404
         if not file_path.is_file():
-            return jsonify({'error': 'Not found'}), 404
+            return jsonify({'error': _NOT_FOUND}), 404
         return send_from_directory(_DOCS, filename, mimetype='text/plain; charset=utf-8')
 
     if _DIST.is_dir():
-        @app.route('/', defaults={'path': ''})
-        @app.route('/<path:path>')
+        @app.get('/', defaults={'path': ''})
+        @app.get('/<path:path>')
         def serve_spa(path):
             file_path = _DIST / path
             if path and file_path.is_file():
@@ -174,7 +177,7 @@ def _register_error_handlers(app: Flask) -> None:
 
     @app.errorhandler(404)
     def not_found(e):
-        return jsonify({'error': 'Not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
 
     @app.errorhandler(500)
     def server_error(e):

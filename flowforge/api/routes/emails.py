@@ -6,6 +6,9 @@ from flowforge.db.models import DEFAULT_PROJECT_ID, EmailConfig, Project, db
 
 bp = Blueprint('emails', __name__)
 
+# ── constants ──
+_NOT_FOUND = 'Email config not found'
+
 
 def _default_project_id() -> str:
     p = db.session.query(Project).filter_by(is_default=True).first()
@@ -86,7 +89,7 @@ def create_email_config():
 def get_email_config(config_id):
     config = db.session.get(EmailConfig, str(config_id))
     if not config:
-        return jsonify({'error': 'Email config not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
     return jsonify(_email_dict(config))
 
 
@@ -95,7 +98,7 @@ def get_email_config(config_id):
 def update_email_config(config_id):
     config = db.session.get(EmailConfig, str(config_id))
     if not config:
-        return jsonify({'error': 'Email config not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
 
     data = request.get_json() or {}
     err = validate_email_config(data)
@@ -120,7 +123,7 @@ def update_email_config(config_id):
 def delete_email_config(config_id):
     config = db.session.get(EmailConfig, str(config_id))
     if not config:
-        return jsonify({'error': 'Email config not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
     db.session.delete(config)
     db.session.commit()
     return jsonify({'deleted': str(config_id)})
@@ -131,13 +134,13 @@ def delete_email_config(config_id):
 def preview_email_config(config_id):
     config = db.session.get(EmailConfig, str(config_id))
     if not config:
-        return jsonify({'error': 'Email config not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
 
     from flowforge.engine.context import build, render
     # Build context with sample step results so previews are more realistic
     sample_steps = {
         'report': {
-            'output_path': '/tmp/sample_report.xlsx',  # nosec B108 — NOSONAR: preview placeholder, never opened
+            'output_path': '/tmp/sample_report.xlsx',  # nosec B108  # NOSONAR
             'drive_url': 'https://drive.google.com/open?id=sample',
             'rows_affected': 124,
             'duration_sec': 12.5,

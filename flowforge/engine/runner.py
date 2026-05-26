@@ -101,7 +101,7 @@ def run_pipeline(
                 try:
                     step_result = step.run(context)
                 except Exception as e:
-                    logger.error("[%s] Step '%s' raised uncaught exception: %s", pipeline_name, step.name, e)
+                    logger.exception("[%s] Step '%s' raised uncaught exception", pipeline_name, step.name)
                     step_result = StepResult(success=False, error=str(e))
 
                 if step_result.success or attempt >= retry_count:
@@ -216,7 +216,7 @@ def _create_run_record(pipeline_id, pipeline_name, triggered_by, existing_run_id
         db.session.commit()
         return run
     except SQLAlchemyError as e:
-        logger.error("Failed to create pipeline_run record: %s", e)
+        logger.exception("Failed to create pipeline_run record")
         return None
 
 
@@ -245,7 +245,7 @@ def _write_step_run(run_record, step, step_order, step_result, started_at, finis
         db.session.add(sr)
         db.session.commit()
     except SQLAlchemyError as e:
-        logger.error("Failed to write step_run record: %s", e)
+        logger.exception("Failed to write step_run record")
 
 
 def _finish_run_record(run_record, success: bool, error_step: str = '', error_message: str = ''):
@@ -265,7 +265,7 @@ def _finish_run_record(run_record, success: bool, error_step: str = '', error_me
             run_record.error_message = error_message
         db.session.commit()
     except SQLAlchemyError as e:
-        logger.error("Failed to update pipeline_run record: %s", e)
+        logger.exception("Failed to update pipeline_run record")
 
 
 def _fire_failure_webhook(url: str, payload: dict) -> None:

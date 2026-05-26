@@ -12,7 +12,7 @@ import Spinner from '../components/shared/Spinner'
 import Sk from '../components/shared/Skeleton'
 import FieldTooltip from '../components/shared/FieldTooltip'
 
-function ChipInput({ values, onChange, placeholder }: { values: string[]; onChange: (v: string[]) => void; placeholder?: string }) {
+function ChipInput({ id, values, onChange, placeholder }: { id?: string; values: string[]; onChange: (v: string[]) => void; placeholder?: string }) {
   const [input, setInput] = useState('')
   const add = () => {
     const v = input.trim()
@@ -28,6 +28,7 @@ function ChipInput({ values, onChange, placeholder }: { values: string[]; onChan
         </span>
       ))}
       <input
+        id={id}
         className="flex-1 bg-transparent outline-none text-sm min-w-24"
         value={input}
         onChange={e => setInput(e.target.value)}
@@ -173,7 +174,7 @@ export default function EmailEdit() {
               <div key={label as string} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <Sk h={13} style={{ width: 70 }} />
                 {Array.from({ length: rows as number }).map((_, i) => (
-                  <div key={i} className="field">
+                  <div key={'sk-row-' + i} className="field">
                     <Sk h={12} style={{ width: 80, marginBottom: 6 }} />
                     <Sk h={34} r={6} />
                   </div>
@@ -271,20 +272,20 @@ export default function EmailEdit() {
             <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Recipients</div>
               <div className="field">
-                <label>Recipient group <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(overrides To addresses)</span></label>
-                <select className="input" {...register('groupId')}>
+                <label htmlFor="email-recipient-group">Recipient group <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(overrides To addresses)</span></label>
+                <select id="email-recipient-group" className="input" {...register('groupId')}>
                   <option value="">Use direct addresses</option>
                   {groups.map(g => <option key={g.id} value={g.id}>{g.name} ({g.addresses.length} recipients)</option>)}
                 </select>
               </div>
               {!groupId && (
                 <div className="field">
-                  <label>To addresses <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(Enter or comma to add)</span></label>
+                  <label htmlFor="email-to-addresses">To addresses <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(Enter or comma to add)</span></label>
                   <Controller
                     control={control}
                     name="to"
                     render={({ field }) => (
-                      <ChipInput values={field.value} onChange={field.onChange} placeholder="recipient@example.com" />
+                      <ChipInput id="email-to-addresses" values={field.value} onChange={field.onChange} placeholder="recipient@example.com" />
                     )}
                   />
                   {errors.to && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{errors.to.message}</span>}
@@ -378,8 +379,12 @@ export default function EmailEdit() {
 
       {previewOpen && previewData && (
         <div
+          role="button"
+          tabIndex={0}
+          aria-label="Close preview"
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
           onClick={e => { if (e.target === e.currentTarget) setPreviewOpen(false) }}
+          onKeyDown={e => { if (e.key === 'Escape') setPreviewOpen(false) }}
         >
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, width: '100%', maxWidth: 760, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>

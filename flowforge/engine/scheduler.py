@@ -93,7 +93,7 @@ def _sync_pipeline_jobs() -> None:
             registered += 1
             logger.info("Scheduled '%s': %s", pipeline.name, pipeline.schedule)
         except Exception as e:
-            logger.error("Failed to register schedule for '%s': %s", pipeline.name, e)
+            logger.exception("Failed to register schedule for '%s'", pipeline.name)
 
     # Remove jobs whose pipeline has been disabled or schedule cleared
     for stale_id in existing_ids - active_ids:
@@ -150,7 +150,7 @@ def _prune_token_blocklist() -> None:
             if deleted:
                 logger.info("Pruned %d expired token blocklist entry/entries.", deleted)
     except Exception as e:
-        logger.error("Token blocklist pruning failed: %s", e)
+        logger.exception("Token blocklist pruning failed")
 
 
 def _sync_db_job() -> None:
@@ -161,7 +161,7 @@ def _sync_db_job() -> None:
         with _app.app_context():
             _sync_pipeline_jobs()
     except Exception as e:
-        logger.error("Pipeline sync failed: %s", e)
+        logger.exception("Pipeline sync failed")
 
 
 def _run_pipeline_job(pipeline_id: str, pipeline_name: str) -> None:
@@ -188,4 +188,4 @@ def _run_pipeline_job(pipeline_id: str, pipeline_name: str) -> None:
             if status != 202:
                 logger.warning("Scheduled launch of '%s' deferred: %s", pipeline_name, res.get('error'))
     except Exception as e:
-        logger.error("Scheduled run of '%s' failed: %s", pipeline_name, e)
+        logger.exception("Scheduled run of '%s' failed", pipeline_name)

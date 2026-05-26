@@ -135,7 +135,7 @@ class DataLoadStep(BaseStep):
         try:
             columns, rows = self._load_source(source_cfg, context, render)
         except Exception as e:
-            logger.error("DataLoad: failed to read source: %s", e)
+            logger.exception("DataLoad: failed to read source")
             return StepResult(success=False, error=f"Source read failed: {e}")
 
         if not rows:
@@ -156,7 +156,7 @@ class DataLoadStep(BaseStep):
                     logger.info("DataLoad: created table %s", target_table)
                 total = self._bulk_load(conn, target_table, mode, columns, rows, chunk_size)
         except Exception as e:
-            logger.error("DataLoad: insert into %s failed: %s", target_table, e)
+            logger.exception("DataLoad: insert into %s failed", target_table)
             return StepResult(success=False, error=str(e))
 
         created_note = ' (table auto-created)' if create_if_missing and created else ''

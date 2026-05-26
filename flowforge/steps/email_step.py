@@ -111,7 +111,7 @@ class EmailStep(BaseStep):
                 return StepResult(success=True, extra={'email_sent_to': result.recipients})
             return StepResult(success=False, error=result.error)
         except Exception as e:
-            logger.error("Email step failed: %s", e)
+            logger.exception("Email step failed")
             return StepResult(success=False, error=str(e))
 
     def _load_config_and_provider(self) -> tuple[dict, Any]:

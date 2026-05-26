@@ -153,8 +153,11 @@ export default function TopBar({ crumbs, actions, helpTopic, queryKeys }: Props)
             ) : results.map(r => (
               <div
                 key={r.id}
+                role="option"
+                aria-selected={false}
                 onMouseDown={() => { navigate(r.href); setQuery('') }}
-                tabIndex={-1}
+                onKeyDown={e => { if (e.key === 'Enter') { navigate(r.href); setQuery('') } }}
+                tabIndex={0}
                 style={{
                   padding: '9px 14px', cursor: 'pointer', display: 'flex',
                   alignItems: 'center', gap: 10, borderBottom: '1px solid var(--border)',

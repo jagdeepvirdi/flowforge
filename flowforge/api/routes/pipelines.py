@@ -16,6 +16,9 @@ from flowforge.engine.launcher import launch_run
 
 bp = Blueprint('pipelines', __name__)
 
+# ── constants ──
+_NOT_FOUND = 'Pipeline not found'
+
 
 def _validate_cron(expr: str) -> str | None:
     """Return an error string if expr is not a valid 5-field cron expression, else None."""
@@ -168,7 +171,7 @@ def create_pipeline():
 def get_pipeline(pipeline_id):
     pipeline = db.session.get(Pipeline, str(pipeline_id))
     if not pipeline:
-        return jsonify({'error': 'Pipeline not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
     return jsonify(_pipeline_dict(pipeline))
 
 
@@ -177,7 +180,7 @@ def get_pipeline(pipeline_id):
 def update_pipeline(pipeline_id):
     pipeline = db.session.get(Pipeline, str(pipeline_id))
     if not pipeline:
-        return jsonify({'error': 'Pipeline not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
 
     data = request.get_json() or {}
     len_err = validate_pipeline(data)
@@ -218,7 +221,7 @@ def clone_pipeline(pipeline_id):
     from flowforge.db.models import PipelineStep
     src = db.session.get(Pipeline, str(pipeline_id))
     if not src:
-        return jsonify({'error': 'Pipeline not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
 
     # Find a unique name with (Copy) suffix
     base_name = f"{src.name} (Copy)"
@@ -269,7 +272,7 @@ def clone_pipeline(pipeline_id):
 def delete_pipeline(pipeline_id):
     pipeline = db.session.get(Pipeline, str(pipeline_id))
     if not pipeline:
-        return jsonify({'error': 'Pipeline not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
     db.session.delete(pipeline)
     db.session.commit()
     return jsonify({'deleted': str(pipeline_id)})
@@ -284,7 +287,7 @@ def export_pipeline(pipeline_id):
     from flask import Response
     pipeline = db.session.get(Pipeline, str(pipeline_id))
     if not pipeline:
-        return jsonify({'error': 'Pipeline not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
 
     doc = {
         'name': pipeline.name,
@@ -402,7 +405,7 @@ def import_pipeline():
 def trigger_run(pipeline_id):
     pipeline = db.session.get(Pipeline, str(pipeline_id))
     if not pipeline:
-        return jsonify({'error': 'Pipeline not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
     res, code = launch_run(pipeline, triggered_by='web_ui')
     return jsonify(res), code
 
@@ -460,7 +463,7 @@ def trigger_via_webhook(pipeline_id):
 
     pipeline = db.session.get(Pipeline, str(pipeline_id))
     if not pipeline:
-        return jsonify({'error': 'Pipeline not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
 
     # Record last use (best-effort — don't fail the trigger if this errors)
     try:
@@ -482,7 +485,7 @@ def trigger_via_webhook(pipeline_id):
 def list_webhook_tokens(pipeline_id):
     pipeline = db.session.get(Pipeline, str(pipeline_id))
     if not pipeline:
-        return jsonify({'error': 'Pipeline not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
     tokens = (
         db.session.query(WebhookToken)
         .filter_by(pipeline_id=str(pipeline_id))
@@ -497,7 +500,7 @@ def list_webhook_tokens(pipeline_id):
 def create_webhook_token(pipeline_id):
     pipeline = db.session.get(Pipeline, str(pipeline_id))
     if not pipeline:
-        return jsonify({'error': 'Pipeline not found'}), 404
+        return jsonify({'error': _NOT_FOUND}), 404
 
     data = request.get_json(silent=True) or {}
     label = str(data.get('label', '')).strip()[:100]

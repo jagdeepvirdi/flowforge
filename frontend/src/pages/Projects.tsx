@@ -69,6 +69,8 @@ function ProjectModal({
     onError: (e: Error) => setError(e.message),
   })
 
+  const saveButtonLabel = isPending ? 'Saving…' : (project ? 'Save' : 'Create')
+
   return (
     <div style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
@@ -84,8 +86,9 @@ function ProjectModal({
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <label className="label">Name</label>
+            <label className="label" htmlFor="project-name">Name</label>
             <input
+              id="project-name"
               className="input"
               value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
@@ -94,8 +97,9 @@ function ProjectModal({
             />
           </div>
           <div>
-            <label className="label">Description</label>
+            <label className="label" htmlFor="project-description">Description</label>
             <input
+              id="project-description"
               className="input"
               value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
@@ -121,7 +125,7 @@ function ProjectModal({
             onClick={() => save()}
             disabled={!form.name.trim() || isPending}
           >
-            {isPending ? 'Saving…' : project ? 'Save' : 'Create'}
+            {saveButtonLabel}
           </button>
         </div>
       </div>
@@ -148,6 +152,9 @@ function ProjectCard({ project, onEdit }: { project: Project; onEdit: (p: Projec
   return (
     <div
       className="card"
+      role="button"
+      tabIndex={0}
+      aria-pressed={isActive}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -156,6 +163,7 @@ function ProjectCard({ project, onEdit }: { project: Project; onEdit: (p: Projec
         cursor: 'pointer',
       }}
       onClick={() => setActiveProjectId(isActive ? null : project.id)}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setActiveProjectId(isActive ? null : project.id) }}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

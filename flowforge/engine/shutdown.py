@@ -150,6 +150,6 @@ def _cancel_stuck_runs() -> None:
                 db.session.commit()
                 logger.warning('Marked %d stuck run(s) as cancelled.', len(stuck))
             except SQLAlchemyError as e:
-                logger.error('Failed to cancel stuck runs: %s', e)
+                logger.exception('Failed to cancel stuck runs')
     except Exception as e:
-        logger.error('Shutdown cleanup error: %s', e)
+        logger.exception('Shutdown cleanup error')

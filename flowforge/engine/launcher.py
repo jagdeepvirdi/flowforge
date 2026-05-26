@@ -64,7 +64,7 @@ def _run_in_thread(app, pipeline_id: str, pipeline_name: str, triggered_by: str,
         try:
             steps, pipeline_vars, secret_keys = load_pipeline(pipeline_id)
         except Exception as e:
-            logger.error("Failed to load pipeline %s: %s", pipeline_name, e)
+            logger.exception("Failed to load pipeline %s", pipeline_name)
             _mark_failed(run_id, f'Failed to load pipeline: {e}')
             return
 
@@ -93,4 +93,4 @@ def _mark_failed(run_id: str, message: str) -> None:
             run.finished_at = datetime.now(timezone.utc)
             db.session.commit()
     except Exception as e:
-        logger.error("Could not mark run %s as failed: %s", run_id, e)
+        logger.exception("Could not mark run %s as failed", run_id)

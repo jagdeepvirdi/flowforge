@@ -76,7 +76,7 @@
 ### 2.4 Codecov (Test Coverage Visibility)
 - [x] `pytest --cov=flowforge --cov-report=xml` + `codecov/codecov-action@v4` added to `test.yml`
 - [x] **Coverage** badge added to README
-- [ ] Add `CODECOV_TOKEN` secret to GitHub repo settings (Settings → Secrets → Actions)
+- [x] Add `CODECOV_TOKEN` secret to GitHub repo settings (Settings → Secrets → Actions)
 
 ### 2.5 README Badge Row
 - [x] Tests + Codecov + Scorecard badges in README

@@ -140,7 +140,7 @@ class BulkLoadStep(BaseStep):
 
             except Exception as e:
                 files_failed += 1
-                logger.error('bulk_load: error loading %s: %s', file_path.name, e)
+                logger.exception('bulk_load: error loading %s', file_path.name)
                 log_lines.append(f'[ERR] {file_path.name}: {e}')
 
         duration_sec = round(time.monotonic() - t_start, 2)

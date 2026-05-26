@@ -113,7 +113,7 @@ class AiAnalyzeStep(BaseStep):
         try:
             rows, columns = self._execute_query(connection_id, sql)
         except Exception as exc:
-            logger.error("ai_analyze: query failed: %s", exc)
+            logger.exception("ai_analyze: query failed")
             return StepResult(success=False, error=f'Query failed: {exc}')
 
         total_rows = len(rows)
@@ -144,7 +144,7 @@ class AiAnalyzeStep(BaseStep):
                 error=f'Ollama is not reachable at {ollama_url}. Is it running? ({exc})',
             )
         except Exception as exc:
-            logger.error("ai_analyze: LLM call failed: %s", exc)
+            logger.exception("ai_analyze: LLM call failed")
             return StepResult(success=False, error=f'AI call failed: {exc}')
 
         logger.info(

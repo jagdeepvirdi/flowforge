@@ -118,6 +118,36 @@ function TimelineStep({ s, last, aiEnabled, anomaly }: { s: StepRun; last: boole
   }
   const typeMeta = TYPE_META[s.step_type] ?? { cls: 'tbadge-query', label: s.step_type }
   const statusColor = STATUS_COLOR[s.status] ?? 'var(--text-dim)'
+  const durationColor = s.status === 'success' ? 'var(--success-text)' : (s.status === 'running' ? 'var(--running-text)' : 'var(--text-dim)')
+
+  const diagnosisPanelResult = diagnosis !== null ? (
+    <div style={{ padding: '10px 12px', background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: '#F97316', display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'inherit' }}>
+          <Lightbulb size={11} /> AI Diagnosis
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'inherit' }}>via Ollama</span>
+          <button onClick={() => setDiagnosis(null)} style={{ display: 'flex', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0 }}>
+            <X size={12} />
+          </button>
+        </div>
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+        {diagnosis}
+      </div>
+    </div>
+  ) : null
+  const diagnosisPanel = diagnosisPanelResult ?? (aiEnabled ? (
+    <button
+      onClick={handleDiagnose}
+      disabled={diagnosing}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 9px', borderRadius: 4, border: '1px solid rgba(249,115,22,0.3)', background: 'rgba(249,115,22,0.06)', color: '#F97316', cursor: diagnosing ? 'default' : 'pointer', fontFamily: 'inherit', opacity: diagnosing ? 0.7 : 1 }}
+    >
+      <Lightbulb size={11} />
+      {diagnosing ? 'Diagnosing…' : 'Explain this error'}
+    </button>
+  ) : null)
 
   return (
     <div style={{ display: 'flex', gap: 14, position: 'relative' }}>
@@ -160,7 +190,7 @@ function TimelineStep({ s, last, aiEnabled, anomaly }: { s: StepRun; last: boole
             {s.rows_affected != null && <span>{s.rows_affected.toLocaleString()} rows</span>}
             {anomaly && <span title="Statistical anomaly detected" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: '#F97316' }}><AlertTriangle size={12} /> anomaly</span>}
           </span>
-          <span className="mono" style={{ fontSize: 11.5, color: s.status === 'success' ? 'var(--success-text)' : s.status === 'running' ? 'var(--running-text)' : 'var(--text-dim)', minWidth: 50, textAlign: 'right' }}>
+          <span className="mono" style={{ fontSize: 11.5, color: durationColor, minWidth: 50, textAlign: 'right' }}>
             {fmtDur(s.duration_ms)}
           </span>
           {open ? <ChevronUp size={14} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />}
@@ -222,33 +252,7 @@ function TimelineStep({ s, last, aiEnabled, anomaly }: { s: StepRun; last: boole
                     </div>
 
                     {/* Diagnosis panel or trigger button */}
-                    {diagnosis !== null ? (
-                      <div style={{ padding: '10px 12px', background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: 6 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: '#F97316', display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'inherit' }}>
-                            <Lightbulb size={11} /> AI Diagnosis
-                          </span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'inherit' }}>via Ollama</span>
-                            <button onClick={() => setDiagnosis(null)} style={{ display: 'flex', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0 }}>
-                              <X size={12} />
-                            </button>
-                          </div>
-                        </div>
-                        <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
-                          {diagnosis}
-                        </div>
-                      </div>
-                    ) : aiEnabled ? (
-                      <button
-                        onClick={handleDiagnose}
-                        disabled={diagnosing}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 9px', borderRadius: 4, border: '1px solid rgba(249,115,22,0.3)', background: 'rgba(249,115,22,0.06)', color: '#F97316', cursor: diagnosing ? 'default' : 'pointer', fontFamily: 'inherit', opacity: diagnosing ? 0.7 : 1 }}
-                      >
-                        <Lightbulb size={11} />
-                        {diagnosing ? 'Diagnosing…' : 'Explain this error'}
-                      </button>
-                    ) : null}
+                    {diagnosisPanel}
                   </div>
                 )}
                 {s.logs
@@ -397,12 +401,13 @@ export default function RunDetail() {
         <div style={{ marginBottom: 20 }}>
           <div style={{ display: 'flex', gap: 2, height: 6, borderRadius: 4, overflow: 'hidden', background: 'var(--surface-2)' }}>
             {steps.map((s, i) => {
+              const barBackground = s.status === 'success' ? 'var(--success)'
+                : s.status === 'running' ? 'linear-gradient(90deg,var(--running),var(--running-text))'
+                : (s.status === 'failed' ? 'var(--failure)' : 'var(--surface-2)')
               return (
                 <div key={i} style={{
                   flex: s.status === 'success' || s.status === 'running' ? (s.duration_ms ?? 1) : 1,
-                  background: s.status === 'success' ? 'var(--success)'
-                    : s.status === 'running' ? 'linear-gradient(90deg,var(--running),var(--running-text))'
-                    : s.status === 'failed' ? 'var(--failure)' : 'var(--surface-2)',
+                  background: barBackground,
                   position: 'relative',
                   overflow: 'hidden',
                 }}>

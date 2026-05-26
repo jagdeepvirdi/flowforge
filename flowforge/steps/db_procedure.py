@@ -30,7 +30,7 @@ class DbProcedureStep(BaseStep):
             logger.info("Procedure '%s' completed (%d params)", procedure, len(params))
             return StepResult(success=True, logs=f"Called {procedure} ({len(params)} params)")
         except Exception as e:
-            logger.error("Procedure '%s' failed: %s", procedure, e)
+            logger.exception("Procedure '%s' failed", procedure)
             return StepResult(success=False, error=str(e))
 
     def _get_connection(self):

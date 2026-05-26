@@ -147,13 +147,13 @@ export default function BulkLoadEdit() {
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>Details</div>
             <div className="field">
-              <label>Name *</label>
-              <input className="input" value={name} onChange={e => { setName(e.target.value); if (fieldErrors.name) setFieldErrors(f => ({ ...f, name: '' })) }} placeholder="Daily subscriber load" />
+              <label htmlFor="bulk-name">Name *</label>
+              <input id="bulk-name" className="input" value={name} onChange={e => { setName(e.target.value); if (fieldErrors.name) setFieldErrors(f => ({ ...f, name: '' })) }} placeholder="Daily subscriber load" />
               {fieldErrors.name && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{fieldErrors.name}</span>}
             </div>
             <div className="field">
-              <label>Description</label>
-              <input className="input" value={desc} onChange={e => setDesc(e.target.value)} />
+              <label htmlFor="bulk-desc">Description</label>
+              <input id="bulk-desc" className="input" value={desc} onChange={e => setDesc(e.target.value)} />
             </div>
           </div>
 
@@ -161,22 +161,22 @@ export default function BulkLoadEdit() {
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>Target database</div>
             <div className="field">
-              <label>Connection</label>
-              <select className="input" value={connId} onChange={e => setConnId(e.target.value)} style={{ height: 34 }}>
+              <label htmlFor="bulk-connection">Connection</label>
+              <select id="bulk-connection" className="input" value={connId} onChange={e => setConnId(e.target.value)} style={{ height: 34 }}>
                 <option value="">Select connection…</option>
                 {dbConns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div className="field">
-              <label>Target table *</label>
-              <input className="input mono-input" value={targetTable}
+              <label htmlFor="bulk-target-table">Target table *</label>
+              <input id="bulk-target-table" className="input mono-input" value={targetTable}
                 onChange={e => { setTargetTable(e.target.value); if (fieldErrors.targetTable) setFieldErrors(f => ({ ...f, targetTable: '' })) }}
                 placeholder="STAGING.SUBSCRIPTIONS" />
               {fieldErrors.targetTable && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{fieldErrors.targetTable}</span>}
             </div>
             <div className="field">
-              <label>Load mode</label>
-              <select className="input" value={loadMode} onChange={e => setLoadMode(e.target.value)} style={{ height: 34 }}>
+              <label htmlFor="bulk-load-mode">Load mode</label>
+              <select id="bulk-load-mode" className="input" value={loadMode} onChange={e => setLoadMode(e.target.value)} style={{ height: 34 }}>
                 <option value="append">Append — insert rows without touching existing data</option>
                 <option value="replace">Replace — truncate table then insert</option>
               </select>
@@ -200,8 +200,8 @@ export default function BulkLoadEdit() {
             <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>Source files</div>
 
             <div className="field">
-              <label>Source directory *</label>
-              <input className="input mono-input" value={sourceDir}
+              <label htmlFor="bulk-source-dir">Source directory *</label>
+              <input id="bulk-source-dir" className="input mono-input" value={sourceDir}
                 onChange={e => { setSourceDir(e.target.value); if (fieldErrors.sourceDir) setFieldErrors(f => ({ ...f, sourceDir: '' })) }}
                 placeholder="/data/incoming/" />
               {fieldErrors.sourceDir && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{fieldErrors.sourceDir}</span>}
@@ -209,33 +209,33 @@ export default function BulkLoadEdit() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div className="field">
-                <label>File prefix (optional)</label>
-                <input className="input mono-input" value={filePrefix} onChange={e => setFilePrefix(e.target.value)} placeholder="SUBS_" />
+                <label htmlFor="bulk-file-prefix">File prefix (optional)</label>
+                <input id="bulk-file-prefix" className="input mono-input" value={filePrefix} onChange={e => setFilePrefix(e.target.value)} placeholder="SUBS_" />
                 <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>Only load files starting with this.</span>
               </div>
               <div className="field">
-                <label>Exclude prefix (optional)</label>
-                <input className="input mono-input" value={filePrefixExclude} onChange={e => setFilePrefixExclude(e.target.value)} placeholder="SUBS_OLD_" />
+                <label htmlFor="bulk-file-prefix-exclude">Exclude prefix (optional)</label>
+                <input id="bulk-file-prefix-exclude" className="input mono-input" value={filePrefixExclude} onChange={e => setFilePrefixExclude(e.target.value)} placeholder="SUBS_OLD_" />
                 <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>Skip files starting with this.</span>
               </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
               <div className="field">
-                <label>File type</label>
-                <select className="input" value={fileType} onChange={e => setFileType(e.target.value)} style={{ height: 34 }}>
+                <label htmlFor="bulk-file-type">File type</label>
+                <select id="bulk-file-type" className="input" value={fileType} onChange={e => setFileType(e.target.value)} style={{ height: 34 }}>
                   <option value="csv">CSV</option>
                   <option value="xlsx">Excel (.xlsx)</option>
                   <option value="txt">TXT</option>
                 </select>
               </div>
               <div className="field">
-                <label>Delimiter</label>
-                <input className="input mono-input" value={delimiter} onChange={e => setDelimiter(e.target.value)} maxLength={3} style={{ width: 70 }} />
+                <label htmlFor="bulk-delimiter">Delimiter</label>
+                <input id="bulk-delimiter" className="input mono-input" value={delimiter} onChange={e => setDelimiter(e.target.value)} maxLength={3} style={{ width: 70 }} />
               </div>
               <div className="field">
-                <label>On no files</label>
-                <select className="input" value={onNoFiles} onChange={e => setOnNoFiles(e.target.value)} style={{ height: 34 }}>
+                <label htmlFor="bulk-on-no-files">On no files</label>
+                <select id="bulk-on-no-files" className="input" value={onNoFiles} onChange={e => setOnNoFiles(e.target.value)} style={{ height: 34 }}>
                   <option value="skip">Skip (succeed)</option>
                   <option value="fail">Fail</option>
                 </select>
@@ -244,12 +244,12 @@ export default function BulkLoadEdit() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div className="field">
-                <label>Header rows</label>
-                <input className="input" type="number" min={0} max={10} value={headerRows} onChange={e => setHeaderRows(parseInt(e.target.value) || 0)} />
+                <label htmlFor="bulk-header-rows">Header rows</label>
+                <input id="bulk-header-rows" className="input" type="number" min={0} max={10} value={headerRows} onChange={e => setHeaderRows(parseInt(e.target.value) || 0)} />
               </div>
               <div className="field">
-                <label>Footer rows</label>
-                <input className="input" type="number" min={0} max={10} value={footerRows} onChange={e => setFooterRows(parseInt(e.target.value) || 0)} />
+                <label htmlFor="bulk-footer-rows">Footer rows</label>
+                <input id="bulk-footer-rows" className="input" type="number" min={0} max={10} value={footerRows} onChange={e => setFooterRows(parseInt(e.target.value) || 0)} />
               </div>
             </div>
           </div>
@@ -259,8 +259,8 @@ export default function BulkLoadEdit() {
             <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>Post-load</div>
 
             <div className="field">
-              <label>Archive directory (optional, supports variables)</label>
-              <input className="input mono-input" value={archiveDir} onChange={e => setArchiveDir(e.target.value)} placeholder="/data/archive/{{ current_date }}/" />
+              <label htmlFor="bulk-archive-dir">Archive directory (optional, supports variables)</label>
+              <input id="bulk-archive-dir" className="input mono-input" value={archiveDir} onChange={e => setArchiveDir(e.target.value)} placeholder="/data/archive/{{ current_date }}/" />
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
                 <span style={{ fontSize: 10.5, color: 'var(--text-dim)' }}>Variables:</span>
                 {VAR_HINTS.map(v => (
@@ -275,8 +275,9 @@ export default function BulkLoadEdit() {
             </div>
 
             <div className="field">
-              <label>Column mapping (JSON array) — optional</label>
+              <label htmlFor="bulk-col-mapping">Column mapping (JSON array) — optional</label>
               <textarea
+                id="bulk-col-mapping"
                 className="input mono-input"
                 rows={5}
                 value={colMapRaw}

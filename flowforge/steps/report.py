@@ -62,7 +62,7 @@ class ReportStep(BaseStep):
             )
             return StepResult(success=True, output_path=str(output_path), rows_affected=len(rows))
         except Exception as e:
-            logger.error("Report step failed: %s", e)
+            logger.exception("Report step failed")
             return StepResult(success=False, error=str(e))
 
     def _load_config(self) -> dict:

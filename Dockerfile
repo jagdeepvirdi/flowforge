@@ -1,5 +1,5 @@
 # ── Stage 1: build React frontend ─────────────────────────────────────────────
-FROM node:20-alpine AS frontend
+FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS frontend
 WORKDIR /build
 COPY frontend/package*.json ./
 RUN npm ci --silent
@@ -7,7 +7,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # ── Stage 2: Python runtime ────────────────────────────────────────────────────
-FROM python:3.11-slim
+FROM python:3.11-slim@sha256:a3ab0b966bc4e91546a033e22093cb840908979487a9fc0e6e38295747e49ac0
 WORKDIR /app
 
 # Install dependencies first (cached layer)

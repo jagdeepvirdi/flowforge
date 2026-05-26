@@ -10,6 +10,12 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import relationship
 
+# ── constants ──
+_SET_NULL         = 'SET NULL'
+_FF_PROJECTS_ID   = 'ff_projects.id'
+_CASCADE          = 'all, delete-orphan'
+_FF_PIPELINES_ID  = 'ff_pipelines.id'
+
 db = SQLAlchemy()
 
 DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000001'
@@ -59,7 +65,7 @@ class RecipientGroup(db.Model):
     name        = Column(String(100), nullable=False)
     description = Column(Text)
     addresses   = Column(ARRAY(Text), nullable=False)
-    project_id  = Column(UUID(as_uuid=False), ForeignKey('ff_projects.id', ondelete='SET NULL'), nullable=True)
+    project_id  = Column(UUID(as_uuid=False), ForeignKey(_FF_PROJECTS_ID, ondelete=_SET_NULL), nullable=True)
     created_at  = Column(DateTime(timezone=True), default=_utcnow)
 
     email_configs = relationship('EmailConfig', back_populates='recipient_group')
@@ -105,7 +111,7 @@ class BulkLoadConfig(db.Model):
     id                  = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
     name                = Column(String(255), nullable=False)
     description         = Column(Text)
-    connection_id       = Column(UUID(as_uuid=False), ForeignKey('ff_db_connections.id', ondelete='SET NULL'))
+    connection_id       = Column(UUID(as_uuid=False), ForeignKey('ff_db_connections.id', ondelete=_SET_NULL))
     source_directory    = Column(String(500), nullable=False)
     file_prefix         = Column(String(255))
     file_prefix_exclude = Column(String(255))
@@ -134,7 +140,7 @@ class ReportConfig(db.Model):
     id              = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
     name            = Column(String(255), nullable=False)
     description     = Column(Text)
-    connection_id   = Column(UUID(as_uuid=False), ForeignKey('ff_db_connections.id', ondelete='SET NULL'))
+    connection_id   = Column(UUID(as_uuid=False), ForeignKey('ff_db_connections.id', ondelete=_SET_NULL))
     query           = Column(Text, nullable=False)
     format          = Column(String(20), nullable=False)
     template_path   = Column(String(500))
@@ -142,7 +148,7 @@ class ReportConfig(db.Model):
     title           = Column(String(255))
     sheet_name      = Column(String(100))
     columns         = Column(ARRAY(Text))
-    project_id      = Column(UUID(as_uuid=False), ForeignKey('ff_projects.id', ondelete='SET NULL'), nullable=True)
+    project_id      = Column(UUID(as_uuid=False), ForeignKey(_FF_PROJECTS_ID, ondelete=_SET_NULL), nullable=True)
     created_at      = Column(DateTime(timezone=True), default=_utcnow)
     updated_at      = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
@@ -156,12 +162,12 @@ class EmailConfig(db.Model):
     id                  = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
     name                = Column(String(255), nullable=False)
     description         = Column(Text)
-    provider_id         = Column(UUID(as_uuid=False), ForeignKey('ff_email_providers.id', ondelete='SET NULL'))
+    provider_id         = Column(UUID(as_uuid=False), ForeignKey('ff_email_providers.id', ondelete=_SET_NULL))
     from_name           = Column(String(255))
     subject             = Column(String(500), nullable=False)
     header_text         = Column(String(500))
     body_template       = Column(Text, nullable=False)
-    recipient_group_id  = Column(UUID(as_uuid=False), ForeignKey('ff_recipient_groups.id', ondelete='SET NULL'))
+    recipient_group_id  = Column(UUID(as_uuid=False), ForeignKey('ff_recipient_groups.id', ondelete=_SET_NULL))
     to_addresses        = Column(ARRAY(Text))
     cc_addresses        = Column(ARRAY(Text))
     bcc_addresses       = Column(ARRAY(Text))
@@ -169,7 +175,7 @@ class EmailConfig(db.Model):
     drive_folder_id     = Column(String(255))
     drive_share_message = Column(Text)
     onedrive_folder_id  = Column(String(255))
-    project_id          = Column(UUID(as_uuid=False), ForeignKey('ff_projects.id', ondelete='SET NULL'), nullable=True)
+    project_id          = Column(UUID(as_uuid=False), ForeignKey(_FF_PROJECTS_ID, ondelete=_SET_NULL), nullable=True)
     created_at          = Column(DateTime(timezone=True), default=_utcnow)
     updated_at          = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
@@ -188,17 +194,17 @@ class Pipeline(db.Model):
     enabled                 = Column(Boolean, default=True)
     timeout_minutes         = Column(Integer, default=60)
     on_failure_webhook_url  = Column(String(500))
-    project_id              = Column(UUID(as_uuid=False), ForeignKey('ff_projects.id', ondelete='SET NULL'), nullable=True)
+    project_id              = Column(UUID(as_uuid=False), ForeignKey(_FF_PROJECTS_ID, ondelete=_SET_NULL), nullable=True)
     created_at              = Column(DateTime(timezone=True), default=_utcnow)
     updated_at              = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
     steps          = relationship('PipelineStep', back_populates='pipeline',
-                                  order_by='PipelineStep.step_order', cascade='all, delete-orphan')
+                                  order_by='PipelineStep.step_order', cascade=_CASCADE)
     variables      = relationship('PipelineVariable', back_populates='pipeline',
-                                  cascade='all, delete-orphan')
+                                  cascade=_CASCADE)
     runs           = relationship('PipelineRun', back_populates='pipeline')
     webhook_tokens = relationship('WebhookToken', back_populates='pipeline',
-                                  cascade='all, delete-orphan')
+                                  cascade=_CASCADE)
     project        = relationship('Project', back_populates='pipelines')
 
 
@@ -214,7 +220,7 @@ class PipelineStep(db.Model):
     )
 
     id          = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
-    pipeline_id = Column(UUID(as_uuid=False), ForeignKey('ff_pipelines.id', ondelete='CASCADE'), nullable=False)
+    pipeline_id = Column(UUID(as_uuid=False), ForeignKey(_FF_PIPELINES_ID, ondelete='CASCADE'), nullable=False)
     step_order  = Column(Integer, nullable=False)
     name        = Column(String(255), nullable=False)
     step_type   = Column(String(50), nullable=False)
@@ -232,7 +238,7 @@ class PipelineVariable(db.Model):
     )
 
     id          = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
-    pipeline_id = Column(UUID(as_uuid=False), ForeignKey('ff_pipelines.id', ondelete='CASCADE'), nullable=False)
+    pipeline_id = Column(UUID(as_uuid=False), ForeignKey(_FF_PIPELINES_ID, ondelete='CASCADE'), nullable=False)
     var_key     = Column(String(100), nullable=False)
     var_value   = Column(Text, nullable=False)
     is_secret   = Column(Boolean, default=False)
@@ -247,7 +253,7 @@ class PipelineRun(db.Model):
     )
 
     id            = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
-    pipeline_id   = Column(UUID(as_uuid=False), ForeignKey('ff_pipelines.id', ondelete='SET NULL'))
+    pipeline_id   = Column(UUID(as_uuid=False), ForeignKey(_FF_PIPELINES_ID, ondelete=_SET_NULL))
     pipeline_name = Column(String(255), nullable=False)
     status        = Column(String(20), nullable=False)
     started_at    = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
@@ -258,7 +264,7 @@ class PipelineRun(db.Model):
     error_message = Column(Text)
 
     pipeline  = relationship('Pipeline', back_populates='runs')
-    step_runs = relationship('StepRun', back_populates='pipeline_run', cascade='all, delete-orphan')
+    step_runs = relationship('StepRun', back_populates='pipeline_run', cascade=_CASCADE)
 
 
 class WebhookToken(db.Model):
@@ -266,7 +272,7 @@ class WebhookToken(db.Model):
     __tablename__ = 'ff_webhook_tokens'
 
     id          = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
-    pipeline_id = Column(UUID(as_uuid=False), ForeignKey('ff_pipelines.id', ondelete='CASCADE'), nullable=False)
+    pipeline_id = Column(UUID(as_uuid=False), ForeignKey(_FF_PIPELINES_ID, ondelete='CASCADE'), nullable=False)
     label       = Column(String(100), nullable=False, default='')
     token_hash  = Column(String(64), nullable=False, unique=True)  # SHA-256(raw_token)
     enabled     = Column(Boolean, nullable=False, default=True)
