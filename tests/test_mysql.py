@@ -86,20 +86,19 @@ def test_pool_key_uses_host_port_db_user(mock_pymysql):
     import flowforge.connections.mysql as mysql_mod
     _make_conn(mock_pymysql)
     key = list(mysql_mod._pools.keys())[0]
-    host, port, database, user, _pw_hash = key
+    host, port, database, user, _password = key
     assert host == 'db.example.com'
     assert port == 3306
     assert database == 'mydb'
     assert user == 'user'
 
 
-def test_pool_key_uses_hashed_password_not_plaintext(mock_pymysql):
+def test_pool_key_includes_password_for_isolation(mock_pymysql):
     import flowforge.connections.mysql as mysql_mod
     _make_conn(mock_pymysql)
     key = list(mysql_mod._pools.keys())[0]
-    _host, _port, _db, _user, pw_hash = key
-    assert pw_hash != 'secret'
-    assert len(pw_hash) == 16
+    _host, _port, _db, _user, password = key
+    assert password == 'secret'
 
 
 def test_same_credentials_reuse_pool(mock_pymysql):

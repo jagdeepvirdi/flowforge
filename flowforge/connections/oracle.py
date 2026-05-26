@@ -1,4 +1,3 @@
-import hashlib
 import logging
 import time
 from typing import Any
@@ -23,8 +22,7 @@ class OracleConnection(BaseConnection):
                 "python-oracledb is required for Oracle connections. "
                 "Install with: pip install flowforge[oracle]"
             )
-        pw_hash = hashlib.sha256(password.encode()).hexdigest()[:16]
-        key = (host, port, service_name, user, pw_hash)
+        key = (host, port, service_name, user, password)
         if key not in _pools:
             # Thin mode: pure Python, no Oracle Instant Client required.
             # To use thick mode (for advanced Oracle features), call

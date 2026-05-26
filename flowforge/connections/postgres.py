@@ -1,4 +1,3 @@
-import hashlib
 import logging
 import time
 from typing import Any
@@ -20,8 +19,7 @@ class PostgreSQLConnection(BaseConnection):
     db_type = 'postgresql'
 
     def __init__(self, host: str, database: str, user: str, password: str, port: int = 5432):
-        pw_hash = hashlib.sha256(password.encode()).hexdigest()[:16]
-        key = (host, port, database, user, pw_hash)
+        key = (host, port, database, user, password)
         if key not in _pools:
             _pools[key] = pool.ThreadedConnectionPool(
                 1, 5, host=host, port=port, database=database, user=user, password=password

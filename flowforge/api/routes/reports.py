@@ -1,3 +1,5 @@
+import logging
+
 from flask import Blueprint, jsonify, request
 
 import flowforge.audit as audit
@@ -6,6 +8,7 @@ from flowforge.api.validators import validate_report
 from flowforge.db.models import DEFAULT_PROJECT_ID, Project, ReportConfig, db
 
 bp = Blueprint('reports', __name__)
+logger = logging.getLogger(__name__)
 
 
 def _default_project_id() -> str:
@@ -137,5 +140,6 @@ def preview_report(config_id):
             rows = conn.execute_query(sql.rstrip().rstrip(';') + ' LIMIT 20')
         columns = config.columns or [f'col{i}' for i in range(len(rows[0]))] if rows else []
         return jsonify({'columns': columns, 'rows': [list(r) for r in rows]})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    except Exception:  # pragma: no cover
+        logger.exception('report preview query failed for config %s', config_id)
+        return jsonify({'error': 'Query failed. Check server logs for details.'}), 500

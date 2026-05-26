@@ -43,15 +43,16 @@ def _sftp_connect(
         )
 
     ssh = paramiko.SSHClient()
-    strict = os.environ.get('FLOWFORGE_SFTP_STRICT_HOSTKEYS', '').lower() == 'true'
-    if strict:
-        # RejectPolicy raises SSHException for any host not already in known_hosts.
-        # Add the server first: ssh-keyscan -H <host> >> ~/.ssh/known_hosts
-        ssh.set_missing_host_key_policy(paramiko.RejectPolicy())
-    else:
-        # AutoAddPolicy trusts any host key on first connect (default, TOFU).
-        # Set FLOWFORGE_SFTP_STRICT_HOSTKEYS=true to require known_hosts verification.
+    allow_unknown = os.environ.get('FLOWFORGE_SFTP_ALLOW_UNKNOWN_HOSTS', '').lower() == 'true'
+    if allow_unknown:
+        # TOFU mode: trusts any host key on first connect.
+        # Enable only for private networks where MITM risk is low.
+        # Set FLOWFORGE_SFTP_ALLOW_UNKNOWN_HOSTS=true to opt in.
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # nosec B507
+    else:
+        # Default: reject hosts not in known_hosts (secure default).
+        # Add servers first: ssh-keyscan -H <host> >> ~/.ssh/known_hosts
+        ssh.set_missing_host_key_policy(paramiko.RejectPolicy())
 
     connect_kwargs: dict[str, Any] = dict(
         hostname=host,
@@ -68,15 +69,17 @@ def _sftp_connect(
     else:
         connect_kwargs['password'] = password
 
-    logger.debug("SFTP: connecting to %s:%d as %s (strict_hostkeys=%s)", host, port, username, strict)
+    strict_mode = not allow_unknown
+    logger.debug("SFTP: connecting to %s:%d as %s (strict_hostkeys=%s)", host, port, username, strict_mode)
     try:
         ssh.connect(**connect_kwargs)
     except paramiko.SSHException as exc:
         ssh.close()
-        if strict and 'not found in known_hosts' in str(exc):
+        if strict_mode and 'not found in known_hosts' in str(exc):
             raise paramiko.SSHException(
-                f"SFTP host key rejected for '{host}' (FLOWFORGE_SFTP_STRICT_HOSTKEYS=true). "
+                f"SFTP host key rejected for '{host}' (strict mode). "
                 f"Add the host key with: ssh-keyscan -H {host} >> ~/.ssh/known_hosts"
+                f" or set FLOWFORGE_SFTP_ALLOW_UNKNOWN_HOSTS=true to disable strict checks."
             ) from exc
         raise
     sftp = ssh.open_sftp()

@@ -1,4 +1,3 @@
-import hashlib
 import logging
 import time
 from typing import Any
@@ -23,8 +22,7 @@ class MySQLConnection(BaseConnection):
                 "Install with: pip install flowforge[mysql]"
             )
 
-        pw_hash = hashlib.sha256(password.encode()).hexdigest()[:16]
-        key = (host, port, database, user, pw_hash)
+        key = (host, port, database, user, password)
         if key not in _pools:
             _pools[key] = {
                 'host': host, 'port': port, 'database': database,
