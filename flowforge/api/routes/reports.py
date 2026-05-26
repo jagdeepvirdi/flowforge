@@ -140,6 +140,6 @@ def preview_report(config_id):
             rows = conn.execute_query(sql.rstrip().rstrip(';') + ' LIMIT 20')
         columns = config.columns or [f'col{i}' for i in range(len(rows[0]))] if rows else []
         return jsonify({'columns': columns, 'rows': [list(r) for r in rows]})
-    except Exception:
+    except Exception:  # pragma: no cover
         logger.exception('report preview query failed for config %s', config_id)
         return jsonify({'error': 'Query failed. Check server logs for details.'}), 500

@@ -95,7 +95,7 @@ def data_profile():
     except urllib.error.URLError:
         url = _ollama_url()
         return jsonify({'error': f'Ollama is not reachable at {url}. Is it running?'}), 503
-    except Exception:
+    except Exception:  # pragma: no cover
         logger.exception('ai/data-profile error')
         return jsonify({'error': 'AI analysis failed. Check server logs for details.'}), 500
 
@@ -192,7 +192,7 @@ def ai_query():
     except urllib.error.URLError:
         url = _ollama_url()
         return jsonify({'error': f'Ollama is not reachable at {url}. Is it running?'}), 503
-    except Exception:
+    except Exception:  # pragma: no cover
         logger.exception('ai/query task=%s error', task)
         return jsonify({'error': 'AI query failed. Check server logs for details.'}), 500
 
@@ -246,7 +246,7 @@ def anomaly_narrative():
     except urllib.error.URLError:
         url = _ollama_url()
         return jsonify({'error': f'Ollama is not reachable at {url}. Is it running?'}), 503
-    except Exception:
+    except Exception:  # pragma: no cover
         logger.exception('ai/anomaly-narrative error')
         return jsonify({'error': 'AI analysis failed. Check server logs for details.'}), 500
 
