@@ -14,19 +14,26 @@ _VALID_SOURCE_TYPES = {'file', 'query'}
 
 _DATE_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
 _TS_RE   = re.compile(r'^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}')
+_BOOL_WORDS = frozenset({'true', 'false', '1', '0', 'yes', 'no', 't', 'f'})
+_TEXT_TYPE = {'postgresql': 'TEXT', 'oracle': 'VARCHAR2(4000)'}
 
 
-def _infer_col_type(values: list, db_type: str) -> str:
-    """Infer the best SQL column type from a sample of values.
+def _is_int(s: str) -> bool:
+    try:
+        int(s); return True
+    except ValueError:
+        return False
 
-    Priority: bool → int → float → timestamp → date → text.
-    Empty/null-only columns default to text.
-    """
-    non_null = [v for v in values if v is not None and str(v).strip() != '']
-    if not non_null:
-        return 'TEXT' if db_type != 'oracle' else 'VARCHAR2(4000)'
 
-    # Already-typed Python objects (query source returns real types)
+def _is_float(s: str) -> bool:
+    try:
+        float(s); return True
+    except ValueError:
+        return False
+
+
+def _infer_python_type(non_null: list, db_type: str) -> str | None:
+    """Return SQL type inferred from actual Python types, or None if inconclusive."""
     if all(isinstance(v, bool) for v in non_null):
         return 'BOOLEAN' if db_type == 'postgresql' else 'NUMBER(1)'
     if all(isinstance(v, int) and not isinstance(v, bool) for v in non_null):
@@ -37,26 +44,13 @@ def _infer_col_type(values: list, db_type: str) -> str:
         return 'TIMESTAMP'
     if all(isinstance(v, date) for v in non_null):
         return 'DATE'
+    return None
 
-    # String values from file sources — attempt cast
-    strs = [str(v).strip() for v in non_null]
 
-    _BOOL_WORDS = {'true', 'false', '1', '0', 'yes', 'no', 't', 'f'}
+def _infer_string_type(strs: list[str], db_type: str) -> str:
+    """Return SQL type inferred from string-valued data (CSV sources)."""
     if all(s.lower() in _BOOL_WORDS for s in strs):
         return 'BOOLEAN' if db_type == 'postgresql' else 'NUMBER(1)'
-
-    def _is_int(s: str) -> bool:
-        try:
-            int(s); return True
-        except ValueError:
-            return False
-
-    def _is_float(s: str) -> bool:
-        try:
-            float(s); return True
-        except ValueError:
-            return False
-
     if all(_is_int(s) for s in strs):
         return 'BIGINT' if db_type != 'oracle' else 'NUMBER(18)'
     if all(_is_float(s) for s in strs):
@@ -65,8 +59,22 @@ def _infer_col_type(values: list, db_type: str) -> str:
         return 'TIMESTAMP'
     if all(_DATE_RE.match(s) for s in strs):
         return 'DATE'
+    return _TEXT_TYPE.get(db_type, 'TEXT')
 
-    return 'TEXT' if db_type != 'oracle' else 'VARCHAR2(4000)'
+
+def _infer_col_type(values: list, db_type: str) -> str:
+    """Infer the best SQL column type from a sample of values.
+
+    Priority: bool → int → float → timestamp → date → text.
+    Empty/null-only columns default to text.
+    """
+    non_null = [v for v in values if v is not None and str(v).strip() != '']
+    if not non_null:
+        return _TEXT_TYPE.get(db_type, 'TEXT')
+    python_type = _infer_python_type(non_null, db_type)
+    if python_type:
+        return python_type
+    return _infer_string_type([str(v).strip() for v in non_null], db_type)
 
 
 class DataLoadStep(BaseStep):

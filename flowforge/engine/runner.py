@@ -50,6 +50,91 @@ def _build_vars_log(context: dict, secret_keys: set[str] | None) -> str:
     return '\n'.join(lines)
 
 
+def _get_retry_config(step: BaseStep) -> tuple[int, int]:
+    cfg = step.config if hasattr(step, 'config') else {}
+    count = max(0, min(int(cfg.get('retry_count', 0)), 10))
+    delay = max(0, min(int(cfg.get('retry_delay_seconds', 30)), 3600))
+    return count, delay
+
+
+def _run_step_with_retry(
+    pipeline_name: str,
+    step: BaseStep,
+    context: dict,
+    retry_count: int,
+    retry_delay: int,
+) -> StepResult:
+    attempt = 0
+    while True:
+        try:
+            step_result = step.run(context)
+        except Exception as e:
+            logger.exception("[%s] Step '%s' raised uncaught exception", pipeline_name, step.name)
+            step_result = StepResult(success=False, error=str(e))
+        if step_result.success or attempt >= retry_count:
+            return step_result
+        attempt += 1
+        logger.warning(
+            "[%s] Step '%s' failed (attempt %d/%d), retrying in %ds. Error: %s",
+            pipeline_name, step.name, attempt, retry_count + 1, retry_delay, step_result.error,
+        )
+        time.sleep(retry_delay)
+
+
+def _expose_step_outputs(context: dict, pipeline_name: str, step_name: str, step_result: StepResult) -> None:
+    context['steps'][step_name] = {
+        'output_path':    step_result.output_path,
+        'drive_url':      step_result.drive_url,
+        'rows_affected':  step_result.rows_affected,
+        'files_found':    step_result.files_found,
+        'files_loaded':   step_result.files_loaded,
+        'files_failed':   step_result.files_failed,
+        'records_loaded': step_result.records_loaded,
+        'records_failed': step_result.records_failed,
+        'duration_sec':   step_result.duration_sec,
+        'rows':           step_result.rows,
+        'table_html':     step_result.table_html,
+        'kv_html':        step_result.kv_html,
+        'ai_summary':     step_result.ai_summary,
+    }
+    if step_result.output_variables:
+        collisions = _CONTEXT_META_KEYS & step_result.output_variables.keys()
+        if collisions:
+            logger.warning(
+                "[%s] Step '%s' tried to overwrite reserved variable(s): %s — skipping.",
+                pipeline_name, step_name, sorted(collisions),
+            )
+        context.update({k: v for k, v in step_result.output_variables.items()
+                        if k not in _CONTEXT_META_KEYS})
+
+
+def _handle_failed_step(
+    result: PipelineResult,
+    pipeline_name: str,
+    step: BaseStep,
+    step_result: StepResult,
+    run_record: Any,
+) -> bool:
+    """Apply failure logic; return True if pipeline should stop."""
+    if step.on_error == 'stop':
+        logger.error(
+            "[%s] Step '%s' failed (on_error=stop). Error: %s",
+            pipeline_name, step.name, step_result.error,
+        )
+        result.error = step_result.error
+        result.error_step = step.name
+        _finish_run_record(run_record, success=False, error_step=step.name,
+                           error_message=step_result.error)
+        return True
+    logger.warning(
+        "[%s] Step '%s' failed (on_error=continue). Error: %s",
+        pipeline_name, step.name, step_result.error,
+    )
+    if not result.error:
+        result.error = step_result.error
+    return False
+
+
 def run_pipeline(
     pipeline_name: str,
     steps: list[BaseStep],
@@ -63,7 +148,6 @@ def run_pipeline(
     """Execute an ordered list of steps, threading context between them."""
     from flowforge.engine.context import build
 
-    # Inject last-success timestamps so steps can do delta/incremental loads
     if pipeline_id:
         pipeline_vars = dict(pipeline_vars or {})
         pipeline_vars.setdefault('last_success_at',   _get_last_success_ts(pipeline_id, '%Y%m%d%H%M%S'))
@@ -75,11 +159,10 @@ def run_pipeline(
 
     result = PipelineResult(success=True, pipeline_name=pipeline_name)
 
-    # Create pipeline_run record if we have a DB context available
     run_record = _create_run_record(pipeline_id, pipeline_name, triggered_by, existing_run_id)
     if run_record:
         result.run_id = run_record.id
-        context['run_id'] = run_record.id  # overwrite uuid4() placeholder with real DB run ID
+        context['run_id'] = run_record.id
         shutdown.register_run(run_record.id)
 
     audit.log_pipeline_run(pipeline_name, triggered_by, result.run_id or context['run_id'], 'STARTED')
@@ -89,87 +172,21 @@ def run_pipeline(
         for step in steps:
             step_order += 1
             logger.info("[%s] Starting step: %s", pipeline_name, step.name)
-
-            retry_count = int(step.config.get('retry_count', 0)) if hasattr(step, 'config') else 0
-            retry_delay = int(step.config.get('retry_delay_seconds', 30)) if hasattr(step, 'config') else 30
-            retry_count = max(0, min(retry_count, 10))  # cap at 10 retries
-            retry_delay = max(0, min(retry_delay, 3600))  # cap at 1 hour
-
+            retry_count, retry_delay = _get_retry_config(step)
             step_start = datetime.now(timezone.utc)
-            attempt = 0
-            while True:
-                try:
-                    step_result = step.run(context)
-                except Exception as e:
-                    logger.exception("[%s] Step '%s' raised uncaught exception", pipeline_name, step.name)
-                    step_result = StepResult(success=False, error=str(e))
-
-                if step_result.success or attempt >= retry_count:
-                    break
-                attempt += 1
-                logger.warning(
-                    "[%s] Step '%s' failed (attempt %d/%d), retrying in %ds. Error: %s",
-                    pipeline_name, step.name, attempt, retry_count + 1, retry_delay, step_result.error,
-                )
-                time.sleep(retry_delay)
-
+            step_result = _run_step_with_retry(pipeline_name, step, context, retry_count, retry_delay)
             step_end = datetime.now(timezone.utc)
             duration_ms = int((step_end - step_start).total_seconds() * 1000)
-
             result.step_results[step.name] = step_result
             result.steps_run += 1
-
-            # Expose this step's outputs to downstream steps via {{ steps.name.* }}
-            context['steps'][step.name] = {
-                'output_path':    step_result.output_path,
-                'drive_url':      step_result.drive_url,
-                'rows_affected':  step_result.rows_affected,
-                'files_found':    step_result.files_found,
-                'files_loaded':   step_result.files_loaded,
-                'files_failed':   step_result.files_failed,
-                'records_loaded': step_result.records_loaded,
-                'records_failed': step_result.records_failed,
-                'duration_sec':   step_result.duration_sec,
-                'rows':           step_result.rows,
-                'table_html':     step_result.table_html,
-                'kv_html':        step_result.kv_html,
-                'ai_summary':     step_result.ai_summary,
-            }
-
-            # Scalar output variables go to top-level context; guard against overwriting built-ins
-            if step_result.output_variables:
-                collisions = _CONTEXT_META_KEYS & step_result.output_variables.keys()
-                if collisions:
-                    logger.warning(
-                        "[%s] Step '%s' tried to overwrite reserved variable(s): %s — skipping.",
-                        pipeline_name, step.name, sorted(collisions),
-                    )
-                context.update({k: v for k, v in step_result.output_variables.items()
-                                if k not in _CONTEXT_META_KEYS})
-
+            _expose_step_outputs(context, pipeline_name, step.name, step_result)
             _write_step_run(run_record, step, step_order, step_result, step_start, step_end, duration_ms, vars_log)
-
             if not step_result.success:
                 result.steps_failed += 1
                 result.success = False
-                if step.on_error == 'stop':
-                    logger.error(
-                        "[%s] Step '%s' failed (on_error=stop). Error: %s",
-                        pipeline_name, step.name, step_result.error,
-                    )
-                    result.error = step_result.error
-                    result.error_step = step.name
-                    _finish_run_record(run_record, success=False, error_step=step.name,
-                                       error_message=step_result.error)
+                if _handle_failed_step(result, pipeline_name, step, step_result, run_record):
                     break
-                logger.warning(
-                    "[%s] Step '%s' failed (on_error=continue). Error: %s",
-                    pipeline_name, step.name, step_result.error,
-                )
-                if not result.error:
-                    result.error = step_result.error
         else:
-            # Loop completed without break — all steps attempted
             if result.success:
                 logger.info("[%s] Pipeline completed (%d steps)", pipeline_name, result.steps_run)
             _finish_run_record(run_record, success=result.success)

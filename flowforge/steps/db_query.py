@@ -39,6 +39,34 @@ def _render_kv_html(rows: list[dict]) -> str:
     return f'<dl style="margin:0;padding:0">{items}</dl>'
 
 
+def _write_to_output_table(conn, output_table: str, mode: str, raw_rows: list) -> None:
+    if mode in ('replace', 'truncate_insert'):
+        conn.execute_write(f'TRUNCATE TABLE {output_table}')  # nosec B608
+    placeholders = ', '.join(['%s'] * len(raw_rows[0]))
+    insert_sql = f'INSERT INTO {output_table} VALUES ({placeholders})'  # nosec B608
+    for row in raw_rows:
+        conn.execute_write(insert_sql, tuple(row))
+
+
+def _build_query_result(
+    columns: list[str],
+    raw_rows: list,
+    row_limit: int,
+    output_variable: str,
+    capture_rows: bool,
+) -> tuple[dict, list[dict], str, str]:
+    output_vars: dict = {}
+    result_rows: list[dict] = []
+    table_html = kv_html = ''
+    if output_variable and raw_rows:
+        output_vars[output_variable] = raw_rows[0][0]
+    if capture_rows and columns and raw_rows:
+        result_rows = [dict(zip(columns, row)) for row in raw_rows[:row_limit]]
+        table_html = _render_table_html(result_rows)
+        kv_html = _render_kv_html(result_rows)
+    return output_vars, result_rows, table_html, kv_html
+
+
 class DbQueryStep(BaseStep):
     """Executes a SQL query and optionally writes results to an output table."""
 
@@ -52,17 +80,15 @@ class DbQueryStep(BaseStep):
         mode = self.config.get('mode', 'replace')
         capture_rows = bool(self.config.get('capture_rows', False))
         row_limit = int(self.config.get('row_limit', 100))
+        output_variable = self.config.get('output_variable', '').strip()
 
         if output_table and mode not in _VALID_MODES:
             return StepResult(success=False, error=f"Invalid mode '{mode}'. Must be one of: {', '.join(_VALID_MODES)}")
-
         if output_table:
             try:
                 validate_identifier(output_table, 'output_table')
             except ValueError as e:
                 return StepResult(success=False, error=str(e))
-
-        output_variable = self.config.get('output_variable', '').strip()
 
         conn = self._get_connection()
         try:
@@ -72,30 +98,12 @@ class DbQueryStep(BaseStep):
                 else:
                     raw_rows = conn.execute_query(sql)
                     columns = []
-
                 if output_table and raw_rows:
-                    if mode in ('replace', 'truncate_insert'):
-                        # Table name is from trusted config (not user input), so
-                        # direct interpolation here is acceptable.
-                        conn.execute_write(f'TRUNCATE TABLE {output_table}')  # nosec B608
-                    placeholders = ', '.join(['%s'] * len(raw_rows[0]))
-                    insert_sql = f'INSERT INTO {output_table} VALUES ({placeholders})'  # nosec B608
-                    for row in raw_rows:
-                        conn.execute_write(insert_sql, tuple(row))
+                    _write_to_output_table(conn, output_table, mode, raw_rows)
 
-            output_vars: dict = {}
-            result_rows: list[dict] = []
-            table_html = ''
-            kv_html = ''
-
-            if output_variable and raw_rows:
-                output_vars[output_variable] = raw_rows[0][0]
-
-            if capture_rows and columns and raw_rows:
-                result_rows = [dict(zip(columns, row)) for row in raw_rows[:row_limit]]
-                table_html = _render_table_html(result_rows)
-                kv_html = _render_kv_html(result_rows)
-
+            output_vars, result_rows, table_html, kv_html = _build_query_result(
+                columns, raw_rows, row_limit, output_variable, capture_rows,
+            )
             logger.info("Query returned %d rows", len(raw_rows))
             return StepResult(
                 success=True,

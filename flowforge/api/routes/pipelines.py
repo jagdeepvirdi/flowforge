@@ -51,6 +51,56 @@ def _default_project_id() -> str:
     return p.id if p else DEFAULT_PROJECT_ID
 
 
+def _unique_pipeline_name(base_name: str, fmt: str = '{base} ({n})') -> str:
+    candidate = base_name
+    n = 1
+    while db.session.query(Pipeline).filter_by(name=candidate).first():
+        n += 1
+        candidate = fmt.format(base=base_name, n=n)
+    return candidate
+
+
+def _replace_pipeline_variables(pipeline: Pipeline, variables_data: list) -> None:
+    for v in pipeline.variables:
+        db.session.delete(v)
+    db.session.flush()
+    for var in variables_data:
+        is_secret = var.get('is_secret', False)
+        raw_value = var.get('var_value', '')
+        db.session.add(PipelineVariable(
+            pipeline_id=pipeline.id,
+            var_key=var['var_key'],
+            var_value=encrypt_value(raw_value) if is_secret else raw_value,
+            is_secret=is_secret,
+        ))
+
+
+def _add_pipeline_steps(pipeline_id: str, steps_data: list) -> None:
+    from flowforge.db.models import PipelineStep
+    for s in steps_data:
+        db.session.add(PipelineStep(
+            pipeline_id=pipeline_id,
+            step_order=int(s.get('step_order', 1)),
+            name=str(s['name']),
+            step_type=str(s['step_type']),
+            config=s.get('config') or {},
+            on_error=s.get('on_error', 'stop'),
+            enabled=s.get('enabled', True),
+        ))
+
+
+def _add_pipeline_vars(pipeline_id: str, vars_data: list) -> None:
+    for v in vars_data:
+        if v.get('is_secret') and v.get('var_value') == '***':
+            continue
+        db.session.add(PipelineVariable(
+            pipeline_id=pipeline_id,
+            var_key=str(v['var_key']),
+            var_value=str(v.get('var_value', '')),
+            is_secret=bool(v.get('is_secret', False)),
+        ))
+
+
 def _pipeline_dict(p: Pipeline) -> dict:
     return {
         'id': p.id,
@@ -197,19 +247,7 @@ def update_pipeline(pipeline_id):
             setattr(pipeline, field, data[field])
 
     if 'variables' in data:
-        # Full replace: delete existing vars and re-create from the incoming list
-        for v in pipeline.variables:
-            db.session.delete(v)
-        db.session.flush()
-        for var in data['variables']:
-            is_secret = var.get('is_secret', False)
-            raw_value = var.get('var_value', '')
-            db.session.add(PipelineVariable(
-                pipeline_id=pipeline.id,
-                var_key=var['var_key'],
-                var_value=encrypt_value(raw_value) if is_secret else raw_value,
-                is_secret=is_secret,
-            ))
+        _replace_pipeline_variables(pipeline, data['variables'])
 
     db.session.commit()
     return jsonify(_pipeline_dict(pipeline))
@@ -223,13 +261,7 @@ def clone_pipeline(pipeline_id):
     if not src:
         return jsonify({'error': _NOT_FOUND}), 404
 
-    # Find a unique name with (Copy) suffix
-    base_name = f"{src.name} (Copy)"
-    candidate = base_name
-    n = 1
-    while db.session.query(Pipeline).filter_by(name=candidate).first():
-        n += 1
-        candidate = f"{base_name} {n}"
+    candidate = _unique_pipeline_name(f"{src.name} (Copy)", fmt='{base} {n}')
 
     clone = Pipeline(
         name=candidate,
@@ -331,7 +363,6 @@ def export_pipeline(pipeline_id):
 def import_pipeline():
     """Create a new pipeline from a YAML document (multipart file or JSON body with yaml_content)."""
     import yaml
-    from flowforge.db.models import PipelineStep
 
     raw = None
     if request.content_type and 'multipart' in request.content_type:
@@ -354,16 +385,8 @@ def import_pipeline():
     if not isinstance(doc, dict) or not doc.get('name'):
         return jsonify({'error': 'YAML must be a mapping with a name field'}), 400
 
-    # Ensure unique name
-    base_name = str(doc['name'])
-    candidate = base_name
-    n = 1
-    while db.session.query(Pipeline).filter_by(name=candidate).first():
-        n += 1
-        candidate = f"{base_name} ({n})"
-
     pipeline = Pipeline(
-        name=candidate,
+        name=_unique_pipeline_name(str(doc['name'])),
         description=doc.get('description', ''),
         schedule=doc.get('schedule'),
         enabled=doc.get('enabled', True),
@@ -374,26 +397,8 @@ def import_pipeline():
     db.session.add(pipeline)
     db.session.flush()
 
-    for s in doc.get('steps', []):
-        db.session.add(PipelineStep(
-            pipeline_id=pipeline.id,
-            step_order=int(s.get('step_order', 1)),
-            name=str(s['name']),
-            step_type=str(s['step_type']),
-            config=s.get('config') or {},
-            on_error=s.get('on_error', 'stop'),
-            enabled=s.get('enabled', True),
-        ))
-
-    for v in doc.get('variables', []):
-        if v.get('is_secret') and v.get('var_value') == '***':
-            continue   # skip masked secrets from export — user must re-enter
-        db.session.add(PipelineVariable(
-            pipeline_id=pipeline.id,
-            var_key=str(v['var_key']),
-            var_value=str(v.get('var_value', '')),
-            is_secret=bool(v.get('is_secret', False)),
-        ))
+    _add_pipeline_steps(pipeline.id, doc.get('steps', []))
+    _add_pipeline_vars(pipeline.id, doc.get('variables', []))
 
     db.session.commit()
     return jsonify(_pipeline_dict(pipeline)), 201

@@ -4,7 +4,11 @@
 #   ./flowforge.sh start               # dev mode (Flask debug + Vite HMR + scheduler)
 #   ./flowforge.sh start prod          # prod mode (build frontend + Flask/gunicorn + scheduler)
 #   ./flowforge.sh start prod --gunicorn
-#   ./flowforge.sh stop                # stop Flask API, Vite dev server, and scheduler
+#   ./flowforge.sh stop                # stop Flask API, Vite dev server, scheduler, and worker
+#
+# Celery worker (optional):
+#   If FLOWFORGE_REDIS_URL is set in .env, a Celery worker is started automatically
+#   alongside the API in both dev and prod modes.
 
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -57,6 +61,7 @@ if [ "$ACTION" = "stop" ]; then
     stop_port    "$PORT" "Flask API"
     stop_port    "5173"  "Vite UI"
     stop_pattern "flowforge.cli schedule" "Scheduler"
+    stop_pattern "flowforge.cli worker"   "Celery worker"
     echo ""
     echo "Done."
     echo ""
@@ -105,15 +110,17 @@ if [ "$MODE" = "dev" ]; then
     echo "  API       -> http://localhost:$PORT"
     echo "  UI        -> http://localhost:5173"
     echo "  Scheduler -> running alongside API"
+    [ -n "${FLOWFORGE_REDIS_URL:-}" ] && echo "  Worker    -> Celery worker (Redis detected)"
     echo ""
-    echo "Press Ctrl+C to stop all three processes."
+    echo "Press Ctrl+C to stop all processes."
     echo ""
 
+    WORKER_PID=""
     cleanup() {
         echo ""
         echo "Stopping servers..."
-        kill "$API_PID" "$SCHED_PID" "$UI_PID" 2>/dev/null || true
-        wait "$API_PID" "$SCHED_PID" "$UI_PID" 2>/dev/null || true
+        kill "$API_PID" "$SCHED_PID" "$UI_PID" ${WORKER_PID:+"$WORKER_PID"} 2>/dev/null || true
+        wait "$API_PID" "$SCHED_PID" "$UI_PID" ${WORKER_PID:+"$WORKER_PID"} 2>/dev/null || true
         echo "Stopped."
     }
     trap cleanup INT TERM
@@ -128,13 +135,20 @@ if [ "$MODE" = "dev" ]; then
         2>&1 | sed 's/^/[sched] /' &
     SCHED_PID=$!
 
+    if [ -n "${FLOWFORGE_REDIS_URL:-}" ]; then
+        python -m flowforge.cli worker \
+            2>&1 | sed 's/^/[work]  /' &
+        WORKER_PID=$!
+        echo "[work]  Celery worker started (PID $WORKER_PID)"
+    fi
+
     cd "$ROOT/frontend"
     npm run dev 2>&1 | sed 's/^/[ui]    /' &
     UI_PID=$!
     cd "$ROOT"
 
-    wait -n "$API_PID" "$SCHED_PID" "$UI_PID" 2>/dev/null || \
-        wait "$API_PID" "$SCHED_PID" "$UI_PID"
+    wait -n "$API_PID" "$SCHED_PID" "$UI_PID" ${WORKER_PID:+"$WORKER_PID"} 2>/dev/null || \
+        wait "$API_PID" "$SCHED_PID" "$UI_PID" ${WORKER_PID:+"$WORKER_PID"}
 fi
 
 # ── PROD MODE ─────────────────────────────────────────────────────────────────
@@ -154,11 +168,19 @@ if [ "$MODE" = "prod" ]; then
     SCHED_PID=$!
     echo "[sched] Scheduler started (PID $SCHED_PID)"
 
+    WORKER_PID=""
+    if [ -n "${FLOWFORGE_REDIS_URL:-}" ]; then
+        python -m flowforge.cli worker \
+            2>&1 | sed 's/^/[work]  /' &
+        WORKER_PID=$!
+        echo "[work]  Celery worker started (PID $WORKER_PID)"
+    fi
+
     cleanup() {
         echo ""
-        echo "Stopping scheduler..."
-        kill "$SCHED_PID" 2>/dev/null || true
-        wait "$SCHED_PID" 2>/dev/null || true
+        echo "Stopping background processes..."
+        kill "$SCHED_PID" ${WORKER_PID:+"$WORKER_PID"} 2>/dev/null || true
+        wait "$SCHED_PID" ${WORKER_PID:+"$WORKER_PID"} 2>/dev/null || true
         echo "Stopped."
     }
     trap cleanup EXIT INT TERM

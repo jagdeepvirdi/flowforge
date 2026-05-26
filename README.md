@@ -6,6 +6,7 @@
 [![codecov](https://codecov.io/gh/jagdeepvirdi/flowforge/graph/badge.svg)](https://codecov.io/gh/jagdeepvirdi/flowforge)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=jagdeepvirdi_flowforge&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=jagdeepvirdi_flowforge)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/jagdeepvirdi/flowforge/badge)](https://securityscorecards.dev/viewer/?uri=github.com/jagdeepvirdi/flowforge)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 

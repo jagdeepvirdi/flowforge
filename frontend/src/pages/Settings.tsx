@@ -112,6 +112,10 @@ export default function Settings() {
     staleTime: 30_000,
   })
 
+  const driveLabel = !status ? '' : status.drive.configured
+    ? (status.drive.folder_id ? 'Drive · folder set' : 'Drive · no folder')
+    : 'Drive not configured'
+
   return (
     <>
       <TopBar crumbs={['Workspace', 'Settings']} helpTopic="settings" />
@@ -138,12 +142,7 @@ export default function Settings() {
                       ok={status.gmail.configured}
                       label={status.gmail.configured ? `Gmail · ${status.gmail.sender}` : 'Gmail not configured'}
                     />
-                    {(() => {
-                      const driveLabel = status.drive.configured
-                        ? (status.drive.folder_id ? 'Drive · folder set' : 'Drive · no folder')
-                        : 'Drive not configured'
-                      return <StatusBadge ok={status.drive.configured} label={driveLabel} />
-                    })()}
+                    <StatusBadge ok={status.drive.configured} label={driveLabel} />
                   </div>
                 )
               }
