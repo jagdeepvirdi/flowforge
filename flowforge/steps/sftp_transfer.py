@@ -69,15 +69,17 @@ def _sftp_connect(
     else:
         connect_kwargs['password'] = password
 
-    logger.debug("SFTP: connecting to %s:%d as %s (strict_hostkeys=%s)", host, port, username, strict)
+    strict_mode = not allow_unknown
+    logger.debug("SFTP: connecting to %s:%d as %s (strict_hostkeys=%s)", host, port, username, strict_mode)
     try:
         ssh.connect(**connect_kwargs)
     except paramiko.SSHException as exc:
         ssh.close()
-        if strict and 'not found in known_hosts' in str(exc):
+        if strict_mode and 'not found in known_hosts' in str(exc):
             raise paramiko.SSHException(
-                f"SFTP host key rejected for '{host}' (FLOWFORGE_SFTP_STRICT_HOSTKEYS=true). "
+                f"SFTP host key rejected for '{host}' (strict mode). "
                 f"Add the host key with: ssh-keyscan -H {host} >> ~/.ssh/known_hosts"
+                f" or set FLOWFORGE_SFTP_ALLOW_UNKNOWN_HOSTS=true to disable strict checks."
             ) from exc
         raise
     sftp = ssh.open_sftp()
