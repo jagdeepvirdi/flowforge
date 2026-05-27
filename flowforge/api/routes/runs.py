@@ -8,7 +8,7 @@ from flask import Blueprint, jsonify, request, send_file
 
 from flowforge.api.auth import require_auth, require_role
 from flowforge.api.serializers import run_dict, step_run_dict
-from flowforge.db.models import Pipeline, PipelineRun, db
+from flowforge.db.models import Pipeline, PipelineRun, StepRun, db
 
 # ── constants ──
 _NOT_FOUND = 'Run not found'

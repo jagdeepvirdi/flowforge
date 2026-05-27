@@ -15,7 +15,6 @@ class MySQLConnection(BaseConnection):
     def __init__(self, host: str, database: str, user: str, password: str, port: int = 3306):
         try:
             import pymysql
-            from pymysql import connections
         except ImportError:
             raise ImportError(
                 "PyMySQL is required for MySQL/MariaDB connections. "
@@ -82,7 +81,7 @@ class MySQLConnection(BaseConnection):
         try:
             self.execute_query("SELECT 1")
             return True, int((time.monotonic() - start) * 1000)
-        except Exception as e:
+        except Exception:
             logger.exception("MySQL connection test failed")
             return False, 0
 

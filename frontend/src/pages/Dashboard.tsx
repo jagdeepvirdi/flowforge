@@ -57,10 +57,9 @@ function PipelineCard({ pipeline, runs }: { pipeline: Pipeline; runs: PipelineRu
   // Build mini run bars from recent history
   const bars = Array.from({ length: RUN_BARS }).map((_, i) => {
     const r = runs[RUN_BARS - 1 - i]
-    if (!r) return 'idle'
-    if (r.status === 'success') return 'ok'
-    if (r.status === 'running') return 'run'
-    if (r.status === 'failed') return 'fail'
+    if (r?.status === 'success') return 'ok'
+    if (r?.status === 'running') return 'run'
+    if (r?.status === 'failed') return 'fail'
     return 'idle'
   })
 

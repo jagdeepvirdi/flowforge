@@ -92,5 +92,5 @@ def _mark_failed(run_id: str, message: str) -> None:
             run.error_message = message
             run.finished_at = datetime.now(timezone.utc)
             db.session.commit()
-    except Exception as e:
+    except Exception:
         logger.exception("Could not mark run %s as failed", run_id)
