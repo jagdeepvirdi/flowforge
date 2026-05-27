@@ -132,14 +132,17 @@
 - [x] Accept `Fuzzing` penalty — OSS-Fuzz not practical for v1; revisit in v2
 - [ ] Review final Scorecard score after next weekly run (Saturday); target ≥ 7.0
 
-### 2.3 OpenSSF Best Practices Badge (Self-Certification)
-- [ ] Complete the self-certification questionnaire at bestpractices.dev
-- [ ] Achieve at minimum the **Passing** tier
-- [ ] Add **OpenSSF Best Practices** badge to README
+### 2.3 OpenSSF Best Practices Badge ✅ COMPLETE
+- [x] Complete the self-certification questionnaire at bestpractices.dev
+- [x] Achieved **Passing** tier — project #13002 *(2026-05-27)*
+- [x] **OpenSSF Best Practices** badge added to README *(PR #29)*
 
-### 2.4 Codecov (Test Coverage Visibility)
+### 2.4 Codecov ✅ COMPLETE
 - [x] `pytest --cov=flowforge --cov-report=xml` + `codecov/codecov-action@v4` added to `test.yml`
 - [x] **Coverage** badge added to README
+- [x] Added `--cov-branch` for branch coverage measurement *(PR #30)*
+- [x] Added `codecov.yml` with 70% project target, 60% patch target *(PR #30)*
+- [x] Local coverage: **78% branch / 80% line** across 842 passing tests *(2026-05-27)*
 - [x] Add `CODECOV_TOKEN` secret to GitHub repo settings (Settings → Secrets → Actions)
 - [ ] Add `--cov-branch` to pytest command in `test.yml` and `pyproject.toml` for branch coverage tracking (currently only line coverage)
 - [ ] Create `codecov.yml` at repo root — set project floor to 70% and patch target to 80% (new code in PRs must be ≥80% covered)
