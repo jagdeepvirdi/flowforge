@@ -20,6 +20,73 @@ from flowforge.steps.base import BaseStep, StepResult, validate_identifier
 logger = logging.getLogger(__name__)
 
 
+# ─── Shared validation / extraction helpers ────────────────────────────────────
+
+def _validate_bulk_cfg(connection_id: str, source_dir: str, target_table: str, delimiter: str) -> str | None:
+    """Return an error message if any required field is invalid, else None."""
+    if not connection_id:
+        return 'bulk_load: connection_id is required'
+    if not source_dir:
+        return 'bulk_load: source_directory is required'
+    if not target_table:
+        return 'bulk_load: target_table is required'
+    if len(delimiter) != 1 or not delimiter.isprintable() or delimiter in ("'", '"', '\\'):
+        return (
+            f"bulk_load: invalid delimiter {delimiter!r} — "
+            "must be a single printable non-quote character"
+        )
+    return None
+
+
+def _extract_data_rows(all_rows: list, header_rows: int, footer_rows: int) -> list:
+    """Slice header and optional footer rows from a list of CSV rows or text lines."""
+    data = all_rows[header_rows:]
+    return data[:-footer_rows] if footer_rows else data
+
+
+def _derive_csv_columns(
+    all_rows: list,
+    header_rows: int,
+    col_map: dict[str, str],
+    *,
+    validate: bool = True,
+) -> list[str]:
+    """Return target column names from the CSV header row, or [] if no header.
+
+    When validate=True (default) each column name is checked with validate_identifier.
+    Pass validate=False for SQL*Loader paths where the DB engine validates instead.
+    """
+    if not (header_rows >= 1 and all_rows):
+        return []
+    raw_cols = [c.strip() for c in all_rows[0]]
+    cols = [col_map.get(c, c) for c in raw_cols]
+    if validate:
+        for col in cols:
+            validate_identifier(col, 'column name')
+    return cols
+
+
+def _derive_line_columns(
+    lines: list[str],
+    header_rows: int,
+    col_map: dict[str, str],
+    delimiter: str,
+) -> list[str] | None:
+    """Parse the first text line as column headers for COPY FROM STDIN.
+
+    Returns None if header_rows < 1 (no header → COPY uses table column order).
+    """
+    if header_rows < 1 or not lines:
+        return None
+    raw_header = next(csv.reader([lines[0]], delimiter=delimiter))
+    mapped = [col_map.get(c.strip(), c.strip()) for c in raw_header]
+    for col in mapped:
+        validate_identifier(col, 'column name')
+    return mapped
+
+
+# ─── Config resolution ─────────────────────────────────────────────────────────
+
 def _resolve_run_config(step_cfg: dict, context: dict, render) -> tuple[dict | None, StepResult | None]:
     """Resolve and validate bulk-load config. Returns (cfg, None) or (None, error_result)."""
     bulk_load_config_id = step_cfg.get('bulk_load_config_id', '')
@@ -36,17 +103,10 @@ def _resolve_run_config(step_cfg: dict, context: dict, render) -> tuple[dict | N
     delimiter       = cfg.get('delimiter', ',')
     archive_dir_tpl = cfg.get('archive_directory', '') or ''
 
-    if not connection_id:
-        return None, StepResult(success=False, error='bulk_load: connection_id is required')
-    if not source_dir:
-        return None, StepResult(success=False, error='bulk_load: source_directory is required')
-    if not target_table:
-        return None, StepResult(success=False, error='bulk_load: target_table is required')
-    if len(delimiter) != 1 or not delimiter.isprintable() or delimiter in ("'", '"', '\\'):
-        return None, StepResult(
-            success=False,
-            error=f"bulk_load: invalid delimiter {delimiter!r} — must be a single printable non-quote character",
-        )
+    cfg_err = _validate_bulk_cfg(connection_id, source_dir, target_table, delimiter)
+    if cfg_err:
+        return None, StepResult(success=False, error=cfg_err)
+
     try:
         validate_identifier(target_table, 'target_table')
     except ValueError as e:
@@ -272,20 +332,12 @@ def _load_python_fallback(
         with open(file_path, newline='', encoding='utf-8-sig') as fh:
             all_rows = list(csv.reader(fh, delimiter=delimiter))
 
-        data_rows = all_rows[header_rows:]
-        if footer_rows:
-            data_rows = data_rows[:-footer_rows]
-
+        data_rows = _extract_data_rows(all_rows, header_rows, footer_rows)
         if not data_rows:
             return 0, 0, 'No data rows after stripping header/footer.'
 
-        if header_rows >= 1 and all_rows:
-            raw_cols = [c.strip() for c in all_rows[0]]
-            cols = [col_map.get(c, c) for c in raw_cols]
-            for col in cols:
-                validate_identifier(col, 'column name')
-        else:
-            cols = [f'col{i}' for i in range(len(data_rows[0]))]
+        derived = _derive_csv_columns(all_rows, header_rows, col_map)
+        cols = derived or [f'col{i}' for i in range(len(data_rows[0]))]
 
         if load_mode == 'replace':
             cur.execute(f'TRUNCATE TABLE {target_table}')  # nosec B608
@@ -296,8 +348,7 @@ def _load_python_fallback(
         sql = f'INSERT INTO {target_table} ({col_names}) VALUES ({placeholders})'  # nosec B608
 
         CHUNK = 10_000
-        records_loaded = 0
-        records_failed = 0
+        records_loaded = records_failed = 0
         log_parts: list[str] = []
 
         for i in range(0, len(data_rows), CHUNK):
@@ -340,17 +391,8 @@ def _load_postgres_copy(
         with open(file_path, newline='', encoding='utf-8-sig') as fh:
             all_lines = fh.readlines()
 
-        if header_rows >= 1 and all_lines:
-            raw_header = next(csv.reader([all_lines[0]], delimiter=delimiter))
-            mapped_header = [col_map.get(c.strip(), c.strip()) for c in raw_header]
-            for col in mapped_header:
-                validate_identifier(col, 'column name')
-        else:
-            mapped_header = None
-
-        data_lines = all_lines[header_rows:]
-        if footer_rows:
-            data_lines = data_lines[:-footer_rows]
+        mapped_header = _derive_line_columns(all_lines, header_rows, col_map, delimiter)
+        data_lines = _extract_data_rows(all_lines, header_rows, footer_rows)
 
         if load_mode == 'replace':
             cur.execute(f'TRUNCATE TABLE {target_table}')  # nosec B608
@@ -418,15 +460,8 @@ def _load_sqlloader(
     with open(file_path, newline='', encoding='utf-8-sig') as fh:
         all_rows = list(csv.reader(fh, delimiter=delimiter))
 
-    if header_rows >= 1 and all_rows:
-        raw_cols    = [c.strip() for c in all_rows[0]]
-        target_cols = [col_map.get(c, c) for c in raw_cols]
-    else:
-        target_cols = []
-
-    data_rows = all_rows[header_rows:]
-    if footer_rows:
-        data_rows = data_rows[:-footer_rows]
+    target_cols = _derive_csv_columns(all_rows, header_rows, col_map, validate=False)
+    data_rows = _extract_data_rows(all_rows, header_rows, footer_rows)
 
     tmpdir = Path(tempfile.mkdtemp(prefix='flowforge_sqlldr_'))
     try:
