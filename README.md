@@ -376,6 +376,16 @@ flowforge/
 
 ---
 
+## Contributing
+
+**Obtain:** Install via Docker Compose (`docker compose up`) or locally — see [Quick Start](#quick-start) above.
+
+**Feedback:** Use [GitHub Issues](https://github.com/jagdeepvirdi/flowforge/issues) to report bugs or request features. Please include your FlowForge version, Python version, OS, steps to reproduce, and any relevant log output from `ff_step_runs.logs`.
+
+**Contribute:** See [`CONTRIBUTING.md`](CONTRIBUTING.md) for dev setup, running tests, adding step types, and the PR process. All contributions welcome — bug fixes, new step types, documentation improvements, and test coverage.
+
+---
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

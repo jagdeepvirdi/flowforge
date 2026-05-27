@@ -55,11 +55,12 @@
 
 *These badges appear at the top of the README and immediately signal project maturity to visitors and recruiters.*
 
-### 2.1 SonarCloud (Highest Priority Badge)
+### 2.1 SonarCloud ✅ COMPLETE — Quality Gate Passed
 - [x] SonarCloud account created, repo linked, `SONAR_TOKEN` added to GitHub secrets
 - [x] `sonar-project.properties` added; SonarCloud scan step wired into `test.yml` (runs after pytest coverage)
 - [x] First scan passed — CI green
 - [x] **Quality Gate** badge added to README
+- [x] **Quality Gate: Passed** — Security A, all bugs and hotspots resolved *(2026-05-27)*
 - [ ] Take a screenshot of the SonarCloud dashboard for LinkedIn post
 
 #### 2.1a Bugs — fix first (gate the Quality Gate)
