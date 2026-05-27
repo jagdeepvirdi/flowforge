@@ -31,6 +31,7 @@ Thumbs.db
 credentials.local.md
 .env
 .env.test
+.env.*.bak
 .claude/settings.local.json
 *.json.bak
 connection.json
@@ -54,9 +55,15 @@ frontend/test-results/
 .flowforge/
 output/
 
+# Test artifacts
+coverage.json
+coverage.xml
+.coverage
+
 # Internal working documents (not for public repo)
 docs/code-review.md
 docs/cleanup-report.md
+docs/ports-in-use.csv
 
 # Legacy internal source code (kept locally for reference only)
 code/
