@@ -144,14 +144,11 @@
 - [x] Added `codecov.yml` with 70% project target, 60% patch target *(PR #30)*
 - [x] Local coverage: **78% branch / 80% line** across 842 passing tests *(2026-05-27)*
 - [x] Add `CODECOV_TOKEN` secret to GitHub repo settings (Settings → Secrets → Actions)
-- [ ] Add `--cov-branch` to pytest command in `test.yml` and `pyproject.toml` for branch coverage tracking (currently only line coverage)
-- [ ] Create `codecov.yml` at repo root — set project floor to 70% and patch target to 80% (new code in PRs must be ≥80% covered)
-- [ ] Increase overall coverage from current **66.4%** to ≥70% — highest-yield targets: `engine/runner.py` (main execution loop just refactored), `steps/bulk_load.py`, `steps/data_load.py`, email provider flows
 
-### 2.5 README Badge Row
+### 2.5 README Badge Row ✅ COMPLETE
 - [x] Tests + Codecov + Scorecard badges in README
 - [x] SonarCloud Quality Gate badge — already in README (`sonarcloud.io` badge, line 7)
-- [ ] OpenSSF Best Practices badge (blocked on 2.3 self-cert)
+- [x] OpenSSF Best Practices badge added to README *(PR #29, 2026-05-27)*
 
 ---
 
