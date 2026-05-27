@@ -79,13 +79,13 @@
 - [x] **Security rating: E → A** *(2026-05-27)*
 
 #### 2.1c Critical Code Smells — Cognitive Complexity (Python)
-- [ ] Reduce cognitive complexity in `engine/runner.py:53` (42 → ≤15) — extract `_execute_step()`, `_handle_step_error()`, `_write_run_result()` helpers
-- [ ] Reduce cognitive complexity in `steps/bulk_load.py:26` (34 → ≤15) — extract sub-functions per format/mode
-- [ ] Reduce cognitive complexity in `steps/data_load.py:19` (32 → ≤15) — extract sub-functions
-- [ ] Reduce cognitive complexity in `steps/bulk_load.py:369` (30 → ≤15) — extract sub-functions
-- [ ] Reduce cognitive complexity in `steps/ai_analyze.py:166` (19 → ≤15) — extract provider dispatch
-- [ ] Reduce cognitive complexity in `steps/db_query.py:47` (18 → ≤15) — extract mode handlers
-- [ ] Reduce cognitive complexity in `api/routes/pipelines.py:177,328` (17 each → ≤15) — extract helpers
+- [x] Reduce cognitive complexity in `steps/bulk_load.py:26` (34 → ≤15) — extracted `_validate_bulk_cfg`, `_extract_data_rows`, `_derive_csv_columns`, `_derive_line_columns` helpers; all three loader functions now share these *(2026-05-27)*
+- [x] Reduce cognitive complexity in `steps/bulk_load.py:369` (30 → ≤15) — same helper extraction above collapsed repeated header/footer slicing patterns *(2026-05-27)*
+- [ ] Verify `engine/runner.py:53` — code already heavily refactored (helpers extracted); SonarCloud rescan will confirm if complexity ≤15 or further reduction needed
+- [ ] Verify `steps/data_load.py:19` — code already heavily refactored (`_load_source`, `_table_exists`, `_create_table`, `_bulk_load` helpers); SonarCloud rescan will confirm
+- [ ] Verify `steps/ai_analyze.py:166` — code already uses `_run_query_or_fail` / `_call_provider_or_fail`; SonarCloud rescan will confirm
+- [ ] Verify `steps/db_query.py:47` — code already uses `_write_to_output_table` / `_build_query_result` helpers; SonarCloud rescan will confirm
+- [ ] Verify `api/routes/pipelines.py:177,328` — code already uses many extracted helpers; SonarCloud rescan will confirm
 
 #### 2.1d Critical Code Smells — Cognitive Complexity (Frontend)
 - [ ] Reduce cognitive complexity in `frontend/src/pages/RunDetail.tsx:71` (32 → ≤15) — extract render helpers / sub-components
