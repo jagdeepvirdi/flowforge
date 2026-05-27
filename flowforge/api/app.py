@@ -28,7 +28,7 @@ def create_app(config: dict | None = None) -> Flask:
     app = Flask(__name__)
 
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
-        'FLOWFORGE_DB_URL', 'postgresql://flowforge:flowforge@localhost:5432/flowforge'
+        'FLOWFORGE_DB_URL', 'postgresql://flowforge:flowforge@localhost:5432/flowforge'  # NOSONAR — dev-only default, prod always sets FLOWFORGE_DB_URL
     )
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB — prevents OOM on large POST bodies

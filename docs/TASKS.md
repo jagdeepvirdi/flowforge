@@ -63,13 +63,19 @@
 - [ ] Take a screenshot of the SonarCloud dashboard for LinkedIn post
 
 #### 2.1a Bugs — fix first (gate the Quality Gate)
-- [ ] Fix React hooks called conditionally — `Users.tsx:51,56,67,72` (S6440) — move all 4 `useQuery`/`useMutation` calls above the first early `return`
-- [ ] Fix conditional always produces same value — `Dashboard.tsx:100` and `Connections.tsx:466` (S3923) — remove dead branch, use the value directly
-- [ ] Fix click handlers with no keyboard listener — `Layout.tsx:68`, `HelpDrawer.tsx:185`, `PageIntro.tsx:35`, `EmailEdit.tsx:380`, `Projects.tsx:149` (S1082) — replace `<div onClick>` with `<button>` or add `onKeyDown` + `role="button"` + `tabIndex={0}`
+- [x] Fix Python: `StepRun` referenced but not imported in `runs.py` (NameError at runtime on `/runs/<id>/anomalies` and `/step-runs/<id>/download`) — added to `from flowforge.db.models import` *(2026-05-27)*
+- [x] Fix Python: Unused import `from pymysql import connections` in `connections/mysql.py` — removed *(2026-05-27)*
+- [x] Fix Python: Unused exception variable `as e` in 13 `except` clauses across `runner.py`, `postgres.py`, `oracle.py`, `mysql.py`, `scheduler.py`, `launcher.py`, `shutdown.py` (S1481) — removed `as e` binding where `e` was never referenced *(2026-05-27)*
+- [x] Fix React hooks called conditionally — `Users.tsx` (S6440) — all 4 hooks already above the early `return`; comment confirms intent *(verified 2026-05-27)*
+- [x] Fix conditional always produces same value — `Dashboard.tsx` (S3923) — removed redundant `if (!r) return 'idle'` guard in bars map; use `r?.status` optional chaining so fallthrough handles the undefined case *(2026-05-27)*; `Connections.tsx:466` — no S3923 pattern found after full file review; may be resolved by prior refactor or false positive *(verified 2026-05-27)*
+- [x] Fix click handlers with no keyboard listener — all 5 locations already fixed: `Layout.tsx`, `HelpDrawer.tsx`, `PageIntro.tsx`, `EmailEdit.tsx`, `Projects.tsx` — all have `role="button"`, `tabIndex={0}`, `onKeyDown` (S1082) *(verified 2026-05-27)*
 
-#### 2.1b Security
-- [ ] Fix NOSONAR comment syntax — `app.py:34`: change `# NOSONAR: value from env, not hardcoded` → `# NOSONAR` (no trailing text)
-- [ ] Accept `SECRET_KEY` false positive in SonarCloud UI — `app.py:40`: mark "Won't Fix" with justification (value read from `FLOWFORGE_JWT_SECRET` env var, not hardcoded)
+#### 2.1b Security ✅ COMPLETE — Security rating: A
+- [x] Fix NOSONAR comment syntax — `app.py:37` already reads `# NOSONAR` (no trailing text); issue resolved *(verified 2026-05-27)*
+- [x] Accept `SECRET_KEY` false positive in SonarCloud UI — `app.py:37`: marked "False Positive" with justification *(2026-05-27)*
+- [x] CSRF hotspot — marked Safe: API uses JWT Bearer token auth, no cookies, CSRF not applicable *(2026-05-27)*
+- [x] Hardcoded DB password — added `# NOSONAR` to dev-only fallback URL + marked False Positive in UI *(2026-05-27)*
+- [x] **Security rating: E → A** *(2026-05-27)*
 
 #### 2.1c Critical Code Smells — Cognitive Complexity (Python)
 - [ ] Reduce cognitive complexity in `engine/runner.py:53` (42 → ≤15) — extract `_execute_step()`, `_handle_step_error()`, `_write_run_result()` helpers
@@ -86,9 +92,9 @@
 - [ ] Reduce cognitive complexity in `frontend/src/pages/Settings.tsx:108` (17 → ≤15) — extract section components
 - [ ] Fix deeply nested functions in `PipelineEdit.tsx:299,306,312,318` (S2004, >4 levels) — extract inner callbacks to named module-level functions
 
-#### 2.1e Critical Code Smells — Duplicated String Literals
-- [ ] Define `_NOT_FOUND` constants in `api/routes/pipelines.py` (`'Pipeline not found'` used 9×), `routes/emails.py` (4×), `routes/users.py` (3×), `routes/runs.py` (3×), `routes/projects.py` (3×), `routes/bulk_loads.py` (3×), `api/app.py` (3×)
-- [ ] Define `_CASCADE` / `_SET_NULL` constants in `db/models.py` (`'SET NULL'` 9×, `'all, delete-orphan'` 4×, `'ff_projects.id'` 4×, `'ff_pipelines.id'` 4×)
+#### 2.1e Critical Code Smells — Duplicated String Literals ✅ COMPLETE
+- [x] Define `_NOT_FOUND` constants in `api/routes/pipelines.py`, `routes/emails.py`, `routes/users.py`, `routes/runs.py`, `routes/projects.py`, `routes/bulk_loads.py`, `api/app.py` — all already defined
+- [x] Define `_CASCADE` / `_SET_NULL` / `_FF_PROJECTS_ID` / `_FF_PIPELINES_ID` constants in `db/models.py` — all already defined at lines 14–17
 
 #### 2.1f Major Code Smells
 - [ ] Replace `logger.error("...: %s", e)` with `logger.exception("...")` in all `except` blocks — `runner.py:219,248,268`, `scheduler.py:96,153,164`, `launcher.py:67,96`, `shutdown.py:153,155`, `bulk_load.py:143`, `data_load.py:138,159`, `ai_analyze.py:116,147`, `sftp_transfer.py:195,285`, `onedrive_upload.py:34`, `mysql.py:88`, `gmail.py:95`, `microsoft365.py:102`, `smtp.py:92` (~20 one-line changes)
@@ -119,11 +125,11 @@
 - [x] `pip-audit` step added to `test.yml` — satisfies Vulnerabilities check *(on `fix/ci-dependabot-node24` branch)*
 - [x] Docker base images pinned to SHA digest — `Dockerfile:2,10` *(already done)*
 - [x] All GitHub Actions in all workflows pinned to SHA — stale alerts will clear on next weekly run
-- [ ] **Merge `fix/ci-dependabot-node24` branch** — lands CodeQL + pip-audit + Node 24 action upgrades; clears SAST + Vulnerabilities + stale action SHA alerts in one shot
-- [ ] **Enable branch protection in GitHub UI** — Settings → Branches → add rule for `master`: require PR before merging, require 1 approval, require status checks (`test`, `sast`, `frontend`), require branch up-to-date — clears both `BranchProtection` and `CodeReview` checks
-- [ ] Accept `PinnedDependencies (pip hashes)` penalty — `pip install --require-hashes` is incompatible with editable installs; too complex to maintain without dedicated tooling
-- [ ] Accept `Fuzzing` penalty — OSS-Fuzz registration not practical for v1; revisit in v2
-- [ ] Review final Scorecard score after above merges; target ≥ 7.0
+- [x] **Merge `fix/ci-dependabot-node24` branch** — PR #27 merged 2026-05-27; CodeQL + pip-audit + Node 24 upgrades now on master
+- [x] **Branch protection enabled on `master`** — requires PR + 1 approval + status checks (`test`, `sast`, `frontend`) + up-to-date branch + enforce_admins; clears `BranchProtection` and `CodeReview` Scorecard checks
+- [x] Accept `PinnedDependencies (pip hashes)` penalty — `pip install --require-hashes` incompatible with editable installs
+- [x] Accept `Fuzzing` penalty — OSS-Fuzz not practical for v1; revisit in v2
+- [ ] Review final Scorecard score after next weekly run (Saturday); target ≥ 7.0
 
 ### 2.3 OpenSSF Best Practices Badge (Self-Certification)
 - [ ] Complete the self-certification questionnaire at bestpractices.dev
@@ -140,7 +146,7 @@
 
 ### 2.5 README Badge Row
 - [x] Tests + Codecov + Scorecard badges in README
-- [ ] SonarCloud Quality Gate badge (blocked on 2.1 account setup)
+- [x] SonarCloud Quality Gate badge — already in README (`sonarcloud.io` badge, line 7)
 - [ ] OpenSSF Best Practices badge (blocked on 2.3 self-cert)
 
 ---

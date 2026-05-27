@@ -232,7 +232,7 @@ def _create_run_record(pipeline_id, pipeline_name, triggered_by, existing_run_id
         db.session.add(run)
         db.session.commit()
         return run
-    except SQLAlchemyError as e:
+    except SQLAlchemyError:
         logger.exception("Failed to create pipeline_run record")
         return None
 
@@ -261,7 +261,7 @@ def _write_step_run(run_record, step, step_order, step_result, started_at, finis
         )
         db.session.add(sr)
         db.session.commit()
-    except SQLAlchemyError as e:
+    except SQLAlchemyError:
         logger.exception("Failed to write step_run record")
 
 
@@ -281,7 +281,7 @@ def _finish_run_record(run_record, success: bool, error_step: str = '', error_me
         if error_message:
             run_record.error_message = error_message
         db.session.commit()
-    except SQLAlchemyError as e:
+    except SQLAlchemyError:
         logger.exception("Failed to update pipeline_run record")
 
 
