@@ -141,17 +141,30 @@ export default function Layout() {
               </NavLink>
             ))}
             {me?.role === 'admin' && (
-              <NavLink to="/settings/users" className={({ isActive }) => `ff-nav-item${isActive ? ' active' : ''}`} onClick={() => setSidebarOpen(false)}>
-                {({ isActive }) => (
-                  <>
-                    <span className="flex items-center gap-2.5">
-                      <span className={isActive ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}><NavIcon name="users" /></span>
-                      Users
-                    </span>
-                    {isActive && <span className="ff-active-bar" />}
-                  </>
-                )}
-              </NavLink>
+              <>
+                <NavLink to="/settings/users" className={({ isActive }) => `ff-nav-item${isActive ? ' active' : ''}`} onClick={() => setSidebarOpen(false)}>
+                  {({ isActive }) => (
+                    <>
+                      <span className="flex items-center gap-2.5">
+                        <span className={isActive ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}><NavIcon name="users" /></span>
+                        Users
+                      </span>
+                      {isActive && <span className="ff-active-bar" />}
+                    </>
+                  )}
+                </NavLink>
+                <NavLink to="/settings/audit" className={({ isActive }) => `ff-nav-item${isActive ? ' active' : ''}`} onClick={() => setSidebarOpen(false)}>
+                  {({ isActive }) => (
+                    <>
+                      <span className="flex items-center gap-2.5">
+                        <span className={isActive ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}><NavIcon name="hash" /></span>
+                        Audit Log
+                      </span>
+                      {isActive && <span className="ff-active-bar" />}
+                    </>
+                  )}
+                </NavLink>
+              </>
             )}
             <button
               onClick={() => { apiLogout().catch(() => {}).finally(() => { clearToken(); navigate('/login') }) }}

@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react'
 import { ChevronDown, ChevronUp, HelpCircle } from 'lucide-react'
 import { INTRO_CARDS } from '../../lib/helpContent'
 
-interface Props {
+type Props = Readonly<{
   page: string
-}
+}>
 
 export default function PageIntro({ page }: Props) {
   const key = `ff_help_dismissed_${page}`

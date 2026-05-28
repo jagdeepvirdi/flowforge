@@ -122,6 +122,58 @@ def test_test_raw_connection(client, headers, live_db_config):
     assert data.get('success') is True
 
 
+from unittest.mock import patch
+
+def test_test_raw_oracle_success(client, headers):
+    from unittest.mock import MagicMock
+    mock_oracledb = MagicMock()
+    with patch.dict('sys.modules', {'oracledb': mock_oracledb}):
+        resp = client.post('/api/db-connections/test-raw', json={
+            'db_type': 'oracle',
+            'config': {'host': 'localhost', 'port': 1521, 'service_name': 'ORCLCDB', 'user': 'system', 'password': 'pwd'},
+        }, headers=headers)
+        assert resp.status_code == 200
+        assert resp.get_json()['success'] is True
+        mock_oracledb.connect.assert_called_once()
+
+def test_test_raw_oracle_missing_module(client, headers):
+    with patch.dict('sys.modules', {'oracledb': None}):
+        resp = client.post('/api/db-connections/test-raw', json={
+            'db_type': 'oracle',
+            'config': {'host': 'localhost'},
+        }, headers=headers)
+        assert resp.status_code == 400
+        assert 'not installed' in resp.get_json()['error']
+
+def test_test_raw_mysql_success(client, headers):
+    from unittest.mock import MagicMock
+    mock_pymysql = MagicMock()
+    with patch.dict('sys.modules', {'pymysql': mock_pymysql}):
+        resp = client.post('/api/db-connections/test-raw', json={
+            'db_type': 'mysql',
+            'config': {'host': 'localhost', 'port': 3306, 'database': 'test', 'user': 'root', 'password': 'pwd'},
+        }, headers=headers)
+        assert resp.status_code == 200
+        assert resp.get_json()['success'] is True
+        mock_pymysql.connect.assert_called_once()
+
+def test_test_raw_mysql_missing_module(client, headers):
+    with patch.dict('sys.modules', {'pymysql': None}):
+        resp = client.post('/api/db-connections/test-raw', json={
+            'db_type': 'mysql',
+            'config': {'host': 'localhost'},
+        }, headers=headers)
+        assert resp.status_code == 400
+        assert 'not installed' in resp.get_json()['error']
+
+def test_test_raw_unsupported_type(client, headers):
+    resp = client.post('/api/db-connections/test-raw', json={
+        'db_type': 'mongodb',
+        'config': {},
+    }, headers=headers)
+    assert resp.status_code == 400
+    assert resp.get_json()['success'] is False
+
 def test_test_raw_bad_password(client, headers, live_db_config):
     bad_config = {**live_db_config, 'password': 'wrongpassword'}
     resp = client.post('/api/db-connections/test-raw', json={

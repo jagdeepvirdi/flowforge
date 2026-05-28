@@ -245,11 +245,11 @@ export default function BulkLoadEdit() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div className="field">
                 <label htmlFor="bulk-header-rows">Header rows</label>
-                <input id="bulk-header-rows" className="input" type="number" min={0} max={10} value={headerRows} onChange={e => setHeaderRows(parseInt(e.target.value) || 0)} />
+                <input id="bulk-header-rows" className="input" type="number" min={0} max={10} value={headerRows} onChange={e => setHeaderRows(Number.parseInt(e.target.value) || 0)} />
               </div>
               <div className="field">
                 <label htmlFor="bulk-footer-rows">Footer rows</label>
-                <input id="bulk-footer-rows" className="input" type="number" min={0} max={10} value={footerRows} onChange={e => setFooterRows(parseInt(e.target.value) || 0)} />
+                <input id="bulk-footer-rows" className="input" type="number" min={0} max={10} value={footerRows} onChange={e => setFooterRows(Number.parseInt(e.target.value) || 0)} />
               </div>
             </div>
           </div>

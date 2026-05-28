@@ -87,6 +87,100 @@ function Field({ label, children, tooltip }: { label: string; children: React.Re
   )
 }
 
+function DbConnectionCard({ c, ts, error, testDb, openEdit, removeDb, isAdmin }: {
+  c: any; ts?: string; error?: string; testDb: (id: string) => void; openEdit: (id: string) => void; removeDb: (id: string) => void; isAdmin: boolean
+}) {
+  const color = DB_COLORS[c.db_type] ?? 'var(--text-muted)'
+  const label = DB_LABELS[c.db_type] ?? c.db_type
+  return (
+    <div className="card" style={{ padding: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ width: 40, height: 40, borderRadius: 9, background: `${color}22`, border: `1px solid ${color}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', color, flexShrink: 0 }}>
+          <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>
+          </svg>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{c.name}</span>
+            <span className="mono" style={{ fontSize: 10.5, padding: '1px 6px', borderRadius: 4, background: 'var(--surface-2)', color: 'var(--text-3)' }}>{label}</span>
+            {ts === 'ok'   && <StatusBadge status="success" label="Healthy" />}
+            {ts === 'fail' && <StatusBadge status="failed"  label="Unreachable" />}
+          </div>
+          <div className="mono" style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{c.db_type} · {c.is_default ? 'default' : 'not default'}</div>
+          {ts === 'fail' && error && (
+            <div className="mono" style={{ fontSize: 11, color: 'var(--failure)', marginTop: 4, wordBreak: 'break-all' }}>{error}</div>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 24, fontSize: 11.5, flexShrink: 0 }}>
+          <StatCol label="Type"    value={label} />
+          <StatCol label="Default" value={c.is_default ? 'Yes' : 'No'} />
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          <button className="btn btn-sm" onClick={() => testDb(c.id)} disabled={ts === 'testing'}>
+            {ts === 'testing' ? <Spinner size={11} /> : <span style={{ width: 6, height: 6, borderRadius: '50%', background: ts === 'ok' ? 'var(--success-text)' : 'var(--text-muted)' }} />}
+            Test
+          </button>
+          {isAdmin && (
+            <>
+              <button className="btn btn-sm btn-ghost btn-icon" onClick={() => openEdit(c.id)}><Pencil size={12} /></button>
+              <button className="btn btn-sm btn-ghost btn-icon" onClick={() => globalThis.confirm(`Delete "${c.name}"?`) && removeDb(c.id)}>
+                <Trash2 size={12} />
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function EmailProviderCard({ p, ts, error, testEmail, openEdit, removeEmail, isAdmin }: {
+  p: any; ts?: string; error?: string; testEmail: (id: string) => void; openEdit: (id: string) => void; removeEmail: (id: string) => void; isAdmin: boolean
+}) {
+  return (
+    <div className="card" style={{ padding: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ width: 40, height: 40, borderRadius: 9, background: 'rgba(249,115,22,0.14)', border: '1px solid rgba(249,115,22,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-text)', flexShrink: 0 }}>
+          <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>
+          </svg>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{p.name}</span>
+            <span className="mono" style={{ fontSize: 10.5, padding: '1px 6px', borderRadius: 4, background: 'var(--surface-2)', color: 'var(--text-3)' }}>{p.provider_type}</span>
+            {ts === 'ok'   && <StatusBadge status="success" label="Verified" />}
+            {ts === 'fail' && <StatusBadge status="failed"  label="Failed" />}
+          </div>
+          <div className="mono" style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{p.provider_type} · {p.is_default ? 'default' : 'not default'}</div>
+          {ts === 'fail' && error && (
+            <div className="mono" style={{ fontSize: 11, color: 'var(--failure)', marginTop: 4, wordBreak: 'break-all' }}>{error}</div>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 24, fontSize: 11.5, flexShrink: 0 }}>
+          <StatCol label="Type"    value={p.provider_type} />
+          <StatCol label="Default" value={p.is_default ? 'Yes' : 'No'} />
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          <button className="btn btn-sm" onClick={() => testEmail(p.id)} disabled={ts === 'testing'}>
+            {ts === 'testing' ? <Spinner size={11} /> : <span style={{ width: 6, height: 6, borderRadius: '50%', background: ts === 'ok' ? 'var(--success-text)' : 'var(--text-muted)' }} />}
+            Test
+          </button>
+          {isAdmin && (
+            <>
+              <button className="btn btn-sm btn-ghost btn-icon" onClick={() => openEdit(p.id)}><Pencil size={12} /></button>
+              <button className="btn btn-sm btn-ghost btn-icon" onClick={() => globalThis.confirm(`Delete "${p.name}"?`) && removeEmail(p.id)}>
+                <Trash2 size={12} />
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── main component ───────────────────────────────────────────────────────────
 
 export default function Connections() {
@@ -213,10 +307,31 @@ export default function Connections() {
 
   const submitting = addingDb || addingMail || savingDb || savingMail
 
-  const testBg     = modalTest.status === 'ok' ? 'rgba(34,197,94,0.08)'  : (modalTest.status === 'fail' ? 'rgba(239,68,68,0.08)' : 'var(--surface-2)')
-  const testBorder = modalTest.status === 'ok' ? 'rgba(34,197,94,0.3)'   : (modalTest.status === 'fail' ? 'rgba(239,68,68,0.2)'  : 'var(--border)')
-  const testColor  = modalTest.status === 'ok' ? 'var(--success-text)'   : (modalTest.status === 'fail' ? 'var(--failure-text)'  : 'var(--text-3)')
-  const dotBg      = modalTest.status === 'ok' ? 'var(--success-text)'   : (modalTest.status === 'fail' ? 'var(--failure)'       : 'var(--text-muted)')
+  const testStyles = {
+    ok: {
+      bg: 'rgba(34,197,94,0.08)',
+      border: 'rgba(34,197,94,0.3)',
+      color: 'var(--success-text)',
+      dot: 'var(--success-text)',
+    },
+    fail: {
+      bg: 'rgba(239,68,68,0.08)',
+      border: 'rgba(239,68,68,0.2)',
+      color: 'var(--failure-text)',
+      dot: 'var(--failure)',
+    },
+    idle: {
+      bg: 'var(--surface-2)',
+      border: 'var(--border)',
+      color: 'var(--text-3)',
+      dot: 'var(--text-muted)',
+    },
+  }[modalTest.status || 'idle']
+
+  const testBg     = testStyles.bg
+  const testBorder = testStyles.border
+  const testColor  = testStyles.color
+  const dotBg      = testStyles.dot
 
   return (
     <>
@@ -326,7 +441,7 @@ export default function Connections() {
                       {isAdmin && (
                         <>
                           <button className="btn btn-sm btn-ghost btn-icon" onClick={() => openEdit(c.id)}><Pencil size={12} /></button>
-                          <button className="btn btn-sm btn-ghost btn-icon" onClick={() => window.confirm(`Delete "${c.name}"?`) && removeDb(c.id)}>
+                          <button className="btn btn-sm btn-ghost btn-icon" onClick={() => globalThis.confirm(`Delete "${c.name}"?`) && removeDb(c.id)}>
                             <Trash2 size={12} />
                           </button>
                         </>
@@ -410,7 +525,7 @@ export default function Connections() {
                       {isAdmin && (
                         <>
                           <button className="btn btn-sm btn-ghost btn-icon" onClick={() => openEdit(p.id)}><Pencil size={12} /></button>
-                          <button className="btn btn-sm btn-ghost btn-icon" onClick={() => window.confirm(`Delete "${p.name}"?`) && removeEmail(p.id)}>
+                          <button className="btn btn-sm btn-ghost btn-icon" onClick={() => globalThis.confirm(`Delete "${p.name}"?`) && removeEmail(p.id)}>
                             <Trash2 size={12} />
                           </button>
                         </>

@@ -1,8 +1,9 @@
-interface Props {
+type Props = Readonly<{
   status: string
   animate?: boolean
   label?: string
-}
+  ok?: boolean
+}>
 
 export default function StatusBadge({ status, label, animate: _animate }: Props) {
   const map: Record<string, { cls: string; text: string }> = {

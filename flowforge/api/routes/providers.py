@@ -114,4 +114,4 @@ def test_provider(provider_id):
             return jsonify({'success': True})
         return jsonify({'success': False, 'error': msg}), 502
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 502
+        return jsonify({'success': False, 'error': f"{type(e).__name__}: {e}"}), 502

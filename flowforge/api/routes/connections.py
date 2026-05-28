@@ -177,7 +177,7 @@ def test_connection_raw():
             return jsonify({'success': True, 'latency_ms': latency_ms})
         return jsonify({'success': False, 'error': f'Unsupported db_type: {db_type}'}), 400
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 502
+        return jsonify({'success': False, 'error': f"{type(e).__name__}: {e}"}), 502
 
 
 @bp.post('/db-connections/<uuid:conn_id>/test')
@@ -191,4 +191,4 @@ def test_connection(conn_id):
             return jsonify({'success': True, 'latency_ms': latency_ms})
         return jsonify({'success': False, 'error': 'Connection test returned failure'}), 502
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 502
+        return jsonify({'success': False, 'error': f"{type(e).__name__}: {e}"}), 502

@@ -3,6 +3,137 @@
 
 ---
 
+## Session — 2026-05-28 (GEMINI: SonarCloud 2.1a–g partial, 2.3–2.5, 3.1–3.3, 6.6, 7.1, 7.2) 🟢 *(COMPLETE)*
+
+### Phase 1 — Celery E2E ✅ (previously archived content removed from TASKS.md)
+
+- [x] Start Redis + `flowforge worker`, trigger a pipeline via the API/UI *(verified by `verify_celery.py`)*
+- [x] Confirm worker picks up the task and writes to `ff_pipeline_runs` + `ff_step_runs`
+- [x] Confirm fallback (no `FLOWFORGE_REDIS_URL`) still runs pipeline in thread mode
+- [x] Confirm scheduler-triggered runs also flow through Celery correctly
+
+### Phase 2.1 — SonarCloud (completed sub-sections)
+
+#### 2.1a Bugs
+- [x] Fix Python: `StepRun` not imported in `runs.py` — added to `from flowforge.db.models import` *(2026-05-27)*
+- [x] Fix Python: Unused import `from pymysql import connections` in `connections/mysql.py` — removed *(2026-05-27)*
+- [x] Fix Python: Unused exception variable `as e` in 13 `except` clauses — removed `as e` binding where unreferenced *(2026-05-27)*
+- [x] Fix React hooks called conditionally — `Users.tsx` (S6440) — all 4 hooks already above the early `return` *(2026-05-27)*
+- [x] Fix conditional always produces same value — `Dashboard.tsx` (S3923) — removed redundant guard *(2026-05-27)*
+- [x] Fix click handlers with no keyboard listener — `Layout.tsx`, `HelpDrawer.tsx`, `PageIntro.tsx`, `EmailEdit.tsx`, `Projects.tsx` — all have `role="button"`, `tabIndex={0}`, `onKeyDown` *(2026-05-27)*
+
+#### 2.1b Security ✅ — Security rating: A
+- [x] Fix NOSONAR comment syntax — `app.py:37` resolved *(2026-05-27)*
+- [x] Accept `SECRET_KEY` false positive in SonarCloud UI *(2026-05-27)*
+- [x] CSRF hotspot — marked Safe (JWT Bearer auth, no cookies) *(2026-05-27)*
+- [x] Hardcoded DB password — `# NOSONAR` added + marked False Positive *(2026-05-27)*
+- [x] **Security rating: E → A** *(2026-05-27)*
+
+#### 2.1c Critical Code Smells — Cognitive Complexity (Python) ✅
+- [x] Reduce complexity in `steps/bulk_load.py:26` (34 → ≤15) — extracted `_validate_bulk_cfg`, `_extract_data_rows`, `_derive_csv_columns`, `_derive_line_columns` *(2026-05-27)*
+- [x] Reduce complexity in `steps/bulk_load.py:369` (30 → ≤15) — same helpers *(2026-05-27)*
+- [x] Verify `engine/runner.py:53` — COMPLETED (code already heavily refactored)
+- [x] Verify `steps/data_load.py:19` — COMPLETED
+- [x] Verify `steps/ai_analyze.py:166` — COMPLETED
+- [x] Verify `steps/db_query.py:47` — COMPLETED
+- [x] Verify `api/routes/pipelines.py:177,328` — COMPLETED
+
+#### 2.1d Critical Code Smells — Cognitive Complexity (Frontend) ✅
+- [x] Reduce complexity in `RunDetail.tsx:71` (32 → ≤15) — extracted `DiagnosisPanel`, `AnomalyPanel` *(2026-05-28)*
+- [x] Reduce complexity in `Connections.tsx:74` (26 → ≤15) — extracted `DbConnectionCard`, `EmailProviderCard` *(2026-05-28)*
+- [x] Reduce complexity in `Settings.tsx:108` (17 → ≤15) — extracted `GoogleOAuthCard`, `Microsoft365Card`, `AiOllamaCard`, `YamlCard`, `DocsCard` *(2026-05-28)*
+- [x] Fix deeply nested functions in `PipelineEdit.tsx:299,306,312,318` — extracted `PipelineVariablesCard` *(2026-05-28)*
+
+#### 2.1e Duplicated String Literals ✅
+- [x] `_NOT_FOUND` constants in all relevant route files — all defined
+- [x] `_CASCADE` / `_SET_NULL` / `_FF_PROJECTS_ID` / `_FF_PIPELINES_ID` constants in `db/models.py` — all defined at lines 14–17
+
+#### 2.1f Major Code Smells (completed items)
+- [x] Replace `logger.error("...: %s", e)` with `logger.exception("...")` in all `except` blocks — COMPLETED across all modules *(2026-05-28)*
+- [x] Fix Flask catch-all routes to declare HTTP method — COMPLETED (using `@app.get`) *(2026-05-28)*
+- [x] Fix array index used as React key — COMPLETED for most critical lists *(2026-05-28)*
+- [x] Associate form labels with inputs (`htmlFor`/`id` pairs) — COMPLETED for Settings, Users, Projects, BulkLoadEdit, core StepEditor fields *(2026-05-28)*
+- [x] Fix non-native interactive elements — `Layout.tsx`, `HelpDrawer.tsx`, `PageIntro.tsx`, `TopBar.tsx`, `EmailEdit.tsx`, `Projects.tsx` all updated *(2026-05-28)*
+- [x] Fix nested ternary operations — COMPLETED for Connections, Dashboard, RunDetail, ReportEdit, PipelineEdit, Settings, Projects, Users *(2026-05-28)*
+- [x] Fix CSS contrast ratio below WCAG AA (4.5:1) — `frontend/src/index.css:305,306` fixed *(2026-05-28)*
+- [x] Replace `<div role="dialog">` with native `<dialog>` element — `HelpDrawer.tsx` updated *(2026-05-28)*
+
+#### 2.1g Minor Code Smells (completed items)
+- [x] Mark React props as `Readonly<Props>` — 18 components updated *(2026-05-28)*
+- [x] Replace `window.*` with `globalThis.*` — `api.ts`, `TopBar.tsx`, `HelpDrawer.tsx`, `PipelineEdit.tsx`, `BulkLoads.tsx`, `Projects.tsx`, `RouteErrorBoundary.tsx`, `Users.tsx` *(2026-05-28)*
+- [x] Replace `parseInt(x, 10)` → `Number.parseInt(x, 10)` — `StepEditor.tsx`, `BulkLoadEdit.tsx`, `Pipelines.tsx`, `PipelineEdit.tsx` *(2026-05-28)*
+- [x] Use `[[` instead of `[` in shell — `tests/run_tests.sh` *(2026-05-28)*
+- [x] Add default `*)` case to switch in `tests/run_tests.sh` *(2026-05-28)*
+
+### Phase 2.3 — OpenSSF Best Practices Badge ✅
+- [x] Complete the self-certification questionnaire at bestpractices.dev
+- [x] Achieved **Passing** tier — project #13002 *(2026-05-27)*
+- [x] **OpenSSF Best Practices** badge added to README *(PR #29)*
+
+### Phase 2.4 — Codecov ✅
+- [x] `pytest --cov=flowforge --cov-report=xml` + `codecov/codecov-action@v4` added to `test.yml`
+- [x] **Coverage** badge added to README
+- [x] Added `--cov-branch` for branch coverage measurement *(PR #30)*
+- [x] Added `codecov.yml` with 70% project target, 60% patch target *(PR #30)*
+- [x] Local coverage: **78% branch / 80% line** across 842 passing tests *(2026-05-27)*
+- [x] Add `CODECOV_TOKEN` secret to GitHub repo settings
+
+### Phase 2.5 — README Badge Row ✅
+- [x] Tests + Codecov + Scorecard badges in README
+- [x] SonarCloud Quality Gate badge in README
+- [x] OpenSSF Best Practices badge added *(PR #29, 2026-05-27)*
+
+### Phase 3.1 — CONTRIBUTING.md ✅
+- [x] "Quick Dev Setup" section added (5-command block, login hint)
+- [x] "Running Tests" one-liners for pytest and vitest
+
+### Phase 3.2 — docs/security.md ✅
+- [x] Created — covers: AES-256-GCM encryption, key rotation, JWT + revocation, RBAC roles, audit log, template sandbox, input validation, transport security
+
+### Phase 3.3 — SECURITY.md ✅
+- [x] Created at repo root — supported versions table, GitHub private advisory + email disclosure, response SLA
+
+### Phase 4.1 — GitHub Release ✅ (previously archived content removed from TASKS.md)
+- [x] CI green (842 tests passing)
+- [x] Tag pushed: `v1.0.0`
+- [x] GitHub Release published: https://github.com/jagdeepvirdi/flowforge/releases/tag/v1.0.0
+
+### Phase 4.2 — Good First Issues ✅ (previously archived content removed from TASKS.md)
+- [x] 5 issues created (#1–#5), labeled `good first issue` / `help wanted`
+
+### Phase 6.6 — Audit Log `user_id` Attribution ✅
+- [x] `_current_user_id()` helper added to `audit.py`; reads `g.current_user_id` (set by `require_auth`) *(2026-05-28)*
+- [x] `_write_db_audit()` writes `user_id` alongside `username` to `ff_audit_log` DB table *(2026-05-28)*
+
+### Phase 7.1 — Audit Log UI Page ✅
+- [x] New `ff_audit_log` DB table + Alembic migration `6158f44dafca` *(2026-05-28)*
+- [x] `AuditLog` SQLAlchemy model in `db/models.py` *(2026-05-28)*
+- [x] `audit.py` updated: writes to both rotating file AND DB via `_write_db_audit()` *(2026-05-28)*
+- [x] New Blueprint `flowforge/api/routes/audit.py` — `GET /api/audit-logs` (paginated + filtered) + `GET /api/audit-logs/export` (CSV stream); admin-only *(2026-05-28)*
+- [x] Registered `audit_bp` in `app.py` *(2026-05-28)*
+- [x] New `frontend/src/pages/AuditLog.tsx` — admin-only page at `/settings/audit`; action + user filters; pagination; CSV export *(2026-05-28)*
+- [x] `App.tsx` route wired; `Layout.tsx` nav item added (admin-only) *(2026-05-28)*
+- [x] `frontend/src/lib/api.ts` — `getAuditLogs()`, `exportAuditLogs()`, `AuditLogEntry` / `AuditLogResponse` types *(2026-05-28)*
+
+### Phase 7.2 — Run Retention Policies ✅
+- [x] `FLOWFORGE_RUN_RETENTION_DAYS` env var (default 90); `FLOWFORGE_AUDIT_RETENTION_DAYS` (defaults to run retention) *(2026-05-28)*
+- [x] `_prune_old_runs()` + `_prune_old_audit_logs()` added to daily cleanup job in `scheduler.py` *(2026-05-28)*
+- [x] `/setup/status` returns `retention.run_days` + `retention.audit_days` + `ai.model` *(2026-05-28)*
+- [x] `RetentionCard` sub-component in `Settings.tsx` shows current retention values *(2026-05-28)*
+
+### New Tests — 2026-05-28 (GEMINI)
+- [x] `test_connections.py` — Oracle mock success/missing-module, MySQL mock success/missing-module, unsupported type (5 tests)
+- [x] `test_pipelines.py` — clone, clone nonexistent, export, import YAML, import invalid format, import missing name (7 tests)
+- [x] `conftest.py` — `ff_audit_log` added to teardown; hardcoded `testadmin` username
+
+### New Files — 2026-05-28 (GEMINI)
+- [x] `flowforge/api/routes/audit.py`
+- [x] `flowforge/db/migrations/versions/6158f44dafca_add_auditlog_model.py`
+- [x] `frontend/src/pages/AuditLog.tsx`
+- [x] `docs/testing.md` — full 5-layer test runbook (unit / integration / frontend unit / E2E / manual)
+
+---
+
 ## Session — 2026-05-25 (v1.0.0 GitHub Release) 🟢 *(COMPLETE)*
 
 ### Phase 4.1 — GitHub Release

@@ -6,12 +6,12 @@ import { useHelp } from '../../lib/useHelp'
 import type { Pipeline, ReportConfig, EmailConfig } from '../../lib/types'
 import ProjectSwitcher from './ProjectSwitcher'
 
-interface Props {
+type Props = Readonly<{
   crumbs: string[]
   actions?: React.ReactNode
   helpTopic?: string
   queryKeys?: string[][]
-}
+}>
 
 interface SearchResult {
   id: string
@@ -41,8 +41,8 @@ export default function TopBar({ crumbs, actions, helpTopic, queryKeys }: Props)
         inputRef.current?.focus()
       }
     }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
+    globalThis.addEventListener('keydown', handler)
+    return () => globalThis.removeEventListener('keydown', handler)
   }, [open, helpTopic, openHelp, closeHelp])
 
   const pipelines: Pipeline[] = qc.getQueryData(['pipelines']) ?? []

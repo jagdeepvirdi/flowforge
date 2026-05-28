@@ -17,16 +17,17 @@ const STEP_META: Record<StepType, { label: string; cls: string }> = {
   bulk_load:    { label: 'Bulk',   cls: 'tbadge-bulk' },
 }
 
-interface Props {
+type Props = Readonly<{
   step: PipelineStep
   onChange: (id: string, updates: Partial<PipelineStep>) => void
   onDelete: (id: string) => void
   allSteps: PipelineStep[]
-  dbConnections:    { id: string; name: string }[]
-  reportConfigs:    { id: string; name: string; output_filename: string }[]
-  emailConfigs:     { id: string; name: string }[]
-  bulkLoadConfigs:  { id: string; name: string; source_directory: string; target_table: string }[]
-}
+  dbConnections: { id: string; name: string }[]
+  reportConfigs: { id: string; name: string; output_filename: string }[]
+  emailConfigs: { id: string; name: string }[]
+  bulkLoadConfigs: { id: string; name: string; source_directory: string; target_table: string }[]
+}>
+
 
 export default function StepEditor({ step, onChange, onDelete, allSteps, dbConnections, reportConfigs, emailConfigs, bulkLoadConfigs }: Props) {
   const [expanded, setExpanded] = useState(true)
@@ -160,8 +161,8 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
                     </select>
                   </Field>
                 </div>
-                <Field label="Output variable (optional)">
-                  <input className="input mono-input" value={String(cfg.output_variable ?? '')} onChange={e => setConfig('output_variable', e.target.value)} placeholder="e.g. subscription_count" />
+                <Field label="Output variable (optional)" htmlFor={`step-${step.id}-out-var`}>
+                  <input id={`step-${step.id}-out-var`} className="input mono-input" value={String(cfg.output_variable ?? '')} onChange={e => setConfig('output_variable', e.target.value)} placeholder="e.g. subscription_count" />
                   <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
                     Captures the first column of the first row as <code style={{ color: 'var(--text-3)' }}>{'{{ subscription_count }}'}</code> in downstream steps.
                   </span>
@@ -183,7 +184,7 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
                         min={1}
                         max={1000}
                         value={String(cfg.row_limit ?? 100)}
-                        onChange={e => setConfig('row_limit', parseInt(e.target.value) || 100)}
+                        onChange={e => setConfig('row_limit', Number.parseInt(e.target.value) || 100)}
                         style={{ width: 120 }}
                       />
                     </Field>
@@ -199,8 +200,8 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
             )}
 
             {step.step_type === 'report' && (
-              <Field label="Report config">
-                <select className="input" value={String(cfg.report_config_id ?? '')} onChange={e => setConfig('report_config_id', e.target.value)} style={{ height: 34 }}>
+              <Field label="Report config" htmlFor={`step-${step.id}-report-id`}>
+                <select id={`step-${step.id}-report-id`} className="input" value={String(cfg.report_config_id ?? '')} onChange={e => setConfig('report_config_id', e.target.value)} style={{ height: 34 }}>
                   <option value="">Select report config…</option>
                   {reportConfigs.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                 </select>
@@ -209,8 +210,8 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
 
             {step.step_type === 'email' && (
               <>
-                <Field label="Email config">
-                  <select className="input" value={String(cfg.email_config_id ?? '')} onChange={e => setConfig('email_config_id', e.target.value)} style={{ height: 34 }}>
+                <Field label="Email config" htmlFor={`step-${step.id}-email-id`}>
+                  <select id={`step-${step.id}-email-id`} className="input" value={String(cfg.email_config_id ?? '')} onChange={e => setConfig('email_config_id', e.target.value)} style={{ height: 34 }}>
                     <option value="">Select email config…</option>
                     {emailConfigs.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                   </select>
@@ -346,10 +347,10 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
   )
 }
 
-function Field({ label, children, tooltip }: { label: string; children: React.ReactNode; tooltip?: React.ReactNode }) {
+function Field({ label, children, tooltip, htmlFor }: { label: string; children: React.ReactNode; tooltip?: React.ReactNode; htmlFor?: string }) {
   return (
     <div className="field">
-      <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+      <label htmlFor={htmlFor} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         {label}
         {tooltip}
       </label>
@@ -624,7 +625,7 @@ function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnections }: DataLoa
               min={1}
               max={10000}
               value={String(cfg.chunk_size ?? 1000)}
-              onChange={e => setConfig('chunk_size', parseInt(e.target.value) || 1000)}
+              onChange={e => setConfig('chunk_size', Number.parseInt(e.target.value) || 1000)}
               style={{ width: 120 }}
             />
             <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>

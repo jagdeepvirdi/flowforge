@@ -69,7 +69,10 @@ function ProjectModal({
     onError: (e: Error) => setError(e.message),
   })
 
-  const saveButtonLabel = isPending ? 'Saving…' : (project ? 'Save' : 'Create')
+  const saveButtonLabel = (() => {
+    if (isPending) return 'Saving…'
+    return project ? 'Save' : 'Create'
+  })()
 
   return (
     <div style={{
@@ -199,7 +202,7 @@ function ProjectCard({ project, onEdit }: { project: Project; onEdit: (p: Projec
                     alert(`Cannot delete "${project.name}" — it has ${total} resource(s). Move or delete them first.`)
                     return
                   }
-                  window.confirm(`Delete project "${project.name}"?`) && remove()
+                  globalThis.confirm(`Delete project "${project.name}"?`) && remove()
                 }}
                 title="Delete"
               >

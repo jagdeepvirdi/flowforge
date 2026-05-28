@@ -39,6 +39,87 @@ function newStep(type: StepType, order: number): PipelineStep {
   }
 }
 
+function PipelineVariablesCard({ vars, setVars }: {
+  vars: { key: string; value: string; is_secret: boolean }[]
+  setVars: React.Dispatch<React.SetStateAction<{ key: string; value: string; is_secret: boolean }[]>>
+}) {
+  const updateVar = (i: number, updates: any) => {
+    setVars(prev => prev.map((v, j) => j === i ? { ...v, ...updates } : v))
+  }
+  const removeVar = (i: number) => {
+    setVars(prev => prev.filter((_, j) => j !== i))
+  }
+  const addVar = () => {
+    setVars(v => [...v, { key: '', value: '', is_secret: false }])
+  }
+
+  return (
+    <div className="card mb-4">
+      <div className="flex items-center justify-between mb-2.5">
+        <div>
+          <span className="text-xs font-semibold text-[var(--text)]">Pipeline Variables</span>
+          <span className="text-[11px] text-[var(--text-muted)] ml-2">
+            available as <code className="text-[11px] bg-[var(--surface)] p-[1px_5px] rounded-[3px]">{'{{ var_name }}'}</code> in all step configs
+          </span>
+        </div>
+        <button type="button" className="btn btn-sm" onClick={addVar}>
+          <Plus size={10} /> Add variable
+        </button>
+      </div>
+
+      {vars.length === 0 ? (
+        <p className="text-xs text-[var(--text-muted)] m-0">
+          No variables. Add one to pass constants like currency codes, environment names, or date ranges to all steps.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-2 pb-1 border-b border-[var(--border)]">
+            {(['Name', 'Value', 'Secret', ''] as const).map(h => (
+              <span key={h} className="text-[11px] text-[var(--text-muted)] font-semibold">{h}</span>
+            ))}
+          </div>
+          {vars.map((v, i) => (
+            <div key={v.key + '-' + i} className="grid grid-cols-[1fr_1fr_auto_auto] gap-2 items-center">
+              <input
+                className="input mono-input !text-xs !h-[30px]"
+                placeholder="currency"
+                value={v.key}
+                onChange={e => updateVar(i, { key: e.target.value })}
+              />
+              <input
+                className="input !text-xs !h-[30px]"
+                placeholder={v.is_secret ? '(unchanged)' : 'USD'}
+                value={v.value}
+                type={v.is_secret ? 'password' : 'text'}
+                onChange={e => updateVar(i, { value: e.target.value })}
+              />
+              <label className="flex items-center gap-1.5 cursor-pointer whitespace-nowrap text-xs text-[var(--text-muted)]">
+                <input
+                  type="checkbox"
+                  checked={v.is_secret}
+                  onChange={e => updateVar(i, { is_secret: e.target.checked })}
+                />
+                Secret
+              </label>
+              <button
+                type="button"
+                onClick={() => removeVar(i)}
+                className="bg-transparent border-none text-[var(--failure)] cursor-pointer p-1"
+                title="Remove variable"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          ))}
+          <p className="text-[11px] text-[var(--text-muted)] mt-1 mb-0">
+            Built-in date vars: <code className="text-[11px]">{'{{ current_date }}'}</code> <code className="text-[11px]">{'{{ month_start_ts }}'}</code> <code className="text-[11px]">{'{{ prev_month_start_ts }}'}</code> <code className="text-[11px]">{'{{ last_success_at }}'}</code>
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function PipelineEdit() {
   const { id } = useParams()
   const isNew = !id
@@ -261,74 +342,7 @@ export default function PipelineEdit() {
         </div>
 
         {/* Pipeline Variables */}
-        <div className="card mb-4">
-          <div className="flex items-center justify-between mb-2.5">
-            <div>
-              <span className="text-xs font-semibold text-[var(--text)]">Pipeline Variables</span>
-              <span className="text-[11px] text-[var(--text-muted)] ml-2">
-                available as <code className="text-[11px] bg-[var(--surface)] p-[1px_5px] rounded-[3px]">{'{{ var_name }}'}</code> in all step configs
-              </span>
-            </div>
-            <button
-              type="button"
-              className="btn btn-sm"
-              onClick={() => setVars(v => [...v, { key: '', value: '', is_secret: false }])}
-            >
-              <Plus size={10} /> Add variable
-            </button>
-          </div>
-
-          {vars.length === 0 ? (
-            <p className="text-xs text-[var(--text-muted)] m-0">
-              No variables. Add one to pass constants like currency codes, environment names, or date ranges to all steps.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-1.5">
-              {/* Header */}
-              <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-2 pb-1 border-b border-[var(--border)]">
-                {(['Name', 'Value', 'Secret', ''] as const).map(h => (
-                  <span key={h} className="text-[11px] text-[var(--text-muted)] font-semibold">{h}</span>
-                ))}
-              </div>
-              {vars.map((v, i) => (
-                <div key={v.key + '-' + i} className="grid grid-cols-[1fr_1fr_auto_auto] gap-2 items-center">
-                  <input
-                    className="input mono-input !text-xs !h-[30px]"
-                    placeholder="currency"
-                    value={v.key}
-                    onChange={e => setVars(prev => prev.map((r, j) => j === i ? { ...r, key: e.target.value } : r))}
-                  />
-                  <input
-                    className="input !text-xs !h-[30px]"
-                    placeholder={v.is_secret ? '(unchanged)' : 'USD'}
-                    value={v.value}
-                    type={v.is_secret ? 'password' : 'text'}
-                    onChange={e => setVars(prev => prev.map((r, j) => j === i ? { ...r, value: e.target.value } : r))}
-                  />
-                  <label className="flex items-center gap-1.5 cursor-pointer whitespace-nowrap text-xs text-[var(--text-muted)]">
-                    <input
-                      type="checkbox"
-                      checked={v.is_secret}
-                      onChange={e => setVars(prev => prev.map((r, j) => j === i ? { ...r, is_secret: e.target.checked } : r))}
-                    />
-                    Secret
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setVars(prev => prev.filter((_, j) => j !== i))}
-                    className="bg-transparent border-none text-[var(--failure)] cursor-pointer p-1"
-                    title="Remove variable"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              ))}
-              <p className="text-[11px] text-[var(--text-muted)] mt-1 mb-0">
-                Built-in date vars: <code className="text-[11px]">{'{{ current_date }}'}</code> <code className="text-[11px]">{'{{ month_start_ts }}'}</code> <code className="text-[11px]">{'{{ prev_month_start_ts }}'}</code> <code className="text-[11px]">{'{{ last_success_at }}'}</code>
-              </p>
-            </div>
-          )}
-        </div>
+        <PipelineVariablesCard vars={vars} setVars={setVars} />
 
         {/* Webhook tokens — only shown when editing an existing pipeline */}
         {!isNew && id && <WebhookCard pipelineId={id} />}
@@ -534,11 +548,11 @@ function parseCronState(cron: string): CronState {
   if (p.length !== 5) return { n: 5, minute: 0, hour: 8, weekday: 1, monthDay: 1 }
   const [min, hr, dom, , dow] = p
   return {
-    n:        parseInt(min.replace('*/', '')) || 5,
-    minute:   parseInt(min) || 0,
-    hour:     parseInt(hr) || 8,
-    weekday:  parseInt(dow) || 1,
-    monthDay: parseInt(dom) || 1,
+    n:        Number.parseInt(min.replace('*/', '')) || 5,
+    minute:   Number.parseInt(min) || 0,
+    hour:     Number.parseInt(hr) || 8,
+    weekday:  Number.parseInt(dow) || 1,
+    monthDay: Number.parseInt(dom) || 1,
   }
 }
 
@@ -559,7 +573,11 @@ function CronBuilder({ defaultValue, onChange }: { defaultValue: string; onChang
   const [rawCron, setRawCron] = useState(defaultValue)
   const mounted = useRef(false)
 
-  const currentCron = freq === 'custom' ? rawCron : (freq === 'none' ? '' : buildCronStr(freq, state))
+  const currentCron = (() => {
+    if (freq === 'custom') return rawCron
+    if (freq === 'none') return ''
+    return buildCronStr(freq, state)
+  })()
 
   useEffect(() => {
     if (!mounted.current) { mounted.current = true; return }

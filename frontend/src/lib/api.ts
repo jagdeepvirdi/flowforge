@@ -23,8 +23,8 @@ async function request<T>(
     useAuth.getState().clearToken()
     // Don't redirect if already on /login — just surface the error message so the
     // login form can display it (a full reload would wipe React state before render).
-    if (window.location.pathname !== '/login') {
-      window.location.href = '/login'
+    if (globalThis.location.pathname !== '/login') {
+      globalThis.location.href = '/login'
     }
     throw new Error(data.error ?? 'Unauthorized')
   }
@@ -190,9 +190,65 @@ export type SetupStatus = {
   gmail:        { configured: boolean; sender: string }
   drive:        { configured: boolean; folder_id: string }
   microsoft365: { configured: boolean; sender: string }
-  ai:           { enabled: boolean; ollama_url: string }
+  ai:           { enabled: boolean; ollama_url: string; model: string }
+  retention:    { run_days: number; audit_days: number }
 }
 export const getSetupStatus = () => get<SetupStatus>('/setup/status')
+
+// Audit Logs
+export type AuditLogEntry = {
+  id: string
+  timestamp: string
+  action: string
+  username: string
+  user_id: string | null
+  ip_address: string | null
+  details: Record<string, any>
+}
+export type AuditLogResponse = {
+  logs: AuditLogEntry[]
+  total: number
+  page: number
+  pages: number
+}
+export const getAuditLogs = (params?: { page?: number; action?: string; username?: string }) => {
+  const qs = new URLSearchParams()
+  if (params?.page) qs.set('page', String(params.page))
+  if (params?.action) qs.set('action', params.action)
+  if (params?.username) qs.set('username', params.username)
+  const q = qs.toString()
+  return get<AuditLogResponse>(`/audit-logs${q ? `?${q}` : ''}`)
+}
+
+export async function exportAuditLogs(params?: { action?: string; username?: string }): Promise<void> {
+  const qs = new URLSearchParams()
+  if (params?.action) qs.set('action', params.action)
+  if (params?.username) qs.set('username', params.username)
+  const q = qs.toString()
+
+  const token = useAuth.getState().token
+  const headers: Record<string, string> = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  const res = await fetch(`${BASE}/audit-logs/export${q ? `?${q}` : ''}`, { headers })
+  if (res.status === 401) {
+    useAuth.getState().clearToken()
+    globalThis.location.href = '/login'
+    throw new Error('Unauthorized')
+  }
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`)
+  }
+
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'audit_logs.csv'
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 export async function downloadStepOutput(stepRunId: string, filename: string): Promise<void> {
   const token = useAuth.getState().token
@@ -202,7 +258,7 @@ export async function downloadStepOutput(stepRunId: string, filename: string): P
   const res = await fetch(`${BASE}/step-runs/${stepRunId}/download`, { headers })
   if (res.status === 401) {
     useAuth.getState().clearToken()
-    window.location.href = '/login'
+    globalThis.location.href = '/login'
     throw new Error('Unauthorized')
   }
   if (!res.ok) {

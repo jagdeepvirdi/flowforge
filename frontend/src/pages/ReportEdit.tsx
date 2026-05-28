@@ -304,7 +304,8 @@ export default function ReportEdit() {
               <label>Format</label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
                 {(['excel', 'csv', 'pdf', 'json'] as ReportFormat[]).map(f => {
-                  const formatLabel = f === 'excel' ? 'Excel' : (f === 'csv' ? 'CSV' : (f === 'pdf' ? 'PDF' : 'JSON'))
+                  const formatLabels: Record<string, string> = { excel: 'Excel', csv: 'CSV', pdf: 'PDF', json: 'JSON' }
+                  const formatLabel = formatLabels[f] || f.toUpperCase()
                   return (
                   <button key={f} type="button" onClick={() => {
                     setValue('format', f)

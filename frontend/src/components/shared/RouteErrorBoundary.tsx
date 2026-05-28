@@ -1,10 +1,10 @@
 import { Component, type ReactNode } from 'react'
 
-interface Props {
+type Props = Readonly<{
   children: ReactNode
   /** Short label shown in the error card, e.g. "Step editor". Defaults to "This page". */
   label?: string
-}
+}>
 
 interface State {
   hasError: boolean
@@ -47,7 +47,7 @@ export default class RouteErrorBoundary extends Component<Props, State> {
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 16 }}>
             <button
               className="btn btn-primary btn-sm"
-              onClick={() => window.location.reload()}
+              onClick={() => globalThis.location.reload()}
             >
               Reload page
             </button>

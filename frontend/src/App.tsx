@@ -74,6 +74,7 @@ export default function App() {
           <Route path="runs/:id" element={<RunDetail />} />
           <Route path="settings" element={<Settings />} />
           <Route path="settings/users" element={<Users />} />
+          <Route path="settings/audit" element={<AuditLog />} />
         </Route>
       </Routes>
       </AppBootstrap>

@@ -2,9 +2,9 @@ import { useState, useRef, useEffect } from 'react'
 import { HelpCircle } from 'lucide-react'
 import { TOOLTIPS } from '../../lib/helpContent'
 
-interface Props {
+type Props = Readonly<{
   field: string
-}
+}>
 
 export default function FieldTooltip({ field }: Props) {
   const tip = TOOLTIPS[field]

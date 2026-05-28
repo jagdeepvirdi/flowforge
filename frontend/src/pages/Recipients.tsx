@@ -55,7 +55,7 @@ function GroupRow({ group, onSaved, onDelete, canEdit }: { group: RecipientGroup
           <td>
             <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
               <button className="btn btn-sm btn-ghost btn-icon" onClick={() => setEditing(true)}><Pencil size={12} /></button>
-              <button className="btn btn-sm btn-ghost btn-icon" onClick={() => window.confirm(`Delete "${group.name}"?`) && onDelete()}><Trash2 size={12} /></button>
+              <button className="btn btn-sm btn-ghost btn-icon" onClick={() => globalThis.confirm(`Delete "${group.name}"?`) && onDelete()}><Trash2 size={12} /></button>
             </div>
           </td>
         )}

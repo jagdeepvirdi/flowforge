@@ -170,7 +170,7 @@ def cron_next_runs():
             times.append(t.isoformat())
         return jsonify({'next_runs': times})
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        return jsonify({'error': f"{type(e).__name__}: {e}"}), 400
 
 
 @bp.post('/pipelines')
