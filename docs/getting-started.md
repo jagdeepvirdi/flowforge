@@ -22,7 +22,7 @@ pip install -e .
 
 ```bash
 pip install -e .[pdf]     # PDF report generation (WeasyPrint)
-pip install -e .[oracle]  # Oracle database support (cx_Oracle)
+pip install -e .[oracle]  # Oracle database support (python-oracledb — thin mode, no Oracle Instant Client needed)
 pip install -e .[dev]     # Development tools (pytest, ruff)
 ```
 
@@ -88,9 +88,14 @@ flowforge web
 # Scheduler only (in a separate terminal)
 flowforge schedule
 
+# Celery worker (only needed when FLOWFORGE_REDIS_URL is set)
+flowforge worker --concurrency 2
+
 # Run a specific pipeline directly from the CLI
 flowforge run "My Pipeline Name"
 ```
+
+`flowforge worker` is only required when `FLOWFORGE_REDIS_URL` is configured for async task execution. For single-server deployments, the scheduler and API run pipelines directly without Celery.
 
 ## Setting Up Email
 
@@ -156,7 +161,7 @@ See [Step Types Reference → onedrive_upload](step-types.md#onedrive_upload) fo
 
 ## AI Features (Optional)
 
-FlowForge ships with six AI-powered features, all routed through [Ollama](https://ollama.com) running locally. No data leaves your machine and there is no API cost.
+FlowForge ships with six AI-powered features. By default these run through [Ollama](https://ollama.com) locally — no data leaves your machine and there is no API cost. The `ai_analyze` pipeline step also supports the **Claude API** as an alternative provider (set `USE_CLAUDE=true` and `ANTHROPIC_API_KEY` in `.env`).
 
 | Feature | Where | What it does |
 |---|---|---|
@@ -209,6 +214,24 @@ Or import a pipeline YAML exported from another instance:
 flowforge import pipelines/example_pipeline.yaml
 ```
 
+## API / Webhook Triggers
+
+Any pipeline can be triggered externally via an HTTP `POST` request. Generate a token in the Pipeline Builder (the **Webhook / API Trigger** card appears when editing an existing pipeline):
+
+1. Open a pipeline → **Webhook / API Trigger** card → enter a label → click **Generate token**
+2. Copy the full trigger URL shown — it is only displayed once:
+   ```
+   POST /api/pipelines/{pipeline-id}/trigger?token=<token>
+   ```
+3. Call it from any external system (GitHub Actions, cron job, monitoring alert, etc.):
+   ```bash
+   curl -X POST "https://your-flowforge/api/pipelines/abc123/trigger?token=flwf_xxx"
+   ```
+
+Tokens can be revoked individually without affecting the pipeline or other tokens. All webhook trigger events are recorded in the audit log.
+
+---
+
 ## Variable Reference
 
 All step config fields are rendered as Jinja2 templates. Key variables:
@@ -219,11 +242,13 @@ All step config fields are rendered as Jinja2 templates. Key variables:
 |---|---|
 | `{{ current_date }}` | `2026-05-23` |
 | `{{ yesterday }}` | `2026-05-22` |
+| `{{ week_start }}` / `{{ week_end }}` | `2026-05-18` / `2026-05-24` |
 | `{{ month_start }}` / `{{ month_end }}` | `2026-05-01` / `2026-05-31` |
 | `{{ prev_month_start }}` / `{{ prev_month_end }}` | `2026-04-01` / `2026-04-30` |
 | `{{ quarter_start }}` / `{{ quarter_end }}` | `2026-04-01` / `2026-06-30` |
 | `{{ current_month }}` | `2026-05` |
 | `{{ current_year }}` | `2026` |
+| `{{ mon_year }}` | `MAY-2026` |
 
 **Timestamp boundaries (YYYYMMDDHHmmSS — for SQL `WHERE` clauses)**
 
@@ -233,6 +258,8 @@ All step config fields are rendered as Jinja2 templates. Key variables:
 | `{{ yesterday_start_ts }}` / `{{ yesterday_end_ts }}` | `20260522000000` / `20260522235959` |
 | `{{ month_start_ts }}` / `{{ month_end_ts }}` | `20260501000000` / `20260531235959` |
 | `{{ prev_month_start_ts }}` / `{{ prev_month_end_ts }}` | `20260401000000` / `20260430235959` |
+| `{{ now_ts }}` | `20260523143022` (YYYYMMDDHHmmSS — sortable, for filenames) |
+| `{{ timestamp }}` | `23052026143022` (DDMMYYYYHHmmSS — human-readable, for filenames) |
 
 **Delta**
 

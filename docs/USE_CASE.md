@@ -137,9 +137,6 @@ For any company migrating from Oracle to PostgreSQL, FlowForge is uniquely posit
 |---|---|
 | Sequential steps only | Can't run report generation and a procedure call in parallel |
 | No conditional branching | Can't say "only send email if row count > 0" — workaround: always send, filter in query |
-| Single-user v1 | Everyone uses the same admin account; no per-user audit trail |
-| No retry on step failure | Re-run the whole pipeline; no partial resume |
-| No webhook trigger | External systems can't trigger a pipeline via HTTP; must use scheduler or manual run |
 | Desktop-only UI | No mobile support; not designed for field use |
 
 ---

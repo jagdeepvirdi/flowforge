@@ -59,8 +59,8 @@
 ## Phase 3 — Documentation Polish (remaining)
 
 ### 3.4 Getting-Started Quick Check
-- [ ] Run through `docs/getting-started.md` end-to-end — verify all commands and screenshots are current
-- [ ] Update any screenshots that show old UI (pre-multi-user)
+- [x] Run through `docs/getting-started.md` end-to-end — verify all commands and screenshots are current
+- [ ] Update any screenshots that show old UI (pre-multi-user) *(deferred — no screenshots in docs yet)*
 
 ---
 

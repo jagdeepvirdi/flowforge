@@ -72,7 +72,17 @@ docker compose logs -f app
 docker compose logs -f scheduler
 ```
 
-### 3. Apply migrations and create admin user
+### 3. Oracle data sources (optional)
+
+If your pipelines connect to Oracle databases, use the Oracle overlay file:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.oracle.yml up -d --build
+```
+
+The overlay adds `python-oracledb` to the image. No Oracle Instant Client is needed — `python-oracledb` runs in thin mode (pure Python).
+
+### 4. Apply migrations and create admin user
 
 On first start, run migrations inside the running container:
 
@@ -82,7 +92,7 @@ docker compose exec app flowforge db upgrade
 
 The admin user is seeded automatically from `FLOWFORGE_USERNAME` / `FLOWFORGE_PASSWORD` on first `db upgrade`. Re-running is safe — it skips if a user already exists.
 
-### 4. Access the UI
+### 5. Access the UI
 
 `http://your-server-ip:5000`
 
@@ -187,7 +197,7 @@ ExecStart=/opt/flowforge/app/.venv/bin/gunicorn \
     --timeout 120 \
     --access-logfile - \
     --error-logfile - \
-    wsgi:app
+    "flowforge.api.app:create_app()"
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=90
@@ -221,11 +231,37 @@ TimeoutStopSec=90
 WantedBy=multi-user.target
 ```
 
-Enable and start both:
+### 10. Systemd service — Celery worker (optional)
+
+Only needed if `FLOWFORGE_REDIS_URL` is set for async pipeline execution. Create `/etc/systemd/system/flowforge-worker.service`:
+
+```ini
+[Unit]
+Description=FlowForge Celery Worker
+After=network.target flowforge-api.service
+
+[Service]
+Type=simple
+User=flowforge
+WorkingDirectory=/opt/flowforge/app
+EnvironmentFile=/opt/flowforge/app/.env
+ExecStart=/opt/flowforge/app/.venv/bin/flowforge worker --concurrency 2
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=90
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start all services:
 
 ```bash
 sudo systemctl daemon-reload
+# Core (always):
 sudo systemctl enable --now flowforge-api flowforge-scheduler
+# Optional (only if using Redis/Celery):
+sudo systemctl enable --now flowforge-worker
 sudo systemctl status flowforge-api flowforge-scheduler
 ```
 
@@ -234,6 +270,7 @@ Tail logs:
 ```bash
 sudo journalctl -u flowforge-api -f
 sudo journalctl -u flowforge-scheduler -f
+sudo journalctl -u flowforge-worker -f   # if using Celery
 ```
 
 ---

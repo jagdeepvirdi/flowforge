@@ -10,7 +10,7 @@ All documentation files in this directory and what they contain.
 |---|---|
 | [getting-started.md](getting-started.md) | Full setup walkthrough: prerequisites, install, `.env` config, first pipeline, CLI reference, Gmail/Drive OAuth2 setup, OneDrive setup, AI features (Ollama), scheduler diagnostics |
 | [deployment.md](deployment.md) | Production deployment guide: Docker Compose (recommended) and bare-metal Gunicorn + Nginx + systemd on Ubuntu/Debian, TLS with Let's Encrypt, upgrade procedure |
-| [step-types.md](step-types.md) | Complete config reference for every step type: `db_procedure`, `db_query`, `report`, `email`, `drive_upload`, `onedrive_upload`, `data_load`, `bulk_load` — with JSONB examples, field tables, and output variable docs |
+| [step-types.md](step-types.md) | Complete config reference for every step type: `db_procedure`, `db_query`, `report`, `email`, `drive_upload`, `onedrive_upload`, `data_load`, `bulk_load`, `ai_analyze`, `sftp_transfer` — with JSONB examples, field tables, output variable docs, and full Jinja2 variable reference |
 | [email-providers.md](email-providers.md) | Setup guides for all three email providers: SMTP (with presets for Outlook, Yahoo, SendGrid), Microsoft 365 (Azure AD app registration + admin consent + token refresh), Gmail (OAuth2 via `flowforge setup gmail`) |
 | [gmail-oauth2-setup.md](gmail-oauth2-setup.md) | Step-by-step Gmail OAuth2 credential setup in Google Cloud Console — screenshots and common errors |
 | [running-the-server.md](running-the-server.md) | How to run FlowForge in dev and prod modes, manage the scheduler process, use `flowforge.ps1` / `flowforge.sh`, troubleshoot common startup errors |
@@ -21,8 +21,10 @@ All documentation files in this directory and what they contain.
 
 | File | Purpose |
 |---|---|
-| [RUNBOOK.md](RUNBOOK.md) | Operational reference: Alembic migration workflow, DB stamp scenario (legacy DB with no migration history), startup sequence, test DB setup, production checklist |
-| [manual-testing-guide.md](manual-testing-guide.md) | Step-by-step manual test checklist for verifying end-to-end flows before a release: DB connection, report preview, pipeline run, email send, scheduler trigger |
+| [RUNBOOK.md](RUNBOOK.md) | Operational reference: Alembic migration workflow, DB stamp scenario (legacy DB with no migration history), startup sequence, full CLI reference, production checklist |
+| [testing.md](testing.md) | Complete test runbook: Layer 1 unit tests, Layer 2 integration tests (test DB setup, env vars), Layer 3 frontend Vitest, Layer 4 Playwright E2E, Layer 5 API smoke test — copy-paste ready commands for all five layers |
+| [security.md](security.md) | Security model: AES-256 credential encryption, JWT auth with token blocklist, multi-user roles (admin/editor/viewer), webhook token security, audit log, Jinja2 sandbox, input validation, CORS, proxy trust |
+| [manual-testing-guide.md](manual-testing-guide.md) | Step-by-step manual test checklist for verifying end-to-end flows before a release: connections, bulk load, DB query, report generation, email (Gmail + M365), Drive/OneDrive, SFTP, AI features, scheduling |
 
 ---
 
@@ -69,4 +71,4 @@ All documentation files in this directory and what they contain.
 
 ---
 
-*Last updated: 2026-05-25*
+*Last updated: 2026-05-29*

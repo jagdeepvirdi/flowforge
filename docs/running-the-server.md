@@ -58,6 +58,16 @@ flowforge db upgrade
 flowforge db seed   # creates the admin user on first run
 ```
 
+### 5. (Optional) Redis — for Celery async execution
+
+If `FLOWFORGE_REDIS_URL` is set in `.env`, start the Celery worker in a separate terminal:
+
+```bash
+flowforge worker --concurrency 2
+```
+
+Without this, pipelines run synchronously in the scheduler thread. For single-server deployments the scheduler/API are sufficient.
+
 ### 5. Ports available
 
 | Service | Default port |
