@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
-import { renderWithProviders, createTestQueryClient } from './helpers'
+import { renderWithProviders } from './helpers'
 import Users from '../pages/Users'
 
 const MOCK_USERS = [

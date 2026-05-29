@@ -78,8 +78,8 @@ function PipelineVariablesCard({ vars, setVars }: {
               <span key={h} className="text-[11px] text-[var(--text-muted)] font-semibold">{h}</span>
             ))}
           </div>
-          {vars.map((v, i) => (
-            <div key={v.key + '-' + i} className="grid grid-cols-[1fr_1fr_auto_auto] gap-2 items-center">
+          {vars.map((v, i) => ({ v, i })).map(({ v, i }) => (
+            <div key={v.key + ':' + i} className="grid grid-cols-[1fr_1fr_auto_auto] gap-2 items-center">
               <input
                 className="input mono-input !text-xs !h-[30px]"
                 placeholder="currency"
@@ -623,7 +623,7 @@ function CronBuilder({ defaultValue, onChange }: { defaultValue: string; onChang
         {(freq === 'daily' || freq === 'weekly' || freq === 'monthly') && (<>
           <span className="text-[12.5px] text-[var(--text-3)]">at</span>
           <select className="input !h-[34px] !w-20" value={state.hour} onChange={e => upd('hour', +e.target.value)}>
-            {Array.from({length: 24}, (_, i) => <option key={'hour-' + i} value={i}>{String(i).padStart(2,'0')}:00</option>)}
+            {Array.from({length: 24}, (_, i) => i).map(h => <option key={h} value={h}>{String(h).padStart(2,'0')}:00</option>)}
           </select>
           <input className="input !w-14 !h-[34px]" type="number" min={0} max={59} value={state.minute} onChange={e => upd('minute', +e.target.value)} title="Minute (0–59)" />
         </>)}

@@ -40,8 +40,8 @@ export default function BulkLoads() {
               </tr>
             </thead>
             <tbody>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <tr key={'sk-' + i}>
+              {Array.from({ length: 5 }, (_, i) => i).map(n => (
+                <tr key={'sk-' + n}>
                   <td><Sk h={14} style={{ width: '70%' }} /></td>
                   <td><Sk h={14} style={{ width: '80%' }} /></td>
                   <td><Sk h={14} style={{ width: '75%' }} /></td>

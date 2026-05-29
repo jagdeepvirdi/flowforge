@@ -94,8 +94,8 @@ function PipelineCard({ pipeline, runs }: { pipeline: Pipeline; runs: PipelineRu
 
       {/* Run mini-bars */}
       <div className="flex gap-0.5">
-        {bars.map((b, i) => (
-          <span key={i + '-' + b} className="flex-1 h-[22px] rounded-[2px]" style={{ background: barColor(b), opacity: b === 'idle' ? 0.5 : 0.85 }} />
+        {bars.map((b, i) => ({ b, i })).map(({ b, i }) => (
+          <span key={'bar-' + i} className="flex-1 h-[22px] rounded-[2px]" style={{ background: barColor(b), opacity: b === 'idle' ? 0.5 : 0.85 }} />
         ))}
       </div>
 
@@ -218,8 +218,8 @@ export default function Dashboard() {
                 ))}
               </div>
               <div className="flex gap-0.5">
-                {Array.from({ length: 14 }).map((_, j) => (
-                  <div key={'sk-bar-' + j} className="flex-1 h-[22px] rounded-[2px] bg-[var(--border)] opacity-50" />
+                {Array.from({ length: 14 }, (_, j) => j).map(n => (
+                  <div key={'sk-bar-' + n} className="flex-1 h-[22px] rounded-[2px] bg-[var(--border)] opacity-50" />
                 ))}
               </div>
               <div className="flex gap-1.5">

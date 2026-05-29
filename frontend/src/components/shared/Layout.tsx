@@ -195,8 +195,8 @@ export default function Layout() {
             <span className="text-[11px] text-[var(--text-muted)]">run{runsCount === 1 ? '' : 's'}</span>
           </div>
           <div className="sparkbars h-[22px]">
-            {sparkNorm.map((h, i) => (
-              <span key={i + '-' + h} className={`w-1 rounded-[1px] ${i === sparkNorm.length - 1 ? 'bg-[var(--accent)]' : 'bg-[var(--border)]'}`} style={{ height: h }} />
+            {sparkNorm.map((h, i) => ({ h, i })).map(({ h, i }) => (
+              <span key={'spark-' + i} className={`w-1 rounded-[1px] ${i === sparkNorm.length - 1 ? 'bg-[var(--accent)]' : 'bg-[var(--border)]'}`} style={{ height: h }} />
             ))}
           </div>
         </div>

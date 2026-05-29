@@ -173,8 +173,8 @@ export default function EmailEdit() {
             {[['Details', 4], ['Recipients', 2], ['Body template', 1]].map(([label, rows]) => (
               <div key={label as string} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <Sk h={13} style={{ width: 70 }} />
-                {Array.from({ length: rows as number }).map((_, i) => (
-                  <div key={'sk-row-' + i} className="field">
+                {Array.from({ length: rows as number }, (_, i) => i).map(n => (
+                  <div key={'sk-row-' + n} className="field">
                     <Sk h={12} style={{ width: 80, marginBottom: 6 }} />
                     <Sk h={34} r={6} />
                   </div>

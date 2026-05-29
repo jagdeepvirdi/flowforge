@@ -94,8 +94,8 @@ export default function TopBar({ crumbs, actions, helpTopic, queryKeys }: Props)
       <ProjectSwitcher compact />
       <span style={{ width: 1, height: 16, background: 'var(--border)', margin: '0 10px', flexShrink: 0 }} />
       <div className="crumb">
-        {crumbs.map((c, i) => (
-          <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {crumbs.map((c, i) => ({ c, i })).map(({ c, i }) => (
+          <span key={`crumb-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             {i > 0 && <span className="sep"><ChevronRight size={12} /></span>}
             <span className={i === crumbs.length - 1 ? 'here' : ''}>{c}</span>
           </span>
