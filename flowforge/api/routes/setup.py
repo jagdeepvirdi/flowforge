@@ -28,12 +28,16 @@ def auth_login():
 def auth_refresh():
     from flask import request as req
     from flowforge.api.auth import generate_token, verify_token
+    from flowforge.db.models import User, db
     header = req.headers.get('Authorization', '')
     token = header[len('Bearer '):]
-    username = verify_token(token)
-    if not username:
+    payload = verify_token(token)
+    if not payload:
         return jsonify({'error': 'Invalid token'}), 401
-    return jsonify({'token': generate_token(username)})
+    user = db.session.query(User).filter_by(username=payload.get('sub')).first()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    return jsonify({'token': generate_token(user)})
 
 
 def _ai_enabled() -> bool:

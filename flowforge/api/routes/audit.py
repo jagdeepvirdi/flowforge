@@ -31,8 +31,22 @@ def export_audit_logs():
         query = query.filter(AuditLog.user_id == user_id)
 
     query = query.order_by(desc(AuditLog.timestamp))
-    
-    # We use a memory buffer to write CSV data
+
+    # Pre-fetch all rows within the request context so the generator
+    # never needs a DB session after the response has been returned.
+    rows = [
+        (
+            str(log.id),
+            log.timestamp.isoformat() if log.timestamp else '',
+            log.action,
+            log.username,
+            str(log.user_id) if log.user_id else '',
+            log.ip_address or '',
+            str(log.details),
+        )
+        for log in query.all()
+    ]
+
     def generate():
         si = StringIO()
         writer = csv.writer(si)
@@ -41,17 +55,8 @@ def export_audit_logs():
         si.seek(0)
         si.truncate(0)
 
-        # Yield in batches to avoid loading everything into memory at once
-        for log in query.yield_per(500):
-            writer.writerow([
-                str(log.id),
-                log.timestamp.isoformat() if log.timestamp else '',
-                log.action,
-                log.username,
-                str(log.user_id) if log.user_id else '',
-                log.ip_address or '',
-                str(log.details)
-            ])
+        for row in rows:
+            writer.writerow(row)
             yield si.getvalue()
             si.seek(0)
             si.truncate(0)
