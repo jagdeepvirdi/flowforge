@@ -457,7 +457,9 @@ export default function Connections() {
       {/* ── Add Connection Modal ─────────────────────────────────────────── */}
       {showModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16 }}
-          onClick={e => { if (e.target === e.currentTarget) closeModal() }}>
+          role="presentation"
+          onClick={e => { if (e.target === e.currentTarget) closeModal() }}
+          onKeyDown={e => { if (e.key === 'Escape') closeModal() }}>
           <div className="card" style={{ width: '100%', maxWidth: 480, maxHeight: '90vh', overflow: 'auto', padding: '24px 24px 20px' }}>
 
             {/* Header + type tabs */}
@@ -520,7 +522,7 @@ export default function Connections() {
                 </div>
 
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-3)', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={dbForm.is_default} onChange={e => setDbForm(f => ({ ...f, is_default: e.target.checked }))} />
+                  <input type="checkbox" checked={dbForm.is_default} onChange={e => setDbForm(f => ({ ...f, is_default: e.target.checked }))} />{' '}
                   Set as default connection
                 </label>
 
@@ -583,7 +585,7 @@ export default function Connections() {
                       </Field>
                     </div>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-3)', cursor: 'pointer' }}>
-                      <input type="checkbox" checked={mailForm.use_tls} onChange={e => setMailForm(f => ({ ...f, use_tls: e.target.checked }))} />
+                      <input type="checkbox" checked={mailForm.use_tls} onChange={e => setMailForm(f => ({ ...f, use_tls: e.target.checked }))} />{' '}
                       Use TLS
                     </label>
                   </>
@@ -615,7 +617,7 @@ export default function Connections() {
                 )}
 
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-3)', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={mailForm.is_default} onChange={e => setMailForm(f => ({ ...f, is_default: e.target.checked }))} />
+                  <input type="checkbox" checked={mailForm.is_default} onChange={e => setMailForm(f => ({ ...f, is_default: e.target.checked }))} />{' '}
                   Set as default provider
                 </label>
 

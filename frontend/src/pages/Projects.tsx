@@ -110,7 +110,7 @@ function ProjectModal({
             />
           </div>
           <div>
-            <label className="label" style={{ marginBottom: 8, display: 'block' }}>Color</label>
+            <div className="label" style={{ marginBottom: 8, display: 'block' }}>Color</div>
             <ColorPicker value={form.color} onChange={c => setForm(f => ({ ...f, color: c }))} />
           </div>
         </div>
