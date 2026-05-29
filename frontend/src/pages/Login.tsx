@@ -54,8 +54,9 @@ export default function Login() {
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="field">
-              <label>Username</label>
+              <label htmlFor="login-username">Username</label>
               <input
+                id="login-username"
                 className="input"
                 type="text"
                 data-testid="username"
@@ -67,8 +68,9 @@ export default function Login() {
             </div>
 
             <div className="field">
-              <label>Password</label>
+              <label htmlFor="login-password">Password</label>
               <input
+                id="login-password"
                 className="input"
                 type="password"
                 data-testid="password"

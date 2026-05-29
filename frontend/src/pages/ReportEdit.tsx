@@ -273,13 +273,13 @@ export default function ReportEdit() {
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>Details</div>
             <div className="field">
-              <label>Name *</label>
-              <input className="input" {...register('name')} placeholder="My report" />
+              <label htmlFor="rc-name">Name *</label>
+              <input id="rc-name" className="input" {...register('name')} placeholder="My report" />
               {errors.name && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{errors.name.message}</span>}
             </div>
             <div className="field">
-              <label>Description</label>
-              <input className="input" {...register('desc')} />
+              <label htmlFor="rc-desc">Description</label>
+              <input id="rc-desc" className="input" {...register('desc')} />
             </div>
           </div>
 
@@ -287,8 +287,8 @@ export default function ReportEdit() {
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>Data source</div>
             <div className="field">
-              <label>Connection</label>
-              <select className="input" {...register('connId')} style={{ height: 34 }}>
+              <label htmlFor="rc-connection">Connection</label>
+              <select id="rc-connection" className="input" {...register('connId')} style={{ height: 34 }}>
                 <option value="">Select connection…</option>
                 {dbConns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
@@ -301,7 +301,7 @@ export default function ReportEdit() {
 
             {/* Format selector */}
             <div className="field">
-              <label>Format</label>
+              <div className="label">Format</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
                 {(['excel', 'csv', 'pdf', 'json'] as ReportFormat[]).map(f => {
                   const formatLabels: Record<string, string> = { excel: 'Excel', csv: 'CSV', pdf: 'PDF', json: 'JSON' }
@@ -333,20 +333,20 @@ export default function ReportEdit() {
 
             {format === 'excel' && (
               <div className="field">
-                <label>Sheet name</label>
-                <input className="input" {...register('sheetName')} />
+                <label htmlFor="rc-sheet-name">Sheet name</label>
+                <input id="rc-sheet-name" className="input" {...register('sheetName')} />
               </div>
             )}
             {format === 'pdf' && (
               <div className="field">
-                <label>Title</label>
-                <input className="input" {...register('title')} />
+                <label htmlFor="rc-title">Title</label>
+                <input id="rc-title" className="input" {...register('title')} />
               </div>
             )}
 
             <div className="field">
-              <label>Output filename</label>
-              <input className="input mono-input" {...register('filename')} />
+              <label htmlFor="rc-filename">Output filename</label>
+              <input id="rc-filename" className="input mono-input" {...register('filename')} />
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
                 <span style={{ fontSize: 10.5, color: 'var(--text-dim)' }}>Variables:</span>
                 {VAR_HINTS.map(v => (

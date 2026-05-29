@@ -125,10 +125,10 @@ export default function Recipients() {
           <div className="card" style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12, borderColor: 'rgba(249,115,22,0.3)' }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>New Group</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div className="field"><label>Name *</label><input className="input" value={newName} onChange={e => setNewName(e.target.value)} /></div>
-              <div className="field"><label>Description</label><input className="input" value={newDesc} onChange={e => setNewDesc(e.target.value)} /></div>
+              <div className="field"><label htmlFor="rg-name">Name *</label><input id="rg-name" className="input" value={newName} onChange={e => setNewName(e.target.value)} /></div>
+              <div className="field"><label htmlFor="rg-desc">Description</label><input id="rg-desc" className="input" value={newDesc} onChange={e => setNewDesc(e.target.value)} /></div>
             </div>
-            <div className="field"><label>Email addresses</label><ChipInput values={newAddrs} onChange={setNewAddrs} /></div>
+            <div className="field"><label id="rg-addresses-label">Email addresses</label><ChipInput values={newAddrs} onChange={setNewAddrs} aria-labelledby="rg-addresses-label" /></div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn btn-primary btn-sm" onClick={() => add()} disabled={isPending || !newName}>
                 {isPending ? <Spinner size={12} /> : null} Create

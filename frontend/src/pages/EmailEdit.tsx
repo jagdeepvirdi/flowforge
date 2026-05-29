@@ -235,13 +235,13 @@ export default function EmailEdit() {
               <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Details</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div className="field">
-                  <label>Name *</label>
-                  <input className="input" {...register('name')} />
+                  <label htmlFor="ec-name">Name *</label>
+                  <input id="ec-name" className="input" {...register('name')} />
                   {errors.name && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{errors.name.message}</span>}
                 </div>
                 <div className="field">
-                  <label>Provider</label>
-                  <select className="input" {...register('providerId')}>
+                  <label htmlFor="ec-provider">Provider</label>
+                  <select id="ec-provider" className="input" {...register('providerId')}>
                     <option value="">Select provider…</option>
                     {providers.map(p => <option key={p.id} value={p.id}>{p.name} ({p.provider_type})</option>)}
                   </select>
@@ -249,22 +249,22 @@ export default function EmailEdit() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div className="field">
-                  <label>From name</label>
-                  <input className="input" {...register('fromName')} />
+                  <label htmlFor="ec-from-name">From name</label>
+                  <input id="ec-from-name" className="input" {...register('fromName')} />
                 </div>
                 <div className="field">
-                  <label>Description</label>
-                  <input className="input" {...register('desc')} />
+                  <label htmlFor="ec-desc">Description</label>
+                  <input id="ec-desc" className="input" {...register('desc')} />
                 </div>
               </div>
               <div className="field">
-                <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Subject<FieldTooltip field="variables" /></label>
-                <input className="input" {...register('subject')} placeholder="Monthly Report — {{ current_month }}" />
+                <label htmlFor="ec-subject" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Subject<FieldTooltip field="variables" /></label>
+                <input id="ec-subject" className="input" {...register('subject')} placeholder="Monthly Report — {{ current_month }}" />
                 {errors.subject && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{errors.subject.message}</span>}
               </div>
               <div className="field">
-                <label>Header text</label>
-                <input className="input" {...register('headerText')} placeholder="Banner shown at the top of the email" />
+                <label htmlFor="ec-header-text">Header text</label>
+                <input id="ec-header-text" className="input" {...register('headerText')} placeholder="Banner shown at the top of the email" />
               </div>
             </div>
 
@@ -292,19 +292,19 @@ export default function EmailEdit() {
                 </div>
               )}
               <div className="field">
-                <label>CC</label>
+                <label htmlFor="ec-cc">CC</label>
                 <Controller
                   control={control}
                   name="cc"
-                  render={({ field }) => <ChipInput values={field.value} onChange={field.onChange} placeholder="cc@example.com" />}
+                  render={({ field }) => <ChipInput id="ec-cc" values={field.value} onChange={field.onChange} placeholder="cc@example.com" />}
                 />
               </div>
               <div className="field">
-                <label>BCC</label>
+                <label htmlFor="ec-bcc">BCC</label>
                 <Controller
                   control={control}
                   name="bcc"
-                  render={({ field }) => <ChipInput values={field.value} onChange={field.onChange} placeholder="bcc@example.com" />}
+                  render={({ field }) => <ChipInput id="ec-bcc" values={field.value} onChange={field.onChange} placeholder="bcc@example.com" />}
                 />
               </div>
             </div>
@@ -350,8 +350,9 @@ export default function EmailEdit() {
                 <input className="input" {...register('folderId')} placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs" />
               </div>
               <div className="field">
-                <label>Drive share message template</label>
+                <label htmlFor="ec-drive-msg">Drive share message template</label>
                 <textarea
+                  id="ec-drive-msg"
                   className="input mono-input"
                   rows={5}
                   {...register('driveMsg')}

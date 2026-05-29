@@ -98,7 +98,7 @@ function PipelineVariablesCard({ vars, setVars }: {
                   type="checkbox"
                   checked={v.is_secret}
                   onChange={e => updateVar(i, { is_secret: e.target.checked })}
-                />
+                />{' '}
                 Secret
               </label>
               <button
@@ -306,8 +306,8 @@ export default function PipelineEdit() {
           <div className="text-xs font-semibold text-[var(--text)]">Details</div>
           <div className="grid grid-cols-2 gap-3">
             <div className="field">
-              <label>Name *</label>
-              <input className="input" data-testid="pipeline-name" value={name} onChange={e => { setName(e.target.value); if (fieldErrors.name) setFieldErrors(f => ({ ...f, name: '' })) }} />
+              <label htmlFor="pipeline-name">Name *</label>
+              <input id="pipeline-name" className="input" data-testid="pipeline-name" value={name} onChange={e => { setName(e.target.value); if (fieldErrors.name) setFieldErrors(f => ({ ...f, name: '' })) }} />
               {fieldErrors.name && <span className="text-[11.5px] text-[var(--failure)]">{fieldErrors.name}</span>}
             </div>
             <div className="field">
@@ -321,8 +321,8 @@ export default function PipelineEdit() {
             </div>
           </div>
           <div className="field">
-            <label>Description</label>
-            <input className="input" value={desc} onChange={e => setDesc(e.target.value)} />
+            <label htmlFor="pipeline-desc">Description</label>
+            <input id="pipeline-desc" className="input" value={desc} onChange={e => setDesc(e.target.value)} />
           </div>
           <div className="flex items-center gap-5">
             <label className="flex items-center gap-2 cursor-pointer text-[13px]">
