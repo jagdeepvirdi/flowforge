@@ -10,7 +10,7 @@ Operational reference for developers and self-hosters. Covers environment setup,
 |---|---|---|
 | Python | 3.11+ | Use a virtual environment |
 | PostgreSQL | 14+ | FlowForge config DB |
-| Oracle Instant Client | 21+ | Only if using Oracle data sources |
+| Oracle Instant Client | — | **Not required.** `python-oracledb` runs in thin mode (pure Python). Only needed if you explicitly switch to thick mode. |
 
 ---
 
@@ -174,7 +174,7 @@ flowforge db current             # should show: <revision> (head)
 If pipelines with a cron schedule are not firing, run the built-in diagnostic:
 
 ```bash
-python check_scheduler.py
+python scripts/check_scheduler.py
 ```
 
 This script tests each layer independently and prints PASS/FAIL:
@@ -204,6 +204,7 @@ Common causes of scheduler silence:
 |---|---|
 | `flowforge web` | Start the web server |
 | `flowforge schedule` | Start the scheduler daemon |
+| `flowforge worker [--concurrency N]` | Start a Celery worker (requires `FLOWFORGE_REDIS_URL`) |
 | `flowforge run "Pipeline Name"` | Run a pipeline immediately from the CLI |
 | `flowforge list` | List all pipelines and their last status |
 | `flowforge validate "Pipeline Name"` | Validate a pipeline's step config without running |
@@ -214,10 +215,11 @@ Common causes of scheduler silence:
 | `flowforge db downgrade <rev>` | Revert to a previous revision (e.g. `-1`) |
 | `flowforge db stamp <rev>` | Mark DB as being at a revision without running DDL |
 | `flowforge db current` | Show the currently applied revision |
+| `flowforge db seed` | Create the admin user from `FLOWFORGE_USERNAME` / `FLOWFORGE_PASSWORD` |
 | `flowforge db revision -m "msg"` | Generate a new migration script |
 | `flowforge db revision -m "msg" --autogenerate` | Auto-detect model changes and generate migration |
-| `flowforge setup gmail` | Print Gmail OAuth2 setup instructions |
-| `flowforge setup microsoft365` | Print Microsoft 365 setup instructions |
+| `flowforge setup gmail` | Run interactive Gmail OAuth2 setup — writes tokens to `.env` |
+| `flowforge setup microsoft365` | Run interactive M365 setup — writes credentials to `.env` |
 
 ---
 

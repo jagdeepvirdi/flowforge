@@ -10,8 +10,7 @@ Mark each checkbox as you complete it.
 
 ## Prerequisites
 
-- FlowForge server running: `python -m flowforge web` (or via the PowerShell
-  start script)
+- FlowForge server running: `flowforge web` (or `.\flowforge.ps1 start` / `./flowforge.sh start`)
 - PostgreSQL running on `localhost:5434`
 - Browser open at `http://localhost:5000`
 - Logged in as `admin`
@@ -46,7 +45,7 @@ These are required by almost every test below. Set them up first.
 
 1. Go to **Connections → Email providers → Add provider**
 2. Select **Gmail**
-3. Run OAuth2 setup if not already done: `python -m flowforge setup gmail`
+3. Run OAuth2 setup if not already done: `flowforge setup gmail`
 4. Fill in Client ID, Client Secret, Refresh Token, Sender email
 5. Save and test
 
@@ -58,7 +57,7 @@ These are required by almost every test below. Set them up first.
 2. Select **Microsoft 365**
 3. Fill in Tenant ID, Client ID, Client Secret, Sender email
    (requires an Azure AD app registration with `Mail.Send` permission)
-4. Run: `python -m flowforge setup microsoft365` to complete device-code auth
+4. Run: `flowforge setup microsoft365` to complete device-code auth
 5. Save and test
 
 - [ ] M365 provider saved

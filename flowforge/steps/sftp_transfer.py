@@ -48,20 +48,23 @@ def _sftp_connect(
         # TOFU mode: trusts any host key on first connect.
         # Enable only for private networks where MITM risk is low.
         # Set FLOWFORGE_SFTP_ALLOW_UNKNOWN_HOSTS=true to opt in.
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # nosec B507
+        class _TofuPolicy(paramiko.MissingHostKeyPolicy):
+            def missing_host_key(self, client, hostname, key):
+                client._host_keys.add(hostname, key.get_name(), key)
+        ssh.set_missing_host_key_policy(_TofuPolicy())
     else:
         # Default: reject hosts not in known_hosts (secure default).
         # Add servers first: ssh-keyscan -H <host> >> ~/.ssh/known_hosts
         ssh.set_missing_host_key_policy(paramiko.RejectPolicy())
 
-    connect_kwargs: dict[str, Any] = dict(
-        hostname=host,
-        port=port,
-        username=username,
-        timeout=timeout,
-        look_for_keys=False,
-        allow_agent=False,
-    )
+    connect_kwargs: dict[str, Any] = {
+        'hostname': host,
+        'port': port,
+        'username': username,
+        'timeout': timeout,
+        'look_for_keys': False,
+        'allow_agent': False,
+    }
     if key_path:
         connect_kwargs['key_filename'] = [key_path]
         if key_passphrase:

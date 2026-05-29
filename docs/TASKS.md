@@ -33,156 +33,42 @@
 
 ---
 
-# V1.0 RELEASE — TASKS
-
-*Everything here must be done before tagging and publishing the GitHub v1.0.0 release.*
+# V1.0 RELEASE — REMAINING TASKS
 
 ---
 
-## Phase 1 — Code Stability (P0 — Release Blockers)
+## Phase 2 — Code Quality Badges (remaining items)
 
-*The release cannot ship until these pass.*
-
-### 1.1 Celery End-to-End Verification ✅ COMPLETE
-- [x] Start Redis + `flowforge worker`, trigger a pipeline via the API/UI *(verified by `verify_celery.py`, commit `23dac3f`)*
-- [x] Confirm worker picks up the task and writes to `ff_pipeline_runs` + `ff_step_runs` *(verified by `verify_celery.py`)*
-- [x] Confirm fallback (no `FLOWFORGE_REDIS_URL`) still runs pipeline in thread mode *(verified by `verify_celery.py`)*
-- [x] Confirm scheduler-triggered runs also flow through Celery correctly *(Test 3 in `verify_celery.py` — `triggered_by='scheduler'`, `status='success'`, 1 StepRun written)*
-
----
-
-## Phase 2 — Code Quality Badges (P1 — Trust Signals)
-
-*These badges appear at the top of the README and immediately signal project maturity to visitors and recruiters.*
-
-### 2.1 SonarCloud ✅ COMPLETE — Quality Gate Passed
-- [x] SonarCloud account created, repo linked, `SONAR_TOKEN` added to GitHub secrets
-- [x] `sonar-project.properties` added; SonarCloud scan step wired into `test.yml` (runs after pytest coverage)
-- [x] First scan passed — CI green
-- [x] **Quality Gate** badge added to README
-- [x] **Quality Gate: Passed** — Security A, all bugs and hotspots resolved *(2026-05-27)*
+### 2.1 SonarCloud
 - [ ] Take a screenshot of the SonarCloud dashboard for LinkedIn post
 
-#### 2.1a Bugs — fix first (gate the Quality Gate)
-- [x] Fix Python: `StepRun` referenced but not imported in `runs.py` (NameError at runtime on `/runs/<id>/anomalies` and `/step-runs/<id>/download`) — added to `from flowforge.db.models import` *(2026-05-27)*
-- [x] Fix Python: Unused import `from pymysql import connections` in `connections/mysql.py` — removed *(2026-05-27)*
-- [x] Fix Python: Unused exception variable `as e` in 13 `except` clauses across `runner.py`, `postgres.py`, `oracle.py`, `mysql.py`, `scheduler.py`, `launcher.py`, `shutdown.py` (S1481) — removed `as e` binding where `e` was never referenced *(2026-05-27)*
-- [x] Fix React hooks called conditionally — `Users.tsx` (S6440) — all 4 hooks already above the early `return`; comment confirms intent *(verified 2026-05-27)*
-- [x] Fix conditional always produces same value — `Dashboard.tsx` (S3923) — removed redundant `if (!r) return 'idle'` guard in bars map; use `r?.status` optional chaining so fallthrough handles the undefined case *(2026-05-27)*; `Connections.tsx:466` — no S3923 pattern found after full file review; may be resolved by prior refactor or false positive *(verified 2026-05-27)*
-- [x] Fix click handlers with no keyboard listener — all 5 locations already fixed: `Layout.tsx`, `HelpDrawer.tsx`, `PageIntro.tsx`, `EmailEdit.tsx`, `Projects.tsx` — all have `role="button"`, `tabIndex={0}`, `onKeyDown` (S1082) *(verified 2026-05-27)*
+#### 2.1f Major Code Smells (one remaining)
+- [x] Add explicit `{' '}` between inline JSX elements — `Layout.tsx:103,148`, `Projects.tsx:232`, `PipelineEdit.tsx:313`, `BulkLoadEdit.tsx:186`
 
-#### 2.1b Security ✅ COMPLETE — Security rating: A
-- [x] Fix NOSONAR comment syntax — `app.py:37` already reads `# NOSONAR` (no trailing text); issue resolved *(verified 2026-05-27)*
-- [x] Accept `SECRET_KEY` false positive in SonarCloud UI — `app.py:37`: marked "False Positive" with justification *(2026-05-27)*
-- [x] CSRF hotspot — marked Safe: API uses JWT Bearer token auth, no cookies, CSRF not applicable *(2026-05-27)*
-- [x] Hardcoded DB password — added `# NOSONAR` to dev-only fallback URL + marked False Positive in UI *(2026-05-27)*
-- [x] **Security rating: E → A** *(2026-05-27)*
+#### 2.1g Minor Code Smells (remaining)
+- [x] Remove unnecessary type assertions (`as SomeType`) — `StepEditor.tsx:37,224,268` (config already typed); `Pipelines.tsx:92` (removed with FileReader refactor); `ReportEdit.tsx:196` (api.ts return type tightened); `ProjectSwitcher.tsx:39`, `FieldTooltip.tsx:18` (replaced with instanceof)
+- [x] Fix unexpected negated conditions — `Layout.tsx:195`, `RunDetail.tsx:186`, `BulkLoads.tsx:78`
+- [x] Replace `FileReader.readAsText(blob)` with `await blob.text()` — `Pipelines.tsx:88`
+- [x] Replace `dict()` / `list()` constructor calls with literals `{}` / `[]` — `sftp_transfer.py:60`
 
-#### 2.1c Critical Code Smells — Cognitive Complexity (Python)
-- [x] Reduce cognitive complexity in `steps/bulk_load.py:26` (34 → ≤15) — extracted `_validate_bulk_cfg`, `_extract_data_rows`, `_derive_csv_columns`, `_derive_line_columns` helpers; all three loader functions now share these *(2026-05-27)*
-- [x] Reduce cognitive complexity in `steps/bulk_load.py:369` (30 → ≤15) — same helper extraction above collapsed repeated header/footer slicing patterns *(2026-05-27)*
-- [ ] Verify `engine/runner.py:53` — code already heavily refactored (helpers extracted); SonarCloud rescan will confirm if complexity ≤15 or further reduction needed
-- [ ] Verify `steps/data_load.py:19` — code already heavily refactored (`_load_source`, `_table_exists`, `_create_table`, `_bulk_load` helpers); SonarCloud rescan will confirm
-- [ ] Verify `steps/ai_analyze.py:166` — code already uses `_run_query_or_fail` / `_call_provider_or_fail`; SonarCloud rescan will confirm
-- [ ] Verify `steps/db_query.py:47` — code already uses `_write_to_output_table` / `_build_query_result` helpers; SonarCloud rescan will confirm
-- [ ] Verify `api/routes/pipelines.py:177,328` — code already uses many extracted helpers; SonarCloud rescan will confirm
-
-#### 2.1d Critical Code Smells — Cognitive Complexity (Frontend)
-- [ ] Reduce cognitive complexity in `frontend/src/pages/RunDetail.tsx:71` (32 → ≤15) — extract render helpers / sub-components
-- [ ] Reduce cognitive complexity in `frontend/src/pages/Connections.tsx:74` (26 → ≤15) — extract render helpers
-- [ ] Reduce cognitive complexity in `frontend/src/pages/Settings.tsx:108` (17 → ≤15) — extract section components
-- [ ] Fix deeply nested functions in `PipelineEdit.tsx:299,306,312,318` (S2004, >4 levels) — extract inner callbacks to named module-level functions
-
-#### 2.1e Critical Code Smells — Duplicated String Literals ✅ COMPLETE
-- [x] Define `_NOT_FOUND` constants in `api/routes/pipelines.py`, `routes/emails.py`, `routes/users.py`, `routes/runs.py`, `routes/projects.py`, `routes/bulk_loads.py`, `api/app.py` — all already defined
-- [x] Define `_CASCADE` / `_SET_NULL` / `_FF_PROJECTS_ID` / `_FF_PIPELINES_ID` constants in `db/models.py` — all already defined at lines 14–17
-
-#### 2.1f Major Code Smells
-- [ ] Replace `logger.error("...: %s", e)` with `logger.exception("...")` in all `except` blocks — `runner.py:219,248,268`, `scheduler.py:96,153,164`, `launcher.py:67,96`, `shutdown.py:153,155`, `bulk_load.py:143`, `data_load.py:138,159`, `ai_analyze.py:116,147`, `sftp_transfer.py:195,285`, `onedrive_upload.py:34`, `mysql.py:88`, `gmail.py:95`, `microsoft365.py:102`, `smtp.py:92` (~20 one-line changes)
-- [ ] Fix Flask catch-all routes to declare HTTP method — `app.py:149,150`: change `@app.route('/')` / `@app.route('/<path:path>')` → `@app.get()`
-- [ ] Fix array index used as React key — use stable `item.id` instead of `idx` — `Layout.tsx:186`, `HelpDrawer.tsx:51,91,126`, `ChartPreview.tsx:101`, `Dashboard.tsx:94,218,253`, `PipelineEdit.tsx:294,616,640`, `BulkLoads.tsx:44`, `EmailEdit.tsx:176`, `ReportEdit.tsx:216`, `RunHistory.tsx:94`
-- [ ] Associate form labels with inputs (add `htmlFor`/`id` pairs) — `Settings.tsx:74,79,84`, `Users.tsx:118,128,138`, `Projects.tsx:87,97,106`, `BulkLoadEdit.tsx` (15 instances at lines 150–278), `EmailEdit.tsx:274,282`
-- [ ] Fix non-native interactive elements — replace `<div onClick>` with `<button>` or add `role="button"` + `tabIndex={0}` + keyboard handler — `Layout.tsx:68`, `HelpDrawer.tsx:185`, `PageIntro.tsx:35`, `TopBar.tsx:154`, `EmailEdit.tsx:380`, `Projects.tsx:149`
-- [ ] Fix nested ternary operations — extract to named `const` before JSX — `Connections.tsx:133,456,466,495,503`, `Dashboard.tsx:67`, `RunDetail.tsx:163,242,404,405`, `ReportEdit.tsx:324`, `PipelineEdit.tsx:468,562`, `Settings.tsx:144`, `Projects.tsx:124`, `Users.tsx:169`
-- [ ] Fix CSS contrast ratio below WCAG AA (4.5:1) — `frontend/src/index.css:305,306` — increase foreground/background contrast
-- [ ] Replace `<div role="dialog">` with native `<dialog>` element — `HelpDrawer.tsx:197`
-- [ ] Add explicit `{' '}` between inline JSX elements — `Layout.tsx:103,148`, `Projects.tsx:232`, `PipelineEdit.tsx:313`, `BulkLoadEdit.tsx:186`
-
-#### 2.1g Minor Code Smells (fix opportunistically)
-- [ ] Mark React props as `Readonly<Props>` — 18 components: `App.tsx`, `Skeleton.tsx`, `Recipients.tsx`, `Users.tsx`, `Dashboard.tsx`, `Settings.tsx`, `Connections.tsx`, `HelpDrawer.tsx`, `RunDetail.tsx`, `ChartPreview.tsx`, `PipelineEdit.tsx`, `Pipelines.tsx`, `PageIntro.tsx`, `Projects.tsx`, `ProjectSwitcher.tsx`, `StepEditor.tsx`, `FieldTooltip.tsx`, `TopBar.tsx`
-- [ ] Replace `window.*` with `globalThis.*` — `api.ts:26,205`, `TopBar.tsx:44,45`, `HelpDrawer.tsx:178,179`, `PipelineEdit.tsx:394`, `BulkLoads.tsx:142`, `Projects.tsx:194`, `RouteErrorBoundary.tsx:50`, `Users.tsx:86`
-- [ ] Remove unnecessary type assertions (`as SomeType`) — `PipelineEdit.tsx:128`, `Pipelines.tsx:92`, `ReportEdit.tsx:196`, `RunDetail.tsx:331`, `ProjectSwitcher.tsx:39`, `BulkLoadEdit.tsx:22,99`, `StepEditor.tsx:223,267`, `FieldTooltip.tsx:18`
-- [ ] Replace `parseInt(x, 10)` → `Number.parseInt(x, 10)` — `StepEditor.tsx:186,627`, `BulkLoadEdit.tsx:248,252`, `Pipelines.tsx:17,18,23,36,40`, `PipelineEdit.tsx:537–541`
-- [ ] Fix unexpected negated conditions — `Layout.tsx:182`, `RunDetail.tsx:225`, `BulkLoads.tsx:78`
-- [ ] Use `[[` instead of `[` in shell — `tests/run_tests.sh:27,29,35`
-- [ ] Add default `*)` case to switch in `tests/run_tests.sh:17`
-- [ ] Replace `FileReader.readAsText(blob)` with `await blob.text()` — `Pipelines.tsx:93`
-- [ ] Replace `dict()` / `list()` constructor calls with literals `{}` / `[]` — `sftp_transfer.py:56`
-
-### 2.2 OpenSSF Scorecard (Security Credibility)
-- [x] `.github/workflows/scorecard.yml` added — runs on push + weekly Saturday cron; publishes results to GitHub Security tab
-- [x] **Scorecard** badge added to README
-- [x] CodeQL workflow (`codeql.yml`) added — satisfies SAST check *(on `fix/ci-dependabot-node24` branch)*
-- [x] `pip-audit` step added to `test.yml` — satisfies Vulnerabilities check *(on `fix/ci-dependabot-node24` branch)*
-- [x] Docker base images pinned to SHA digest — `Dockerfile:2,10` *(already done)*
-- [x] All GitHub Actions in all workflows pinned to SHA — stale alerts will clear on next weekly run
-- [x] **Merge `fix/ci-dependabot-node24` branch** — PR #27 merged 2026-05-27; CodeQL + pip-audit + Node 24 upgrades now on master
-- [x] **Branch protection enabled on `master`** — requires PR + 1 approval + status checks (`test`, `sast`, `frontend`) + up-to-date branch + enforce_admins; clears `BranchProtection` and `CodeReview` Scorecard checks
-- [x] Accept `PinnedDependencies (pip hashes)` penalty — `pip install --require-hashes` incompatible with editable installs
-- [x] Accept `Fuzzing` penalty — OSS-Fuzz not practical for v1; revisit in v2
+### 2.2 OpenSSF Scorecard
 - [ ] Review final Scorecard score after next weekly run (Saturday); target ≥ 7.0
 
-### 2.3 OpenSSF Best Practices Badge ✅ COMPLETE
-- [x] Complete the self-certification questionnaire at bestpractices.dev
-- [x] Achieved **Passing** tier — project #13002 *(2026-05-27)*
-- [x] **OpenSSF Best Practices** badge added to README *(PR #29)*
-
-### 2.4 Codecov ✅ COMPLETE
-- [x] `pytest --cov=flowforge --cov-report=xml` + `codecov/codecov-action@v4` added to `test.yml`
-- [x] **Coverage** badge added to README
-- [x] Added `--cov-branch` for branch coverage measurement *(PR #30)*
-- [x] Added `codecov.yml` with 70% project target, 60% patch target *(PR #30)*
-- [x] Local coverage: **78% branch / 80% line** across 842 passing tests *(2026-05-27)*
-- [x] Add `CODECOV_TOKEN` secret to GitHub repo settings (Settings → Secrets → Actions)
-- [ ] Add `--cov-branch` to pytest command in `test.yml` and `pyproject.toml` for branch coverage tracking (currently only line coverage)
-- [ ] Create `codecov.yml` at repo root — set project floor to 70% and patch target to 80% (new code in PRs must be ≥80% covered)
-- [ ] Increase overall coverage from current **66.4%** to ≥70% — highest-yield targets: `engine/runner.py` (main execution loop just refactored), `steps/bulk_load.py`, `steps/data_load.py`, email provider flows
-
-### 2.5 README Badge Row
-- [x] Tests + Codecov + Scorecard badges in README
-- [x] SonarCloud Quality Gate badge — already in README (`sonarcloud.io` badge, line 7)
-- [ ] OpenSSF Best Practices badge (blocked on 2.3 self-cert)
-
 ---
 
-## Phase 3 — Documentation Polish (P1 — Contributor Readiness)
-
-### 3.1 CONTRIBUTING.md — Fast Setup (<5 minutes) ✅
-- [x] "Quick Dev Setup" section added at the top (5-command block, login hint)
-- [x] "Running Tests" one-liners for pytest and vitest
-
-### 3.2 docs/security.md ✅
-- [x] Created — covers: AES-256-GCM encryption, key rotation, JWT + revocation, RBAC roles, audit log, template sandbox, input validation, transport security
-
-### 3.3 SECURITY.md ✅
-- [x] Created at repo root — supported versions table, GitHub private advisory + email disclosure, response SLA
+## Phase 3 — Documentation Polish (remaining)
 
 ### 3.4 Getting-Started Quick Check
-- [ ] Run through `docs/getting-started.md` end-to-end — verify all commands and screenshots are current
-- [ ] Update any screenshots that show old UI (pre-multi-user)
+- [x] Run through `docs/getting-started.md` end-to-end — verify all commands and screenshots are current
+- [ ] Update any screenshots that show old UI (pre-multi-user) *(deferred — no screenshots in docs yet)*
 
 ---
 
-## Phase 4 — GitHub Release Preparation ✅ COMPLETE
+---
 
-### 4.1 GitHub Release ✅
-- [x] CI green (842 tests passing — fixed `test_unreadable_file_counts_as_error` Linux compat, commit `66a8aef`)
-- [x] Tag pushed: `v1.0.0`
-- [x] GitHub Release published: https://github.com/jagdeepvirdi/flowforge/releases/tag/v1.0.0 — marked Latest
+# V2.0 — TASKS
 
-### 4.2 Good First Issues ✅
-- [x] 5 issues created (#1–#5), all labeled `good first issue`
-- [x] `help wanted` added to issues #2, #3, #5
+*Post-release hardening. Starts after v1.0 ships.*
 
 ---
 
@@ -227,14 +113,6 @@
 
 ---
 
----
-
-# V2.0 — TASKS
-
-*Post-release hardening. Starts after v1.0 ships.*
-
----
-
 ## Phase 6 — Production Hardening (P1)
 
 ### 6.1 Gunicorn Deployment Guide
@@ -264,25 +142,9 @@
 - [ ] `npm audit --audit-level=high` already runs; confirm it fails the build correctly
 - [ ] Pin all dependencies to exact versions in `requirements.txt` (currently pinned ✅ — verify)
 
-### 6.6 Audit Log `user_id` Attribution
-- [ ] Emit `user_id=<uuid>` alongside `by=<username>` in `audit.py` entries
-- [ ] Read from `g.current_user_id` (set by `require_auth` since MU-1)
-
 ---
 
-## Phase 7 — Observability & Admin UI (P1)
-
-### 7.1 Audit Log UI Page
-- [ ] New page `/settings/audit` — admin-only
-- [ ] Reads from `logs/audit.log` (or a dedicated `ff_audit_log` DB table — decide approach)
-- [ ] Filters: user, action type (`LOGIN`, `PIPELINE_*`, `CONFIG_*`), date range
-- [ ] Export to CSV
-
-### 7.2 Run Retention Policies
-- [ ] Add `FLOWFORGE_RUN_RETENTION_DAYS` env var (default: 90)
-- [ ] Daily cleanup job in `scheduler.py` — delete `ff_pipeline_runs` + cascading `ff_step_runs` older than N days
-- [ ] UI setting in Settings page: "Keep run history for N days"
-- [ ] Audit log retention: separate `FLOWFORGE_AUDIT_RETENTION_DAYS` env var
+## Phase 7 — Observability & Admin UI
 
 ### 7.3 Code Climate Badge (Optional)
 - [ ] Set up Code Climate maintainability badge
@@ -339,6 +201,32 @@
 - [ ] `ff_project_members` join table — team-scoped project access (deferred from v2)
 - [ ] Password reset flow via email (deferred from v2)
 - [ ] Distributed Redis-backed concurrency lock (replaces per-process semaphore for horizontal scale)
+
+---
+
+## Phase 9 — Automation Scenarios (SSH & Remote Execution)
+
+### 9.1 Infrastructure Support
+- [ ] **Implement `SSHConnection`** — new connection type to store host, port, credentials (password/key_path)
+- [ ] **Implement `SshCommandStep`** — execute remote commands/scripts via paramiko; capture stdout/stderr
+- [ ] **Implement `DbHealthCheckStep`** — industry-standard metrics (Lag, Locks, Bloat, Sessions)
+- [ ] **Smart Alerting Logic** — add `send_only_on_failure` toggle to pipelines to suppress routine emails
+- [ ] **Alembic migration** — update `ck_step_type` to include `ssh_command`, `db_health_check`, and `data_report`
+- [ ] **Implement `DataReportStep`** — generate Excel/CSV/PDF from pipeline context variables
+
+### 9.2 Scenario 1: Industry-Standard Health Monitoring
+- [ ] **Configure Daily Health Pipeline** — 4 SSH steps + 2 DB Health steps + Data Report step + Email step
+- [ ] **Standard SSH Metrics**: Load Average, Memory Usage (`free -m`), Disk I/O, and `df -h`.
+- [ ] **Standard DB Metrics**:
+    - **Oracle**: `v$instance`, `v$sysstat` (buffer cache hit ratio), `v$dataguard_stats`.
+    - **Postgres**: `pg_stat_database` (cache hit ratio), `pg_stat_replication`, `pg_stat_activity`.
+- [ ] **Conditional Execution**: Use FlowForge's `on_error: stop` and variable checks to only email if thresholds are exceeded (e.g., Disk > 90%).
+
+### 9.3 Scenario 2: Remote Script & Log Processing
+- [ ] **Configure Log Extraction Pipeline** — SSH step (run script) + existing `ReportStep` (query the updated table) + Email step
+- [ ] **Log Handling**: Attach the stdout/stderr log from the SSH step directly to the email alongside the Excel.
+
+---
 
 ---
 

@@ -28,12 +28,16 @@ def auth_login():
 def auth_refresh():
     from flask import request as req
     from flowforge.api.auth import generate_token, verify_token
+    from flowforge.db.models import User, db
     header = req.headers.get('Authorization', '')
     token = header[len('Bearer '):]
-    username = verify_token(token)
-    if not username:
+    payload = verify_token(token)
+    if not payload:
         return jsonify({'error': 'Invalid token'}), 401
-    return jsonify({'token': generate_token(username)})
+    user = db.session.query(User).filter_by(username=payload.get('sub')).first()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    return jsonify({'token': generate_token(user)})
 
 
 def _ai_enabled() -> bool:
@@ -44,7 +48,7 @@ def _ai_enabled() -> bool:
 @bp.get('/setup/status')
 @require_auth
 def setup_status():
-    """Return which OAuth providers are fully configured via env vars."""
+    """Return which OAuth providers are fully configured via env vars, and other system info."""
     def _all(*keys: str) -> bool:
         return all(os.environ.get(k, '').strip() for k in keys)
 
@@ -64,7 +68,12 @@ def setup_status():
         'ai': {
             'enabled': _ai_enabled(),
             'ollama_url': os.environ.get('OLLAMA_URL', 'http://localhost:11434'),
+            'model': os.environ.get('OLLAMA_QUERY_MODEL', 'llama3.2:3b'),
         },
+        'retention': {
+            'run_days': int(os.environ.get('FLOWFORGE_RUN_RETENTION_DAYS', 90)),
+            'audit_days': int(os.environ.get('FLOWFORGE_AUDIT_RETENTION_DAYS', os.environ.get('FLOWFORGE_RUN_RETENTION_DAYS', 90))),
+        }
     })
 
 

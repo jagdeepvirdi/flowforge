@@ -118,3 +118,76 @@ def test_delete_step(client, headers, pipeline_id):
     step_id = create_resp.get_json()['id']
     del_resp = client.delete(f'/api/pipeline-steps/{step_id}', headers=headers)
     assert del_resp.status_code == 200
+
+
+import yaml
+
+def test_clone_pipeline(client, headers, pipeline_id):
+    # Add a step to the pipeline so we can test that it clones steps too
+    client.post(f'/api/pipelines/{pipeline_id}/steps', json=STEP_PAYLOAD, headers=headers)
+    
+    resp = client.post(f'/api/pipelines/{pipeline_id}/clone', headers=headers)
+    assert resp.status_code == 201
+    cloned = resp.get_json()
+    assert cloned['name'] == 'Test Pipeline (Copy)'
+    assert cloned['id'] != pipeline_id
+    assert len(cloned['steps']) >= 1
+    assert cloned['steps'][0]['name'] == 'Test Step'
+    
+    # Clean up the cloned pipeline
+    client.delete(f'/api/pipelines/{cloned["id"]}', headers=headers)
+
+
+def test_clone_nonexistent_pipeline(client, headers):
+    resp = client.post('/api/pipelines/00000000-0000-0000-0000-000000000000/clone', headers=headers)
+    assert resp.status_code == 404
+
+
+def test_export_pipeline(client, headers, pipeline_id):
+    resp = client.get(f'/api/pipelines/{pipeline_id}/export', headers=headers)
+    assert resp.status_code == 200
+    export_data = yaml.safe_load(resp.data)
+    assert export_data['name'] == 'Test Pipeline'
+
+
+def test_export_nonexistent_pipeline(client, headers):
+    resp = client.get('/api/pipelines/00000000-0000-0000-0000-000000000000/export', headers=headers)
+    assert resp.status_code == 404
+
+
+def test_import_pipeline(client, headers):
+    yaml_content = """
+    name: Imported Pipeline
+    description: From YAML
+    enabled: true
+    variables:
+      - var_key: env
+        var_value: prod
+        is_secret: false
+    steps:
+      - name: Imported Step
+        step_type: db_query
+        config:
+          sql: SELECT 1
+        on_error: stop
+    """
+    resp = client.post('/api/pipelines/import', json={'yaml_content': yaml_content}, headers=headers)
+    assert resp.status_code == 201
+    pipeline = resp.get_json()
+    assert pipeline['name'] == 'Imported Pipeline'
+    assert len(pipeline['steps']) == 1
+    assert pipeline['steps'][0]['name'] == 'Imported Step'
+    
+    # Cleanup
+    client.delete(f'/api/pipelines/{pipeline["id"]}', headers=headers)
+
+
+def test_import_pipeline_invalid_format(client, headers):
+    resp = client.post('/api/pipelines/import', json={'yaml_content': 'invalid:\n yaml\n  data'}, headers=headers)
+    assert resp.status_code == 400
+
+
+def test_import_pipeline_missing_name(client, headers):
+    resp = client.post('/api/pipelines/import', json={'yaml_content': 'enabled: true'}, headers=headers)
+    assert resp.status_code == 400
+

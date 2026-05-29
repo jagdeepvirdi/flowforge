@@ -57,6 +57,7 @@ def apply_migrations():
     engine = create_engine(db_url)
     with engine.begin() as conn:
         for table in [
+            'ff_audit_log',
             'ff_step_runs', 'ff_pipeline_runs', 'ff_pipeline_variables',
             'ff_pipeline_steps', 'ff_webhook_tokens', 'ff_pipelines',
             'ff_email_configs', 'ff_report_configs', 'ff_bulk_load_configs',
@@ -72,7 +73,7 @@ def apply_migrations():
 
     # Seed the test admin user so auth_token fixture can log in
     seed_engine = create_engine(db_url)
-    _username = os.environ.get('FLOWFORGE_USERNAME', 'testadmin')
+    _username = 'testadmin'
     _hash = bcrypt.hashpw(b'testpass', bcrypt.gensalt(4)).decode()
     with seed_engine.begin() as conn:
         conn.execute(

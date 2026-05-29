@@ -148,7 +148,7 @@ export default function Users() {
   }
 
   function handleDelete(user: User) {
-    if (!window.confirm(`Delete user "${user.username}"? This cannot be undone.`)) return
+    if (!globalThis.confirm(`Delete user "${user.username}"? This cannot be undone.`)) return
     deleteMut.mutate(user.id)
   }
 

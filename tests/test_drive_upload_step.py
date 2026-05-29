@@ -69,7 +69,7 @@ class TestDriveUploadStep:
             result = step.run({'steps': {}})
 
         assert result.success is True
-        assert 'drive.google.com' in result.drive_url
+        assert result.drive_url.startswith('https://drive.google.com/')
         mock_upload.assert_called_once_with(file, 'folder123', make_shareable=True)
 
     def test_upload_failure_returns_error(self, tmp_path):

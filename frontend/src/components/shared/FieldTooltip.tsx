@@ -2,9 +2,9 @@ import { useState, useRef, useEffect } from 'react'
 import { HelpCircle } from 'lucide-react'
 import { TOOLTIPS } from '../../lib/helpContent'
 
-interface Props {
+type Props = Readonly<{
   field: string
-}
+}>
 
 export default function FieldTooltip({ field }: Props) {
   const tip = TOOLTIPS[field]
@@ -15,7 +15,7 @@ export default function FieldTooltip({ field }: Props) {
   useEffect(() => {
     if (!open) return
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (ref.current && e.target instanceof Node && !ref.current.contains(e.target)) setOpen(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)

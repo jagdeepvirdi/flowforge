@@ -75,7 +75,7 @@ export default function BulkLoads() {
         <div className="page-h">
           <div>
             <h1>Bulk Loads</h1>
-            <p>{configs.length} bulk load config{configs.length !== 1 ? 's' : ''}</p>
+            <p>{configs.length} bulk load config{configs.length === 1 ? '' : 's'}</p>
           </div>
         </div>
 
@@ -139,7 +139,7 @@ export default function BulkLoads() {
                           style={{ color: 'var(--text-muted)' }}
                           onMouseEnter={e => (e.currentTarget.style.color = 'var(--failure-text)')}
                           onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
-                          onClick={() => window.confirm(`Delete "${c.name}"?`) && remove(c.id)}
+                          onClick={() => globalThis.confirm(`Delete "${c.name}"?`) && remove(c.id)}
                         >
                           <Trash2 size={12} />
                         </button>

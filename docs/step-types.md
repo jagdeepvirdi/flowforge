@@ -503,11 +503,13 @@ Use with a Jinja2 guard for delta queries:
 
 ### Run metadata
 
-| Variable | Example |
-|---|---|
-| `{{ timestamp }}` | `23052026143022` (DDMMYYYYHHmmSS — unique per second, for filenames) |
-| `{{ run_id }}` | UUID of the current pipeline run |
-| `{{ pipeline_name }}` | Name of the running pipeline |
+| Variable | Example | Notes |
+|---|---|---|
+| `{{ timestamp }}` | `23052026143022` | DDMMYYYYHHmmSS — human-readable, for filenames |
+| `{{ now_ts }}` | `20260523143022` | YYYYMMDDHHmmSS — sortable, for filenames |
+| `{{ mon_year }}` | `MAY-2026` | MON-YYYY — for human-readable report names |
+| `{{ run_id }}` | UUID | UUID of the current pipeline run |
+| `{{ pipeline_name }}` | `Monthly Revenue` | Name of the running pipeline |
 
 ### Environment & pipeline variables
 

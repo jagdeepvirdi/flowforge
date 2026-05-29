@@ -17,12 +17,12 @@ export interface ChartConfig {
   available_columns: string[]
 }
 
-interface Props {
+type Props = Readonly<{
   columns: string[]
   rows: unknown[][]
   config: ChartConfig
   onConfigChange: (c: ChartConfig) => void
-}
+}>
 
 const PALETTE = ['#F97316', '#3B82F6', '#22C55E', '#A855F7', '#F59E0B', '#EC4899', '#14B8A6', '#6366F1']
 const CHART_TYPES: ChartType[] = ['bar', 'line', 'area', 'pie', 'scatter']

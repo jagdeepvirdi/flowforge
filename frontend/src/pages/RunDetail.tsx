@@ -160,6 +160,80 @@ function StepInfoTab({ s }: { s: StepRun }) {
   )
 }
 
+function DiagnosisPanel({ diagnosis, diagnosing, onDiagnose, onDismiss, aiEnabled }: {
+  diagnosis: string | null; diagnosing: boolean; onDiagnose: () => void; onDismiss: () => void; aiEnabled: boolean
+}) {
+  if (diagnosis !== null) {
+    return (
+      <div style={{ padding: '10px 12px', background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: '#F97316', display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'inherit' }}>
+            <Lightbulb size={11} /> AI Diagnosis
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'inherit' }}>via Ollama</span>
+            <button onClick={onDismiss} style={{ display: 'flex', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0 }}>
+              <X size={12} />
+            </button>
+          </div>
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+          {diagnosis}
+        </div>
+      </div>
+    )
+  }
+  if (aiEnabled) {
+    return (
+      <button
+        onClick={onDiagnose}
+        disabled={diagnosing}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 9px', borderRadius: 4, border: '1px solid rgba(249,115,22,0.3)', background: 'rgba(249,115,22,0.06)', color: '#F97316', cursor: diagnosing ? 'default' : 'pointer', fontFamily: 'inherit', opacity: diagnosing ? 0.7 : 1 }}
+      >
+        <Lightbulb size={11} />
+        {diagnosing ? 'Diagnosing…' : 'Explain this error'}
+      </button>
+    )
+  }
+  return null
+}
+
+function AnomalyPanel({ anomaly, aiEnabled, rowsNarrative, rowsNarrating, durNarrative, durNarrating, onNarrate, onDismissNarrative }: {
+  anomaly: StepAnomaly; aiEnabled: boolean
+  rowsNarrative: string | null; rowsNarrating: boolean
+  durNarrative: string | null; durNarrating: boolean
+  onNarrate: (metric: 'rows' | 'duration', a: AnomalyMetric) => void
+  onDismissNarrative: (metric: 'rows' | 'duration') => void
+}) {
+  return (
+    <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', background: 'rgba(249,115,22,0.03)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <AlertTriangle size={12} style={{ color: '#F97316' }} />
+        <span style={{ fontSize: 11, fontWeight: 600, color: '#F97316', fontFamily: 'inherit' }}>Anomaly Detected</span>
+        <span style={{ fontSize: 10.5, color: 'var(--text-dim)', fontFamily: 'inherit' }}>— this step result is &gt;2σ outside its 30-run average</span>
+      </div>
+      {anomaly.rows_anomaly && (
+        <AnomalyRow
+          label="Rows" metric="rows" a={anomaly.rows_anomaly}
+          aiEnabled={aiEnabled}
+          narrative={rowsNarrative} narrating={rowsNarrating}
+          onNarrate={() => onNarrate('rows', anomaly.rows_anomaly!)}
+          onDismiss={() => onDismissNarrative('rows')}
+        />
+      )}
+      {anomaly.duration_anomaly && (
+        <AnomalyRow
+          label="Duration" metric="duration" a={anomaly.duration_anomaly}
+          aiEnabled={aiEnabled}
+          narrative={durNarrative} narrating={durNarrating}
+          onNarrate={() => onNarrate('duration', anomaly.duration_anomaly!)}
+          onDismiss={() => onDismissNarrative('duration')}
+        />
+      )}
+    </div>
+  )
+}
+
 function TimelineStep({ s, last, aiEnabled, anomaly }: { s: StepRun; last: boolean; aiEnabled: boolean; anomaly: StepAnomaly | null }) {
   const [open, setOpen]           = useState(s.status === 'failed' || !!anomaly)
   const [activeTab, setActiveTab] = useState(0)
@@ -199,36 +273,21 @@ function TimelineStep({ s, last, aiEnabled, anomaly }: { s: StepRun; last: boole
 
   const typeMeta = TYPE_META[s.step_type] ?? { cls: 'tbadge-query', label: s.step_type }
   const statusColor = STATUS_COLOR[s.status] ?? 'var(--text-dim)'
-  const durationColor = s.status === 'success' ? 'var(--success-text)' : (s.status === 'running' ? 'var(--running-text)' : 'var(--text-dim)')
+  const statusColors: Record<string, string> = {
+    success: 'var(--success-text)',
+    running: 'var(--running-text)',
+  }
+  const durationColor = statusColors[s.status] || 'var(--text-dim)'
 
-  const diagnosisPanelResult = diagnosis !== null ? (
-    <div style={{ padding: '10px 12px', background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: 6 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#F97316', display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'inherit' }}>
-          <Lightbulb size={11} /> AI Diagnosis
-        </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'inherit' }}>via Ollama</span>
-          <button onClick={() => setDiagnosis(null)} style={{ display: 'flex', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0 }}>
-            <X size={12} />
-          </button>
-        </div>
-      </div>
-      <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
-        {diagnosis}
-      </div>
-    </div>
-  ) : null
-  const diagnosisPanel = diagnosisPanelResult ?? (aiEnabled ? (
-    <button
-      onClick={handleDiagnose}
-      disabled={diagnosing}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 9px', borderRadius: 4, border: '1px solid rgba(249,115,22,0.3)', background: 'rgba(249,115,22,0.06)', color: '#F97316', cursor: diagnosing ? 'default' : 'pointer', fontFamily: 'inherit', opacity: diagnosing ? 0.7 : 1 }}
-    >
-      <Lightbulb size={11} />
-      {diagnosing ? 'Diagnosing…' : 'Explain this error'}
-    </button>
-  ) : null)
+  const diagnosisPanel = (
+    <DiagnosisPanel
+      diagnosis={diagnosis}
+      diagnosing={diagnosing}
+      onDiagnose={handleDiagnose}
+      onDismiss={() => setDiagnosis(null)}
+      aiEnabled={aiEnabled}
+    />
+  )
 
   return (
     <div style={{ display: 'flex', gap: 14, position: 'relative' }}>
@@ -278,31 +337,16 @@ function TimelineStep({ s, last, aiEnabled, anomaly }: { s: StepRun; last: boole
           <div style={{ borderTop: '1px solid var(--border)', background: 'var(--bg)' }}>
             {/* Anomaly panel */}
             {anomaly && (
-              <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', background: 'rgba(249,115,22,0.03)', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <AlertTriangle size={12} style={{ color: '#F97316' }} />
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#F97316', fontFamily: 'inherit' }}>Anomaly Detected</span>
-                  <span style={{ fontSize: 10.5, color: 'var(--text-dim)', fontFamily: 'inherit' }}>— this step result is &gt;2σ outside its 30-run average</span>
-                </div>
-                {anomaly.rows_anomaly && (
-                  <AnomalyRow
-                    label="Rows" metric="rows" a={anomaly.rows_anomaly}
-                    aiEnabled={aiEnabled}
-                    narrative={rowsNarrative} narrating={rowsNarrating}
-                    onNarrate={() => handleNarrate('rows', anomaly.rows_anomaly!)}
-                    onDismiss={() => setRowsNarrative(null)}
-                  />
-                )}
-                {anomaly.duration_anomaly && (
-                  <AnomalyRow
-                    label="Duration" metric="duration" a={anomaly.duration_anomaly}
-                    aiEnabled={aiEnabled}
-                    narrative={durNarrative} narrating={durNarrating}
-                    onNarrate={() => handleNarrate('duration', anomaly.duration_anomaly!)}
-                    onDismiss={() => setDurNarrative(null)}
-                  />
-                )}
-              </div>
+              <AnomalyPanel
+                anomaly={anomaly}
+                aiEnabled={aiEnabled}
+                rowsNarrative={rowsNarrative}
+                rowsNarrating={rowsNarrating}
+                durNarrative={durNarrative}
+                durNarrating={durNarrating}
+                onNarrate={handleNarrate}
+                onDismissNarrative={(m) => m === 'rows' ? setRowsNarrative(null) : setDurNarrative(null)}
+              />
             )}
             {/* Tabs */}
             <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--border)', padding: '0 16px' }}>

@@ -206,6 +206,18 @@ CREATE TABLE pipeline_variables (
     var_value       TEXT NOT NULL,
     is_secret       BOOLEAN DEFAULT false            -- masked in UI if true
 );
+
+-- Audit log (append-only security/compliance record)
+CREATE TABLE ff_audit_log (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    timestamp       TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),  -- indexed
+    action          VARCHAR(50) NOT NULL,             -- e.g. LOGIN_SUCCESS, PIPELINE_RUN, CONNECTION_CREATED
+    username        VARCHAR(255) NOT NULL,            -- actor (indexed)
+    user_id         UUID,                            -- nullable for system/legacy events (indexed)
+    ip_address      VARCHAR(45),                     -- IPv6 max len
+    details         JSONB NOT NULL DEFAULT '{}'      -- e.g. pipeline_name, run_id, etc.
+);
+-- Indexes: timestamp, action, username (all indexed for fast filtering)
 ```
 
 ---
@@ -464,8 +476,18 @@ Both implement the same `BaseConnection` interface — pipelines don't know whic
 - FlowForge system config (attachment threshold default, Drive folder default)
 - Google OAuth setup (Gmail + Drive)
 - Microsoft 365 setup (MSAL)
+- AI / Ollama configuration status
+- Run retention policy display (`FLOWFORGE_RUN_RETENTION_DAYS`)
+- Audit log retention display (`FLOWFORGE_AUDIT_RETENTION_DAYS`)
 - Export all pipeline configs as YAML
 - Import pipeline configs from YAML
+
+### Audit Log (`/settings/audit`)
+- Admin-only page showing the `ff_audit_log` DB table
+- Filters: action type, username
+- Paginated table (50 per page, up to 100)
+- Export to CSV download
+- Events: login/logout, pipeline runs, config creates/updates/deletes, email sends, webhook triggers, report exports
 
 ---
 
@@ -536,6 +558,17 @@ GOOGLE_DRIVE_FOLDER_ID=
 ANTHROPIC_API_KEY=
 USE_CLAUDE=false
 OLLAMA_URL=http://localhost:11434
+OLLAMA_QUERY_MODEL=llama3.2:3b    # model for explain/optimize/diagnose
+OLLAMA_CHART_MODEL=llama3.2:3b    # model for chart & profile tasks
+
+# Data retention (scheduler prunes daily)
+FLOWFORGE_RUN_RETENTION_DAYS=90       # delete pipeline_runs + step_runs older than N days (0 = keep forever)
+FLOWFORGE_AUDIT_RETENTION_DAYS=90     # delete audit log entries older than N days (defaults to RUN_RETENTION_DAYS)
+
+# Audit log output (flowforge/audit.py)
+FLOWFORGE_LOG_DIR=logs                # directory for audit.log rotating file
+FLOWFORGE_AUDIT_STDOUT=false          # emit JSON lines to stdout (for container log aggregators)
+FLOWFORGE_AUDIT_FILE=true             # write to logs/audit.log (disable for stdout-only)
 ```
 
 ---
@@ -582,6 +615,7 @@ flowforge/
 │       ├── app.py
 │       ├── auth.py
 │       └── routes/
+│           ├── audit.py            # GET /audit-logs, GET /audit-logs/export (admin)
 │           ├── pipelines.py
 │           ├── steps.py
 │           ├── reports.py
@@ -601,7 +635,8 @@ flowforge/
 │       │   ├── Connections.tsx
 │       │   ├── Recipients.tsx
 │       │   ├── RunHistory.tsx
-│       │   └── Settings.tsx
+│       │   ├── Settings.tsx
+│       │   └── AuditLog.tsx        # /settings/audit — admin only
 │       ├── components/
 │       │   ├── pipeline/
 │       │   ├── email/
@@ -615,7 +650,8 @@ flowforge/
 │   ├── getting-started.md
 │   ├── step-types.md
 │   ├── email-providers.md
-│   └── connections.md
+│   ├── connections.md
+│   └── testing.md                  # Full test runbook (all 5 layers)
 ├── tests/
 ├── .env.example
 ├── pyproject.toml

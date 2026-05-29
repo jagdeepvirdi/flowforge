@@ -121,9 +121,9 @@ export default function BulkLoadEdit() {
         crumbs={crumbs}
         actions={
           <div style={{ display: 'flex', gap: 8 }}>
-            <Link to="/bulk-loads" className="btn btn-sm"><ArrowLeft size={12} /> Back</Link>
+            <Link to="/bulk-loads" className="btn btn-sm"><ArrowLeft size={12} />{' '}Back</Link>
             <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
-              {saving ? <Spinner size={12} /> : <Save size={12} />} Save
+              {saving ? <Spinner size={12} /> : <Save size={12} />}{' '}Save
             </button>
           </div>
         }
@@ -183,7 +183,7 @@ export default function BulkLoadEdit() {
             </div>
             <div className="field">
               <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input type="checkbox" checked={useSqlLoader} onChange={e => setUseSqlLoader(e.target.checked)} />
+                <input type="checkbox" checked={useSqlLoader} onChange={e => setUseSqlLoader(e.target.checked)} />{' '}
                 Use SQL*Loader (Oracle only)
               </label>
               <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
@@ -245,11 +245,11 @@ export default function BulkLoadEdit() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div className="field">
                 <label htmlFor="bulk-header-rows">Header rows</label>
-                <input id="bulk-header-rows" className="input" type="number" min={0} max={10} value={headerRows} onChange={e => setHeaderRows(parseInt(e.target.value) || 0)} />
+                <input id="bulk-header-rows" className="input" type="number" min={0} max={10} value={headerRows} onChange={e => setHeaderRows(Number.parseInt(e.target.value) || 0)} />
               </div>
               <div className="field">
                 <label htmlFor="bulk-footer-rows">Footer rows</label>
-                <input id="bulk-footer-rows" className="input" type="number" min={0} max={10} value={footerRows} onChange={e => setFooterRows(parseInt(e.target.value) || 0)} />
+                <input id="bulk-footer-rows" className="input" type="number" min={0} max={10} value={footerRows} onChange={e => setFooterRows(Number.parseInt(e.target.value) || 0)} />
               </div>
             </div>
           </div>

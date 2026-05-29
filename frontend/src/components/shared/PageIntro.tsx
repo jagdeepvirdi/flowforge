@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react'
 import { ChevronDown, ChevronUp, HelpCircle } from 'lucide-react'
 import { INTRO_CARDS } from '../../lib/helpContent'
 
-interface Props {
+type Props = Readonly<{
   page: string
-}
+}>
 
 export default function PageIntro({ page }: Props) {
   const key = `ff_help_dismissed_${page}`
@@ -32,31 +32,30 @@ export default function PageIntro({ page }: Props) {
       marginBottom: 16,
       overflow: 'hidden',
     }}>
-      <button
-        style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          padding: '10px 14px', cursor: 'pointer',
-          width: '100%', background: 'transparent', border: 'none', textAlign: 'left',
-        }}
-        aria-expanded={!collapsed}
-        onClick={() => setCollapsed(c => !c)}
-      >
-        <HelpCircle size={14} style={{ color: 'var(--accent)', flexShrink: 0 }} />
-        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', flex: 1 }}>{card.title}</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {collapsed && (
-            <button
-              onClick={e => { e.stopPropagation(); setVisible(false) }}
-              style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 11, color: 'var(--text-muted)', padding: '2px 6px' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-3)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
-            >
-              Dismiss
-            </button>
-          )}
+      <div style={{ display: 'flex', alignItems: 'center', padding: '10px 14px', gap: 10 }}>
+        <button
+          style={{
+            display: 'flex', alignItems: 'center', gap: 10, flex: 1,
+            background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left',
+          }}
+          aria-expanded={!collapsed}
+          onClick={() => setCollapsed(c => !c)}
+        >
+          <HelpCircle size={14} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', flex: 1 }}>{card.title}</span>
           {collapsed ? <ChevronDown size={13} style={{ color: 'var(--text-muted)' }} /> : <ChevronUp size={13} style={{ color: 'var(--text-muted)' }} />}
-        </div>
-      </button>
+        </button>
+        {collapsed && (
+          <button
+            onClick={() => setVisible(false)}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 11, color: 'var(--text-muted)', padding: '2px 6px', flexShrink: 0 }}
+            onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-3)')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+          >
+            Dismiss
+          </button>
+        )}
+      </div>
 
       {!collapsed && (
         <div style={{ padding: '0 14px 12px 38px' }}>

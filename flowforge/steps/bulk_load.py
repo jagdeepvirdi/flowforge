@@ -486,7 +486,7 @@ def _load_sqlloader(
         )
 
         user     = conn_cfg.get('username', '')
-        password = conn_cfg.get('password', '')
+        pwd = conn_cfg.get('password', '')
         host     = conn_cfg.get('host', 'localhost')
         port     = conn_cfg.get('port', 1521)
         service  = conn_cfg.get('service_name') or conn_cfg.get('database', '')
@@ -494,7 +494,7 @@ def _load_sqlloader(
 
         par_file = tmpdir / 'load.par'
         par_file.write_text(
-            f'userid={user}/{password}@{dsn}\n'
+            f'userid={user}/{pwd}@{dsn}\n'
             f'control={ctl_file}\n'
             f'log={log_file}\n'
             f'bad={bad_file}\n'

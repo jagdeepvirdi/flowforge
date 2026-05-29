@@ -169,48 +169,42 @@ function HelpTab({ topic }: { topic: string }) {
 export default function HelpDrawer() {
   const { open, topic, closeHelp } = useHelp()
   const [tab, setTab] = useState<'help' | 'glossary'>('help')
-  const drawerRef = useRef<HTMLDivElement>(null)
+  const drawerRef = useRef<HTMLDialogElement>(null)
 
   /* Keyboard: Escape closes */
   useEffect(() => {
     if (!open) return
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') closeHelp() }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
+    globalThis.addEventListener('keydown', handler)
+    return () => globalThis.removeEventListener('keydown', handler)
   }, [open, closeHelp])
+
+  /* Sync dialog state with 'open' prop */
+  useEffect(() => {
+    const dialog = drawerRef.current
+    if (!dialog) return
+    if (open) {
+      if (!dialog.open) dialog.showModal()
+    } else {
+      if (dialog.open) dialog.close()
+    }
+  }, [open])
 
   return (
     <>
-      {/* Overlay */}
-      <div
-        role="button"
-        tabIndex={0}
-        aria-label="Close help"
-        onClick={closeHelp}
-        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') closeHelp() }}
-        style={{
-          position: 'fixed', inset: 0, zIndex: 200,
-          background: 'rgba(0,0,0,0.4)',
-          opacity: open ? 1 : 0,
-          pointerEvents: open ? 'auto' : 'none',
-          transition: 'opacity 200ms ease',
-        }}
-      />
-
       {/* Drawer panel */}
-      <div
+      <dialog
         ref={drawerRef}
-        role="dialog"
+        onClose={closeHelp}
         aria-label="Help"
         style={{
-          position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 201,
-          width: 400,
+          margin: 0, padding: 0,
+          top: 0, right: 0, bottom: 0, left: 'auto',
+          height: '100vh', width: 400,
           background: 'var(--surface)',
-          borderLeft: '1px solid var(--border)',
+          border: 'none', borderLeft: '1px solid var(--border)',
           display: 'flex', flexDirection: 'column',
-          transform: open ? 'translateX(0)' : 'translateX(100%)',
-          transition: 'transform 220ms cubic-bezier(0.4,0,0.2,1)',
-          boxShadow: open ? '-8px 0 32px rgba(0,0,0,0.4)' : 'none',
+          boxShadow: '-8px 0 32px rgba(0,0,0,0.4)',
         }}
       >
         {/* Header */}
@@ -263,7 +257,7 @@ export default function HelpDrawer() {
           {tab === 'help'     && <HelpTab topic={topic} />}
           {tab === 'glossary' && <GlossaryTab />}
         </div>
-      </div>
+      </dialog>
     </>
   )
 }

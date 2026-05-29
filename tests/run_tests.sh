@@ -20,19 +20,20 @@ for arg in "$@"; do
         --url=*)  API_URL="${arg#*=}" ;;
         --user=*) API_USER="${arg#*=}" ;;
         --pass=*) API_PASS="${arg#*=}" ;;
+        *) ;;
     esac
 done
 
 PYTHON="$ROOT/.venv/bin/python"
-[ -f "$PYTHON" ] || PYTHON="python3"
+[[ -f "$PYTHON" ]] || PYTHON="python3"
 
-if [ "$MODE" = "manual" ]; then
+if [[ "$MODE" == "manual" ]]; then
     echo ""
     echo "Running manual API smoke test..."
     exec "$PYTHON" "$ROOT/tests/manual/check_api.py" --url "$API_URL" --user "$API_USER" --pass "$API_PASS"
 fi
 
-if [ "$MODE" = "unit" ]; then
+if [[ "$MODE" == "unit" ]]; then
     echo ""
     echo "Running unit tests (no DB required)..."
     exec "$PYTHON" -m pytest "$ROOT/tests/test_crypto.py" -v

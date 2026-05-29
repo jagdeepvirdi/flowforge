@@ -1,4 +1,4 @@
-interface Props { message: string; action?: React.ReactNode }
+type Props = Readonly<{ message: string; action?: React.ReactNode }>
 
 export default function EmptyState({ message, action }: Props) {
   return (

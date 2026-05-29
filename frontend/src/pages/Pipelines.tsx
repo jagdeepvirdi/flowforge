@@ -14,13 +14,13 @@ function describeCron(expr: string): string {
   const p = expr.trim().split(/\s+/)
   if (p.length !== 5) return expr
   const [min, hr, dom, mon, dow] = p
-  const hh = (v: string) => String(parseInt(v)).padStart(2, '0')
-  const mm = (v: string) => String(parseInt(v)).padStart(2, '0')
+  const hh = (v: string) => String(Number.parseInt(v)).padStart(2, '0')
+  const mm = (v: string) => String(Number.parseInt(v)).padStart(2, '0')
   const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
   // Every N minutes: */N * * * *
   if (/^\*\/\d+$/.test(min) && hr === '*' && dom === '*' && mon === '*' && dow === '*') {
-    const n = parseInt(min.replace('*/', ''))
+    const n = Number.parseInt(min.replace('*/', ''))
     return `Every ${n} min`
   }
   // Hourly: M * * * *
@@ -33,11 +33,11 @@ function describeCron(expr: string): string {
   }
   // Weekly: M H * * D
   if (/^\d+$/.test(min) && /^\d+$/.test(hr) && dom === '*' && mon === '*' && /^\d+$/.test(dow)) {
-    return `Weekly ${DAYS[parseInt(dow)] ?? dow} ${hh(hr)}:${mm(min)}`
+    return `Weekly ${DAYS[Number.parseInt(dow)] ?? dow} ${hh(hr)}:${mm(min)}`
   }
   // Monthly: M H D * *
   if (/^\d+$/.test(min) && /^\d+$/.test(hr) && /^\d+$/.test(dom) && mon === '*' && dow === '*') {
-    return `Monthly day ${parseInt(dom)} ${hh(hr)}:${mm(min)}`
+    return `Monthly day ${Number.parseInt(dom)} ${hh(hr)}:${mm(min)}`
   }
   return expr
 }
@@ -85,12 +85,10 @@ export default function Pipelines() {
     mutationFn: (yamlContent: string) => importPipeline(yamlContent),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['pipelines'] }),
   })
-  function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = ev => doImport(ev.target!.result as string)
-    reader.readAsText(file)
+    doImport(await file.text())
     e.target.value = ''
   }
 
@@ -215,7 +213,7 @@ export default function Pipelines() {
                               style={{ color: 'var(--text-muted)' }}
                               onMouseEnter={e => (e.currentTarget.style.color = 'var(--failure-text)')}
                               onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
-                              onClick={() => window.confirm(`Delete "${p.name}"?`) && remove(p.id)}
+                              onClick={() => globalThis.confirm(`Delete "${p.name}"?`) && remove(p.id)}
                               title="Delete"
                             >
                               <Trash2 size={12} />

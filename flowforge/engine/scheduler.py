@@ -132,6 +132,58 @@ def _cleanup_job() -> None:
     from flowforge.engine.cleanup import cleanup_output_files
     cleanup_output_files()
     _prune_token_blocklist()
+    _prune_old_runs()
+    _prune_old_audit_logs()
+
+
+def _prune_old_runs() -> None:
+    if _app is None:
+        return
+    retention_days = int(os.environ.get('FLOWFORGE_RUN_RETENTION_DAYS', 90))
+    if retention_days <= 0:
+        return
+        
+    try:
+        from datetime import datetime, timedelta, timezone
+        with _app.app_context():
+            from flowforge.db.models import PipelineRun, db
+            cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+            # Delete runs older than cutoff. Cascading takes care of step_runs.
+            deleted = (
+                db.session.query(PipelineRun)
+                .filter(PipelineRun.started_at < cutoff)
+                .delete(synchronize_session=False)
+            )
+            db.session.commit()
+            if deleted:
+                logger.info("Pruned %d pipeline run(s) older than %d days.", deleted, retention_days)
+    except Exception:
+        logger.exception("Pipeline run pruning failed")
+
+
+def _prune_old_audit_logs() -> None:
+    if _app is None:
+        return
+    # Default to run retention if audit retention isn't explicitly set
+    retention_days = int(os.environ.get('FLOWFORGE_AUDIT_RETENTION_DAYS', os.environ.get('FLOWFORGE_RUN_RETENTION_DAYS', 90)))
+    if retention_days <= 0:
+        return
+        
+    try:
+        from datetime import datetime, timedelta, timezone
+        with _app.app_context():
+            from flowforge.db.models import AuditLog, db
+            cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+            deleted = (
+                db.session.query(AuditLog)
+                .filter(AuditLog.timestamp < cutoff)
+                .delete(synchronize_session=False)
+            )
+            db.session.commit()
+            if deleted:
+                logger.info("Pruned %d audit log(s) older than %d days.", deleted, retention_days)
+    except Exception:
+        logger.exception("Audit log pruning failed")
 
 
 def _prune_token_blocklist() -> None:

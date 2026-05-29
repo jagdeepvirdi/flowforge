@@ -1,8 +1,8 @@
-interface Props {
+type Props = Readonly<{
   title: string
   subtitle?: string
   action?: React.ReactNode
-}
+}>
 
 export default function PageHeader({ title, subtitle, action }: Props) {
   return (

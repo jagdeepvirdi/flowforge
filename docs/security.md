@@ -77,6 +77,19 @@ Both layers are required — the API is the authoritative enforcement point; the
 
 ---
 
+## Webhook / API Trigger Tokens
+
+Pipelines can be triggered via HTTP using scoped tokens generated in the Pipeline Builder. Each token is:
+
+- **Scoped** — tied to a single pipeline; cannot trigger any other resource
+- **Revocable** — individual tokens can be revoked without affecting other tokens or the pipeline itself
+- **Audited** — every webhook trigger is recorded in the audit log with timestamp and pipeline name
+- **Never expiring by default** — revoke explicitly when a token is no longer needed
+
+Token values are stored as bcrypt hashes in the database — the plaintext token is shown only once at creation and is not recoverable. Treat tokens like passwords: store them in your CI/CD secrets manager, not in code.
+
+---
+
 ## Audit Log
 
 Every significant action is written to `logs/audit.log` (rotating `RotatingFileHandler`, 10 MB × 5 backups).
@@ -121,6 +134,8 @@ Pipeline step configs use Jinja2 templates for variable substitution. FlowForge 
 FlowForge does not terminate TLS itself. Deploy behind Nginx or a load balancer with HTTPS. The Docker Compose setup exposes port 80 via Nginx — add a TLS terminator (e.g. Certbot + Nginx, Cloudflare Tunnel) in front for production.
 
 Set `FLOWFORGE_CORS_ORIGIN` to your frontend origin in production. Leaving it unset on a production deployment logs a startup warning.
+
+**Reverse proxy trust (`FLOWFORGE_TRUSTED_PROXIES`):** When Nginx or an ALB sits in front, set `FLOWFORGE_TRUSTED_PROXIES=1` in `.env`. This tells Flask to trust the `X-Forwarded-For` header so rate limiting and audit log entries record the real client IP rather than the proxy's `127.0.0.1`. Without this, all login attempts appear to originate from the same IP, making per-IP rate limiting ineffective. Do **not** set this flag when the app is exposed directly to the internet without a proxy.
 
 ---
 

@@ -111,8 +111,15 @@ GMAIL_SENDER=your-gmail@gmail.com
 Restart the FlowForge server to pick up the new values:
 
 ```powershell
-.\server_stop.ps1
-.\server_start.ps1
+# Windows
+.\flowforge.ps1 stop
+.\flowforge.ps1 start
+```
+
+```bash
+# macOS / Linux
+./flowforge.sh stop
+./flowforge.sh start
 ```
 
 ---

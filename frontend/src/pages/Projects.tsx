@@ -69,7 +69,10 @@ function ProjectModal({
     onError: (e: Error) => setError(e.message),
   })
 
-  const saveButtonLabel = isPending ? 'Saving…' : (project ? 'Save' : 'Create')
+  const saveButtonLabel = (() => {
+    if (isPending) return 'Saving…'
+    return project ? 'Save' : 'Create'
+  })()
 
   return (
     <div style={{
@@ -199,7 +202,7 @@ function ProjectCard({ project, onEdit }: { project: Project; onEdit: (p: Projec
                     alert(`Cannot delete "${project.name}" — it has ${total} resource(s). Move or delete them first.`)
                     return
                   }
-                  window.confirm(`Delete project "${project.name}"?`) && remove()
+                  globalThis.confirm(`Delete project "${project.name}"?`) && remove()
                 }}
                 title="Delete"
               >
@@ -237,7 +240,7 @@ function ProjectCard({ project, onEdit }: { project: Project; onEdit: (p: Projec
           display: 'inline-flex', alignItems: 'center', gap: 4,
           fontSize: 11, color: project.color || 'var(--accent)', fontWeight: 600,
         }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: project.color || 'var(--accent)' }} />
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: project.color || 'var(--accent)' }} />{' '}
           Active filter
         </div>
       )}
@@ -276,7 +279,7 @@ export default function Projects() {
       <TopBar
         crumbs={['Workspace', 'Projects']}
         actions={
-          <button className="btn btn-primary btn-sm" onClick={openCreate}><Plus size={13} /> New Project</button>
+          <button className="btn btn-primary btn-sm" onClick={openCreate}><Plus size={13} />{' '}New Project</button>
         }
       />
 

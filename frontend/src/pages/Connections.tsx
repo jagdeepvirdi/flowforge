@@ -213,10 +213,33 @@ export default function Connections() {
 
   const submitting = addingDb || addingMail || savingDb || savingMail
 
-  const testBg     = modalTest.status === 'ok' ? 'rgba(34,197,94,0.08)'  : (modalTest.status === 'fail' ? 'rgba(239,68,68,0.08)' : 'var(--surface-2)')
-  const testBorder = modalTest.status === 'ok' ? 'rgba(34,197,94,0.3)'   : (modalTest.status === 'fail' ? 'rgba(239,68,68,0.2)'  : 'var(--border)')
-  const testColor  = modalTest.status === 'ok' ? 'var(--success-text)'   : (modalTest.status === 'fail' ? 'var(--failure-text)'  : 'var(--text-3)')
-  const dotBg      = modalTest.status === 'ok' ? 'var(--success-text)'   : (modalTest.status === 'fail' ? 'var(--failure)'       : 'var(--text-muted)')
+  const TEST_STYLES = {
+    ok: {
+      bg: 'rgba(34,197,94,0.08)',
+      border: 'rgba(34,197,94,0.3)',
+      color: 'var(--success-text)',
+      dot: 'var(--success-text)',
+    },
+    fail: {
+      bg: 'rgba(239,68,68,0.08)',
+      border: 'rgba(239,68,68,0.2)',
+      color: 'var(--failure-text)',
+      dot: 'var(--failure)',
+    },
+    idle: {
+      bg: 'var(--surface-2)',
+      border: 'var(--border)',
+      color: 'var(--text-3)',
+      dot: 'var(--text-muted)',
+    },
+  }
+  const testStyleKey = (modalTest.status === 'ok' || modalTest.status === 'fail') ? modalTest.status : 'idle'
+  const testStyles = TEST_STYLES[testStyleKey]
+
+  const testBg     = testStyles.bg
+  const testBorder = testStyles.border
+  const testColor  = testStyles.color
+  const dotBg      = testStyles.dot
 
   return (
     <>
@@ -326,7 +349,7 @@ export default function Connections() {
                       {isAdmin && (
                         <>
                           <button className="btn btn-sm btn-ghost btn-icon" onClick={() => openEdit(c.id)}><Pencil size={12} /></button>
-                          <button className="btn btn-sm btn-ghost btn-icon" onClick={() => window.confirm(`Delete "${c.name}"?`) && removeDb(c.id)}>
+                          <button className="btn btn-sm btn-ghost btn-icon" onClick={() => globalThis.confirm(`Delete "${c.name}"?`) && removeDb(c.id)}>
                             <Trash2 size={12} />
                           </button>
                         </>
@@ -410,7 +433,7 @@ export default function Connections() {
                       {isAdmin && (
                         <>
                           <button className="btn btn-sm btn-ghost btn-icon" onClick={() => openEdit(p.id)}><Pencil size={12} /></button>
-                          <button className="btn btn-sm btn-ghost btn-icon" onClick={() => window.confirm(`Delete "${p.name}"?`) && removeEmail(p.id)}>
+                          <button className="btn btn-sm btn-ghost btn-icon" onClick={() => globalThis.confirm(`Delete "${p.name}"?`) && removeEmail(p.id)}>
                             <Trash2 size={12} />
                           </button>
                         </>
