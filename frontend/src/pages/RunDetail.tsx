@@ -455,12 +455,12 @@ export default function RunDetail() {
         {/* Progress bar */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ display: 'flex', gap: 2, height: 6, borderRadius: 4, overflow: 'hidden', background: 'var(--surface-2)' }}>
-            {steps.map((s, i) => {
+            {steps.map(s => {
               const barBackground = s.status === 'success' ? 'var(--success)'
                 : s.status === 'running' ? 'linear-gradient(90deg,var(--running),var(--running-text))'
                 : (s.status === 'failed' ? 'var(--failure)' : 'var(--surface-2)')
               return (
-                <div key={i} style={{
+                <div key={s.id} style={{
                   flex: s.status === 'success' || s.status === 'running' ? (s.duration_ms ?? 1) : 1,
                   background: barBackground,
                   position: 'relative',

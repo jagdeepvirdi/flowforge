@@ -90,8 +90,8 @@ export default function RunHistory() {
               </tr>
             </thead>
             <tbody>
-              {Array.from({ length: 8 }).map((_, i) => (
-                <tr key={'sk-' + i}>
+              {Array.from({ length: 8 }, (_, i) => i).map(n => (
+                <tr key={'sk-' + n}>
                   <td><Sk h={20} r={4} style={{ width: 72 }} /></td>
                   <td><Sk h={14} style={{ width: '65%' }} /></td>
                   <td><Sk h={14} style={{ width: 100 }} /></td>
