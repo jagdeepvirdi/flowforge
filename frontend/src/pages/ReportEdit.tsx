@@ -193,7 +193,7 @@ export default function ReportEdit() {
     setError('')
     try {
       const cfg = await generateChartConfig({ columns: preview.columns, rows: preview.rows })
-      setChartConfig(cfg as ChartConfig)
+      setChartConfig(cfg)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Visualization failed')
     } finally {

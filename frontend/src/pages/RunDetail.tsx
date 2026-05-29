@@ -183,17 +183,19 @@ function DiagnosisPanel({ diagnosis, diagnosing, onDiagnose, onDismiss, aiEnable
       </div>
     )
   }
-  if (!aiEnabled) return null
-  return (
-    <button
-      onClick={onDiagnose}
-      disabled={diagnosing}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 9px', borderRadius: 4, border: '1px solid rgba(249,115,22,0.3)', background: 'rgba(249,115,22,0.06)', color: '#F97316', cursor: diagnosing ? 'default' : 'pointer', fontFamily: 'inherit', opacity: diagnosing ? 0.7 : 1 }}
-    >
-      <Lightbulb size={11} />
-      {diagnosing ? 'Diagnosing…' : 'Explain this error'}
-    </button>
-  )
+  if (aiEnabled) {
+    return (
+      <button
+        onClick={onDiagnose}
+        disabled={diagnosing}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 9px', borderRadius: 4, border: '1px solid rgba(249,115,22,0.3)', background: 'rgba(249,115,22,0.06)', color: '#F97316', cursor: diagnosing ? 'default' : 'pointer', fontFamily: 'inherit', opacity: diagnosing ? 0.7 : 1 }}
+      >
+        <Lightbulb size={11} />
+        {diagnosing ? 'Diagnosing…' : 'Explain this error'}
+      </button>
+    )
+  }
+  return null
 }
 
 function AnomalyPanel({ stepName, anomaly, aiEnabled, rowsNarrative, rowsNarrating, durNarrative, durNarrating, onNarrate, onDismissNarrative }: {

@@ -85,12 +85,10 @@ export default function Pipelines() {
     mutationFn: (yamlContent: string) => importPipeline(yamlContent),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['pipelines'] }),
   })
-  function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = ev => doImport(ev.target!.result as string)
-    reader.readAsText(file)
+    doImport(await file.text())
     e.target.value = ''
   }
 

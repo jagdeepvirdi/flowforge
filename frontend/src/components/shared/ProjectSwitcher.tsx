@@ -36,7 +36,7 @@ export default function ProjectSwitcher({ compact = false }: { compact?: boolean
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (ref.current && e.target instanceof Node && !ref.current.contains(e.target)) setOpen(false)
     }
     document.addEventListener('mousedown', onClickOutside)
     return () => document.removeEventListener('mousedown', onClickOutside)

@@ -240,7 +240,7 @@ function ProjectCard({ project, onEdit }: { project: Project; onEdit: (p: Projec
           display: 'inline-flex', alignItems: 'center', gap: 4,
           fontSize: 11, color: project.color || 'var(--accent)', fontWeight: 600,
         }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: project.color || 'var(--accent)' }} />
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: project.color || 'var(--accent)' }} />{' '}
           Active filter
         </div>
       )}
@@ -279,7 +279,7 @@ export default function Projects() {
       <TopBar
         crumbs={['Workspace', 'Projects']}
         actions={
-          <button className="btn btn-primary btn-sm" onClick={openCreate}><Plus size={13} /> New Project</button>
+          <button className="btn btn-primary btn-sm" onClick={openCreate}><Plus size={13} />{' '}New Project</button>
         }
       />
 

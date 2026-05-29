@@ -111,7 +111,7 @@ export const previewReport      = (id: string) => post<{ columns: string[]; rows
 export const profileData = (payload: { columns: string[]; rows: unknown[][] }) =>
   post<{ result: string }>('/ai/data-profile', payload)
 export const generateChartConfig = (payload: { columns: string[]; rows: unknown[][]; hint?: string }) =>
-  post<{ type: string; x: string; y: string; title: string; available_columns: string[] }>('/ai/chart-config', payload)
+  post<{ type: 'bar' | 'line' | 'area' | 'pie' | 'scatter'; x: string; y: string; title: string; available_columns: string[] }>('/ai/chart-config', payload)
 type AiQueryPayload =
   | { task: 'explain';  sql: string }
   | { task: 'optimize'; sql: string }

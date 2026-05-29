@@ -121,9 +121,9 @@ export default function BulkLoadEdit() {
         crumbs={crumbs}
         actions={
           <div style={{ display: 'flex', gap: 8 }}>
-            <Link to="/bulk-loads" className="btn btn-sm"><ArrowLeft size={12} /> Back</Link>
+            <Link to="/bulk-loads" className="btn btn-sm"><ArrowLeft size={12} />{' '}Back</Link>
             <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
-              {saving ? <Spinner size={12} /> : <Save size={12} />} Save
+              {saving ? <Spinner size={12} /> : <Save size={12} />}{' '}Save
             </button>
           </div>
         }
@@ -183,7 +183,7 @@ export default function BulkLoadEdit() {
             </div>
             <div className="field">
               <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input type="checkbox" checked={useSqlLoader} onChange={e => setUseSqlLoader(e.target.checked)} />
+                <input type="checkbox" checked={useSqlLoader} onChange={e => setUseSqlLoader(e.target.checked)} />{' '}
                 Use SQL*Loader (Oracle only)
               </label>
               <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>

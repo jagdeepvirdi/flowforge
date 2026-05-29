@@ -43,13 +43,13 @@
 - [ ] Take a screenshot of the SonarCloud dashboard for LinkedIn post
 
 #### 2.1f Major Code Smells (one remaining)
-- [ ] Add explicit `{' '}` between inline JSX elements — `Layout.tsx:103,148`, `Projects.tsx:232`, `PipelineEdit.tsx:313`, `BulkLoadEdit.tsx:186`
+- [x] Add explicit `{' '}` between inline JSX elements — `Layout.tsx:103,148`, `Projects.tsx:232`, `PipelineEdit.tsx:313`, `BulkLoadEdit.tsx:186`
 
 #### 2.1g Minor Code Smells (remaining)
-- [ ] Remove unnecessary type assertions (`as SomeType`) — `PipelineEdit.tsx:128`, `Pipelines.tsx:92`, `ReportEdit.tsx:196`, `RunDetail.tsx:331`, `ProjectSwitcher.tsx:39`, `BulkLoadEdit.tsx:22,99`, `StepEditor.tsx:223,267`, `FieldTooltip.tsx:18`
-- [ ] Fix unexpected negated conditions — `Layout.tsx:182`, `RunDetail.tsx:225`, `BulkLoads.tsx:78`
-- [ ] Replace `FileReader.readAsText(blob)` with `await blob.text()` — `Pipelines.tsx:93`
-- [ ] Replace `dict()` / `list()` constructor calls with literals `{}` / `[]` — `sftp_transfer.py:56`
+- [x] Remove unnecessary type assertions (`as SomeType`) — `StepEditor.tsx:37,224,268` (config already typed); `Pipelines.tsx:92` (removed with FileReader refactor); `ReportEdit.tsx:196` (api.ts return type tightened); `ProjectSwitcher.tsx:39`, `FieldTooltip.tsx:18` (replaced with instanceof)
+- [x] Fix unexpected negated conditions — `Layout.tsx:195`, `RunDetail.tsx:186`, `BulkLoads.tsx:78`
+- [x] Replace `FileReader.readAsText(blob)` with `await blob.text()` — `Pipelines.tsx:88`
+- [x] Replace `dict()` / `list()` constructor calls with literals `{}` / `[]` — `sftp_transfer.py:60`
 
 ### 2.2 OpenSSF Scorecard
 - [ ] Review final Scorecard score after next weekly run (Saturday); target ≥ 7.0
@@ -201,6 +201,32 @@
 - [ ] `ff_project_members` join table — team-scoped project access (deferred from v2)
 - [ ] Password reset flow via email (deferred from v2)
 - [ ] Distributed Redis-backed concurrency lock (replaces per-process semaphore for horizontal scale)
+
+---
+
+## Phase 9 — Automation Scenarios (SSH & Remote Execution)
+
+### 9.1 Infrastructure Support
+- [ ] **Implement `SSHConnection`** — new connection type to store host, port, credentials (password/key_path)
+- [ ] **Implement `SshCommandStep`** — execute remote commands/scripts via paramiko; capture stdout/stderr
+- [ ] **Implement `DbHealthCheckStep`** — industry-standard metrics (Lag, Locks, Bloat, Sessions)
+- [ ] **Smart Alerting Logic** — add `send_only_on_failure` toggle to pipelines to suppress routine emails
+- [ ] **Alembic migration** — update `ck_step_type` to include `ssh_command`, `db_health_check`, and `data_report`
+- [ ] **Implement `DataReportStep`** — generate Excel/CSV/PDF from pipeline context variables
+
+### 9.2 Scenario 1: Industry-Standard Health Monitoring
+- [ ] **Configure Daily Health Pipeline** — 4 SSH steps + 2 DB Health steps + Data Report step + Email step
+- [ ] **Standard SSH Metrics**: Load Average, Memory Usage (`free -m`), Disk I/O, and `df -h`.
+- [ ] **Standard DB Metrics**:
+    - **Oracle**: `v$instance`, `v$sysstat` (buffer cache hit ratio), `v$dataguard_stats`.
+    - **Postgres**: `pg_stat_database` (cache hit ratio), `pg_stat_replication`, `pg_stat_activity`.
+- [ ] **Conditional Execution**: Use FlowForge's `on_error: stop` and variable checks to only email if thresholds are exceeded (e.g., Disk > 90%).
+
+### 9.3 Scenario 2: Remote Script & Log Processing
+- [ ] **Configure Log Extraction Pipeline** — SSH step (run script) + existing `ReportStep` (query the updated table) + Email step
+- [ ] **Log Handling**: Attach the stdout/stderr log from the SSH step directly to the email alongside the Excel.
+
+---
 
 ---
 

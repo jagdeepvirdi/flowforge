@@ -100,7 +100,7 @@ export default function Layout() {
           <div className="flex flex-col">
             <span className="text-[14px] font-bold text-[var(--text)] tracking-tight leading-tight">FlowForge</span>
             <span className="text-[10.5px] text-[var(--text-muted)] font-mono flex items-center gap-1.5 mt-0.5">
-              <span className="w-1.25 h-1.25 rounded-full bg-[var(--success)] shadow-[0_0_6px_var(--success)]" />
+              <span className="w-1.25 h-1.25 rounded-full bg-[var(--success)] shadow-[0_0_6px_var(--success)]" />{' '}
               production
             </span>
           </div>
@@ -147,7 +147,7 @@ export default function Layout() {
                     <>
                       <span className="flex items-center gap-2.5">
                         <span className={isActive ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}><NavIcon name="users" /></span>
-                        Users
+                        {' '}Users
                       </span>
                       {isActive && <span className="ff-active-bar" />}
                     </>
@@ -158,7 +158,7 @@ export default function Layout() {
                     <>
                       <span className="flex items-center gap-2.5">
                         <span className={isActive ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}><NavIcon name="hash" /></span>
-                        Audit Log
+                        {' '}Audit Log
                       </span>
                       {isActive && <span className="ff-active-bar" />}
                     </>
@@ -192,7 +192,7 @@ export default function Layout() {
           </div>
           <div className="flex items-baseline gap-1 mb-2">
             <span className="text-[22px] font-semibold font-mono tracking-tight text-[var(--text)]">{runsCount}</span>
-            <span className="text-[11px] text-[var(--text-muted)]">run{runsCount !== 1 ? 's' : ''}</span>
+            <span className="text-[11px] text-[var(--text-muted)]">run{runsCount === 1 ? '' : 's'}</span>
           </div>
           <div className="sparkbars h-[22px]">
             {sparkNorm.map((h, i) => (

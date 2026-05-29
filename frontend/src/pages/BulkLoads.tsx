@@ -75,7 +75,7 @@ export default function BulkLoads() {
         <div className="page-h">
           <div>
             <h1>Bulk Loads</h1>
-            <p>{configs.length} bulk load config{configs.length !== 1 ? 's' : ''}</p>
+            <p>{configs.length} bulk load config{configs.length === 1 ? '' : 's'}</p>
           </div>
         </div>
 

@@ -34,7 +34,7 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: step.id })
   const style = { transform: CSS.Transform.toString(transform), transition }
 
-  const cfg = step.config as Record<string, unknown>
+  const cfg = step.config
   const setConfig = (key: string, value: unknown) =>
     onChange(step.id, { config: { ...cfg, [key]: value } })
 
@@ -221,7 +221,7 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
                   const capturingSteps = allSteps.filter(
                     s => s.step_type === 'db_query'
                       && s.step_order < step.step_order
-                      && Boolean((s.config as Record<string, unknown>).capture_rows)
+                      && Boolean(s.config.capture_rows)
                   )
                   if (capturingSteps.length === 0) return null
                   return (
@@ -265,7 +265,7 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
                           const stepRef = rs.name.includes(' ') ? `steps['${rs.name}']` : `steps.${rs.name}`
                           const variable = `{{ ${stepRef}.output_path }}`
                           const already = current.includes(variable)
-                          const rc = reportConfigs.find(r => r.id === (rs.config as Record<string,unknown>).report_config_id)
+                          const rc = reportConfigs.find(r => r.id === rs.config.report_config_id)
                           const filename = rc?.output_filename ?? rs.name
                           return (
                             <button

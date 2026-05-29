@@ -288,9 +288,9 @@ export default function PipelineEdit() {
         crumbs={crumbs}
         actions={
           <div className="flex gap-2">
-            <Link to="/pipelines" className="btn btn-sm"><ArrowLeft size={12} /> Back</Link>
+            <Link to="/pipelines" className="btn btn-sm"><ArrowLeft size={12} />{' '}Back</Link>
             <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
-              {saving ? <Spinner size={12} /> : <Save size={12} />} Save
+              {saving ? <Spinner size={12} /> : <Save size={12} />}{' '}Save
             </button>
           </div>
         }
@@ -312,7 +312,7 @@ export default function PipelineEdit() {
             </div>
             <div className="field">
               <label className="flex items-center gap-1">
-                Schedule
+                Schedule{' '}
                 <FieldTooltip field="cron" />
               </label>
               {(!id || existing) && (

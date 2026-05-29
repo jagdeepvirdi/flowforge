@@ -57,14 +57,14 @@ def _sftp_connect(
         # Add servers first: ssh-keyscan -H <host> >> ~/.ssh/known_hosts
         ssh.set_missing_host_key_policy(paramiko.RejectPolicy())
 
-    connect_kwargs: dict[str, Any] = dict(
-        hostname=host,
-        port=port,
-        username=username,
-        timeout=timeout,
-        look_for_keys=False,
-        allow_agent=False,
-    )
+    connect_kwargs: dict[str, Any] = {
+        'hostname': host,
+        'port': port,
+        'username': username,
+        'timeout': timeout,
+        'look_for_keys': False,
+        'allow_agent': False,
+    }
     if key_path:
         connect_kwargs['key_filename'] = [key_path]
         if key_passphrase:
