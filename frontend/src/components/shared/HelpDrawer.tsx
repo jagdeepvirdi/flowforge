@@ -169,7 +169,7 @@ function HelpTab({ topic }: { topic: string }) {
 export default function HelpDrawer() {
   const { open, topic, closeHelp } = useHelp()
   const [tab, setTab] = useState<'help' | 'glossary'>('help')
-  const drawerRef = useRef<HTMLDivElement>(null)
+  const drawerRef = useRef<HTMLDialogElement>(null)
 
   /* Keyboard: Escape closes */
   useEffect(() => {
@@ -257,7 +257,7 @@ export default function HelpDrawer() {
           {tab === 'help'     && <HelpTab topic={topic} />}
           {tab === 'glossary' && <GlossaryTab />}
         </div>
-      </div>
+      </dialog>
     </>
   )
 }

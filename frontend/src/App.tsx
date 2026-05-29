@@ -20,6 +20,7 @@ import BulkLoads from './pages/BulkLoads'
 import BulkLoadEdit from './pages/BulkLoadEdit'
 import Projects from './pages/Projects'
 import Users from './pages/Users'
+import AuditLog from './pages/AuditLog'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth()

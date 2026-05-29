@@ -198,8 +198,8 @@ function DiagnosisPanel({ diagnosis, diagnosing, onDiagnose, onDismiss, aiEnable
   return null
 }
 
-function AnomalyPanel({ stepName, anomaly, aiEnabled, rowsNarrative, rowsNarrating, durNarrative, durNarrating, onNarrate, onDismissNarrative }: {
-  stepName: string; anomaly: StepAnomaly; aiEnabled: boolean
+function AnomalyPanel({ anomaly, aiEnabled, rowsNarrative, rowsNarrating, durNarrative, durNarrating, onNarrate, onDismissNarrative }: {
+  anomaly: StepAnomaly; aiEnabled: boolean
   rowsNarrative: string | null; rowsNarrating: boolean
   durNarrative: string | null; durNarrating: boolean
   onNarrate: (metric: 'rows' | 'duration', a: AnomalyMetric) => void
@@ -338,7 +338,6 @@ function TimelineStep({ s, last, aiEnabled, anomaly }: { s: StepRun; last: boole
             {/* Anomaly panel */}
             {anomaly && (
               <AnomalyPanel
-                stepName={s.step_name}
                 anomaly={anomaly}
                 aiEnabled={aiEnabled}
                 rowsNarrative={rowsNarrative}
