@@ -66,6 +66,7 @@ class User(db.Model):
     username         = Column(String(100), nullable=False, unique=True)
     password_hash    = Column(String(255), nullable=False)
     role             = Column(String(20), nullable=False, default='editor')
+    email            = Column(String(255), index=True)  # optional — for password reset
     # MFA (TOTP) — secret and backup codes stored AES-256 encrypted
     mfa_secret       = Column(Text)
     mfa_enabled      = Column(Boolean, nullable=False, default=False)
@@ -109,7 +110,7 @@ class EmailProvider(db.Model):
 class DbConnection(db.Model):
     __tablename__ = 'ff_db_connections'
     __table_args__ = (
-        CheckConstraint("db_type IN ('postgresql', 'oracle', 'mysql')", name='ck_db_connection_type'),
+        CheckConstraint("db_type IN ('postgresql', 'oracle', 'mysql', 'mssql', 'odbc')", name='ck_db_connection_type'),
     )
 
     id         = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
@@ -318,6 +319,17 @@ class TokenBlocklist(db.Model):
     jti        = Column(String(36), primary_key=True)
     revoked_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
     expires_at = Column(DateTime(timezone=True), nullable=False)
+
+
+class PasswordResetToken(db.Model):
+    """Single-use password reset tokens, valid for 1 hour."""
+    __tablename__ = 'ff_password_reset_tokens'
+
+    token      = Column(String(64),              primary_key=True)
+    user_id    = Column(UUID(as_uuid=False),      ForeignKey('ff_users.id', ondelete='CASCADE'), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True),  nullable=False, default=_utcnow)
+    expires_at = Column(DateTime(timezone=True),  nullable=False)
+    used_at    = Column(DateTime(timezone=True))
 
 
 class StepRun(db.Model):

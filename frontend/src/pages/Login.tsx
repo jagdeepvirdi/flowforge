@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { login, getMe, mfaVerify, mfaUseBackup, getSsoProviders } from '../lib/api'
+import { login, getMe, mfaVerify, mfaUseBackup, getSsoProviders, requestPasswordReset, confirmPasswordReset, validateResetToken } from '../lib/api'
 import { useAuth } from '../lib/auth'
 
-type LoginStep = 'credentials' | 'mfa-code' | 'mfa-backup'
+type LoginStep = 'credentials' | 'mfa-code' | 'mfa-backup' | 'forgot-password' | 'forgot-sent' | 'reset-password' | 'reset-done'
 
 export default function Login() {
   const { setToken, setUser } = useAuth()
@@ -11,8 +11,11 @@ export default function Login() {
 
   const [step, setStep]         = useState<LoginStep>('credentials')
   const [mfaToken, setMfaToken] = useState('')
+  const [resetToken, setResetToken] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [mfaCode, setMfaCode]   = useState('')
   const [backupCode, setBackupCode] = useState('')
   const [error, setError]       = useState('')
@@ -39,6 +42,19 @@ export default function Login() {
     if (errMatch) {
       setError(`SSO error: ${decodeURIComponent(errMatch[1]).replace(/\+/g, ' ')}`)
       globalThis.history.replaceState(null, '', globalThis.location.pathname)
+    }
+
+    // Handle password reset token from email link
+    const resetMatch = hash.match(/reset_token=([^&]+)/)
+    if (resetMatch) {
+      const tok = decodeURIComponent(resetMatch[1])
+      globalThis.history.replaceState(null, '', globalThis.location.pathname)
+      validateResetToken(tok)
+        .then(({ valid }) => {
+          if (valid) { setResetToken(tok); setStep('reset-password') }
+          else setError('This password reset link has expired or already been used.')
+        })
+        .catch(() => setError('Could not validate reset link.'))
     }
   }, [])
 
@@ -83,6 +99,36 @@ export default function Login() {
       navigate('/dashboard')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid code')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    try {
+      await requestPasswordReset(username)
+      setStep('forgot-sent')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Request failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    if (newPassword.length < 8) { setError('Password must be at least 8 characters'); return }
+    if (newPassword !== confirmPassword) { setError('Passwords do not match'); return }
+    setLoading(true)
+    try {
+      await confirmPasswordReset(resetToken, newPassword)
+      setStep('reset-done')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Reset failed')
     } finally {
       setLoading(false)
     }
@@ -165,6 +211,11 @@ export default function Login() {
                   style={{ width: '100%', justifyContent: 'center', marginTop: 4 }}>
                   {loading ? 'Signing in…' : 'Sign in'}
                 </button>
+                <button type="button"
+                  style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', marginTop: 6, fontSize: 12, color: 'var(--accent-text)', textDecoration: 'none' }}
+                  onClick={() => { setStep('forgot-password'); setError('') }}>
+                  Forgot password?
+                </button>
               </form>
 
               {anySso && (
@@ -236,6 +287,83 @@ export default function Login() {
                 onClick={() => { setStep('credentials'); setError('') }}
               >
                 ← Back to sign in
+              </button>
+            </>
+          )}
+
+          {/* ── Forgot password ── */}
+          {step === 'forgot-password' && (
+            <>
+              <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 8, marginTop: 0 }}>Forgot password</h2>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 18 }}>
+                Enter your username. If an account with a registered email exists, you'll receive a reset link.
+              </p>
+              <form onSubmit={handleForgotPassword} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div className="field">
+                  <label htmlFor="forgot-username">Username</label>
+                  <input id="forgot-username" className="input" type="text" value={username}
+                    onChange={e => setUsername(e.target.value)} autoFocus required />
+                </div>
+                {error && <ErrorBox>{error}</ErrorBox>}
+                <button type="submit" className="btn btn-primary" disabled={loading}
+                  style={{ width: '100%', justifyContent: 'center' }}>
+                  {loading ? 'Sending…' : 'Send reset link'}
+                </button>
+              </form>
+              <button type="button"
+                style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', marginTop: 10, fontSize: 12, color: 'var(--text-dim)', textDecoration: 'underline' }}
+                onClick={() => { setStep('credentials'); setError('') }}>
+                ← Back to sign in
+              </button>
+            </>
+          )}
+
+          {/* ── Forgot-sent confirmation ── */}
+          {step === 'forgot-sent' && (
+            <>
+              <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 8, marginTop: 0 }}>Check your email</h2>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                If an account for <strong>{username}</strong> has a registered email address, a reset link has been sent. It expires in 1 hour.
+              </p>
+              <button type="button" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 18 }}
+                onClick={() => { setStep('credentials'); setError('') }}>
+                Back to sign in
+              </button>
+            </>
+          )}
+
+          {/* ── Reset password form (arrived via email link) ── */}
+          {step === 'reset-password' && (
+            <>
+              <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 8, marginTop: 0 }}>Set new password</h2>
+              <form onSubmit={handleResetPassword} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div className="field">
+                  <label htmlFor="reset-new-password">New password</label>
+                  <input id="reset-new-password" className="input" type="password" value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)} autoFocus required minLength={8} />
+                </div>
+                <div className="field">
+                  <label htmlFor="reset-confirm-password">Confirm new password</label>
+                  <input id="reset-confirm-password" className="input" type="password" value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)} required />
+                </div>
+                {error && <ErrorBox>{error}</ErrorBox>}
+                <button type="submit" className="btn btn-primary" disabled={loading}
+                  style={{ width: '100%', justifyContent: 'center' }}>
+                  {loading ? 'Saving…' : 'Set password'}
+                </button>
+              </form>
+            </>
+          )}
+
+          {/* ── Reset done ── */}
+          {step === 'reset-done' && (
+            <>
+              <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 8, marginTop: 0 }}>Password updated</h2>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>Your password has been set successfully. You can now sign in.</p>
+              <button type="button" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 18 }}
+                onClick={() => { setStep('credentials'); setError(''); setNewPassword(''); setConfirmPassword('') }}>
+                Sign in
               </button>
             </>
           )}

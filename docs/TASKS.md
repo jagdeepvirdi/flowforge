@@ -187,8 +187,8 @@
 ## New Connectors & Providers
 - [ ] Snowflake / BigQuery / Redshift connectors
 - [ ] AWS S3 / Azure Blob upload step
-- [ ] MSSQL / SQL Server connection support
-- [ ] Generic ODBC connection support
+- [x] MSSQL / SQL Server connection support — `connections/mssql.py` via `pyodbc`; `flowforge[mssql]` optional extra *(2026-05-30)*
+- [x] Generic ODBC connection support — `connections/odbc.py` via `pyodbc`; DSN or connection string config *(2026-05-30)*
 - [ ] SendGrid API email provider
 - [ ] AWS SES email provider
 - [ ] Mailgun email provider
@@ -204,7 +204,7 @@
 ## Platform
 - [ ] Plugin system — community step types loaded from a directory
 - [ ] `ff_project_members` join table — team-scoped project access (deferred from v2)
-- [ ] Password reset flow via email (deferred from v2)
+- [x] Password reset flow via email — `ff_password_reset_tokens` table; `POST /auth/password-reset/request|confirm`, `GET /auth/password-reset/validate/<token>`; user `email` column; "Forgot password?" on Login; Users page shows/sets email *(2026-05-30)*
 - [ ] Distributed Redis-backed concurrency lock (replaces per-process semaphore for horizontal scale)
 
 ---

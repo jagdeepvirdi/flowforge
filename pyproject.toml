@@ -83,6 +83,9 @@ mysql = [
 sftp = [
     "paramiko>=3.0",
 ]
+mssql = [
+    "pyodbc>=5.0",
+]
 claude = [
     "anthropic>=0.25",
 ]
@@ -101,6 +104,7 @@ all = [
     "flowforge[oracle]",
     "flowforge[mysql]",
     "flowforge[sftp]",
+    "flowforge[mssql]",
     "flowforge[sso]",
 ]
 dev = [

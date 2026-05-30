@@ -15,8 +15,8 @@ import FieldTooltip from '../components/shared/FieldTooltip'
 
 type Tab = 'db' | 'mail'
 
-const DB_COLORS: Record<string, string> = { postgresql: '#3B82F6', oracle: '#EF4444', mysql: '#14B8A6' }
-const DB_LABELS: Record<string, string>  = { postgresql: 'PostgreSQL', oracle: 'Oracle', mysql: 'MySQL' }
+const DB_COLORS: Record<string, string> = { postgresql: '#3B82F6', oracle: '#EF4444', mysql: '#14B8A6', mssql: '#A855F7', odbc: '#6B7280' }
+const DB_LABELS: Record<string, string>  = { postgresql: 'PostgreSQL', oracle: 'Oracle', mysql: 'MySQL', mssql: 'SQL Server', odbc: 'ODBC' }
 
 function StatCol({ label, value }: { label: string; value: string }) {
   return (
@@ -30,8 +30,11 @@ function StatCol({ label, value }: { label: string; value: string }) {
 // ── modal state types ────────────────────────────────────────────────────────
 
 type DbForm = {
-  name: string; db_type: 'postgresql' | 'oracle' | 'mysql'
+  name: string; db_type: 'postgresql' | 'oracle' | 'mysql' | 'mssql' | 'odbc'
   host: string; port: string; database: string; username: string; password: string
+  driver: string        // mssql only
+  dsn: string           // odbc only
+  connection_string: string  // odbc only
   is_default: boolean
 }
 
@@ -48,7 +51,9 @@ type MailForm = {
 
 const emptyDb = (): DbForm => ({
   name: '', db_type: 'postgresql', host: 'localhost', port: '5432',
-  database: '', username: '', password: '', is_default: false,
+  database: '', username: '', password: '',
+  driver: 'ODBC Driver 17 for SQL Server', dsn: '', connection_string: '',
+  is_default: false,
 })
 
 const emptyMail = (): MailForm => ({
@@ -63,8 +68,10 @@ const emptyMail = (): MailForm => ({
 function defaultDbPort(dbType: string): string {
   if (dbType === 'oracle') return '1521'
   if (dbType === 'mysql')  return '3306'
+  if (dbType === 'mssql')  return '1433'
   return '5432'
 }
+
 
 function buildMailProviderConfig(form: MailForm): Record<string, unknown> {
   const config: Record<string, unknown> = { sender: form.sender }
@@ -134,12 +141,22 @@ export default function Connections() {
   function openModal() { setEditId(null); setDbForm(emptyDb()); setMailForm(emptyMail()); setFormError(''); setModalTest({ status: 'idle', msg: '' }); setShowModal(true) }
   function closeModal() { setShowModal(false); setEditId(null); setFormError(''); setModalTest({ status: 'idle', msg: '' }) }
 
+  function buildDbConfig(form: DbForm): Record<string, unknown> {
+    if (form.db_type === 'odbc') {
+      return { dsn: form.dsn, connection_string: form.connection_string }
+    }
+    const cfg: Record<string, unknown> = {
+      host: form.host, port: Number(form.port),
+      database: form.database, username: form.username, password: form.password,
+    }
+    if (form.db_type === 'mssql') cfg.driver = form.driver
+    return cfg
+  }
+
   function runModalTest() {
     setModalTest({ status: 'testing', msg: '' })
-    testDbConnectionRaw(dbForm.db_type, {
-      host: dbForm.host, port: Number(dbForm.port),
-      database: dbForm.database, username: dbForm.username, password: dbForm.password,
-    }).then(r => setModalTest({ status: 'ok', msg: `Connected · ${r.latency_ms}ms` }))
+    testDbConnectionRaw(dbForm.db_type, buildDbConfig(dbForm))
+      .then(r => setModalTest({ status: 'ok', msg: `Connected · ${r.latency_ms}ms` }))
       .catch(e => setModalTest({ status: 'fail', msg: e.message }))
   }
 
@@ -149,9 +166,14 @@ export default function Connections() {
       getDbConnection(id).then(data => {
         const cfg = (data as any).config ?? {}
         const port = String(cfg.port ?? defaultDbPort(data.db_type))
-        setDbForm({ name: data.name, db_type: data.db_type as DbForm['db_type'], is_default: data.is_default,
+        setDbForm({
+          name: data.name, db_type: data.db_type as DbForm['db_type'],
+          is_default: data.is_default,
           host: cfg.host ?? '', port, database: cfg.database ?? '',
-          username: cfg.username ?? '', password: '***' })
+          username: cfg.username ?? '', password: '***',
+          driver: cfg.driver ?? 'ODBC Driver 17 for SQL Server',
+          dsn: cfg.dsn ?? '', connection_string: cfg.connection_string ?? '',
+        })
       }).catch(() => setFormError('Failed to load connection details'))
     } else {
       getEmailProvider(id).then(data => {
@@ -169,8 +191,7 @@ export default function Connections() {
     e.preventDefault(); setFormError('')
     const payload = {
       name: dbForm.name, db_type: dbForm.db_type, is_default: dbForm.is_default,
-      config: { host: dbForm.host, port: Number(dbForm.port), database: dbForm.database,
-                username: dbForm.username, password: dbForm.password },
+      config: buildDbConfig(dbForm),
     }
     if (editId) saveDb({ id: editId, data: payload })
     else addDb(payload)
@@ -496,30 +517,65 @@ export default function Connections() {
                     <option value="postgresql">PostgreSQL</option>
                     <option value="oracle">Oracle</option>
                     <option value="mysql">MySQL / MariaDB</option>
+                    <option value="mssql">SQL Server (MSSQL)</option>
+                    <option value="odbc">Generic ODBC</option>
                   </select>
                 </Field>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: 10 }}>
-                  <Field label="Host" tooltip={<FieldTooltip field={dbForm.db_type === 'oracle' ? 'oracle_connection' : 'db_host_port'} />}>
-                    <input className="input" value={dbForm.host} onChange={e => setDbForm(f => ({ ...f, host: e.target.value }))} placeholder="localhost" required />
-                  </Field>
-                  <Field label="Port">
-                    <input className="input" type="number" value={dbForm.port} onChange={e => setDbForm(f => ({ ...f, port: e.target.value }))} required />
-                  </Field>
-                </div>
+                {/* ODBC-specific fields */}
+                {dbForm.db_type === 'odbc' ? (
+                  <>
+                    <Field label="DSN (Data Source Name)" tooltip={<FieldTooltip field="db_host_port" />}>
+                      <input className="input" value={dbForm.dsn}
+                        onChange={e => setDbForm(f => ({ ...f, dsn: e.target.value }))}
+                        placeholder="my_dsn  (leave blank to use connection string)" />
+                    </Field>
+                    <Field label="Connection String">
+                      <input className="input" value={dbForm.connection_string}
+                        onChange={e => setDbForm(f => ({ ...f, connection_string: e.target.value }))}
+                        placeholder='Driver={...};Server=...;Database=...;UID=...;PWD=...' />
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
+                        DSN takes precedence if both are set.
+                      </span>
+                    </Field>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: 10 }}>
+                      <Field label="Host" tooltip={<FieldTooltip field={dbForm.db_type === 'oracle' ? 'oracle_connection' : 'db_host_port'} />}>
+                        <input className="input" value={dbForm.host} onChange={e => setDbForm(f => ({ ...f, host: e.target.value }))} placeholder="localhost" required />
+                      </Field>
+                      <Field label="Port">
+                        <input className="input" type="number" value={dbForm.port} onChange={e => setDbForm(f => ({ ...f, port: e.target.value }))} required />
+                      </Field>
+                    </div>
 
-                <Field label="Database">
-                  <input className="input" value={dbForm.database} onChange={e => setDbForm(f => ({ ...f, database: e.target.value }))} placeholder="mydb" required />
-                </Field>
+                    <Field label={dbForm.db_type === 'oracle' ? 'Service Name' : 'Database'}>
+                      <input className="input" value={dbForm.database} onChange={e => setDbForm(f => ({ ...f, database: e.target.value }))}
+                        placeholder={dbForm.db_type === 'oracle' ? 'ORCL' : 'mydb'} required />
+                    </Field>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <Field label="Username">
-                    <input className="input" value={dbForm.username} onChange={e => setDbForm(f => ({ ...f, username: e.target.value }))} required />
-                  </Field>
-                  <Field label="Password">
-                    <input className="input" type="password" value={dbForm.password} onChange={e => setDbForm(f => ({ ...f, password: e.target.value }))} />
-                  </Field>
-                </div>
+                    {dbForm.db_type === 'mssql' && (
+                      <Field label="ODBC Driver">
+                        <input className="input" value={dbForm.driver}
+                          onChange={e => setDbForm(f => ({ ...f, driver: e.target.value }))}
+                          placeholder="ODBC Driver 17 for SQL Server" />
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
+                          Install: <code style={{ color: 'var(--text-3)' }}>msodbcsql17</code> or <code style={{ color: 'var(--text-3)' }}>msodbcsql18</code>
+                        </span>
+                      </Field>
+                    )}
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <Field label="Username">
+                        <input className="input" value={dbForm.username} onChange={e => setDbForm(f => ({ ...f, username: e.target.value }))} required />
+                      </Field>
+                      <Field label="Password">
+                        <input className="input" type="password" value={dbForm.password} onChange={e => setDbForm(f => ({ ...f, password: e.target.value }))} />
+                      </Field>
+                    </div>
+                  </>
+                )}
 
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-3)', cursor: 'pointer' }}>
                   <input type="checkbox" checked={dbForm.is_default} onChange={e => setDbForm(f => ({ ...f, is_default: e.target.checked }))} />{' '}

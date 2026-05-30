@@ -54,9 +54,9 @@ def test_create_connection_bad_type(client, headers, db_payload):
 
 # ── db_type constraint narrowed to implemented types (NEW-6) ──────────────────
 
-@pytest.mark.parametrize('bad_type', ['mssql', 'snowflake'])
-def test_create_connection_previously_allowed_types_now_rejected(client, headers, db_payload, bad_type):
-    """mssql/snowflake are not yet implemented connection types (mysql was added in FEAT-1)."""
+@pytest.mark.parametrize('bad_type', ['snowflake', 'bigquery', 'redshift'])
+def test_create_connection_unsupported_types_rejected(client, headers, db_payload, bad_type):
+    """Types not in the allowed set are rejected."""
     bad = {**db_payload, 'db_type': bad_type}
     resp = client.post('/api/db-connections', json=bad, headers=headers)
     assert resp.status_code == 400
@@ -64,7 +64,7 @@ def test_create_connection_previously_allowed_types_now_rejected(client, headers
     assert 'error' in data
 
 
-@pytest.mark.parametrize('good_type', ['postgresql', 'oracle', 'mysql'])
+@pytest.mark.parametrize('good_type', ['postgresql', 'oracle', 'mysql', 'mssql'])
 def test_create_connection_valid_types_accepted(client, headers, db_payload, good_type):
     """postgresql, oracle, and mysql are all valid connection types."""
     payload = {**db_payload, 'db_type': good_type}

@@ -202,6 +202,14 @@ export const deleteUser  = (id: string) => del<{ message: string }>(`/users/${id
 export const changePassword = (data: { current_password: string; new_password: string }) =>
   post<{ message: string }>('/auth/change-password', data)
 
+// Password reset (no auth required)
+export const requestPasswordReset  = (username: string) =>
+  post<{ message: string }>('/auth/password-reset/request', { username })
+export const confirmPasswordReset  = (token: string, new_password: string) =>
+  post<{ message: string }>('/auth/password-reset/confirm', { token, new_password })
+export const validateResetToken    = (token: string) =>
+  get<{ valid: boolean }>(`/auth/password-reset/validate/${token}`)
+
 // Setup / OAuth status
 export type SetupStatus = {
   gmail:        { configured: boolean; sender: string }

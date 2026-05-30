@@ -65,6 +65,9 @@ pyyaml==6.0.2
 # msal==1.28.0
 # requests==2.32.3
 
+# [mssql] — pip install -e ".[mssql]"   (also covers generic ODBC connections)
+# pyodbc==5.2.0
+
 # [pdf] — pip install -e ".[pdf]"
 # weasyprint>=62.0
 

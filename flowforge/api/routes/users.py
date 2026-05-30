@@ -19,6 +19,7 @@ def _user_dict(u: User) -> dict:
         'id': u.id,
         'username': u.username,
         'role': u.role,
+        'email': u.email,
         'mfa_enabled': u.mfa_enabled,
         'sso_provider': u.sso_provider,
         'created_at': u.created_at.isoformat() if u.created_at else None,
@@ -47,8 +48,9 @@ def create_user():
     if db.session.query(User).filter_by(username=username).first():
         return jsonify({'error': 'Username already exists'}), 409
 
+    email = (data.get('email') or '').strip().lower() or None
     pw_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-    user = User(username=username, password_hash=pw_hash, role=role)
+    user = User(username=username, password_hash=pw_hash, role=role, email=email)
     db.session.add(user)
     db.session.commit()
     audit.log_pipeline_change('USER_CREATED', username, user.id)
@@ -78,6 +80,10 @@ def update_user(user_id):
         if db.session.query(User).filter_by(username=new_username).first():
             return jsonify({'error': 'Username already exists'}), 409
         user.username = new_username
+
+    new_email = data.get('email')
+    if new_email is not None:
+        user.email = (new_email.strip().lower() or None)
 
     db.session.commit()
     audit.log_pipeline_change('USER_UPDATED', user.username, user.id)

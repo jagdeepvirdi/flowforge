@@ -30,8 +30,8 @@ function RoleBadge({ role }: { role: Role }) {
   )
 }
 
-type AddForm = { username: string; password: string; role: Role }
-const emptyForm = (): AddForm => ({ username: '', password: '', role: 'editor' })
+type AddForm = { username: string; password: string; role: Role; email: string }
+const emptyForm = (): AddForm => ({ username: '', password: '', role: 'editor', email: '' })
 
 export default function Users() {
   const navigate   = useNavigate()
@@ -85,7 +85,7 @@ export default function Users() {
     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
       <thead>
         <tr style={{ borderBottom: '1px solid var(--border)' }}>
-          {['Username', 'Role', 'Created', 'MFA', ''].map(h => (
+          {['Username', 'Email', 'Role', 'Created', 'MFA', ''].map(h => (
             <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               {h}
             </th>
@@ -100,6 +100,11 @@ export default function Users() {
               {user.id === me?.id && (
                 <span style={{ marginLeft: 6, fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 400 }}>(you)</span>
               )}
+            </td>
+            <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text-muted)' }}>
+              {user.email
+                ? <span className="mono">{user.email}</span>
+                : <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>not set</span>}
             </td>
             <td style={{ padding: '12px 16px' }}>
               {user.id === me?.id ? (
@@ -172,7 +177,7 @@ export default function Users() {
     setFormError('')
     if (!form.username.trim()) { setFormError('Username is required'); return }
     if (form.password.length < 8) { setFormError('Password must be at least 8 characters'); return }
-    createMut.mutate(form)
+    createMut.mutate({ username: form.username, password: form.password, role: form.role, email: form.email || undefined } as any)
   }
 
   function handleDelete(user: User) {
@@ -260,6 +265,17 @@ export default function Users() {
                   >
                     {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
+                </div>
+                <div className="field">
+                  <label htmlFor="user-form-email">Email <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>(optional — for password reset)</span></label>
+                  <input
+                    id="user-form-email"
+                    className="input"
+                    type="email"
+                    value={form.email}
+                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                    placeholder="user@example.com"
+                  />
                 </div>
                 {formError && (
                   <div style={{ fontSize: 12.5, color: 'var(--failure-text)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, padding: '8px 12px' }}>

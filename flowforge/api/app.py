@@ -162,6 +162,7 @@ def _register_blueprints(app: Flask) -> None:
     from flowforge.api.routes.emails import bp as emails_bp
     from flowforge.api.routes.metrics import bp as metrics_bp
     from flowforge.api.routes.mfa import bp as mfa_bp
+    from flowforge.api.routes.password_reset import bp as password_reset_bp
     from flowforge.api.routes.pipelines import bp as pipelines_bp
     from flowforge.api.routes.projects import bp as projects_bp
     from flowforge.api.routes.providers import bp as providers_bp
@@ -175,8 +176,8 @@ def _register_blueprints(app: Flask) -> None:
 
     for blueprint in (
         ai_bp, audit_bp, auth_bp, bulk_loads_bp, connections_bp, emails_bp, metrics_bp,
-        mfa_bp, pipelines_bp, projects_bp, providers_bp, recipients_bp, reports_bp, runs_bp,
-        setup_bp, sso_bp, steps_bp, users_bp,
+        mfa_bp, password_reset_bp, pipelines_bp, projects_bp, providers_bp, recipients_bp,
+        reports_bp, runs_bp, setup_bp, sso_bp, steps_bp, users_bp,
     ):
         app.register_blueprint(blueprint, url_prefix='/api')
 

@@ -10,6 +10,7 @@ export interface User {
   id: string
   username: string
   role: Role
+  email: string | null
   mfa_enabled: boolean
   sso_provider: string | null
   created_at: string
@@ -30,7 +31,7 @@ export type StepType = 'db_procedure' | 'db_query' | 'report' | 'email' | 'drive
 export type OnError = 'stop' | 'continue'
 export type ReportFormat = 'excel' | 'csv' | 'pdf' | 'json'
 export type ProviderType = 'gmail' | 'microsoft365' | 'smtp'
-export type DbType = 'postgresql' | 'oracle' | 'mysql'
+export type DbType = 'postgresql' | 'oracle' | 'mysql' | 'mssql' | 'odbc'
 
 export interface Pipeline {
   id: string

@@ -45,7 +45,7 @@ def create_connection():
     err = validate_connection(data)
     if err:
         return jsonify({'error': err}), 400
-    _VALID_TYPES = {'postgresql', 'oracle', 'mysql'}
+    _VALID_TYPES = {'postgresql', 'oracle', 'mysql', 'mssql', 'odbc'}
     if data.get('db_type') not in _VALID_TYPES:
         return jsonify({'error': f'db_type must be one of: {", ".join(sorted(_VALID_TYPES))}'}), 400
     if not data.get('config'):
@@ -175,6 +175,42 @@ def test_connection_raw():
             conn.close()
             latency_ms = int((time.monotonic() - start) * 1000)
             return jsonify({'success': True, 'latency_ms': latency_ms})
+        if db_type == 'mssql':
+            try:
+                import pyodbc
+            except ModuleNotFoundError:
+                return jsonify({'success': False, 'error': 'pyodbc is not installed. Run: pip install "flowforge[mssql]"'}), 400
+            driver = cfg.get('driver', 'ODBC Driver 17 for SQL Server')
+            conn_str = (
+                f"DRIVER={{{driver}}};"
+                f"SERVER={cfg.get('host', 'localhost')},{int(cfg.get('port', 1433))};"
+                f"DATABASE={cfg.get('database', '')};"
+                f"UID={cfg.get('username') or cfg.get('user', '')};"
+                f"PWD={cfg.get('password', '')};"
+                "TrustServerCertificate=yes;"
+            )
+            start = time.monotonic()
+            conn = pyodbc.connect(conn_str, timeout=5)
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+            conn.close()
+            return jsonify({'success': True, 'latency_ms': int((time.monotonic() - start) * 1000)})
+        if db_type == 'odbc':
+            try:
+                import pyodbc
+            except ModuleNotFoundError:
+                return jsonify({'success': False, 'error': 'pyodbc is not installed. Run: pip install "flowforge[mssql]"'}), 400
+            dsn = cfg.get('dsn', '')
+            cs  = cfg.get('connection_string', '')
+            if not dsn and not cs:
+                return jsonify({'success': False, 'error': 'Either dsn or connection_string is required'}), 400
+            raw = f'DSN={dsn}' if dsn else cs
+            start = time.monotonic()
+            conn = pyodbc.connect(raw, timeout=5)
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+            conn.close()
+            return jsonify({'success': True, 'latency_ms': int((time.monotonic() - start) * 1000)})
         return jsonify({'success': False, 'error': f'Unsupported db_type: {db_type}'}), 400
     except Exception as e:
         return jsonify({'success': False, 'error': f"{type(e).__name__}: {e}"}), 502
