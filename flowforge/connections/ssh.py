@@ -4,8 +4,6 @@ import os
 import time
 from typing import Any
 
-import paramiko
-
 from flowforge.db.models import SSHConnection as SSHConnectionRow, db
 from flowforge.crypto import decrypt_config
 
@@ -32,10 +30,17 @@ class SSHConnection:
         self.timeout = timeout
         self.client: paramiko.SSHClient | None = None
 
-    def connect(self) -> paramiko.SSHClient:
+    def connect(self):
         """Open an SSH connection. Supports password and private-key auth."""
+        try:
+            import paramiko
+        except ImportError as exc:
+            raise ImportError(
+                "SSH support requires paramiko: pip install paramiko"
+            ) from exc
+
         ssh = paramiko.SSHClient()
-        
+
         allow_unknown = os.environ.get('FLOWFORGE_SSH_ALLOW_UNKNOWN_HOSTS', '').lower() == 'true'
         if allow_unknown:
             class _TofuPolicy(paramiko.MissingHostKeyPolicy):

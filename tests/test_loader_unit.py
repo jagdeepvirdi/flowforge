@@ -10,12 +10,14 @@ import pytest
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
-def _make_pipeline(enabled=True, name='Test Pipeline', variables=None, steps=None):
+def _make_pipeline(enabled=True, name='Test Pipeline', variables=None, steps=None,
+                   send_only_on_failure=False):
     p = MagicMock()
     p.enabled = enabled
     p.name = name
     p.variables = variables or []
     p.steps = steps or []
+    p.send_only_on_failure = send_only_on_failure
     return p
 
 
@@ -120,7 +122,7 @@ def test_load_pipeline_multiple_vars():
     with patch('flowforge.engine.loader.db') as mock_db:
         mock_db.session.get.return_value = pipeline
         _, pipeline_vars, _ = load_pipeline('uuid')
-    assert pipeline_vars == {'K1': 'v1', 'K2': 'v2', 'K3': 'v3'}
+    assert pipeline_vars == {'K1': 'v1', 'K2': 'v2', 'K3': 'v3', 'pipeline_send_only_on_failure': 'false'}
 
 
 # ─── load_pipeline — secret variables ────────────────────────────────────────
