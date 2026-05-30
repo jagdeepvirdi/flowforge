@@ -33,6 +33,13 @@ def create_app(config: dict | None = None) -> Flask:
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB — prevents OOM on large POST bodies
 
+    # Connection pool tuning — tune via env vars for multi-worker Gunicorn deployments.
+    # Rule of thumb: POOL_SIZE × gunicorn_workers ≤ max_connections on PostgreSQL side.
+    app.config['SQLALCHEMY_POOL_SIZE']    = int(os.environ.get('SQLALCHEMY_POOL_SIZE',    '5'))
+    app.config['SQLALCHEMY_MAX_OVERFLOW'] = int(os.environ.get('SQLALCHEMY_MAX_OVERFLOW', '10'))
+    app.config['SQLALCHEMY_POOL_TIMEOUT'] = int(os.environ.get('SQLALCHEMY_POOL_TIMEOUT', '30'))
+    app.config['SQLALCHEMY_POOL_RECYCLE'] = int(os.environ.get('SQLALCHEMY_POOL_RECYCLE', '1800'))
+
     # AES-256 encryption key — used exclusively by flowforge/crypto.py
     app.config['SECRET_KEY'] = os.environ.get('FLOWFORGE_SECRET_KEY', '')  # NOSONAR
 
@@ -118,6 +125,7 @@ def _register_blueprints(app: Flask) -> None:
     from flowforge.api.routes.bulk_loads import bp as bulk_loads_bp
     from flowforge.api.routes.connections import bp as connections_bp
     from flowforge.api.routes.emails import bp as emails_bp
+    from flowforge.api.routes.metrics import bp as metrics_bp
     from flowforge.api.routes.pipelines import bp as pipelines_bp
     from flowforge.api.routes.projects import bp as projects_bp
     from flowforge.api.routes.providers import bp as providers_bp
@@ -129,8 +137,9 @@ def _register_blueprints(app: Flask) -> None:
     from flowforge.api.routes.users import bp as users_bp
 
     for blueprint in (
-        ai_bp, audit_bp, auth_bp, bulk_loads_bp, connections_bp, emails_bp, pipelines_bp, projects_bp,
-        providers_bp, recipients_bp, reports_bp, runs_bp, setup_bp, steps_bp, users_bp,
+        ai_bp, audit_bp, auth_bp, bulk_loads_bp, connections_bp, emails_bp, metrics_bp,
+        pipelines_bp, projects_bp, providers_bp, recipients_bp, reports_bp, runs_bp,
+        setup_bp, steps_bp, users_bp,
     ):
         app.register_blueprint(blueprint, url_prefix='/api')
 

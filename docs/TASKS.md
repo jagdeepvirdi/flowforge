@@ -116,31 +116,30 @@
 ## Phase 6 — Production Hardening (P1)
 
 ### 6.1 Gunicorn Deployment Guide
-- [ ] Document `gunicorn -w 4 -k gevent flowforge.api.app:create_app()` in RUNBOOK.md
-- [ ] Explain why Celery is required when running multiple Gunicorn workers
-- [ ] Add Nginx reverse-proxy config example
-- [ ] Add systemd unit for Gunicorn (alongside existing scheduler unit)
+- [x] Document `gunicorn --workers 4 --worker-class gevent` in RUNBOOK.md (§4a)
+- [x] Explain why Celery is required when running multiple Gunicorn workers
+- [x] Add Nginx reverse-proxy config example
+- [x] Add systemd units for web, scheduler, and Celery worker (RUNBOOK.md §4a)
 
 ### 6.2 SQLAlchemy Pool Tuning
-- [ ] Document `SQLALCHEMY_POOL_SIZE`, `SQLALCHEMY_MAX_OVERFLOW`, `SQLALCHEMY_POOL_TIMEOUT` in `.env.example`
-- [ ] Add pool settings to `create_app()` from env vars
-- [ ] Add PgBouncer note for deployments with 100+ concurrent pipelines
+- [x] Document `SQLALCHEMY_POOL_SIZE`, `SQLALCHEMY_MAX_OVERFLOW`, `SQLALCHEMY_POOL_TIMEOUT`, `SQLALCHEMY_POOL_RECYCLE` in `.env.example`
+- [x] Add pool settings to `create_app()` from env vars
+- [x] Add PgBouncer note in RUNBOOK.md §9
 
 ### 6.3 Prometheus Metrics Endpoint
-- [ ] `GET /api/metrics` — plain-text Prometheus format
-- [ ] Counters: `flowforge_runs_total{status}`, `flowforge_runs_active`, `flowforge_queue_depth`
-- [ ] Expose via `prometheus_client` library (add to requirements)
-- [ ] Document scrape config for Grafana / Prometheus stack
+- [x] `GET /api/metrics` — plain-text Prometheus format (no extra dependency)
+- [x] Metrics: `flowforge_runs_total{status}`, `flowforge_runs_active`, `flowforge_queue_depth`
+- [x] Requires Bearer token auth; documented scrape config + Grafana PromQL in RUNBOOK.md §10
 
 ### 6.4 Flower Dashboard (Celery Monitoring)
-- [ ] Add `flower` service to `docker-compose.yml` (port 5555)
-- [ ] Add `FLOWER_BASIC_AUTH` env var for basic auth protection
-- [ ] Document in RUNBOOK.md
+- [x] `flower` service added to `docker-compose.yml` with `--profile monitoring` (opt-in)
+- [x] `FLOWER_BASIC_AUTH` and `FLOWER_PORT` env vars in `.env.example`
+- [x] Documented in RUNBOOK.md §11 (Docker Compose + bare-metal + monitoring guide)
 
 ### 6.5 Dependency Audit in CI
-- [ ] Add `pip-audit` step to GitHub Actions — fail on CRITICAL CVEs
-- [ ] `npm audit --audit-level=high` already runs; confirm it fails the build correctly
-- [ ] Pin all dependencies to exact versions in `requirements.txt` (currently pinned ✅ — verify)
+- [x] `pip-audit` already runs in GitHub Actions `test.yml` — fails on any CVE
+- [x] `npm audit --audit-level=high` already runs in `frontend` job
+- [x] All `requirements.txt` deps pinned to exact versions ✅
 
 ### 6.6 Reliability & Hardening (from Codebase Review)
 - [x] **[ARCH-2] Persistent Scheduler Jobstore** — APScheduler already uses `SQLAlchemyJobStore` when `FLOWFORGE_DB_URL` is set; falls back to memory with a warning. Tests confirm both paths.

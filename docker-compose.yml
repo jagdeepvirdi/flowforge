@@ -84,6 +84,27 @@ services:
     volumes:
       - output_files:/app/output
 
+  # ── Optional monitoring services (start with: docker compose --profile monitoring up) ──
+  flower:
+    build: .
+    restart: unless-stopped
+    command: ["celery", "-A", "flowforge.celery_app", "flower", "--port=5555"]
+    ports:
+      - "${FLOWER_PORT:-5555}:5555"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      FLOWER_BASIC_AUTH: ${FLOWER_BASIC_AUTH:-admin:changeme}
+      FLOWFORGE_DB_URL: postgresql://flowforge:${POSTGRES_PASSWORD:-flowforge}@db:5432/flowforge
+      FLOWFORGE_REDIS_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    profiles:
+      - monitoring
+
 volumes:
   postgres_data:
   output_files:
