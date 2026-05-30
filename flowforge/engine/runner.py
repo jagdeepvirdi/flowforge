@@ -155,6 +155,7 @@ def run_pipeline(
 
     context = build(pipeline_name, pipeline_vars=pipeline_vars)
     context['triggered_by'] = triggered_by
+    context['_pipeline_has_failed'] = False
     vars_log = _build_vars_log(context, secret_var_keys)
 
     result = PipelineResult(success=True, pipeline_name=pipeline_name)
@@ -184,6 +185,7 @@ def run_pipeline(
             if not step_result.success:
                 result.steps_failed += 1
                 result.success = False
+                context['_pipeline_has_failed'] = True
                 if _handle_failed_step(result, pipeline_name, step, step_result, run_record):
                     break
         else:

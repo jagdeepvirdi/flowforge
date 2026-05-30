@@ -40,7 +40,7 @@
 ## Phase 2 — Code Quality Badges (remaining items)
 
 ### 2.1 SonarCloud
-- [ ] Take a screenshot of the SonarCloud dashboard for LinkedIn post
+- [x] Take a screenshot of the SonarCloud dashboard for LinkedIn post
 
 #### 2.1f Major Code Smells (one remaining)
 - [x] Add explicit `{' '}` between inline JSX elements — `Layout.tsx:103,148`, `Projects.tsx:232`, `PipelineEdit.tsx:313`, `BulkLoadEdit.tsx:186`
@@ -142,6 +142,12 @@
 - [ ] `npm audit --audit-level=high` already runs; confirm it fails the build correctly
 - [ ] Pin all dependencies to exact versions in `requirements.txt` (currently pinned ✅ — verify)
 
+### 6.6 Reliability & Hardening (from Codebase Review)
+- [ ] **[ARCH-2] Persistent Scheduler Jobstore** — Move APScheduler from memory to PostgreSQL jobstore for durability and multi-process safety
+- [ ] **[CODE-3] Drive API Failure Visibility** — Ensure "Smart Attachment" failures are visible in Run History logs (not just silent fallback)
+- [ ] **[DB-1] Prevent Invisible History** — Prevent run history from "disappearing" from UI when a pipeline is deleted (Soft delete vs denormalization)
+- [ ] **[SEC-3] SQL Sandbox Protection** — Prevent secret exfiltration via Jinja2 (Safe variable namespace for SQL rendering)
+
 ---
 
 ## Phase 7 — Observability & Admin UI
@@ -212,7 +218,7 @@
 - [ ] **Implement `DbHealthCheckStep`** — industry-standard metrics (Lag, Locks, Bloat, Sessions)
 - [ ] **Smart Alerting Logic** — add `send_only_on_failure` toggle to pipelines to suppress routine emails
 - [ ] **Alembic migration** — update `ck_step_type` to include `ssh_command`, `db_health_check`, and `data_report`
-- [ ] **Implement `DataReportStep`** — generate Excel/CSV/PDF from pipeline context variables
+- [ ] **Implement `ScriptReportStep`** — generate Excel/CSV/PDF from pipeline context variables (e.g. Shell script outputs)
 
 ### 9.2 Scenario 1: Industry-Standard Health Monitoring
 - [ ] **Configure Daily Health Pipeline** — 4 SSH steps + 2 DB Health steps + Data Report step + Email step

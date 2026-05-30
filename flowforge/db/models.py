@@ -116,6 +116,15 @@ class DbConnection(db.Model):
     bulk_load_configs = relationship('BulkLoadConfig', back_populates='connection')
 
 
+class SSHConnection(db.Model):
+    __tablename__ = 'ff_ssh_connections'
+
+    id         = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    name       = Column(String(100), nullable=False)
+    config     = Column(Text, nullable=False)   # encrypted JSON (host, port, username, password, key_path)
+    created_at = Column(DateTime(timezone=True), default=_utcnow)
+
+
 class BulkLoadConfig(db.Model):
     __tablename__ = 'ff_bulk_load_configs'
 
@@ -205,6 +214,7 @@ class Pipeline(db.Model):
     enabled                 = Column(Boolean, default=True)
     timeout_minutes         = Column(Integer, default=60)
     on_failure_webhook_url  = Column(String(500))
+    send_only_on_failure    = Column(Boolean, default=False)
     project_id              = Column(UUID(as_uuid=False), ForeignKey(_FF_PROJECTS_ID, ondelete=_SET_NULL), nullable=True)
     created_at              = Column(DateTime(timezone=True), default=_utcnow)
     updated_at              = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
@@ -223,7 +233,7 @@ class PipelineStep(db.Model):
     __tablename__ = 'ff_pipeline_steps'
     __table_args__ = (
         CheckConstraint(
-            "step_type IN ('db_procedure','db_query','report','email','drive_upload','data_load','bulk_load','onedrive_upload','ai_analyze','sftp_transfer')",
+            "step_type IN ('db_procedure','db_query','report','email','drive_upload','data_load','bulk_load','onedrive_upload','ai_analyze','sftp_transfer','ssh_command','db_health_check','data_report')",
             name='ck_step_type',
         ),
         CheckConstraint("on_error IN ('stop', 'continue')", name='ck_on_error'),
@@ -240,6 +250,7 @@ class PipelineStep(db.Model):
     enabled     = Column(Boolean, default=True)
 
     pipeline = relationship('Pipeline', back_populates='steps')
+
 
 
 class PipelineVariable(db.Model):

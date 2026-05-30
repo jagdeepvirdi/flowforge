@@ -75,6 +75,12 @@ class EmailStep(BaseStep):
     def run(self, context: dict[str, Any]) -> StepResult:
         from flowforge.engine.context import render
 
+        # Smart Alerting: suppress routine emails if send_only_on_failure is set and no failure occurred
+        if context.get('pipeline_send_only_on_failure') == 'true':
+            if not context.get('_pipeline_has_failed'):
+                logger.info("Email suppressed: pipeline_send_only_on_failure=true and no failure yet.")
+                return StepResult(success=True, logs="Email suppressed (routine email suppression)")
+
         email_cfg, provider = self._load_config_and_provider()
 
         raw_attachments = self.config.get('attachments', [])
