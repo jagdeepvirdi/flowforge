@@ -1,12 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, X } from 'lucide-react'
-import { getUsers, createUser, updateUser, deleteUser } from '../lib/api'
+import { Download, Plus, Trash2, X } from 'lucide-react'
+import { getUsers, createUser, updateUser, deleteUser, exportUserData, purgeUserData } from '../lib/api'
 import { useCurrentUser } from '../lib/auth'
 import type { User, Role } from '../lib/types'
 import TopBar from '../components/shared/TopBar'
-import Spinner from '../components/shared/Spinner'
 import Sk from '../components/shared/Skeleton'
 
 const ROLES: Role[] = ['admin', 'editor', 'viewer']
@@ -86,7 +85,7 @@ export default function Users() {
     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
       <thead>
         <tr style={{ borderBottom: '1px solid var(--border)' }}>
-          {['Username', 'Role', 'Created', ''].map(h => (
+          {['Username', 'Role', 'Created', 'MFA', ''].map(h => (
             <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               {h}
             </th>
@@ -120,18 +119,47 @@ export default function Users() {
             <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
               {user.created_at ? new Date(user.created_at).toLocaleDateString() : '—'}
             </td>
+            <td style={{ padding: '12px 16px' }}>
+              <span style={{
+                fontSize: 10.5, fontWeight: 600, padding: '2px 6px', borderRadius: 3,
+                background: user.mfa_enabled ? 'rgba(34,197,94,0.12)' : 'rgba(107,114,128,0.1)',
+                color: user.mfa_enabled ? 'var(--success-text)' : 'var(--text-dim)',
+              }}>
+                {user.mfa_enabled ? 'ON' : 'OFF'}
+              </span>
+            </td>
             <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-              {user.id !== me?.id && (
+              <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
                 <button
                   className="btn"
-                  style={{ padding: '4px 8px', color: 'var(--failure-text)' }}
-                  disabled={deleteMut.isPending}
-                  onClick={() => handleDelete(user)}
-                  title="Delete user"
+                  style={{ padding: '4px 8px', fontSize: 11 }}
+                  onClick={() => handleExport(user)}
+                  title="GDPR export — download all personal data as JSON"
                 >
-                  {deleteMut.isPending ? <Spinner size={13} /> : <Trash2 size={13} />}
+                  <Download size={12} />
                 </button>
-              )}
+                {user.id !== me?.id && (
+                  <>
+                    <button
+                      className="btn"
+                      style={{ padding: '4px 8px', color: 'var(--failure-text)', fontSize: 11 }}
+                      disabled={deleteMut.isPending}
+                      onClick={() => handleDelete(user)}
+                      title="Delete user"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                    <button
+                      className="btn"
+                      style={{ padding: '4px 8px', color: 'var(--failure-text)', fontSize: 10 }}
+                      onClick={() => handlePurge(user)}
+                      title="GDPR purge — delete user and anonymise audit log"
+                    >
+                      GDPR
+                    </button>
+                  </>
+                )}
+              </div>
             </td>
           </tr>
         ))}
@@ -150,6 +178,27 @@ export default function Users() {
   function handleDelete(user: User) {
     if (!globalThis.confirm(`Delete user "${user.username}"? This cannot be undone.`)) return
     deleteMut.mutate(user.id)
+  }
+
+  function handleExport(user: User) {
+    exportUserData(user.id).then(data => {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `flowforge-gdpr-export-${user.username}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    }).catch((e: Error) => globalThis.alert(`Export failed: ${e.message}`))
+  }
+
+  function handlePurge(user: User) {
+    if (!globalThis.confirm(
+      `GDPR purge: delete "${user.username}" and anonymise all their audit log entries?\n\nThis cannot be undone.`
+    )) return
+    purgeUserData(user.id)
+      .then(() => qc.invalidateQueries({ queryKey: ['users'] }))
+      .catch((e: Error) => globalThis.alert(`Purge failed: ${e.message}`))
   }
 
   return (

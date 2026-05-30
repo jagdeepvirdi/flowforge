@@ -10,6 +10,8 @@ export interface User {
   id: string
   username: string
   role: Role
+  mfa_enabled: boolean
+  sso_provider: string | null
   created_at: string
 }
 

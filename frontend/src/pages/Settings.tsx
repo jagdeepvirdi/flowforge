@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { ExternalLink, CheckCircle2, XCircle, BrainCircuit } from 'lucide-react'
+import { ExternalLink, CheckCircle2, XCircle, BrainCircuit, Shield, ShieldCheck, ShieldOff } from 'lucide-react'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 import PageIntro from '../components/shared/PageIntro'
-import { getSetupStatus, changePassword } from '../lib/api'
+import { getSetupStatus, changePassword, getMfaStatus, mfaEnroll, mfaConfirm, mfaDisable } from '../lib/api'
 
 function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
@@ -244,6 +244,216 @@ function DocsCard() {
   )
 }
 
+type MfaPhase = 'idle' | 'enrolling' | 'confirming' | 'backup-codes' | 'disabling'
+
+function MfaCard() {
+  const { data: mfaStatus, refetch } = useQuery({
+    queryKey: ['mfa-status'],
+    queryFn: getMfaStatus,
+  })
+
+  const [phase, setPhase]               = useState<MfaPhase>('idle')
+  const [qrDataUrl, setQrDataUrl]       = useState('')
+  const [secret, setSecret]             = useState('')
+  const [uri, setUri]                   = useState('')
+  const [code, setCode]                 = useState('')
+  const [password, setPassword]         = useState('')
+  const [backupCodes, setBackupCodes]   = useState<string[]>([])
+  const [error, setError]               = useState('')
+  const [copied, setCopied]             = useState(false)
+
+  const enrollMut = useMutation({
+    mutationFn: mfaEnroll,
+    onSuccess: async (data) => {
+      setSecret(data.secret)
+      setUri(data.provisioning_uri)
+      try {
+        const QRCode = await import('qrcode')
+        const url = await QRCode.default.toDataURL(data.provisioning_uri, { width: 200, margin: 2 })
+        setQrDataUrl(url)
+      } catch {
+        setQrDataUrl('')
+      }
+      setPhase('confirming')
+      setError('')
+    },
+    onError: (e: Error) => setError(e.message),
+  })
+
+  const confirmMut = useMutation({
+    mutationFn: () => mfaConfirm(code),
+    onSuccess: (data) => {
+      setBackupCodes(data.backup_codes)
+      setPhase('backup-codes')
+      setError('')
+      refetch()
+    },
+    onError: (e: Error) => setError(e.message),
+  })
+
+  const disableMut = useMutation({
+    mutationFn: () => mfaDisable(password),
+    onSuccess: () => {
+      setPhase('idle')
+      setPassword('')
+      setError('')
+      refetch()
+    },
+    onError: (e: Error) => setError(e.message),
+  })
+
+  const copySecret = () => {
+    navigator.clipboard.writeText(secret)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const enabled = mfaStatus?.mfa_enabled ?? false
+
+  return (
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
+          {enabled ? <ShieldCheck size={15} style={{ color: 'var(--success)' }} /> : <Shield size={15} style={{ color: 'var(--text-muted)' }} />}
+          Two-Factor Authentication (MFA)
+        </div>
+        <span style={{
+          fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4,
+          background: enabled ? 'rgba(34,197,94,0.12)' : 'rgba(107,114,128,0.12)',
+          color: enabled ? 'var(--success-text)' : 'var(--text-muted)',
+          textTransform: 'uppercase', letterSpacing: '0.06em',
+        }}>
+          {enabled ? 'Active' : 'Disabled'}
+        </span>
+      </div>
+
+      <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
+        {enabled
+          ? 'MFA is active on your account. You will be asked for a TOTP code on every login.'
+          : 'Add a second factor to your account using any TOTP authenticator app (Google Authenticator, Authy, 1Password, etc.).'}
+      </p>
+
+      {error && (
+        <div style={{ fontSize: 12.5, color: 'var(--failure-text)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, padding: '8px 12px' }}>
+          {error}
+        </div>
+      )}
+
+      {/* ── Not enrolled → start enrollment ── */}
+      {!enabled && phase === 'idle' && (
+        <button className="btn btn-primary" style={{ alignSelf: 'flex-start' }}
+          onClick={() => { setError(''); enrollMut.mutate() }}
+          disabled={enrollMut.isPending}>
+          {enrollMut.isPending ? <Spinner size={13} /> : 'Enable MFA'}
+        </button>
+      )}
+
+      {/* ── Scan QR / copy secret ── */}
+      {phase === 'confirming' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <p style={{ fontSize: 13, color: 'var(--text-2)', margin: 0 }}>
+            Scan the QR code with your authenticator app, then enter the 6-digit code to confirm.
+          </p>
+          {qrDataUrl
+            ? <img src={qrDataUrl} alt="MFA QR code" width={160} height={160} style={{ borderRadius: 8, border: '1px solid var(--border)', background: '#fff' }} />
+            : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Manual entry secret:</span>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <code className="mono" style={{ fontSize: 13, background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '6px 10px', flex: 1, overflowWrap: 'anywhere' }}>
+                    {secret}
+                  </code>
+                  <button className="btn" onClick={copySecret} style={{ whiteSpace: 'nowrap', fontSize: 12 }}>
+                    {copied ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+                <a href={uri} style={{ fontSize: 12, color: 'var(--accent-text)' }}>Open in authenticator app</a>
+              </div>
+            )
+          }
+          <form onSubmit={e => { e.preventDefault(); confirmMut.mutate() }} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="field">
+              <label htmlFor="mfa-confirm-code">Verification code</label>
+              <input
+                id="mfa-confirm-code"
+                className="input mono"
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="000000"
+                value={code}
+                onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
+                autoFocus
+                required
+                style={{ letterSpacing: '0.3em', fontSize: 18, textAlign: 'center', maxWidth: 160 }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="submit" className="btn btn-primary" disabled={confirmMut.isPending || code.length !== 6}>
+                {confirmMut.isPending ? 'Activating…' : 'Activate MFA'}
+              </button>
+              <button type="button" className="btn" onClick={() => { setPhase('idle'); setError('') }}>Cancel</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ── Show backup codes once ── */}
+      {phase === 'backup-codes' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ padding: '10px 14px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 6, fontSize: 13, color: 'var(--success-text)' }}>
+            MFA activated! Save these backup codes — they are shown only once.
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+            {backupCodes.map(c => (
+              <code key={c} className="mono" style={{ fontSize: 13, background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 4, padding: '5px 10px', textAlign: 'center' }}>
+                {c}
+              </code>
+            ))}
+          </div>
+          <button className="btn btn-primary" style={{ alignSelf: 'flex-start' }} onClick={() => { setPhase('idle'); setBackupCodes([]) }}>
+            Done — I've saved my backup codes
+          </button>
+        </div>
+      )}
+
+      {/* ── Disable MFA ── */}
+      {enabled && phase === 'idle' && (
+        <button
+          className="btn"
+          style={{ alignSelf: 'flex-start', color: 'var(--failure-text)', display: 'flex', alignItems: 'center', gap: 5 }}
+          onClick={() => { setPhase('disabling'); setError('') }}
+        >
+          <ShieldOff size={13} /> Disable MFA
+        </button>
+      )}
+
+      {phase === 'disabling' && (
+        <form onSubmit={e => { e.preventDefault(); disableMut.mutate() }} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="field">
+            <label htmlFor="mfa-disable-password">Confirm your password to disable MFA</label>
+            <input
+              id="mfa-disable-password"
+              className="input"
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              autoFocus
+              required
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="submit" className="btn" style={{ color: 'var(--failure-text)' }} disabled={disableMut.isPending}>
+              {disableMut.isPending ? 'Disabling…' : 'Disable MFA'}
+            </button>
+            <button type="button" className="btn" onClick={() => { setPhase('idle'); setError('') }}>Cancel</button>
+          </div>
+        </form>
+      )}
+    </div>
+  )
+}
+
 function RetentionCard({ status, isLoading }: { status: any; isLoading: boolean }) {
   return (
     <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -297,6 +507,9 @@ export default function Settings() {
 
           {/* Change Password */}
           <ChangePasswordCard />
+
+          {/* MFA */}
+          <MfaCard />
 
           {/* Gmail + Drive */}
           <GoogleOAuthCard status={status} isLoading={isLoading} />

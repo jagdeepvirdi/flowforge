@@ -170,6 +170,19 @@ def download_step_output(step_run_id):
     if not abs_path.is_file():
         return jsonify({'error': 'Output file no longer exists on disk'}), 404
 
+    # Transparently decrypt files that were encrypted at rest (.enc suffix).
+    if abs_path.suffix == '.enc':
+        from flowforge.crypto import decrypt_file_to_stream
+        stream    = decrypt_file_to_stream(abs_path)
+        real_name = abs_path.stem   # strip the .enc suffix
+        mime, _   = mimetypes.guess_type(real_name)
+        return send_file(
+            stream,
+            mimetype=mime or 'application/octet-stream',
+            as_attachment=True,
+            download_name=real_name,
+        )
+
     mime, _ = mimetypes.guess_type(str(abs_path))
     return send_file(
         abs_path,

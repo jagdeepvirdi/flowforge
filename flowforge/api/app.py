@@ -1,9 +1,10 @@
 """Flask application factory."""
+import ipaddress
 import logging
 import os
 from pathlib import Path
 
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -91,11 +92,45 @@ def create_app(config: dict | None = None) -> Flask:
 
     _register_blueprints(app)
     _register_error_handlers(app)
+    _register_ip_allowlist(app)
 
     with app.app_context():
         _sweep_stuck_runs(app)
 
     return app
+
+
+def _register_ip_allowlist(app: Flask) -> None:
+    """If FLOWFORGE_ALLOWED_IPS is set, reject /api/* requests from non-listed IPs."""
+    raw = os.environ.get('FLOWFORGE_ALLOWED_IPS', '').strip()
+    if not raw:
+        return
+
+    networks: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = []
+    for cidr in raw.split(','):
+        cidr = cidr.strip()
+        if not cidr:
+            continue
+        try:
+            networks.append(ipaddress.ip_network(cidr, strict=False))
+        except ValueError:
+            app.logger.warning('FLOWFORGE_ALLOWED_IPS: invalid CIDR %r — skipped', cidr)
+
+    if not networks:
+        return
+
+    @app.before_request
+    def _check_ip():
+        if not request.path.startswith('/api/'):
+            return None
+        client_ip = request.remote_addr or ''
+        try:
+            addr = ipaddress.ip_address(client_ip)
+            if not any(addr in net for net in networks):
+                return jsonify({'error': 'Access denied: your IP is not allowed'}), 403
+        except ValueError:
+            return jsonify({'error': 'Access denied: invalid client IP'}), 403
+        return None
 
 
 def _sweep_stuck_runs(app: Flask) -> None:
@@ -126,6 +161,7 @@ def _register_blueprints(app: Flask) -> None:
     from flowforge.api.routes.connections import bp as connections_bp
     from flowforge.api.routes.emails import bp as emails_bp
     from flowforge.api.routes.metrics import bp as metrics_bp
+    from flowforge.api.routes.mfa import bp as mfa_bp
     from flowforge.api.routes.pipelines import bp as pipelines_bp
     from flowforge.api.routes.projects import bp as projects_bp
     from flowforge.api.routes.providers import bp as providers_bp
@@ -133,13 +169,14 @@ def _register_blueprints(app: Flask) -> None:
     from flowforge.api.routes.reports import bp as reports_bp
     from flowforge.api.routes.runs import bp as runs_bp
     from flowforge.api.routes.setup import bp as setup_bp
+    from flowforge.api.routes.sso import bp as sso_bp
     from flowforge.api.routes.steps import bp as steps_bp
     from flowforge.api.routes.users import bp as users_bp
 
     for blueprint in (
         ai_bp, audit_bp, auth_bp, bulk_loads_bp, connections_bp, emails_bp, metrics_bp,
-        pipelines_bp, projects_bp, providers_bp, recipients_bp, reports_bp, runs_bp,
-        setup_bp, steps_bp, users_bp,
+        mfa_bp, pipelines_bp, projects_bp, providers_bp, recipients_bp, reports_bp, runs_bp,
+        setup_bp, sso_bp, steps_bp, users_bp,
     ):
         app.register_blueprint(blueprint, url_prefix='/api')
 

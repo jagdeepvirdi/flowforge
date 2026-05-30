@@ -62,11 +62,18 @@ class User(db.Model):
         CheckConstraint("role IN ('admin', 'editor', 'viewer')", name='ck_user_role'),
     )
 
-    id            = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
-    username      = Column(String(100), nullable=False, unique=True)
-    password_hash = Column(String(255), nullable=False)
-    role          = Column(String(20), nullable=False, default='editor')
-    created_at    = Column(DateTime(timezone=True), default=_utcnow)
+    id               = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    username         = Column(String(100), nullable=False, unique=True)
+    password_hash    = Column(String(255), nullable=False)
+    role             = Column(String(20), nullable=False, default='editor')
+    # MFA (TOTP) — secret and backup codes stored AES-256 encrypted
+    mfa_secret       = Column(Text)
+    mfa_enabled      = Column(Boolean, nullable=False, default=False)
+    mfa_backup_codes = Column(Text)                    # encrypted JSON list of remaining codes
+    # SSO — provider ('google' | 'microsoft') and matched email
+    sso_provider     = Column(String(20))
+    sso_email        = Column(String(255), index=True)
+    created_at       = Column(DateTime(timezone=True), default=_utcnow)
 
 
 class RecipientGroup(db.Model):

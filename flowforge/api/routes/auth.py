@@ -20,13 +20,17 @@ def login():
     if not username or not password:
         return jsonify({'error': 'Username and password are required'}), 400
 
-    token = auth_login(username, password)
-    audit.log_login(username, success=token is not None, remote_addr=remote_addr)
+    result = auth_login(username, password)
+    audit.log_login(username, success=result is not None, remote_addr=remote_addr)
 
-    if not token:
+    if not result:
         return jsonify({'error': 'Invalid username or password'}), 401
 
-    return jsonify({'token': token})
+    # MFA second step required — return challenge token instead of full JWT
+    if isinstance(result, dict):
+        return jsonify(result)
+
+    return jsonify({'token': result})
 
 
 @bp.get('/auth/me')

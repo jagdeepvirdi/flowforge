@@ -40,9 +40,26 @@ const del  = <T>(path: string)             => request<T>('DELETE', path)
 
 // Auth
 export const login  = (username: string, password: string) =>
-  post<{ token: string }>('/auth/login', { username, password })
+  post<{ token: string } | { mfa_required: true; mfa_token: string }>('/auth/login', { username, password })
 export const logout = () => post<{ message: string }>('/auth/logout')
 export const getMe  = () => get<import('./types').CurrentUser>('/auth/me')
+
+// MFA
+export const getMfaStatus    = () => get<{ mfa_enabled: boolean; sso_provider: string | null }>('/auth/mfa/status')
+export const mfaEnroll       = () => post<{ provisioning_uri: string; secret: string }>('/auth/mfa/enroll')
+export const mfaConfirm      = (code: string) => post<{ backup_codes: string[] }>('/auth/mfa/confirm', { code })
+export const mfaDisable      = (password: string) => post<{ message: string }>('/auth/mfa/disable', { password })
+export const mfaVerify       = (mfa_token: string, code: string) =>
+  post<{ token: string }>('/auth/mfa/verify', { mfa_token, code })
+export const mfaUseBackup    = (mfa_token: string, backup_code: string) =>
+  post<{ token: string; backup_codes_remaining: number }>('/auth/mfa/use-backup', { mfa_token, backup_code })
+
+// SSO
+export const getSsoProviders = () => get<{ google: boolean; microsoft: boolean }>('/auth/sso/providers')
+
+// GDPR (admin)
+export const exportUserData = (id: string) => get<object>(`/users/${id}/export`)
+export const purgeUserData  = (id: string) => request<{ message: string; purged: boolean }>('DELETE', `/users/${id}?purge=true`)
 
 // Projects
 export const getProjects    = () => get<import('./types').Project[]>('/projects')

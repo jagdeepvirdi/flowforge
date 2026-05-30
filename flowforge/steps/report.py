@@ -51,6 +51,10 @@ class ReportStep(BaseStep):
             else:
                 return StepResult(success=False, error=f"Unknown report format: {fmt}")
 
+            from flowforge.crypto import output_encryption_enabled, encrypt_file
+            if output_encryption_enabled():
+                output_path = encrypt_file(output_path)
+
             logger.info("Report generated: %s (%d rows)", output_path, len(rows))
             import flowforge.audit as audit
             audit.log_report_exported(

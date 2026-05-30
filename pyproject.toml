@@ -43,6 +43,7 @@ dependencies = [
     # Auth
     "PyJWT>=2.8",
     "bcrypt>=4.1",
+    "pyotp>=2.9",
     # CORS
     "flask-cors>=4.0",
     # Rate limiting
@@ -85,6 +86,13 @@ sftp = [
 claude = [
     "anthropic>=0.25",
 ]
+sso = [
+    # Google SSO — shares credentials with [gmail]; add only if gmail not already installed
+    "google-auth-oauthlib>=1.2",
+    # Microsoft SSO — shares credentials with [microsoft365]
+    "msal>=1.28",
+    "requests>=2.31",
+]
 all = [
     "flowforge[gmail]",
     "flowforge[drive]",
@@ -93,6 +101,7 @@ all = [
     "flowforge[oracle]",
     "flowforge[mysql]",
     "flowforge[sftp]",
+    "flowforge[sso]",
 ]
 dev = [
     "pytest>=8.0",
