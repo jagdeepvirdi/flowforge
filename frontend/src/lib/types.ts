@@ -117,6 +117,20 @@ export interface StepRun {
   error_message: string | null
 }
 
+export interface ColumnConditionalRule {
+  operator: 'lt' | 'lte' | 'gt' | 'gte' | 'eq' | 'ne'
+  value: number
+  bg_color: string     // 6-char hex, no #
+  font_color?: string
+}
+
+export interface ColumnFormatRule {
+  column: string
+  number_format?: string
+  width?: number
+  conditional?: ColumnConditionalRule[]
+}
+
 export interface ReportConfig {
   id: string
   name: string
@@ -129,9 +143,31 @@ export interface ReportConfig {
   title: string | null
   sheet_name: string | null
   columns: string[]
+  column_formatting: ColumnFormatRule[]
   project_id: string | null
   created_at: string
   updated_at: string
+}
+
+export interface StepDiff {
+  step_name: string
+  step_type: string
+  step_order: number
+  is_new_step: boolean
+  rows_current: number | null
+  rows_prev: number | null
+  rows_delta: number | null
+  duration_current: number | null
+  duration_prev: number | null
+  duration_delta_pct: number | null
+  size_current: number | null
+  size_prev: number | null
+  size_delta: number | null
+}
+
+export interface RunDiff {
+  prev_run_id: string | null
+  steps: StepDiff[]
 }
 
 export interface EmailConfig {

@@ -262,6 +262,94 @@ def update_pipeline(pipeline_id):
     return jsonify(_pipeline_dict(pipeline))
 
 
+@bp.post('/pipelines/<uuid:pipeline_id>/promote')
+@require_role(['admin', 'editor'])
+def promote_pipeline(pipeline_id):
+    """Copy a pipeline to a different project (environment promotion: dev → staging → prod).
+
+    Body: { target_project_id: str, name_suffix?: str }
+
+    Step configs that reference IDs (connection_id, report_config_id, etc.) are copied
+    as-is. Warnings are returned for any references that may not resolve in the target
+    project so the user can remap them.
+    """
+    src = db.session.get(Pipeline, str(pipeline_id))
+    if not src:
+        return jsonify({'error': _NOT_FOUND}), 404
+
+    data = request.get_json(silent=True) or {}
+    target_project_id = str(data.get('target_project_id', '')).strip()
+    if not target_project_id:
+        return jsonify({'error': 'target_project_id is required'}), 400
+
+    target_project = db.session.get(Project, target_project_id)
+    if not target_project:
+        return jsonify({'error': 'Target project not found'}), 404
+
+    if target_project_id == (src.project_id or ''):
+        return jsonify({'error': 'Target project must be different from the source project'}), 400
+
+    suffix = str(data.get('name_suffix', f' ({target_project.name})')).rstrip()
+    new_name = _unique_pipeline_name(src.name + suffix)
+
+    clone = Pipeline(
+        name=new_name,
+        description=src.description,
+        schedule=src.schedule,
+        enabled=False,           # promoted pipelines start disabled for safety
+        timeout_minutes=src.timeout_minutes,
+        on_failure_webhook_url=src.on_failure_webhook_url,
+        send_only_on_failure=src.send_only_on_failure,
+        project_id=target_project_id,
+    )
+    db.session.add(clone)
+    db.session.flush()
+
+    # Copy steps including parallel_group
+    for s in src.steps:
+        db.session.add(PipelineStep(
+            pipeline_id=clone.id,
+            step_order=s.step_order,
+            name=s.name,
+            step_type=s.step_type,
+            config=dict(s.config),
+            on_error=s.on_error,
+            enabled=s.enabled,
+            parallel_group=s.parallel_group,
+        ))
+
+    # Copy non-secret variables only (secrets are environment-specific)
+    warnings: list[str] = []
+    for v in src.variables:
+        if v.is_secret:
+            warnings.append(f"Secret variable '{v.var_key}' was not copied — set it manually in the target project.")
+            continue
+        db.session.add(PipelineVariable(
+            pipeline_id=clone.id,
+            var_key=v.var_key,
+            var_value=v.var_value,
+            is_secret=False,
+        ))
+
+    # Warn about step configs that reference external IDs
+    _REFERENCE_KEYS = ('connection_id', 'report_config_id', 'email_config_id',
+                       'provider_id', 'recipient_group_id')
+    for s in src.steps:
+        for key in _REFERENCE_KEYS:
+            if s.config.get(key):
+                warnings.append(
+                    f"Step '{s.name}': {key} references an ID from the source project — "
+                    f"update it to the equivalent resource in '{target_project.name}'."
+                )
+
+    db.session.commit()
+    audit.log_pipeline_change('PROMOTED', clone.name, clone.id)
+    return jsonify({
+        'pipeline': _pipeline_dict(clone),
+        'warnings': warnings,
+    }), 201
+
+
 @bp.post('/pipelines/<uuid:pipeline_id>/clone')
 @require_role(['admin', 'editor'])
 def clone_pipeline(pipeline_id):

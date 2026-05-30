@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, AlertTriangle, ChevronDown, ChevronUp, ExternalLink, CheckCircle, XCircle, Download, Lightbulb, X } from 'lucide-react'
-import { getRun, downloadStepOutput, aiQuery, getSetupStatus, getRunAnomalies, getAnomalyNarrative } from '../lib/api'
-import type { StepRun, StepAnomaly, AnomalyMetric } from '../lib/types'
+import { getRun, downloadStepOutput, aiQuery, getSetupStatus, getRunAnomalies, getAnomalyNarrative, getRunDiff } from '../lib/api'
+import type { StepRun, StepAnomaly, AnomalyMetric, StepDiff } from '../lib/types'
 import StatusBadge from '../components/shared/StatusBadge'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
@@ -376,6 +376,100 @@ function TimelineStep({ s, last, aiEnabled, anomaly }: { s: StepRun; last: boole
   )
 }
 
+function fmtBytes(n: number): string {
+  if (n < 1024)           return `${n} B`
+  if (n < 1024 * 1024)    return `${(n / 1024).toFixed(1)} KB`
+  return `${(n / 1024 / 1024).toFixed(2)} MB`
+}
+
+function DeltaBadge({ delta, unit, pct }: { delta: number | null; unit?: string; pct?: boolean }) {
+  if (delta === null || delta === undefined) return <span style={{ color: 'var(--text-dim)' }}>—</span>
+  const up    = delta > 0
+  const zero  = delta === 0
+  const color = zero ? 'var(--text-muted)' : up ? 'var(--failure-text)' : 'var(--success-text)'
+  const label = zero ? '±0' : `${up ? '+' : ''}${pct ? `${delta}%` : `${delta.toLocaleString()}${unit ? ' ' + unit : ''}`}`
+  return <span style={{ color, fontSize: 11, fontFamily: 'JetBrains Mono, monospace' }}>{label}</span>
+}
+
+function DiffPanel({ runId, prevRunId }: { runId: string; prevRunId: string | null }) {
+  const [open, setOpen] = useState(false)
+  const { data: diff, isLoading } = useQuery({
+    queryKey: ['run-diff', runId],
+    queryFn:  () => getRunDiff(runId),
+    enabled:  open,
+    staleTime: 300_000,
+  })
+
+  if (prevRunId === null && !isLoading && diff) return null
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <button
+        onClick={() => setOpen(x => !x)}
+        className="btn btn-sm"
+        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}
+      >
+        {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+        Diff vs previous run
+      </button>
+
+      {open && (
+        <div className="card" style={{ marginTop: 8, padding: 0, overflow: 'hidden' }}>
+          {isLoading && (
+            <div style={{ padding: '14px 16px', color: 'var(--text-muted)', fontSize: 12 }}>Loading diff…</div>
+          )}
+          {diff && !diff.prev_run_id && (
+            <div style={{ padding: '14px 16px', color: 'var(--text-muted)', fontSize: 12 }}>
+              No previous successful run found — nothing to compare.
+            </div>
+          )}
+          {diff && diff.prev_run_id && diff.steps.length > 0 && (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                  {['Step', 'Rows', 'Δ Rows', 'Duration', 'Δ Duration', 'File size', 'Δ Size'].map(h => (
+                    <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {diff.steps.map((s: StepDiff, i: number) => (
+                  <tr key={s.step_name} style={{ borderBottom: i < diff.steps.length - 1 ? '1px solid var(--border)' : 'none', background: s.is_new_step ? 'rgba(99,102,241,0.04)' : 'transparent' }}>
+                    <td style={{ padding: '8px 12px', color: 'var(--text)', fontWeight: 500 }}>
+                      {s.step_name}
+                      {s.is_new_step && <span style={{ marginLeft: 6, fontSize: 10, padding: '1px 5px', borderRadius: 3, background: 'rgba(99,102,241,0.15)', color: '#818CF8' }}>new</span>}
+                    </td>
+                    <td style={{ padding: '8px 12px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
+                      {s.rows_current != null ? s.rows_current.toLocaleString() : '—'}
+                    </td>
+                    <td style={{ padding: '8px 12px' }}>
+                      <DeltaBadge delta={s.rows_delta} />
+                    </td>
+                    <td style={{ padding: '8px 12px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
+                      {s.duration_current != null ? fmtDur(s.duration_current) : '—'}
+                    </td>
+                    <td style={{ padding: '8px 12px' }}>
+                      <DeltaBadge delta={s.duration_delta_pct} pct />
+                    </td>
+                    <td style={{ padding: '8px 12px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
+                      {s.size_current != null ? fmtBytes(s.size_current) : '—'}
+                    </td>
+                    <td style={{ padding: '8px 12px' }}>
+                      <DeltaBadge delta={s.size_delta} unit="B" />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function RunDetail() {
   const { id } = useParams()
   const { data: run, isLoading } = useQuery({
@@ -392,6 +486,14 @@ export default function RunDetail() {
     staleTime: 300_000,
   })
   const anomalyMap = new Map(anomalies.map(a => [a.step_id, a]))
+
+  // Pre-fetch prev_run_id so the DiffPanel button knows whether to show
+  const { data: diffMeta } = useQuery({
+    queryKey: ['run-diff-meta', id],
+    queryFn:  () => getRunDiff(id!),
+    enabled:  !!id && !!run && run.status !== 'running',
+    staleTime: 300_000,
+  })
 
   if (isLoading || !run) return (
     <><TopBar crumbs={['Workspace', 'Run History', '…']} />
@@ -475,6 +577,11 @@ export default function RunDetail() {
           </div>
           <style>{`@keyframes shimmer { 0% { transform:translateX(-100%); } 100% { transform:translateX(100%); } }`}</style>
         </div>
+
+        {/* Diff vs previous run */}
+        {run.status !== 'running' && (
+          <DiffPanel runId={run.id} prevRunId={diffMeta?.prev_run_id ?? null} />
+        )}
 
         {/* Error banner */}
         {run.error_message && (

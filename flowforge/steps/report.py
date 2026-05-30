@@ -38,7 +38,8 @@ class ReportStep(BaseStep):
                 tmpl = _resolve_template_path(report_cfg.get('template_path'))
                 generate(rows, columns, output_path,
                          sheet_name=report_cfg.get('sheet_name', 'Sheet1'),
-                         template_path=tmpl)
+                         template_path=tmpl,
+                         column_formats=report_cfg.get('column_formatting') or None)
             elif fmt == 'csv':
                 from flowforge.reports.csv_report import generate
                 generate(rows, columns, output_path)
@@ -77,14 +78,15 @@ class ReportStep(BaseStep):
             if not row:
                 raise ValueError(f"ReportConfig not found: {report_config_id}")
             return {
-                'connection_id': row.connection_id,
-                'query': row.query,
-                'format': row.format,
-                'template_path': row.template_path,
-                'output_filename': row.output_filename,
-                'title': row.title,
-                'sheet_name': row.sheet_name,
-                'columns': row.columns,
+                'connection_id':    row.connection_id,
+                'query':            row.query,
+                'format':           row.format,
+                'template_path':    row.template_path,
+                'output_filename':  row.output_filename,
+                'title':            row.title,
+                'sheet_name':       row.sheet_name,
+                'columns':          row.columns,
+                'column_formatting': row.column_formatting or [],
             }
         return self.config.get('inline_config', {})
 

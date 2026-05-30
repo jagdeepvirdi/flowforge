@@ -29,6 +29,7 @@ def _report_dict(r: ReportConfig) -> dict:
         'title': r.title,
         'sheet_name': r.sheet_name,
         'columns': r.columns or [],
+        'column_formatting': r.column_formatting or [],
         'project_id': r.project_id,
         'created_at': r.created_at.isoformat() if r.created_at else None,
         'updated_at': r.updated_at.isoformat() if r.updated_at else None,
@@ -70,6 +71,7 @@ def create_report_config():
         title=data.get('title'),
         sheet_name=data.get('sheet_name'),
         columns=data.get('columns'),
+        column_formatting=data.get('column_formatting') or [],
         project_id=data.get('project_id') or _default_project_id(),
     )
     db.session.add(config)
@@ -98,7 +100,8 @@ def update_report_config(config_id):
     if err:
         return jsonify({'error': err}), 400
     fields = ('name', 'description', 'connection_id', 'query', 'format',
-              'template_path', 'output_filename', 'title', 'sheet_name', 'columns', 'project_id')
+              'template_path', 'output_filename', 'title', 'sheet_name', 'columns',
+              'column_formatting', 'project_id')
     for field in fields:
         if field in data:
             setattr(config, field, data[field])

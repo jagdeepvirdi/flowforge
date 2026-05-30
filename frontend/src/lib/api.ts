@@ -79,6 +79,8 @@ export const createPipeline  = (data: Partial<import('./types').Pipeline>) => po
 export const updatePipeline  = (id: string, data: Partial<import('./types').Pipeline>) => put<import('./types').Pipeline>(`/pipelines/${id}`, data)
 export const deletePipeline  = (id: string) => del<{ deleted: string }>(`/pipelines/${id}`)
 export const clonePipeline    = (id: string) => post<import('./types').Pipeline>(`/pipelines/${id}/clone`)
+export const promotePipeline  = (id: string, target_project_id: string, name_suffix?: string) =>
+  post<{ pipeline: import('./types').Pipeline; warnings: string[] }>(`/pipelines/${id}/promote`, { target_project_id, name_suffix })
 export const runPipeline      = (id: string) => post<{ run_id: string; status: string; pipeline_name: string }>(`/pipelines/${id}/run`)
 export const exportPipeline   = async (id: string): Promise<Blob> => {
   const token = useAuth.getState().token
@@ -193,8 +195,9 @@ export const getRuns = (params?: { pipeline_id?: string; project_id?: string; st
   const q = qs.toString()
   return get<import('./types').PipelineRun[]>(`/runs${q ? `?${q}` : ''}`)
 }
-export const getRun = (id: string) => get<import('./types').PipelineRun>(`/runs/${id}`)
+export const getRun          = (id: string) => get<import('./types').PipelineRun>(`/runs/${id}`)
 export const getRunAnomalies = (id: string) => get<import('./types').StepAnomaly[]>(`/runs/${id}/anomalies`)
+export const getRunDiff      = (id: string) => get<import('./types').RunDiff>(`/runs/${id}/diff`)
 export const getAnomalyNarrative = (payload: {
   step_name: string; metric: 'rows' | 'duration'
   value: number; mean: number; pct_diff: number
