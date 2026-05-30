@@ -14,11 +14,11 @@ class ReportStep(BaseStep):
     step_type = 'report'
 
     def run(self, context: dict[str, Any]) -> StepResult:
-        from flowforge.engine.context import render
+        from flowforge.engine.context import render, render_sql
 
         report_cfg = self._load_config()
 
-        query = render(report_cfg.get('query', ''), context)
+        query = render_sql(report_cfg.get('query', ''), context)
         fmt = report_cfg.get('format', 'excel').lower()
         output_filename = render(report_cfg.get('output_filename', 'report'), context)
         output_dir = Path(os.environ.get('FLOWFORGE_OUTPUT_DIR', './output'))

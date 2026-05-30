@@ -156,6 +156,7 @@ def run_pipeline(
     context = build(pipeline_name, pipeline_vars=pipeline_vars)
     context['triggered_by'] = triggered_by
     context['_pipeline_has_failed'] = False
+    context['_secret_var_keys'] = secret_var_keys or set()
     vars_log = _build_vars_log(context, secret_var_keys)
 
     result = PipelineResult(success=True, pipeline_name=pipeline_name)

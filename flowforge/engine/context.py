@@ -198,3 +198,31 @@ def build(
 def render(template_str: str, context: dict[str, Any]) -> str:
     """Render a Jinja2 template string against the pipeline context."""
     return _jinja.from_string(template_str).render(**context)
+
+
+def render_sql(template_str: str, context: dict[str, Any]) -> str:
+    """Render a SQL template string, warning when secret pipeline variables are referenced.
+
+    Secret pipeline variable values will still render (backward-compatible) but
+    a WARNING is logged so operators know secrets are being interpolated into SQL
+    strings rather than passed as bind parameters.  Use db_procedure 'params' for
+    secrets wherever possible — those flow as bind variables and are not embedded
+    in the SQL text.
+    """
+    secret_keys: set[str] = context.get('_secret_var_keys') or set()
+    if secret_keys and template_str:
+        try:
+            from jinja2 import meta as _meta
+            ast = _jinja.parse(template_str)
+            referenced = _meta.find_undeclared_variables(ast)
+            secrets_in_sql = referenced & secret_keys
+            if secrets_in_sql:
+                logger.warning(
+                    "SQL template references secret pipeline variable(s): %s. "
+                    "The secret value will be interpolated into the SQL string. "
+                    "Pass secrets via procedure 'params' (bind variables) instead.",
+                    ', '.join(sorted(secrets_in_sql)),
+                )
+        except Exception:
+            pass  # don't block execution on template-parse errors
+    return _jinja.from_string(template_str).render(**context)

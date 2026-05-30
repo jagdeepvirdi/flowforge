@@ -82,6 +82,35 @@ class TestHandleAttachments:
         assert 'big.xlsx' in extra
         assert 'Google Drive' in extra
 
+    def test_drive_upload_failure_falls_back_to_direct(self, tmp_path):
+        """Drive upload failure must not fail the step — file attaches directly instead."""
+        from flowforge.steps.email_step import _handle_attachments
+        f = tmp_path / 'big.xlsx'
+        f.write_bytes(b'x' * (11 * 1024 * 1024))
+        warnings: list[str] = []
+        with patch('flowforge.storage.google_drive.upload_file', side_effect=Exception("API quota exceeded")):
+            direct, extra = _handle_attachments(
+                [f], 10, 'folder-id', '', {}, warnings_out=warnings,
+            )
+        assert f in direct          # fell back to direct attachment
+        assert extra == ''          # no Drive link in body
+        assert len(warnings) == 1
+        assert 'Google Drive' in warnings[0]
+        assert 'big.xlsx' in warnings[0]
+
+    def test_onedrive_upload_failure_falls_back_to_direct(self, tmp_path):
+        from flowforge.steps.email_step import _handle_attachments
+        f = tmp_path / 'report.xlsx'
+        f.write_bytes(b'x' * (11 * 1024 * 1024))
+        warnings: list[str] = []
+        with patch('flowforge.storage.onedrive.upload_file', side_effect=Exception("401 Unauthorized")):
+            direct, extra = _handle_attachments(
+                [f], 10, '', '', {}, onedrive_folder_id='od-folder', warnings_out=warnings,
+            )
+        assert f in direct
+        assert len(warnings) == 1
+        assert 'OneDrive' in warnings[0]
+
     def test_multiple_attachments_mixed(self, tmp_path):
         small = tmp_path / 'small.csv'
         small.write_bytes(b'x' * 100)

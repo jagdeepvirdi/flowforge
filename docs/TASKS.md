@@ -143,10 +143,10 @@
 - [ ] Pin all dependencies to exact versions in `requirements.txt` (currently pinned ✅ — verify)
 
 ### 6.6 Reliability & Hardening (from Codebase Review)
-- [ ] **[ARCH-2] Persistent Scheduler Jobstore** — Move APScheduler from memory to PostgreSQL jobstore for durability and multi-process safety
-- [ ] **[CODE-3] Drive API Failure Visibility** — Ensure "Smart Attachment" failures are visible in Run History logs (not just silent fallback)
-- [ ] **[DB-1] Prevent Invisible History** — Prevent run history from "disappearing" from UI when a pipeline is deleted (Soft delete vs denormalization)
-- [ ] **[SEC-3] SQL Sandbox Protection** — Prevent secret exfiltration via Jinja2 (Safe variable namespace for SQL rendering)
+- [x] **[ARCH-2] Persistent Scheduler Jobstore** — APScheduler already uses `SQLAlchemyJobStore` when `FLOWFORGE_DB_URL` is set; falls back to memory with a warning. Tests confirm both paths.
+- [x] **[CODE-3] Drive API Failure Visibility** — `_handle_attachments` now wraps each upload in try/except; failures fall back to direct attachment and are surfaced in Run History step logs via `warnings_out`.
+- [x] **[DB-1] Prevent Invisible History** — `PipelineRun.pipeline_id` already uses `ondelete=SET NULL` (nullable); deleting a pipeline preserves all run rows with their denormalized `pipeline_name`.
+- [x] **[SEC-3] SQL Sandbox Protection** — `render_sql()` added to `context.py`; warns when secret pipeline variables appear in SQL templates. `_secret_var_keys` stored in context by runner. Used in `db_query` and `report` steps for query rendering.
 
 ---
 

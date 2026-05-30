@@ -23,11 +23,16 @@ def _handle_attachments(
     drive_message_template: str,
     context: dict[str, Any],
     onedrive_folder_id: str = '',
+    warnings_out: list[str] | None = None,
 ) -> tuple[list[Path], str]:
     """Split attachments into direct and cloud-uploaded. Returns (direct_files, extra_body_text).
 
     Prefers OneDrive when onedrive_folder_id is set; falls back to Google Drive when
     drive_folder_id is set; attaches directly if neither is configured.
+
+    If a cloud upload fails, the file is attached directly instead of failing the step.
+    The warning is appended to warnings_out (if provided) so callers can surface it in
+    Run History step logs.
     """
     from flowforge.engine.context import render
 
@@ -40,22 +45,43 @@ def _handle_attachments(
             logger.warning("Attachment not found, skipping: %s", path)
             continue
         if path.stat().st_size > max_bytes:
+            size_mb = round(path.stat().st_size / 1024 / 1024, 1)
+            url = None
             if onedrive_folder_id:
-                from flowforge.storage.onedrive import upload_file as _onedrive_upload
-                url = _onedrive_upload(path, onedrive_folder_id, make_shareable=True)
-                logger.info("Large attachment uploaded to OneDrive: %s", path.name)
+                try:
+                    from flowforge.storage.onedrive import upload_file as _onedrive_upload
+                    url = _onedrive_upload(path, onedrive_folder_id, make_shareable=True)
+                    logger.info("Large attachment uploaded to OneDrive: %s", path.name)
+                except Exception as exc:
+                    msg = (
+                        f"OneDrive upload failed for '{path.name}' ({size_mb} MB) — "
+                        f"attaching directly. Error: {exc}"
+                    )
+                    logger.warning(msg)
+                    if warnings_out is not None:
+                        warnings_out.append(msg)
             elif drive_folder_id:
-                from flowforge.storage.google_drive import upload_file as _gdrive_upload
-                url = _gdrive_upload(path, drive_folder_id, make_shareable=True)
-                logger.info("Large attachment uploaded to Google Drive: %s", path.name)
+                try:
+                    from flowforge.storage.google_drive import upload_file as _gdrive_upload
+                    url = _gdrive_upload(path, drive_folder_id, make_shareable=True)
+                    logger.info("Large attachment uploaded to Google Drive: %s", path.name)
+                except Exception as exc:
+                    msg = (
+                        f"Google Drive upload failed for '{path.name}' ({size_mb} MB) — "
+                        f"attaching directly. Error: {exc}"
+                    )
+                    logger.warning(msg)
+                    if warnings_out is not None:
+                        warnings_out.append(msg)
+
+            if url is not None:
+                drive_links.append({
+                    'filename': path.name,
+                    'url': url,
+                    'size_mb': size_mb,
+                })
             else:
                 direct.append(path)
-                continue
-            drive_links.append({
-                'filename': path.name,
-                'url': url,
-                'size_mb': round(path.stat().st_size / 1024 / 1024, 1),
-            })
         else:
             direct.append(path)
 
@@ -90,9 +116,11 @@ class EmailStep(BaseStep):
         drive_folder_id = email_cfg.get('drive_folder_id', '')
         drive_message = email_cfg.get('drive_share_message', '')
         onedrive_folder_id = email_cfg.get('onedrive_folder_id', '')
+        upload_warnings: list[str] = []
         direct_attachments, extra_body = _handle_attachments(
             attachments, max_mb, drive_folder_id, drive_message, context,
             onedrive_folder_id=onedrive_folder_id,
+            warnings_out=upload_warnings,
         )
 
         to = self._resolve_recipients(email_cfg)
@@ -114,7 +142,8 @@ class EmailStep(BaseStep):
                     recipients=result.recipients,
                     attachment_names=[p.name for p in direct_attachments],
                 )
-                return StepResult(success=True, extra={'email_sent_to': result.recipients})
+                step_logs = '\n'.join(upload_warnings) if upload_warnings else ''
+                return StepResult(success=True, extra={'email_sent_to': result.recipients}, logs=step_logs)
             return StepResult(success=False, error=result.error)
         except Exception as e:
             logger.exception("Email step failed")
