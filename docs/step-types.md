@@ -376,6 +376,112 @@ Or using the step namespace (useful when multiple ai_analyze steps run):
 
 ---
 
+## ssh_command
+
+Executes a command on a remote server via SSH. Captures stdout into a pipeline variable for use in downstream steps. Requires an **SSH Connection** configured in the Connections page.
+
+```yaml
+step_type: ssh_command
+config:
+  ssh_connection_id: <uuid>        # SSH Connection from Connections page (required)
+  command: "df -h"                 # shell command — supports {{ variables }}
+  timeout: 60                      # execution timeout in seconds (default: 60)
+  capture_output: true             # include stdout/stderr in Run History logs (default: true)
+  output_var: disk_usage_raw       # store stdout in this pipeline variable (optional)
+```
+
+**`output_var`:** When set, the command's stdout is injected into the pipeline context as `{{ disk_usage_raw }}`. Use it in downstream `data_report` step configs or `email` body templates.
+
+**Exit codes:** A non-zero exit status fails the step. This is useful for threshold checks — write a command that exits 1 when a condition is breached, then set `on_error: stop` to halt the pipeline (and optionally send a failure alert via `send_only_on_failure`).
+
+**Host key verification:** By default FlowForge uses strict host key checking (`RejectPolicy`). Set `FLOWFORGE_SSH_ALLOW_UNKNOWN_HOSTS=true` to auto-accept unknown hosts (not recommended for production). The recommended approach is to add the host key via `ssh-keyscan -H <host> >> ~/.ssh/known_hosts` on the FlowForge server.
+
+**Outputs:**
+- `{{ <output_var> }}` — stdout of the command, trimmed (only when `output_var` is set)
+
+---
+
+## db_health_check
+
+Collects industry-standard health metrics from a configured database connection and writes them to the step log. Results are visible in Run History → step logs.
+
+```yaml
+step_type: db_health_check
+config:
+  connection_id: <uuid>   # DB Connection from Connections page (required)
+```
+
+**PostgreSQL metrics collected:**
+- Active sessions (`pg_stat_activity`)
+- Buffer cache hit ratio (`pg_statio_user_tables`)
+- Replication lag in bytes (`pg_stat_replication`) — skipped silently if no replicas
+
+**Oracle metrics collected:**
+- Active user sessions (`v$session`)
+- Buffer cache hit ratio (`v$sysstat`)
+- Tablespaces over 80% capacity (`dba_tablespace_usage_metrics`)
+
+**MySQL metrics collected:**
+- Connected threads (`SHOW STATUS`)
+
+**Outputs:** Writes to step logs only — metrics are visible in Run History. No pipeline variables are set.
+
+**Pattern:** Combine with `send_only_on_failure: true` on the pipeline and an `ssh_command` threshold-check step to only email when something is wrong.
+
+---
+
+## data_report
+
+Generates an Excel, CSV, PDF, or JSON report file from data stored in a pipeline context variable. Used to turn raw output (e.g. from `ssh_command` or `db_query` `output_variable`) into a formatted attachment.
+
+```yaml
+step_type: data_report
+config:
+  data_var: disk_csv            # pipeline variable containing the data (required)
+  data_format: csv              # format of the variable's content: 'csv' | 'json' (default: csv)
+  format: excel                 # output file format: 'excel' | 'csv' | 'pdf' | 'json' (default: excel)
+  output_filename: "disk_usage_{{ current_date }}.xlsx"   # supports {{ variables }} (required)
+  columns: []                   # optional — override column names from the data
+  sheet_name: Sheet1            # Excel only — tab name (default: Sheet1)
+  title: Disk Usage Report      # PDF only — document title
+```
+
+**`data_format: csv`:** The variable must contain a CSV string with a header row. The first row becomes the column names; remaining rows become data rows. Delimiter is auto-detected.
+
+**`data_format: json`:** The variable must contain a JSON array of objects (one object per row). Object keys become column names.
+
+**Example — SSH command → Excel report:**
+
+```yaml
+# Step 1: collect disk usage as CSV
+- name: collect_disk
+  step_type: ssh_command
+  config:
+    ssh_connection_id: <uuid>
+    command: >
+      df -h | awk 'NR==1{print "Filesystem,Size,Used,Available,Use%,Mounted"}
+                   NR>1{printf "%s,%s,%s,%s,%s,%s\n",$1,$2,$3,$4,$5,$6}'
+    output_var: disk_csv
+
+# Step 2: generate Excel from the CSV variable
+- name: generate_disk_report
+  step_type: data_report
+  config:
+    data_var: disk_csv
+    data_format: csv
+    format: excel
+    output_filename: "disk_report_{{ current_date }}.xlsx"
+    sheet_name: Disk Usage
+```
+
+**Outputs:**
+- `{{ steps.<name>.output_path }}` — absolute path to the generated file
+- `{{ steps.<name>.rows_affected }}` — number of data rows in the report
+
+Use `output_path` in the `email` step's `attachments` field.
+
+---
+
 ## sftp_transfer
 
 Downloads files from or uploads files to a remote SFTP server. Supports password authentication and private-key authentication (RSA, ECDSA, Ed25519, DSS). Requires `pip install paramiko` (or `pip install 'flowforge[sftp]'`).

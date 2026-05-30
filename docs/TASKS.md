@@ -213,20 +213,18 @@
 ## Phase 9 — Automation Scenarios (SSH & Remote Execution)
 
 ### 9.1 Infrastructure Support
-- [ ] **Implement `SSHConnection`** — new connection type to store host, port, credentials (password/key_path)
-- [ ] **Implement `SshCommandStep`** — execute remote commands/scripts via paramiko; capture stdout/stderr
-- [ ] **Implement `DbHealthCheckStep`** — industry-standard metrics (Lag, Locks, Bloat, Sessions)
-- [ ] **Smart Alerting Logic** — add `send_only_on_failure` toggle to pipelines to suppress routine emails
-- [ ] **Alembic migration** — update `ck_step_type` to include `ssh_command`, `db_health_check`, and `data_report`
-- [ ] **Implement `ScriptReportStep`** — generate Excel/CSV/PDF from pipeline context variables (e.g. Shell script outputs)
+- [x] **Implement `SSHConnection`** — new connection type to store host, port, credentials (password/key_path)
+- [x] **Implement `SshCommandStep`** — execute remote commands/scripts via paramiko; capture stdout/stderr
+- [x] **Implement `DbHealthCheckStep`** — industry-standard metrics (Lag, Locks, Bloat, Sessions)
+- [x] **Smart Alerting Logic** — add `send_only_on_failure` toggle to pipelines to suppress routine emails
+- [x] **Alembic migration** — update `ck_step_type` to include `ssh_command`, `db_health_check`, and `data_report`
+- [x] **Implement `ScriptReportStep`** — generate Excel/CSV/PDF from pipeline context variables (e.g. Shell script outputs)
 
 ### 9.2 Scenario 1: Industry-Standard Health Monitoring
-- [ ] **Configure Daily Health Pipeline** — 4 SSH steps + 2 DB Health steps + Data Report step + Email step
-- [ ] **Standard SSH Metrics**: Load Average, Memory Usage (`free -m`), Disk I/O, and `df -h`.
-- [ ] **Standard DB Metrics**:
-    - **Oracle**: `v$instance`, `v$sysstat` (buffer cache hit ratio), `v$dataguard_stats`.
-    - **Postgres**: `pg_stat_database` (cache hit ratio), `pg_stat_replication`, `pg_stat_activity`.
-- [ ] **Conditional Execution**: Use FlowForge's `on_error: stop` and variable checks to only email if thresholds are exceeded (e.g., Disk > 90%).
+- [x] **Configure Daily Health Pipeline** — importable YAML templates in `examples/` (daily digest + alerting variant)
+- [x] **Standard SSH Metrics**: Load Average, Memory Usage (`free -m`), Disk I/O, and `df -h` — documented in `docs/scenarios/health-monitoring.md`
+- [x] **Standard DB Metrics**: PostgreSQL (`pg_stat_activity`, cache hit ratio, replication lag) and Oracle (`v$session`, `v$sysstat`, tablespace usage) — implemented in `DbHealthCheckStep`
+- [x] **Conditional Execution**: Threshold-check SSH step exits 1 on breach; `send_only_on_failure: true` suppresses routine emails — documented with example in alerting YAML template
 
 ### 9.3 Scenario 2: Remote Script & Log Processing
 - [ ] **Configure Log Extraction Pipeline** — SSH step (run script) + existing `ReportStep` (query the updated table) + Email step
