@@ -44,7 +44,8 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
     <div ref={setNodeRef} style={{ ...style, marginBottom: 6 }}>
       <div style={{
         background: expanded ? 'var(--surface)' : 'var(--bg-code)',
-        border: `1px solid ${expanded ? 'var(--border-strong)' : 'var(--border)'}`,
+        border: `1px solid ${step.parallel_group ? 'rgba(99,102,241,0.5)' : expanded ? 'var(--border-strong)' : 'var(--border)'}`,
+        borderLeft: step.parallel_group ? '3px solid #6366f1' : undefined,
         borderRadius: 10,
         overflow: 'hidden',
       }}>
@@ -59,6 +60,11 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
           </span>
 
           <span className={`tbadge ${meta.cls}`}>{meta.label}</span>
+          {step.parallel_group && (
+            <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 3, background: 'rgba(99,102,241,0.15)', color: '#818CF8', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
+              ∥ {step.parallel_group}
+            </span>
+          )}
 
           <input
             style={{ background: 'transparent', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 13, fontWeight: 500, flex: 1, fontFamily: 'inherit', cursor: 'text' }}
@@ -97,6 +103,17 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
               style={{ width: 52, height: 26, padding: '0 6px', fontSize: 11 }}
             />
             <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>s</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} title="Steps sharing the same group name run concurrently">
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>∥ Group</span>
+            <input
+              className="input mono-input"
+              placeholder="none"
+              value={step.parallel_group ?? ''}
+              onChange={e => onChange(step.id, { parallel_group: e.target.value.trim() || null })}
+              style={{ width: 72, height: 26, padding: '0 6px', fontSize: 11 }}
+            />
           </div>
 
           <button onClick={() => setExpanded(x => !x)} className="btn btn-sm btn-ghost btn-icon">

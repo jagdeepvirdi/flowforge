@@ -11,7 +11,7 @@ from flowforge.api.serializers import run_dict
 from flowforge.api.validators import validate_pipeline, validate_pipeline_variable
 from flowforge import audit
 from flowforge.crypto import decrypt_value, encrypt_value
-from flowforge.db.models import DEFAULT_PROJECT_ID, Pipeline, PipelineRun, PipelineVariable, Project, WebhookToken, db
+from flowforge.db.models import DEFAULT_PROJECT_ID, Pipeline, PipelineDependency, PipelineRun, PipelineStep, PipelineVariable, Project, WebhookToken, db
 from flowforge.engine.launcher import launch_run
 
 bp = Blueprint('pipelines', __name__)
@@ -76,7 +76,6 @@ def _replace_pipeline_variables(pipeline: Pipeline, variables_data: list) -> Non
 
 
 def _add_pipeline_steps(pipeline_id: str, steps_data: list) -> None:
-    from flowforge.db.models import PipelineStep
     for s in steps_data:
         db.session.add(PipelineStep(
             pipeline_id=pipeline_id,
@@ -86,6 +85,7 @@ def _add_pipeline_steps(pipeline_id: str, steps_data: list) -> None:
             config=s.get('config') or {},
             on_error=s.get('on_error', 'stop'),
             enabled=s.get('enabled', True),
+            parallel_group=s.get('parallel_group') or None,
         ))
 
 
@@ -116,13 +116,14 @@ def _pipeline_dict(p: Pipeline) -> dict:
         'updated_at': p.updated_at.isoformat() if p.updated_at else None,
         'steps': [
             {
-                'id': s.id,
-                'step_order': s.step_order,
-                'name': s.name,
-                'step_type': s.step_type,
-                'config': s.config,
-                'on_error': s.on_error,
-                'enabled': s.enabled,
+                'id':             s.id,
+                'step_order':     s.step_order,
+                'name':           s.name,
+                'step_type':      s.step_type,
+                'config':         s.config,
+                'on_error':       s.on_error,
+                'enabled':        s.enabled,
+                'parallel_group': s.parallel_group,
             }
             for s in p.steps
         ],
@@ -134,6 +135,14 @@ def _pipeline_dict(p: Pipeline) -> dict:
                 'is_secret': v.is_secret,
             }
             for v in p.variables
+        ],
+        'upstream_deps': [
+            {'dep_id': d.id, 'pipeline_id': d.upstream_id, 'pipeline_name': d.upstream.name}
+            for d in p.upstream_deps
+        ],
+        'downstream_deps': [
+            {'dep_id': d.id, 'pipeline_id': d.downstream_id, 'pipeline_name': d.downstream.name}
+            for d in p.downstream_deps
         ],
     }
 
@@ -284,6 +293,7 @@ def clone_pipeline(pipeline_id):
             config=dict(s.config),
             on_error=s.on_error,
             enabled=s.enabled,
+            parallel_group=s.parallel_group,
         ))
 
     for v in src.variables:
@@ -519,6 +529,84 @@ def create_webhook_token(pipeline_id):
     db.session.add(wt)
     db.session.commit()
     return jsonify(_webhook_token_dict(wt, raw=raw)), 201
+
+
+# ── Pipeline Dependencies ─────────────────────────────────────────────────────
+
+def _has_path(start_id: str, target_id: str) -> bool:
+    """Return True if there is a dependency path from start_id to target_id (cycle detection)."""
+    visited: set[str] = set()
+    queue = [start_id]
+    while queue:
+        current = queue.pop()
+        if current == target_id:
+            return True
+        if current in visited:
+            continue
+        visited.add(current)
+        deps = db.session.query(PipelineDependency).filter_by(upstream_id=current).all()
+        queue.extend(d.downstream_id for d in deps)
+    return False
+
+
+@bp.get('/pipelines/<uuid:pipeline_id>/dependencies')
+@require_auth
+def get_dependencies(pipeline_id):
+    pipeline = db.session.get(Pipeline, str(pipeline_id))
+    if not pipeline:
+        return jsonify({'error': _NOT_FOUND}), 404
+    return jsonify({
+        'upstream':   [{'dep_id': d.id, 'pipeline_id': d.upstream_id,   'pipeline_name': d.upstream.name}   for d in pipeline.upstream_deps],
+        'downstream': [{'dep_id': d.id, 'pipeline_id': d.downstream_id, 'pipeline_name': d.downstream.name} for d in pipeline.downstream_deps],
+    })
+
+
+@bp.post('/pipelines/<uuid:pipeline_id>/dependencies')
+@require_role(['admin', 'editor'])
+def add_dependency(pipeline_id):
+    """Add an upstream dependency: this pipeline runs after upstream_id succeeds."""
+    downstream_id = str(pipeline_id)
+    pipeline = db.session.get(Pipeline, downstream_id)
+    if not pipeline:
+        return jsonify({'error': _NOT_FOUND}), 404
+
+    data = request.get_json(silent=True) or {}
+    upstream_id = str(data.get('upstream_id', '')).strip()
+    if not upstream_id:
+        return jsonify({'error': 'upstream_id is required'}), 400
+    if upstream_id == downstream_id:
+        return jsonify({'error': 'A pipeline cannot depend on itself'}), 400
+    if not db.session.get(Pipeline, upstream_id):
+        return jsonify({'error': 'upstream pipeline not found'}), 404
+
+    # Cycle detection: would adding this create a cycle?
+    if _has_path(downstream_id, upstream_id):
+        return jsonify({'error': 'Adding this dependency would create a circular dependency'}), 409
+
+    # Duplicate check
+    existing = db.session.query(PipelineDependency).filter_by(
+        upstream_id=upstream_id, downstream_id=downstream_id
+    ).first()
+    if existing:
+        return jsonify({'error': 'Dependency already exists'}), 409
+
+    dep = PipelineDependency(upstream_id=upstream_id, downstream_id=downstream_id)
+    db.session.add(dep)
+    db.session.commit()
+    return jsonify({'dep_id': dep.id, 'upstream_id': upstream_id, 'downstream_id': downstream_id}), 201
+
+
+@bp.delete('/pipelines/<uuid:pipeline_id>/dependencies/<uuid:dep_id>')
+@require_role(['admin', 'editor'])
+def remove_dependency(pipeline_id, dep_id):
+    dep = db.session.query(PipelineDependency).filter_by(
+        id=str(dep_id), downstream_id=str(pipeline_id)
+    ).first()
+    if not dep:
+        return jsonify({'error': 'Dependency not found'}), 404
+    db.session.delete(dep)
+    db.session.commit()
+    return jsonify({'deleted': str(dep_id)})
 
 
 @bp.delete('/pipelines/<uuid:pipeline_id>/webhook-tokens/<uuid:token_id>')

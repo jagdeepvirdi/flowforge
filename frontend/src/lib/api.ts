@@ -91,6 +91,14 @@ export const exportPipeline   = async (id: string): Promise<Blob> => {
 export const importPipeline   = (yamlContent: string) =>
   post<import('./types').Pipeline>('/pipelines/import', { yaml_content: yamlContent })
 export const getPipelineRuns  = (id: string) => get<import('./types').PipelineRun[]>(`/pipelines/${id}/runs`)
+
+// Pipeline dependencies
+export const getPipelineDeps    = (id: string) =>
+  get<{ upstream: import('./types').PipelineDep[]; downstream: import('./types').PipelineDep[] }>(`/pipelines/${id}/dependencies`)
+export const addPipelineDep     = (id: string, upstream_id: string) =>
+  post<{ dep_id: string }>(`/pipelines/${id}/dependencies`, { upstream_id })
+export const removePipelineDep  = (id: string, dep_id: string) =>
+  del<{ deleted: string }>(`/pipelines/${id}/dependencies/${dep_id}`)
 export const getDashboardSummary = (projectId?: string) => {
   const qs = projectId ? `?project_id=${projectId}` : ''
   return get<{ pipeline_runs: Record<string, import('./types').PipelineRun[]> }>(`/dashboard/summary${qs}`)

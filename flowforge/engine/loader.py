@@ -72,7 +72,9 @@ def load_pipeline(pipeline_id: str) -> tuple[list[BaseStep], dict[str, str], set
 
         cls = _import_step_class(cls_path)
         config = dict(step_row.config)
-        config['on_error'] = step_row.on_error
+        config['on_error']        = step_row.on_error
+        config['parallel_group']  = step_row.parallel_group
+        config['_db_step_order']  = step_row.step_order
         steps.append(cls(name=step_row.name, config=config))
         logger.debug("Loaded step %d: %s (%s)", step_row.step_order, step_row.name, step_row.step_type)
 

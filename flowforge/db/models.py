@@ -235,6 +235,12 @@ class Pipeline(db.Model):
     webhook_tokens = relationship('WebhookToken', back_populates='pipeline',
                                   cascade=_CASCADE)
     project        = relationship('Project', back_populates='pipelines')
+    upstream_deps  = relationship('PipelineDependency',
+                                  foreign_keys='PipelineDependency.downstream_id',
+                                  back_populates='downstream', cascade=_CASCADE)
+    downstream_deps = relationship('PipelineDependency',
+                                   foreign_keys='PipelineDependency.upstream_id',
+                                   back_populates='upstream', cascade=_CASCADE)
 
 
 class PipelineStep(db.Model):
@@ -248,14 +254,15 @@ class PipelineStep(db.Model):
         UniqueConstraint('pipeline_id', 'step_order', name='uq_pipeline_step_order'),
     )
 
-    id          = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
-    pipeline_id = Column(UUID(as_uuid=False), ForeignKey(_FF_PIPELINES_ID, ondelete='CASCADE'), nullable=False)
-    step_order  = Column(Integer, nullable=False)
-    name        = Column(String(255), nullable=False)
-    step_type   = Column(String(50), nullable=False)
-    config      = Column(JSONB, nullable=False, default=dict)
-    on_error    = Column(String(20), default='stop')
-    enabled     = Column(Boolean, default=True)
+    id             = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    pipeline_id    = Column(UUID(as_uuid=False), ForeignKey(_FF_PIPELINES_ID, ondelete='CASCADE'), nullable=False)
+    step_order     = Column(Integer, nullable=False)
+    name           = Column(String(255), nullable=False)
+    step_type      = Column(String(50), nullable=False)
+    config         = Column(JSONB, nullable=False, default=dict)
+    on_error       = Column(String(20), default='stop')
+    enabled        = Column(Boolean, default=True)
+    parallel_group = Column(String(100))  # non-null steps with same value run concurrently
 
     pipeline = relationship('Pipeline', back_populates='steps')
 
@@ -274,6 +281,23 @@ class PipelineVariable(db.Model):
     is_secret   = Column(Boolean, default=False)
 
     pipeline = relationship('Pipeline', back_populates='variables')
+
+
+class PipelineDependency(db.Model):
+    """Downstream pipeline B runs automatically when all its upstream pipelines succeed."""
+    __tablename__ = 'ff_pipeline_dependencies'
+    __table_args__ = (
+        UniqueConstraint('upstream_id', 'downstream_id', name='uq_pipeline_dependency'),
+        CheckConstraint('upstream_id != downstream_id', name='ck_no_self_dependency'),
+    )
+
+    id            = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    upstream_id   = Column(UUID(as_uuid=False), ForeignKey(_FF_PIPELINES_ID, ondelete='CASCADE'), nullable=False, index=True)
+    downstream_id = Column(UUID(as_uuid=False), ForeignKey(_FF_PIPELINES_ID, ondelete='CASCADE'), nullable=False, index=True)
+    created_at    = Column(DateTime(timezone=True), default=_utcnow)
+
+    upstream   = relationship('Pipeline', foreign_keys=[upstream_id],   back_populates='downstream_deps')
+    downstream = relationship('Pipeline', foreign_keys=[downstream_id], back_populates='upstream_deps')
 
 
 class PipelineRun(db.Model):

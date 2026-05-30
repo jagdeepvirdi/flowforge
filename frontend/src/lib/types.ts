@@ -47,6 +47,8 @@ export interface Pipeline {
   updated_at: string
   steps: PipelineStep[]
   variables: PipelineVariable[]
+  upstream_deps: PipelineDep[]
+  downstream_deps: PipelineDep[]
 }
 
 export interface PipelineStep {
@@ -58,6 +60,13 @@ export interface PipelineStep {
   config: Record<string, unknown>
   on_error: OnError
   enabled: boolean
+  parallel_group: string | null
+}
+
+export interface PipelineDep {
+  dep_id: string
+  pipeline_id: string
+  pipeline_name: string
 }
 
 export interface PipelineVariable {

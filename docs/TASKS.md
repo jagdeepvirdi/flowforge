@@ -195,8 +195,8 @@
 - [ ] Telegram / Slack / Teams notification step
 
 ## Pipeline Features
-- [ ] Pipeline dependencies — run pipeline B only after pipeline A succeeds
-- [ ] Parallel step execution within a single pipeline
+- [x] Pipeline dependencies — `ff_pipeline_dependencies` table; cycle detection; `_trigger_downstream_pipelines()` in runner fires eligible downstreams after success; CRUD at `GET/POST/DELETE /api/pipelines/{id}/dependencies`; Dependencies card in PipelineEdit *(2026-05-30)*
+- [x] Parallel step execution — `parallel_group VARCHAR(100)` on `ff_pipeline_steps`; runner groups steps into waves; same-group steps run in `ThreadPoolExecutor`; context snapshots per thread, outputs merged after wave; visual group badge + indigo border in StepEditor *(2026-05-30)*
 - [ ] Pipeline run diff view — row count and output size delta vs last run
 - [ ] Report column formatting rules — number format, date format, conditional cell colours in Excel
 - [ ] Environment promotion workflow — dev → staging → prod config sync
