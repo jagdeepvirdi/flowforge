@@ -26,7 +26,7 @@ import Sk from '../components/shared/Skeleton'
 import FieldTooltip from '../components/shared/FieldTooltip'
 import RouteErrorBoundary from '../components/shared/RouteErrorBoundary'
 
-const STEP_TYPES: StepType[] = ['db_procedure', 'db_query', 'report', 'email', 'drive_upload', 'data_load', 'bulk_load']
+const STEP_TYPES: StepType[] = ['db_procedure', 'db_query', 'report', 'email', 'drive_upload', 'data_load', 'bulk_load', 'notification']
 
 function newStep(type: StepType, order: number): PipelineStep {
   return {

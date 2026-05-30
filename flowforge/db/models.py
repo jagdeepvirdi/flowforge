@@ -94,7 +94,7 @@ class RecipientGroup(db.Model):
 class EmailProvider(db.Model):
     __tablename__ = 'ff_email_providers'
     __table_args__ = (
-        CheckConstraint("provider_type IN ('gmail', 'microsoft365', 'smtp')", name='ck_email_provider_type'),
+        CheckConstraint("provider_type IN ('gmail', 'microsoft365', 'smtp', 'sendgrid', 'ses', 'mailgun')", name='ck_email_provider_type'),
     )
 
     id            = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
@@ -248,7 +248,7 @@ class PipelineStep(db.Model):
     __tablename__ = 'ff_pipeline_steps'
     __table_args__ = (
         CheckConstraint(
-            "step_type IN ('db_procedure','db_query','report','email','drive_upload','data_load','bulk_load','onedrive_upload','ai_analyze','sftp_transfer','ssh_command','db_health_check','data_report','ssh_health_check')",
+            "step_type IN ('db_procedure','db_query','report','email','drive_upload','data_load','bulk_load','onedrive_upload','ai_analyze','sftp_transfer','ssh_command','db_health_check','data_report','ssh_health_check','notification')",
             name='ck_step_type',
         ),
         CheckConstraint("on_error IN ('stop', 'continue')", name='ck_on_error'),

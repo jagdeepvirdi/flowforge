@@ -51,7 +51,7 @@ def test_create_provider_missing_name(client, headers):
 
 
 def test_create_provider_invalid_type(client, headers):
-    bad = {**SMTP_PAYLOAD, 'provider_type': 'sendgrid'}
+    bad = {**SMTP_PAYLOAD, 'provider_type': 'fax_machine'}
     resp = client.post('/api/email-providers', json=bad, headers=headers)
     assert resp.status_code == 400
 

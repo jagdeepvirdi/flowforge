@@ -189,10 +189,10 @@
 - [ ] AWS S3 / Azure Blob upload step
 - [x] MSSQL / SQL Server connection support — `connections/mssql.py` via `pyodbc`; `flowforge[mssql]` optional extra *(2026-05-30)*
 - [x] Generic ODBC connection support — `connections/odbc.py` via `pyodbc`; DSN or connection string config *(2026-05-30)*
-- [ ] SendGrid API email provider
-- [ ] AWS SES email provider
-- [ ] Mailgun email provider
-- [ ] Telegram / Slack / Teams notification step
+- [x] SendGrid API email provider — `email_providers/sendgrid.py`; Web API v3; base64 attachments; `pip install flowforge[all]` *(2026-05-30)*
+- [x] AWS SES email provider — `email_providers/ses.py`; boto3 SES client; raw MIME for attachments; `pip install flowforge[ses]` *(2026-05-30)*
+- [x] Mailgun email provider — `email_providers/mailgun.py`; Messages API v3; US/EU region; multipart attachments *(2026-05-30)*
+- [x] Telegram / Slack / Teams notification step — `steps/notification.py`; step_type `notification`; platform selector in StepEditor; Slack/Teams via incoming webhook; Telegram via Bot API *(2026-05-30)*
 
 ## Pipeline Features
 - [x] Pipeline dependencies — `ff_pipeline_dependencies` table; cycle detection; `_trigger_downstream_pipelines()` in runner fires eligible downstreams after success; CRUD at `GET/POST/DELETE /api/pipelines/{id}/dependencies`; Dependencies card in PipelineEdit *(2026-05-30)*

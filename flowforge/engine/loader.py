@@ -22,6 +22,7 @@ _STEP_CLASSES: dict[str, str] = {
     'db_health_check':  'flowforge.steps.db_health_check.DbHealthCheckStep',
     'data_report':      'flowforge.steps.script_report.ScriptReportStep',
     'ssh_health_check': 'flowforge.steps.ssh_health_check.SshHealthCheckStep',
+    'notification':     'flowforge.steps.notification.NotificationStep',
 }
 
 

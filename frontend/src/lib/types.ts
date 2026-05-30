@@ -27,10 +27,10 @@ export interface Project {
 }
 
 export type PipelineStatus = 'success' | 'failed' | 'running' | 'cancelled' | 'never run'
-export type StepType = 'db_procedure' | 'db_query' | 'report' | 'email' | 'drive_upload' | 'ai_analyze' | 'data_load' | 'bulk_load'
+export type StepType = 'db_procedure' | 'db_query' | 'report' | 'email' | 'drive_upload' | 'ai_analyze' | 'data_load' | 'bulk_load' | 'notification'
 export type OnError = 'stop' | 'continue'
 export type ReportFormat = 'excel' | 'csv' | 'pdf' | 'json'
-export type ProviderType = 'gmail' | 'microsoft365' | 'smtp'
+export type ProviderType = 'gmail' | 'microsoft365' | 'smtp' | 'sendgrid' | 'ses' | 'mailgun'
 export type DbType = 'postgresql' | 'oracle' | 'mysql' | 'mssql' | 'odbc'
 
 export interface Pipeline {

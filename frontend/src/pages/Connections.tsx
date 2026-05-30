@@ -17,6 +17,7 @@ type Tab = 'db' | 'mail'
 
 const DB_COLORS: Record<string, string> = { postgresql: '#3B82F6', oracle: '#EF4444', mysql: '#14B8A6', mssql: '#A855F7', odbc: '#6B7280' }
 const DB_LABELS: Record<string, string>  = { postgresql: 'PostgreSQL', oracle: 'Oracle', mysql: 'MySQL', mssql: 'SQL Server', odbc: 'ODBC' }
+const PROVIDER_LABELS: Record<string, string> = { gmail: 'Gmail', microsoft365: 'Microsoft 365', smtp: 'SMTP', sendgrid: 'SendGrid', ses: 'AWS SES', mailgun: 'Mailgun' }
 
 function StatCol({ label, value }: { label: string; value: string }) {
   return (
@@ -39,13 +40,19 @@ type DbForm = {
 }
 
 type MailForm = {
-  name: string; provider_type: 'gmail' | 'microsoft365' | 'smtp'
+  name: string; provider_type: 'gmail' | 'microsoft365' | 'smtp' | 'sendgrid' | 'ses' | 'mailgun'
   // smtp
   host: string; port: string; username: string; password: string
   use_tls: boolean
   // gmail/m365
   client_id: string; client_secret: string; refresh_token: string; sender: string
   tenant_id: string
+  // sendgrid / mailgun / ses
+  api_key: string; from_email: string; from_name: string
+  // ses
+  aws_access_key_id: string; aws_secret_access_key: string; aws_region: string
+  // mailgun
+  domain: string; region: string
   is_default: boolean
 }
 
@@ -60,6 +67,9 @@ const emptyMail = (): MailForm => ({
   name: '', provider_type: 'smtp', host: '', port: '587',
   username: '', password: '', use_tls: true,
   client_id: '', client_secret: '', refresh_token: '', sender: '', tenant_id: '',
+  api_key: '', from_email: '', from_name: '',
+  aws_access_key_id: '', aws_secret_access_key: '', aws_region: 'us-east-1',
+  domain: '', region: 'us',
   is_default: false,
 })
 
@@ -74,15 +84,25 @@ function defaultDbPort(dbType: string): string {
 
 
 function buildMailProviderConfig(form: MailForm): Record<string, unknown> {
-  const config: Record<string, unknown> = { sender: form.sender }
   if (form.provider_type === 'smtp') {
-    Object.assign(config, { host: form.host, port: Number(form.port), username: form.username, password: form.password, use_tls: form.use_tls })
-  } else if (form.provider_type === 'gmail') {
-    Object.assign(config, { client_id: form.client_id, client_secret: form.client_secret, refresh_token: form.refresh_token })
-  } else {
-    Object.assign(config, { tenant_id: form.tenant_id, client_id: form.client_id, client_secret: form.client_secret })
+    return { host: form.host, port: Number(form.port), username: form.username, password: form.password, use_tls: form.use_tls, sender: form.sender }
   }
-  return config
+  if (form.provider_type === 'gmail') {
+    return { client_id: form.client_id, client_secret: form.client_secret, refresh_token: form.refresh_token, sender: form.sender }
+  }
+  if (form.provider_type === 'microsoft365') {
+    return { tenant_id: form.tenant_id, client_id: form.client_id, client_secret: form.client_secret, sender: form.sender }
+  }
+  if (form.provider_type === 'sendgrid') {
+    return { api_key: form.api_key, from_email: form.from_email, from_name: form.from_name }
+  }
+  if (form.provider_type === 'ses') {
+    return { aws_access_key_id: form.aws_access_key_id, aws_secret_access_key: form.aws_secret_access_key, aws_region: form.aws_region, from_email: form.from_email, from_name: form.from_name }
+  }
+  if (form.provider_type === 'mailgun') {
+    return { api_key: form.api_key, domain: form.domain, from_email: form.from_email, from_name: form.from_name, region: form.region }
+  }
+  return {}
 }
 
 function Field({ label, children, tooltip }: { label: string; children: React.ReactNode; tooltip?: React.ReactNode }) {
@@ -178,11 +198,20 @@ export default function Connections() {
     } else {
       getEmailProvider(id).then(data => {
         const cfg = (data as any).config ?? {}
-        setMailForm({ name: data.name, provider_type: data.provider_type as MailForm['provider_type'],
+        setMailForm({
+          name: data.name, provider_type: data.provider_type as MailForm['provider_type'],
           is_default: data.is_default, sender: cfg.sender ?? '',
           host: cfg.host ?? '', port: String(cfg.port ?? 587),
           username: cfg.username ?? '', password: '***', use_tls: cfg.use_tls ?? true,
-          client_id: cfg.client_id ?? '', client_secret: '***', refresh_token: cfg.refresh_token ? '***' : '', tenant_id: cfg.tenant_id ?? '' })
+          client_id: cfg.client_id ?? '', client_secret: '***',
+          refresh_token: cfg.refresh_token ? '***' : '', tenant_id: cfg.tenant_id ?? '',
+          api_key: cfg.api_key ? '***' : '', from_email: cfg.from_email ?? '',
+          from_name: cfg.from_name ?? '',
+          aws_access_key_id: cfg.aws_access_key_id ? '***' : '',
+          aws_secret_access_key: cfg.aws_secret_access_key ? '***' : '',
+          aws_region: cfg.aws_region ?? 'us-east-1',
+          domain: cfg.domain ?? '', region: cfg.region ?? 'us',
+        })
       }).catch(() => setFormError('Failed to load provider details'))
     }
   }
@@ -433,11 +462,11 @@ export default function Connections() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
                         <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{p.name}</span>
-                        <span className="mono" style={{ fontSize: 10.5, padding: '1px 6px', borderRadius: 4, background: 'var(--surface-2)', color: 'var(--text-3)' }}>{p.provider_type}</span>
+                        <span className="mono" style={{ fontSize: 10.5, padding: '1px 6px', borderRadius: 4, background: 'var(--surface-2)', color: 'var(--text-3)' }}>{PROVIDER_LABELS[p.provider_type] ?? p.provider_type}</span>
                         {ts === 'ok'   && <StatusBadge status="success" label="Verified" />}
                         {ts === 'fail' && <StatusBadge status="failed"  label="Failed" />}
                       </div>
-                      <div className="mono" style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{p.provider_type} · {p.is_default ? 'default' : 'not default'}</div>
+                      <div className="mono" style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{PROVIDER_LABELS[p.provider_type] ?? p.provider_type} · {p.is_default ? 'default' : 'not default'}</div>
                       {ts === 'fail' && testErrors[p.id] && (
                         <div className="mono" style={{ fontSize: 11, color: 'var(--failure)', marginTop: 4, wordBreak: 'break-all' }}>{testErrors[p.id]}</div>
                       )}
@@ -615,6 +644,9 @@ export default function Connections() {
                     <option value="smtp">SMTP (Generic)</option>
                     <option value="gmail">Gmail (OAuth2)</option>
                     <option value="microsoft365">Microsoft 365 (OAuth2)</option>
+                    <option value="sendgrid">SendGrid</option>
+                    <option value="ses">AWS SES</option>
+                    <option value="mailgun">Mailgun</option>
                   </select>
                 </Field>
 
@@ -669,6 +701,70 @@ export default function Connections() {
                         </span>
                       </Field>
                     )}
+                  </>
+                )}
+
+                {/* SendGrid */}
+                {mailForm.provider_type === 'sendgrid' && (
+                  <>
+                    <Field label="API Key">
+                      <input className="input" type="password" value={mailForm.api_key} onChange={e => setMailForm(f => ({ ...f, api_key: e.target.value }))} required />
+                    </Field>
+                    <Field label="From Email">
+                      <input className="input" type="email" value={mailForm.from_email} onChange={e => setMailForm(f => ({ ...f, from_email: e.target.value }))} required />
+                    </Field>
+                    <Field label="From Name (optional)">
+                      <input className="input" value={mailForm.from_name} onChange={e => setMailForm(f => ({ ...f, from_name: e.target.value }))} />
+                    </Field>
+                  </>
+                )}
+
+                {/* AWS SES */}
+                {mailForm.provider_type === 'ses' && (
+                  <>
+                    <Field label="AWS Access Key ID">
+                      <input className="input mono-input" value={mailForm.aws_access_key_id} onChange={e => setMailForm(f => ({ ...f, aws_access_key_id: e.target.value }))} required />
+                    </Field>
+                    <Field label="AWS Secret Access Key">
+                      <input className="input" type="password" value={mailForm.aws_secret_access_key} onChange={e => setMailForm(f => ({ ...f, aws_secret_access_key: e.target.value }))} required />
+                    </Field>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <Field label="AWS Region">
+                        <input className="input mono-input" value={mailForm.aws_region} onChange={e => setMailForm(f => ({ ...f, aws_region: e.target.value }))} placeholder="us-east-1" required />
+                      </Field>
+                      <Field label="From Email">
+                        <input className="input" type="email" value={mailForm.from_email} onChange={e => setMailForm(f => ({ ...f, from_email: e.target.value }))} required />
+                      </Field>
+                    </div>
+                    <Field label="From Name (optional)">
+                      <input className="input" value={mailForm.from_name} onChange={e => setMailForm(f => ({ ...f, from_name: e.target.value }))} />
+                    </Field>
+                  </>
+                )}
+
+                {/* Mailgun */}
+                {mailForm.provider_type === 'mailgun' && (
+                  <>
+                    <Field label="API Key">
+                      <input className="input" type="password" value={mailForm.api_key} onChange={e => setMailForm(f => ({ ...f, api_key: e.target.value }))} required />
+                    </Field>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10 }}>
+                      <Field label="Domain">
+                        <input className="input mono-input" value={mailForm.domain} onChange={e => setMailForm(f => ({ ...f, domain: e.target.value }))} placeholder="mg.yourdomain.com" required />
+                      </Field>
+                      <Field label="Region">
+                        <select className="input" value={mailForm.region} onChange={e => setMailForm(f => ({ ...f, region: e.target.value }))} style={{ height: 34 }}>
+                          <option value="us">US</option>
+                          <option value="eu">EU</option>
+                        </select>
+                      </Field>
+                    </div>
+                    <Field label="From Email">
+                      <input className="input" type="email" value={mailForm.from_email} onChange={e => setMailForm(f => ({ ...f, from_email: e.target.value }))} required />
+                    </Field>
+                    <Field label="From Name (optional)">
+                      <input className="input" value={mailForm.from_name} onChange={e => setMailForm(f => ({ ...f, from_name: e.target.value }))} />
+                    </Field>
                   </>
                 )}
 
