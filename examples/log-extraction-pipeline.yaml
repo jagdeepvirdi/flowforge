@@ -1,0 +1,67 @@
+# FlowForge — Remote Script & Log Processing Pipeline
+#
+# Runs a remote script via SSH, queries the DB table the script updated,
+# generates an Excel report, and emails both the script log and the Excel
+# as attachments.
+#
+# HOW TO USE:
+#   1. Go to Settings → Import Pipeline and upload this file.
+#   2. Replace all <YOUR_*_ID> placeholders:
+#        - <YOUR_SSH_CONNECTION_ID>   : SSH Connection (Connections → SSH)
+#        - <YOUR_DB_CONNECTION_ID>    : DB Connection (Connections → Database)
+#        - <YOUR_REPORT_CONFIG_ID>    : Report Config (Report Designer)
+#        - <YOUR_EMAIL_CONFIG_ID>     : Email Config (Email Designer)
+#   3. Update the 'command' field with your actual script path.
+#   4. Enable the pipeline and click "Run Now" to test.
+#
+# See docs/scenarios/log-extraction.md for the email body template,
+# alerting variant, and common script patterns.
+
+name: Nightly Data Extract & Report
+description: >
+  Runs a remote extraction script via SSH, queries the DB table it updates,
+  generates an Excel report, and emails both the script log and the Excel.
+schedule: "0 2 * * 1-5"
+enabled: false
+timeout_minutes: 60
+send_only_on_failure: false
+
+steps:
+  # Step 1 — run the remote script
+  # stdout + stderr are saved to a .log file for email attachment.
+  # The script is expected to populate a DB table queried in step 2.
+  - name: run_extraction
+    step_type: ssh_command
+    step_order: 1
+    config:
+      ssh_connection_id: <YOUR_SSH_CONNECTION_ID>
+      command: "python /opt/scripts/nightly_extract.py --date {{ current_date }}"
+      timeout: 300
+      save_output: true
+      output_filename: "extract_{{ current_date }}.log"
+      include_stderr: true
+    on_error: stop
+    enabled: true
+
+  # Step 2 — generate Excel from the DB table the script populated
+  - name: generate_report
+    step_type: report
+    step_order: 2
+    config:
+      report_config_id: <YOUR_REPORT_CONFIG_ID>
+    on_error: stop
+    enabled: true
+
+  # Step 3 — email both the script log and the Excel report
+  - name: send_results
+    step_type: email
+    step_order: 3
+    config:
+      email_config_id: <YOUR_EMAIL_CONFIG_ID>
+      attachments:
+        - "{{ steps.run_extraction.output_path }}"
+        - "{{ steps.generate_report.output_path }}"
+    on_error: continue
+    enabled: true
+
+variables: []

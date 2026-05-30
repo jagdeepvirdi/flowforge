@@ -227,8 +227,8 @@
 - [x] **Conditional Execution**: Threshold-check SSH step exits 1 on breach; `send_only_on_failure: true` suppresses routine emails — documented with example in alerting YAML template
 
 ### 9.3 Scenario 2: Remote Script & Log Processing
-- [ ] **Configure Log Extraction Pipeline** — SSH step (run script) + existing `ReportStep` (query the updated table) + Email step
-- [ ] **Log Handling**: Attach the stdout/stderr log from the SSH step directly to the email alongside the Excel.
+- [x] **Configure Log Extraction Pipeline** — importable YAML in `examples/log-extraction-pipeline.yaml` (SSH → Report → Email, 3 steps)
+- [x] **Log Handling**: `ssh_command` gains `save_output: true` — writes stdout/stderr to a `.log` file and sets `output_path`; attach alongside Excel via `{{ steps.<name>.output_path }}`
 
 ---
 

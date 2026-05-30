@@ -68,6 +68,7 @@ All documentation files in this directory and what they contain.
 |---|---|
 | `scenarios/` | End-to-end pipeline setup guides for real-world use cases |
 | `scenarios/health-monitoring.md` | Daily infrastructure health monitoring — SSH metrics + DB health + Excel report + conditional alerts |
+| `scenarios/log-extraction.md` | Remote script & log processing — SSH run script + DB report + email with log + Excel attached |
 | `feature-requests/` | Extended notes and design decisions for specific features (e.g., `manual-testing-reviews.md`) |
 | `screenshots/` | UI screenshots used in README and docs |
 

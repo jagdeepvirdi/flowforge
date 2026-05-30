@@ -378,26 +378,60 @@ Or using the step namespace (useful when multiple ai_analyze steps run):
 
 ## ssh_command
 
-Executes a command on a remote server via SSH. Captures stdout into a pipeline variable for use in downstream steps. Requires an **SSH Connection** configured in the Connections page.
+Executes a command or script on a remote server via SSH. Can capture stdout into a pipeline variable, save the full output to a file for email attachment, or both. Requires an **SSH Connection** configured in the Connections page.
 
 ```yaml
 step_type: ssh_command
 config:
   ssh_connection_id: <uuid>        # SSH Connection from Connections page (required)
-  command: "df -h"                 # shell command — supports {{ variables }}
+  command: "python /scripts/extract.py --date {{ current_date }}"   # supports {{ variables }}
   timeout: 60                      # execution timeout in seconds (default: 60)
   capture_output: true             # include stdout/stderr in Run History logs (default: true)
-  output_var: disk_usage_raw       # store stdout in this pipeline variable (optional)
+  output_var: script_result        # store stdout in this pipeline variable (optional)
+  save_output: false               # save stdout to a file for email attachment (default: false)
+  output_filename: "script_{{ current_date }}.log"   # filename when save_output is true (optional)
+  include_stderr: true             # append stderr section to saved file (default: true)
 ```
 
-**`output_var`:** When set, the command's stdout is injected into the pipeline context as `{{ disk_usage_raw }}`. Use it in downstream `data_report` step configs or `email` body templates.
+**`output_var`:** When set, stdout is injected into the pipeline context as `{{ script_result }}`. Use it in downstream step configs or email body templates.
 
-**Exit codes:** A non-zero exit status fails the step. This is useful for threshold checks — write a command that exits 1 when a condition is breached, then set `on_error: stop` to halt the pipeline (and optionally send a failure alert via `send_only_on_failure`).
+**`save_output`:** When `true`, stdout (and optionally stderr) is written to a file and `output_path` is set on the result — so it can be attached to a downstream `email` step alongside an Excel report:
 
-**Host key verification:** By default FlowForge uses strict host key checking (`RejectPolicy`). Set `FLOWFORGE_SSH_ALLOW_UNKNOWN_HOSTS=true` to auto-accept unknown hosts (not recommended for production). The recommended approach is to add the host key via `ssh-keyscan -H <host> >> ~/.ssh/known_hosts` on the FlowForge server.
+```yaml
+# Step 1 — run the remote script, save its log
+- name: run_extraction
+  step_type: ssh_command
+  config:
+    ssh_connection_id: <uuid>
+    command: "python /scripts/nightly_extract.py --date {{ current_date }}"
+    save_output: true
+    output_filename: "extract_{{ current_date }}.log"
+
+# Step 2 — generate Excel from the updated DB table
+- name: generate_report
+  step_type: report
+  config:
+    report_config_id: <uuid>
+
+# Step 3 — email both the log and the Excel
+- name: send_results
+  step_type: email
+  config:
+    email_config_id: <uuid>
+    attachments:
+      - "{{ steps.run_extraction.output_path }}"
+      - "{{ steps.generate_report.output_path }}"
+```
+
+`output_path` is set even when the command exits non-zero, so the log file is always available for diagnosis.
+
+**Exit codes:** A non-zero exit status fails the step. This is useful for threshold checks — write a command that exits 1 when a condition is breached, then set `on_error: stop` to halt the pipeline (and optionally alert via `send_only_on_failure`).
+
+**Host key verification:** By default FlowForge uses strict host key checking (`RejectPolicy`). Set `FLOWFORGE_SSH_ALLOW_UNKNOWN_HOSTS=true` to auto-accept unknown hosts (not recommended for production). The recommended approach is `ssh-keyscan -H <host> >> ~/.ssh/known_hosts` on the FlowForge server.
 
 **Outputs:**
-- `{{ <output_var> }}` — stdout of the command, trimmed (only when `output_var` is set)
+- `{{ steps.<name>.output_path }}` — path to saved log file (only when `save_output: true`)
+- `{{ <output_var> }}` — stdout trimmed (only when `output_var` is set)
 
 ---
 
