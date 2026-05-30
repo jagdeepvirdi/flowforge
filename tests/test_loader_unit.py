@@ -277,6 +277,9 @@ def test_load_pipeline_known_step_types_all_importable():
 
 def test_all_expected_step_types_registered():
     from flowforge.engine.loader import _STEP_CLASSES
-    expected = {'db_procedure', 'db_query', 'report', 'email', 'drive_upload',
-                'onedrive_upload', 'data_load', 'bulk_load', 'ai_analyze', 'sftp_transfer'}
+    expected = {
+        'db_procedure', 'db_query', 'report', 'email', 'drive_upload',
+        'onedrive_upload', 'ai_analyze', 'data_load', 'bulk_load', 'sftp_transfer',
+        'ssh_command', 'db_health_check', 'data_report', 'ssh_health_check',
+    }
     assert expected.issubset(_STEP_CLASSES.keys())

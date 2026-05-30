@@ -403,18 +403,20 @@ config:
 
 ## db_health_check
 
-Collects industry-standard health metrics from a configured database connection and writes them to the step log. Results are visible in Run History → step logs.
+Collects industry-standard health metrics from a configured database connection, generates an Excel or CSV report, and writes a text summary to step logs. The report file can be attached to a downstream `email` step.
 
 ```yaml
 step_type: db_health_check
 config:
-  connection_id: <uuid>   # DB Connection from Connections page (required)
+  connection_id: <uuid>        # DB Connection from Connections page (required)
+  format: excel                # 'excel' | 'csv'  (default: excel)
+  output_filename: "db_health_{{ current_date }}.xlsx"   # optional
 ```
 
-**PostgreSQL metrics collected:**
+**PostgreSQL metrics collected (one Excel sheet each):**
 - Active sessions (`pg_stat_activity`)
 - Buffer cache hit ratio (`pg_statio_user_tables`)
-- Replication lag in bytes (`pg_stat_replication`) — skipped silently if no replicas
+- Replication lag per replica (`pg_stat_replication`) — omitted if no replicas
 
 **Oracle metrics collected:**
 - Active user sessions (`v$session`)
@@ -424,9 +426,53 @@ config:
 **MySQL metrics collected:**
 - Connected threads (`SHOW STATUS`)
 
-**Outputs:** Writes to step logs only — metrics are visible in Run History. No pipeline variables are set.
+**Outputs:**
+- `{{ steps.<name>.output_path }}` — path to the generated report file
 
-**Pattern:** Combine with `send_only_on_failure: true` on the pipeline and an `ssh_command` threshold-check step to only email when something is wrong.
+Use in a downstream `email` step:
+```yaml
+attachments:
+  - "{{ steps.check_db.output_path }}"
+```
+
+## ssh_health_check
+
+Connects to a server via SSH, collects standard system health metrics, and generates an Excel or CSV report file. All four metrics are collected by default; use the `metrics` field to select specific ones.
+
+```yaml
+step_type: ssh_health_check
+config:
+  ssh_connection_id: <uuid>   # SSH Connection from Connections page (required)
+  metrics:                    # optional — all four enabled by default
+    - load_average            # uptime: 1/5/15-min load + CPU count
+    - memory                  # free -m: RAM and swap (total / used / free)
+    - disk_usage              # df -h: per-filesystem usage
+    - top_processes           # ps aux: top 10 processes by CPU
+  format: excel               # 'excel' | 'csv'  (default: excel)
+  output_filename: "ssh_health_{{ current_date }}.xlsx"  # optional
+```
+
+Each metric becomes one sheet in the Excel report (or one section in CSV).
+
+**Metric details:**
+
+| Metric | Command | Columns |
+|---|---|---|
+| `load_average` | `cat /proc/loadavg && nproc` | Metric, Value |
+| `memory` | `free -m` | Type, Total, Used, Free, Available |
+| `disk_usage` | `df -h` | Filesystem, Size, Used, Available, Use%, Mounted On |
+| `top_processes` | `ps aux --sort=-%cpu \| head -11` | User, PID, CPU%, MEM%, Command |
+
+**Fault tolerance:** If one metric command fails (e.g. the server lacks `ps`), that metric is skipped with a warning. The step still succeeds with whatever metrics were collected. The step only fails if *all* metrics fail, or if the SSH connection itself cannot be established.
+
+**Outputs:**
+- `{{ steps.<name>.output_path }}` — path to the generated report file
+
+Use in a downstream `email` step:
+```yaml
+attachments:
+  - "{{ steps.check_server.output_path }}"
+```
 
 ---
 

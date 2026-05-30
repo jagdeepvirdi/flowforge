@@ -18,9 +18,10 @@ _STEP_CLASSES: dict[str, str] = {
     'bulk_load':       'flowforge.steps.bulk_load.BulkLoadStep',
     'ai_analyze':      'flowforge.steps.ai_analyze.AiAnalyzeStep',
     'sftp_transfer':   'flowforge.steps.sftp_transfer.SftpTransferStep',
-    'ssh_command':     'flowforge.steps.ssh_command.SshCommandStep',
-    'db_health_check': 'flowforge.steps.db_health_check.DbHealthCheckStep',
-    'data_report':     'flowforge.steps.script_report.ScriptReportStep',
+    'ssh_command':      'flowforge.steps.ssh_command.SshCommandStep',
+    'db_health_check':  'flowforge.steps.db_health_check.DbHealthCheckStep',
+    'data_report':      'flowforge.steps.script_report.ScriptReportStep',
+    'ssh_health_check': 'flowforge.steps.ssh_health_check.SshHealthCheckStep',
 }
 
 
