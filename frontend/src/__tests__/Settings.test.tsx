@@ -11,6 +11,10 @@ vi.mock('../lib/api', () => ({
     ai:           { enabled: true, ollama_url: 'http://localhost:11434', model: 'llama3.2:3b' },
     retention:    { run_days: 90, audit_days: 90 },
   })),
+  getMfaStatus:   vi.fn(() => Promise.resolve({ mfa_enabled: false, sso_provider: null })),
+  mfaEnroll:      vi.fn(() => Promise.resolve({ provisioning_uri: '', secret: '' })),
+  mfaConfirm:     vi.fn(() => Promise.resolve({ backup_codes: [] })),
+  mfaDisable:     vi.fn(() => Promise.resolve({ message: 'ok' })),
   changePassword: vi.fn(() => Promise.resolve({})),
   getProjects:    vi.fn(() => Promise.resolve([])),
 }))

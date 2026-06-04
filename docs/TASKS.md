@@ -52,7 +52,72 @@
 - [x] Replace `dict()` / `list()` constructor calls with literals `{}` / `[]` — `sftp_transfer.py:60`
 
 ### 2.2 OpenSSF Scorecard
-- [ ] Review final Scorecard score after next weekly run (Saturday); target ≥ 7.0
+**Current score: 6.0 / 10** (2026-05-30) — target ≥ 8.0
+Report: https://securityscorecards.dev/viewer/?uri=github.com/jagdeepvirdi/flowforge
+
+#### Passing checks (no action needed)
+- Binary-Artifacts: 10/10 — no binaries in repo ✅
+- CI-Tests: 10/10 — 8/8 merged PRs checked by CI ✅
+- Dangerous-Workflow: 10/10 — no unsafe GitHub Actions patterns ✅
+- Dependency-Update-Tool: 10/10 — Dependabot configured ✅
+- License: 10/10 — MIT license declared ✅
+- Security-Policy: 10/10 — SECURITY.md with disclosure procedures ✅
+- Token-Permissions: 10/10 — workflows use least-privilege ✅
+
+#### Critical — fix immediately (score 0)
+
+##### Vulnerabilities (0/10 — Critical)
+- [x] Run `pip-audit` and `npm audit` locally, identify all 17 reported CVEs
+- [x] Upgrade or patch every vulnerable dependency until `pip-audit` exits clean — `requirements.txt` updated to latest CVE-free versions; `npm audit` reports 0 vulnerabilities after upgrading vite→8.0.16, vitest→4.1.8, @vitejs/plugin-react→6.0.2, react-router-dom patched
+- [ ] Re-run scorecard after fixes; confirm Vulnerabilities moves to 10
+
+##### Code-Review (0/10 — Critical)
+- [ ] Enable **branch protection** on `master`: require at least 1 approving review before merge
+- [ ] In GitHub → Settings → Branches → Add rule: check "Require a pull request before merging" + "Require approvals (1)"
+- [ ] Self-review all 9 existing un-reviewed merged PRs via a single "catch-up" review PR description (documents intent retroactively)
+- [ ] Going forward: never push directly to `master`; always open a PR and self-approve before merging
+
+##### Maintained (0/10 — Critical — time-based)
+- [ ] No direct fix: score improves automatically after the repo has ≥ 90 days of commit activity
+- [ ] Ensure at least 1 commit per week during the 90-day window to build history
+
+#### Medium — improve score
+
+##### Pinned-Dependencies (6/10 — Medium)
+- [x] Pin `gunicorn==26.0.0` and `gevent==26.5.0` in `requirements.txt`; pin `flower==2.0.1` in Dockerfile; pin `pip-audit==2.10.0` and `bandit[toml]==1.9.4` in `test.yml`
+- [ ] Generate hashes with `pip-compile --generate-hashes requirements.in > requirements.txt` for full hash-pinning (score → 10)
+- [ ] Confirm 5/5 pip invocations in workflows are pinned; re-run scorecard to validate
+
+##### SAST (8/10 — Medium)
+- [x] Investigated: `codeql.yml` already has `push: branches: ['**']` — ALL commits on ALL branches are scanned, not just PRs. Coverage gap was likely a transient Scorecard fetch issue.
+- [x] `on: push: branches: [master]` trigger confirmed present (covered by `['**']`)
+- [ ] Re-run scorecard to confirm SAST moves to 10/10
+
+##### CII-Best-Practices (5/10 — Medium)
+- [ ] Currently holds OpenSSF **Passing** badge; pursue **Silver** badge for higher score
+- [ ] Review Silver criteria at https://bestpractices.coreinfrastructure.org and fill in gaps
+- [ ] Update badge URL in README once Silver is awarded
+
+##### Fuzzing (0/10 — Medium)
+- [ ] Integrate `atheris` (Python) or `hypothesis` for property-based/fuzz testing on pipeline input parsing and Jinja2 template rendering
+- [ ] Register the repo with OSS-Fuzz or ClusterFuzz if appropriate; alternatively add `hypothesis` tests to `tests/`
+- [ ] Add a fuzz test job to CI (`pytest --hypothesis-seed=0`) to satisfy the check
+
+#### Low / N/A — resolve when releasing
+
+##### Signed-Releases (-1 — N/A, no releases yet)
+- [ ] When cutting v1.0: sign the GitHub Release using `gh release create --sign` or upload GPG-signed assets
+- [ ] Add signing step to release workflow (`.github/workflows/release.yml`)
+- [ ] Document release signing in RUNBOOK.md
+
+##### Packaging (-1 — no publishing workflow)
+- [ ] Create `.github/workflows/publish.yml` — build wheel and publish to PyPI on release tag
+- [ ] Use `pypa/gh-action-pypi-publish` action with OIDC trusted publishing (no API token needed)
+- [ ] Publish `flowforge` to PyPI as part of v1.0 release
+
+##### Branch-Protection (-1 — auth error during scan)
+- [ ] Confirm the Scorecard GitHub App has sufficient read permissions on the repo (Settings → Integrations → Installed GitHub Apps)
+- [ ] Re-run scorecard after branch protection rules are set (see Code-Review tasks above); error should resolve
 
 ---
 
