@@ -56,6 +56,9 @@ jobs:
       - name: Run tests
         run: pytest --tb=short -q --cov=flowforge --cov-branch --cov-report=xml
 
+      - name: Fuzz / property-based tests (hypothesis)
+        run: pytest tests_fuzz/ -q --hypothesis-seed=0
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6.0.1
         with:

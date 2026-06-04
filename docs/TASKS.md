@@ -99,21 +99,21 @@ Report: https://securityscorecards.dev/viewer/?uri=github.com/jagdeepvirdi/flowf
 - [ ] Update badge URL in README once Silver is awarded
 
 ##### Fuzzing (0/10 — Medium)
-- [ ] Integrate `atheris` (Python) or `hypothesis` for property-based/fuzz testing on pipeline input parsing and Jinja2 template rendering
-- [ ] Register the repo with OSS-Fuzz or ClusterFuzz if appropriate; alternatively add `hypothesis` tests to `tests/`
-- [ ] Add a fuzz test job to CI (`pytest --hypothesis-seed=0`) to satisfy the check
+- [x] Add `hypothesis>=6.0` to dev extras in `pyproject.toml`; create `tests_fuzz/test_fuzz.py` with 12 property-based tests covering `build()` invariants, `render()` crash safety, blocklist enforcement, `render_sql()` robustness, and pipeline var injection safety
+- [x] Fuzz tests run in a separate `tests_fuzz/` directory (no DB required) so they can run anywhere
+- [x] Add `pytest tests_fuzz/ -q --hypothesis-seed=0` step to CI `test.yml` after main test suite
 
 #### Low / N/A — resolve when releasing
 
 ##### Signed-Releases (-1 — N/A, no releases yet)
-- [ ] When cutting v1.0: sign the GitHub Release using `gh release create --sign` or upload GPG-signed assets
-- [ ] Add signing step to release workflow (`.github/workflows/release.yml`)
-- [ ] Document release signing in RUNBOOK.md
+- [x] Create `.github/workflows/release.yml` — triggers on `v*` tags; builds wheel + sdist; generates SLSA provenance via `actions/attest-build-provenance@v4.1.0`; creates GitHub Release with auto-notes and signed artifacts
+- [x] Document release signing in RUNBOOK.md §12 (one-time setup, cutting a release, verifying attestation)
+- [ ] Cut v1.0.0 tag when ready to release — triggers the workflow
 
 ##### Packaging (-1 — no publishing workflow)
-- [ ] Create `.github/workflows/publish.yml` — build wheel and publish to PyPI on release tag
-- [ ] Use `pypa/gh-action-pypi-publish` action with OIDC trusted publishing (no API token needed)
-- [ ] Publish `flowforge` to PyPI as part of v1.0 release
+- [x] Create `.github/workflows/publish.yml` — builds wheel + sdist, publishes to PyPI via OIDC trusted publishing (`pypa/gh-action-pypi-publish@v1.14.0`) with `attestations: true` for SLSA provenance; no API token needed
+- [ ] Configure PyPI Trusted Publisher once (pypi.org → Account → Publishing → add `publish.yml` / environment `pypi`) — one-time manual step
+- [ ] Publish `flowforge` to PyPI by cutting v1.0.0 tag
 
 ##### Branch-Protection (-1 — auth error during scan)
 - [ ] Confirm the Scorecard GitHub App has sufficient read permissions on the repo (Settings → Integrations → Installed GitHub Apps)

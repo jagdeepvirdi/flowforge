@@ -573,3 +573,76 @@ celery -A flowforge.celery_app flower --port=5555 --basic-auth=admin:changeme
 | Queue depth | Near 0 | Growing queue — workers can't keep up, scale out |
 | Task failure rate | < 5% | High — check Run History for error details |
 | Task duration | Consistent | Sudden spike — DB query or external service is slow |
+
+---
+
+## §12 — Releasing a New Version
+
+### Overview
+
+The release process is fully automated via two GitHub Actions workflows:
+
+| Workflow | File | Trigger | What it does |
+|---|---|---|---|
+| **Release** | `.github/workflows/release.yml` | `git push --tags v*` | Builds wheel + sdist, generates SLSA provenance attestation, creates GitHub Release |
+| **Publish** | `.github/workflows/publish.yml` | After Release workflow succeeds | Publishes to PyPI via OIDC trusted publishing (includes SLSA attestation) |
+
+### One-time Setup
+
+**1. Configure PyPI Trusted Publisher** (do this once before the first release):
+
+1. Log into [pypi.org](https://pypi.org) → Account → Publishing → Add a new publisher
+2. Fill in:
+   - **PyPI project name**: `flowforge`
+   - **Owner**: `jagdeepvirdi`
+   - **Repository name**: `flowforge`
+   - **Workflow filename**: `publish.yml`
+   - **Environment name**: `pypi`
+3. In the GitHub repo: Settings → Environments → New environment → name it `pypi`
+
+No API tokens needed — PyPI will accept the OIDC token from GitHub Actions automatically.
+
+**2. Ensure the `softprops/action-gh-release` action has write permissions** — the release workflow already requests `contents: write`.
+
+### Cutting a Release
+
+```bash
+# 1. Update version in pyproject.toml
+#    version = "1.0.0"
+
+# 2. Commit the version bump
+git add pyproject.toml
+git commit -m "chore: bump version to v1.0.0"
+
+# 3. Tag and push — this triggers the release workflow
+git tag v1.0.0
+git push origin master --tags
+```
+
+The Release workflow will:
+1. Build `flowforge-1.0.0-py3-none-any.whl` and `flowforge-1.0.0.tar.gz`
+2. Generate a SLSA provenance attestation (satisfies OpenSSF Signed-Releases check)
+3. Create a GitHub Release with auto-generated release notes and the built artifacts attached
+
+The Publish workflow will then automatically:
+4. Download the built artifacts
+5. Publish to PyPI with OIDC (no manual token needed)
+6. Attach a SLSA attestation to the PyPI release
+
+### Verifying the Attestation
+
+After a release, anyone can verify the SLSA provenance using the GitHub CLI:
+
+```bash
+gh attestation verify flowforge-1.0.0-py3-none-any.whl \
+  --repo jagdeepvirdi/flowforge
+```
+
+Or via `sigstore-python`:
+
+```bash
+pip install sigstore
+python -m sigstore verify github \
+  --cert-identity "https://github.com/jagdeepvirdi/flowforge/.github/workflows/release.yml@refs/tags/v1.0.0" \
+  flowforge-1.0.0-py3-none-any.whl
+```

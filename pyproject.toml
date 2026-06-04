@@ -118,6 +118,7 @@ dev = [
     "responses>=0.25",
     "ruff>=0.4",
     "bandit[toml]>=1.7",
+    "hypothesis>=6.0",
 ]
 
 [project.scripts]
