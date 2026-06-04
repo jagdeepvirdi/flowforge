@@ -3,16 +3,15 @@
 Pure unit tests — no DB, no Flask app context required.
 MagicMock is used to create fake ORM objects.
 """
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 from flowforge.api.serializers import run_dict, step_run_dict
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-_TS = datetime(2026, 5, 25, 9, 0, 0, tzinfo=timezone.utc)
-_TS2 = datetime(2026, 5, 25, 9, 1, 30, tzinfo=timezone.utc)
+_TS = datetime(2026, 5, 25, 9, 0, 0, tzinfo=UTC)
+_TS2 = datetime(2026, 5, 25, 9, 1, 30, tzinfo=UTC)
 
 
 def _make_run(**kwargs):

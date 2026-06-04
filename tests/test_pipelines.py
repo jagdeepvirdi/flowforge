@@ -1,7 +1,6 @@
 """Tests for pipeline and step CRUD."""
 import pytest
 
-
 PIPELINE_PAYLOAD = {
     'name': 'Test Pipeline',
     'description': 'Created by automated test',
@@ -121,6 +120,7 @@ def test_delete_step(client, headers, pipeline_id):
 
 
 import yaml
+
 
 def test_clone_pipeline(client, headers, pipeline_id):
     # Add a step to the pipeline so we can test that it clones steps too

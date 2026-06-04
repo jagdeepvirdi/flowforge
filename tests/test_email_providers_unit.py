@@ -4,10 +4,8 @@ All external I/O (Google APIs, MSAL, requests) is mocked so these tests run
 without any cloud credentials or installed optional extras.
 """
 import sys
-from pathlib import Path
 from types import ModuleType
-from unittest.mock import MagicMock, patch, PropertyMock
-
+from unittest.mock import MagicMock, patch
 
 # ─── helpers to inject fake modules so optional imports don't fail ────────────
 
@@ -73,7 +71,7 @@ class TestGmailProvider:
         google_mocks, mock_creds = _make_google_mocks()
         with patch.dict(sys.modules, google_mocks):
             mock_creds.refresh = MagicMock()
-            provider = self._build(mock_creds)
+            _provider = self._build(mock_creds)
             mock_creds.refresh.assert_called_once()
 
     def test_send_success(self, tmp_path):
@@ -177,7 +175,7 @@ class TestMicrosoft365Provider:
         msal_mock, msal_app = _make_msal_mock()
         with patch.dict(sys.modules, {'msal': msal_mock}):
             from flowforge.email_providers.microsoft365 import Microsoft365Provider
-            provider = Microsoft365Provider('tid', 'cid', 'csec', 'sender@corp.com')
+            _provider = Microsoft365Provider('tid', 'cid', 'csec', 'sender@corp.com')
         msal_mock.ConfidentialClientApplication.assert_called_once()
 
     def test_get_token_success(self):

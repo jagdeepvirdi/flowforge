@@ -9,10 +9,7 @@ import csv
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from flowforge.steps.base import BaseStep, StepResult
-
 
 # ─── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -69,7 +66,7 @@ def run_step(cfg: dict, conn_cfg=None, raw_conn=None) -> StepResult:
                              return_value=raw_conn))
 
     # Apply patches one by one using ExitStack-style nesting
-    result = None
+    result = None  # noqa: F841
 
     def _run_with_patches(remaining, step, cfg):
         if not remaining:

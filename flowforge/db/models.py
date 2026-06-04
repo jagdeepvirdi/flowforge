@@ -1,11 +1,18 @@
 """SQLAlchemy ORM models for FlowForge internal tables."""
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import (
-    Boolean, CheckConstraint, Column, DateTime, ForeignKey,
-    Integer, String, Text, UniqueConstraint,
+    Boolean,
+    CheckConstraint,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import relationship
@@ -26,7 +33,7 @@ def _uuid():
 
 
 def _utcnow():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class AuditLog(db.Model):

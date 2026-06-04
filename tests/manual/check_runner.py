@@ -11,8 +11,8 @@ import argparse
 import json
 import sys
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 
 
 def _request(method, url, data=None, token=None):
@@ -123,7 +123,7 @@ def main():
         final_status, run_data = poll_run(base, token, run_id, timeout=args.timeout)
 
         if final_status == 'success':
-            print(f'[PASS] Pipeline run completed successfully')
+            print('[PASS] Pipeline run completed successfully')
             print(f'       Duration: {run_data.get("duration_ms")}ms')
         else:
             print(f'[FAIL] Pipeline run ended with status: {final_status}')

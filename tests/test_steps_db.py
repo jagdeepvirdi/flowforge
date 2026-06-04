@@ -1,8 +1,7 @@
 """Tests for DbQueryStep and DbProcedureStep using mocked connections."""
-import pytest
-from unittest.mock import MagicMock, patch, call
-from flowforge.steps.base import StepResult
+from unittest.mock import MagicMock, patch
 
+import pytest
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

@@ -18,7 +18,6 @@ import time
 # Force UTF-8 output so ANSI and box chars work on Windows
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -59,8 +58,8 @@ section("3. Pipelines with schedules")
 with app.app_context():
     from flowforge.db.models import Pipeline
     pipelines = db.session.query(Pipeline).filter(
-        Pipeline.enabled == True,
-        Pipeline.schedule != None,
+        Pipeline.enabled.is_(True),
+        Pipeline.schedule.isnot(None),
         Pipeline.schedule != "",
     ).all()
 
@@ -79,12 +78,14 @@ section("4. App context from worker thread (the critical fix)")
 thread_result = {"ok": False, "error": ""}
 
 import flowforge.engine.scheduler as sched_module
+
 sched_module._app = app   # simulate what start_scheduler() does
 
 def thread_test():
     try:
         with sched_module._app.app_context():
-            from flowforge.db.models import Pipeline as P, db as d
+            from flowforge.db.models import Pipeline as P
+            from flowforge.db.models import db as d
             d.session.query(P).count()
             thread_result["ok"] = True
     except Exception as e:
@@ -103,9 +104,10 @@ else:
 # ── 5. Fire _run_pipeline_job directly ──────────────────────
 section(f"5. Direct job execution -- '{target.name}'")
 print(f"  Firing _run_pipeline_job for pipeline: {target.name}")
-print(f"  (same call APScheduler makes when the cron fires)\n")
+print("  (same call APScheduler makes when the cron fires)\n")
 
 import logging
+
 logging.basicConfig(
     level=logging.INFO,
     format="  %(levelname)-8s %(name)s -- %(message)s",
@@ -151,7 +153,7 @@ with app.app_context():
 
 # ── 7. APScheduler job registration ─────────────────────────
 section("7. APScheduler job registration (what would be scheduled)")
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 with app.app_context():
     from flowforge.db.models import Pipeline as _P
@@ -161,7 +163,7 @@ with app.app_context():
     ]
 
 if scheduled:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for p in scheduled:
         print(f"  pipeline_{p.id}")
         print(f"    pipeline : {p.name}")

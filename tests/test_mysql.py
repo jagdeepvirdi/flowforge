@@ -3,9 +3,9 @@
 Uses sys.modules patching to mock pymysql — no real MySQL required.
 """
 import sys
-from unittest.mock import MagicMock, patch, call
-import pytest
+from unittest.mock import MagicMock, patch
 
+import pytest
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 

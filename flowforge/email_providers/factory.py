@@ -15,7 +15,8 @@ def get_provider(row) -> EmailProvider:
 def get_email_provider(provider_id: str) -> EmailProvider:
     """Return the appropriate EmailProvider subclass for an email_providers row ID."""
     from flowforge.crypto import decrypt_config
-    from flowforge.db.models import EmailProvider as EmailProviderRow, db
+    from flowforge.db.models import EmailProvider as EmailProviderRow
+    from flowforge.db.models import db
 
     row = db.session.get(EmailProviderRow, provider_id)
     if not row:

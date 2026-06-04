@@ -2,6 +2,7 @@
 import ipaddress
 import logging
 import os
+from datetime import UTC
 from pathlib import Path
 
 from flask import Flask, jsonify, request, send_from_directory
@@ -136,8 +137,8 @@ def _register_ip_allowlist(app: Flask) -> None:
 def _sweep_stuck_runs(app: Flask) -> None:
     """Mark any pipeline runs left in 'running' state as failed (interrupted by restart)."""
     try:
-        from datetime import datetime, timezone
-        from sqlalchemy.exc import OperationalError
+        from datetime import datetime
+
         from flowforge.db.models import PipelineRun
         stuck = db.session.query(PipelineRun).filter_by(status='running').all()
         if not stuck:
@@ -146,7 +147,7 @@ def _sweep_stuck_runs(app: Flask) -> None:
             run.status = 'failed'
             run.error_message = 'Run interrupted by server restart'
             if not run.finished_at:
-                run.finished_at = datetime.now(timezone.utc)
+                run.finished_at = datetime.now(UTC)
         db.session.commit()
         app.logger.warning('Swept %d stuck pipeline run(s) left from previous session.', len(stuck))
     except Exception:

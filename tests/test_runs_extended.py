@@ -1,15 +1,10 @@
 """Extended tests for run history endpoints — anomalies, cancel, download, filters."""
-import os
-import tempfile
 import uuid
-from datetime import datetime, timezone
-from pathlib import Path
-from unittest.mock import patch
+from datetime import UTC, datetime
 
 import pytest
 
-from flowforge.db.models import Pipeline, PipelineRun, StepRun, db
-
+from flowforge.db.models import PipelineRun, StepRun, db
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
 
@@ -31,8 +26,8 @@ def run_id(app, pipeline_id):
             pipeline_id=pipeline_id,
             pipeline_name='__runs_ext__',
             status='success',
-            started_at=datetime.now(timezone.utc),
-            finished_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
+            finished_at=datetime.now(UTC),
             duration_ms=1234,
             triggered_by='web_ui',
         )
@@ -52,7 +47,7 @@ def running_run_id(app, pipeline_id):
             pipeline_id=pipeline_id,
             pipeline_name='__runs_ext__',
             status='running',
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             triggered_by='scheduler',
         )
         db.session.add(run)
@@ -159,7 +154,7 @@ def test_get_anomalies_for_run_with_null_pipeline(client, headers, app):
             pipeline_id=None,
             pipeline_name='Deleted Pipeline',
             status='success',
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             triggered_by='web_ui',
         )
         db.session.add(run)
@@ -224,7 +219,7 @@ def test_download_step_output_no_output_path(client, headers, app, run_id):
             step_type='db_query',
             step_order=1,
             status='success',
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             output_path=None,
         )
         db.session.add(step)
@@ -251,7 +246,7 @@ def test_download_step_output_path_traversal_blocked(client, headers, app, run_i
             step_type='report',
             step_order=1,
             status='success',
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             output_path='/etc/passwd',
         )
         db.session.add(step)
@@ -282,7 +277,7 @@ def test_download_step_output_file_serves_content(client, headers, app, run_id, 
             step_type='report',
             step_order=1,
             status='success',
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             output_path=str(tmp_file),
         )
         db.session.add(step)
@@ -309,7 +304,7 @@ def test_download_step_output_requires_auth(client, app, run_id):
             step_type='report',
             step_order=1,
             status='success',
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             output_path=None,
         )
         db.session.add(step)

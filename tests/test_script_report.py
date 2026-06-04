@@ -1,6 +1,5 @@
 """Tests for ScriptReportStep."""
-import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from flowforge.steps.script_report import ScriptReportStep
 

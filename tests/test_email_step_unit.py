@@ -3,12 +3,10 @@
 No DB or real email providers are touched — all external I/O is mocked.
 """
 import sys
-from pathlib import Path
 from types import ModuleType
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 # ─── _handle_attachments ─────────────────────────────────────────────────────
 
@@ -128,14 +126,14 @@ class TestHandleAttachments:
 class TestBuildInlineProvider:
 
     def test_smtp_is_default(self):
-        from flowforge.steps.email_step import _build_inline_provider
         from flowforge.email_providers.smtp import SMTPProvider
+        from flowforge.steps.email_step import _build_inline_provider
         p = _build_inline_provider({'host': 'smtp.test.com', 'port': 587})
         assert isinstance(p, SMTPProvider)
 
     def test_smtp_explicit(self):
-        from flowforge.steps.email_step import _build_inline_provider
         from flowforge.email_providers.smtp import SMTPProvider
+        from flowforge.steps.email_step import _build_inline_provider
         p = _build_inline_provider({'provider_type': 'smtp', 'host': 'smtp.x.com'})
         assert isinstance(p, SMTPProvider)
 
@@ -147,8 +145,8 @@ class TestBuildInlineProvider:
 
         google_mocks = _make_google_mocks()
         with patch.dict(sys.modules, google_mocks):
-            from flowforge.steps.email_step import _build_inline_provider
             from flowforge.email_providers.gmail import GmailProvider
+            from flowforge.steps.email_step import _build_inline_provider
             p = _build_inline_provider({'provider_type': 'gmail'})
             assert isinstance(p, GmailProvider)
 
@@ -162,8 +160,8 @@ class TestBuildInlineProvider:
         msal_app = MagicMock()
         msal_mock.ConfidentialClientApplication = MagicMock(return_value=msal_app)
         with patch.dict(sys.modules, {'msal': msal_mock}):
-            from flowforge.steps.email_step import _build_inline_provider
             from flowforge.email_providers.microsoft365 import Microsoft365Provider
+            from flowforge.steps.email_step import _build_inline_provider
             p = _build_inline_provider({'provider_type': 'microsoft365'})
             assert isinstance(p, Microsoft365Provider)
 

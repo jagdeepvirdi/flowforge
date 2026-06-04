@@ -2,10 +2,11 @@
 import os
 import sys
 import uuid
-import pytest
-import bcrypt
 from pathlib import Path
 from urllib.parse import urlparse
+
+import bcrypt
+import pytest
 
 # ---------------------------------------------------------------------------
 # FLOWFORGE_DB_URL must be set before running the test suite.

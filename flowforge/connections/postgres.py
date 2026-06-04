@@ -2,7 +2,6 @@ import logging
 import time
 from typing import Any
 
-import psycopg2
 from psycopg2 import pool
 
 from flowforge.connections.base import BaseConnection

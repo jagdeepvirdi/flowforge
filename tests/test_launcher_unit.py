@@ -1,13 +1,11 @@
 """Unit tests for flowforge.engine.launcher — dispatch logic."""
-import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from flowforge.db.models import Pipeline, PipelineRun, db
-
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
 
@@ -128,7 +126,7 @@ def test_mark_failed_updates_run_status(app, enabled_pipeline):
             pipeline_id=enabled_pipeline.id,
             pipeline_name='__launcher_test__',
             status='running',
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             triggered_by='web_ui',
         )
         db.session.add(run)

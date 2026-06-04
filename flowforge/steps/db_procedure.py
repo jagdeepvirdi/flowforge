@@ -40,6 +40,7 @@ class DbProcedureStep(BaseStep):
             return get_connection(connection_id)
         # Fallback: env vars (used when running outside a Flask app context)
         import os
+
         from flowforge.connections.postgres import PostgreSQLConnection
         return PostgreSQLConnection(
             host=os.environ.get('DB_HOST', ''),

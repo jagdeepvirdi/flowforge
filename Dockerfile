@@ -12,7 +12,7 @@ WORKDIR /app
 
 # Install dependencies first (cached layer)
 COPY requirements.txt pyproject.toml README.md LICENSE ./
-RUN pip install --no-cache-dir -r requirements.txt flower==2.0.1
+RUN pip install --no-cache-dir --require-hashes -r requirements.txt
 
 # Copy source, then install the package itself to register the entry point
 COPY flowforge/ flowforge/

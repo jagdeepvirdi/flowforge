@@ -1,5 +1,4 @@
 """Tests for GET /api/pipelines/cron-next (TEST-3c)."""
-import pytest
 
 
 # ── Valid expressions ─────────────────────────────────────────────────────────
@@ -32,7 +31,7 @@ def test_cron_next_n_capped_at_ten(client, headers):
 
 
 def test_cron_next_results_are_iso8601(client, headers):
-    from datetime import datetime, timezone
+    from datetime import datetime
     resp = client.get('/api/pipelines/cron-next?expr=0 8 * * 1', headers=headers)
     assert resp.status_code == 200
     for ts in resp.get_json()['next_runs']:

@@ -1,17 +1,26 @@
 import hashlib
-import os
 import secrets
-import threading
+from datetime import UTC
 
 from flask import Blueprint, jsonify, request
 
+from flowforge import audit
 from flowforge.api.app import limiter
 from flowforge.api.auth import require_auth, require_role
 from flowforge.api.serializers import run_dict
-from flowforge.api.validators import validate_pipeline, validate_pipeline_variable
-from flowforge import audit
-from flowforge.crypto import decrypt_value, encrypt_value
-from flowforge.db.models import DEFAULT_PROJECT_ID, Pipeline, PipelineDependency, PipelineRun, PipelineStep, PipelineVariable, Project, WebhookToken, db
+from flowforge.api.validators import validate_pipeline
+from flowforge.crypto import encrypt_value
+from flowforge.db.models import (
+    DEFAULT_PROJECT_ID,
+    Pipeline,
+    PipelineDependency,
+    PipelineRun,
+    PipelineStep,
+    PipelineVariable,
+    Project,
+    WebhookToken,
+    db,
+)
 from flowforge.engine.launcher import launch_run
 
 bp = Blueprint('pipelines', __name__)
@@ -36,10 +45,11 @@ def _next_run_iso(schedule: str | None) -> str | None:
     if not schedule:
         return None
     try:
-        from datetime import datetime, timezone
+        from datetime import datetime
+
         from apscheduler.triggers.cron import CronTrigger
         trigger = CronTrigger.from_crontab(schedule, timezone='UTC')
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         t = trigger.get_next_fire_time(now, now)
         return t.isoformat() if t else None
     except Exception:
@@ -168,10 +178,11 @@ def cron_next_runs():
     if err:
         return jsonify({'error': err}), 400
     try:
-        from datetime import datetime, timezone
+        from datetime import datetime
+
         from apscheduler.triggers.cron import CronTrigger
         trigger = CronTrigger.from_crontab(expr, timezone='UTC')
-        times, t = [], datetime.now(timezone.utc)
+        times, t = [], datetime.now(UTC)
         for _ in range(n):
             t = trigger.get_next_fire_time(t, t)
             if t is None:
@@ -413,6 +424,7 @@ def delete_pipeline(pipeline_id):
 def export_pipeline(pipeline_id):
     """Return the pipeline as a YAML document suitable for re-import."""
     import io
+
     import yaml
     from flask import Response
     pipeline = db.session.get(Pipeline, str(pipeline_id))
@@ -516,7 +528,6 @@ def trigger_run(pipeline_id):
 @bp.get('/pipelines/<uuid:pipeline_id>/runs')
 @require_auth
 def pipeline_runs(pipeline_id):
-    from flowforge.db.models import PipelineRun
     runs = (
         db.session.query(PipelineRun)
         .filter_by(pipeline_id=str(pipeline_id))
@@ -570,8 +581,8 @@ def trigger_via_webhook(pipeline_id):
 
     # Record last use (best-effort — don't fail the trigger if this errors)
     try:
-        from datetime import datetime, timezone
-        wt.last_used_at = datetime.now(timezone.utc)
+        from datetime import datetime
+        wt.last_used_at = datetime.now(UTC)
         db.session.commit()
     except Exception:
         db.session.rollback()

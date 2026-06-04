@@ -124,6 +124,7 @@ def test_test_raw_connection(client, headers, live_db_config):
 
 from unittest.mock import patch
 
+
 def test_test_raw_oracle_success(client, headers):
     from unittest.mock import MagicMock
     mock_oracledb = MagicMock()

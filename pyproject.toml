@@ -143,6 +143,10 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
+ignore = [
+    "E501",   # line-too-long — enforced by editors, not CI
+    "E402",   # module-import-not-at-top — legitimate in conftest/setup files
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

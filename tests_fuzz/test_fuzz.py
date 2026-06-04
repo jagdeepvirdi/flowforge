@@ -10,7 +10,7 @@ import os
 import re
 from unittest.mock import patch
 
-from hypothesis import given, settings, assume
+from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -100,6 +100,7 @@ def test_render_never_panics_on_arbitrary_text(template):
     else (AttributeError, RecursionError, etc.) is a bug.
     """
     from jinja2 import TemplateError
+
     from flowforge.engine.context import build, render
     ctx = build('fuzz')
     try:
@@ -122,6 +123,7 @@ def test_render_pipeline_var_round_trip(key, value):
         'current_month', 'current_year', 'yesterday',
     })
     from jinja2 import TemplateError
+
     from flowforge.engine.context import build, render
     ctx = build('fuzz', pipeline_vars={key: value})
     try:
@@ -174,6 +176,7 @@ def test_blocklisted_vars_not_in_any_render(var_name, var_value):
     """Credential values must not appear when rendered via the direct env.VAR pattern."""
     assume(var_value.strip())
     from jinja2 import TemplateError
+
     from flowforge.engine.context import build, render
     with patch.dict(os.environ, {var_name: var_value}, clear=False):
         ctx = build('fuzz')
@@ -199,6 +202,7 @@ def test_blocklisted_vars_not_in_any_render(var_name, var_value):
 def test_render_sql_never_panics(sql):
     """render_sql() must never raise unexpected exceptions on arbitrary SQL strings."""
     from jinja2 import TemplateError
+
     from flowforge.engine.context import build, render_sql
     ctx = build('fuzz')
     ctx['_secret_var_keys'] = set()
@@ -217,6 +221,7 @@ def test_render_sql_never_panics(sql):
 def test_render_sql_with_secret_keys_never_panics(sql, secret_keys):
     """render_sql() must handle arbitrary secret_key sets without crashing."""
     from jinja2 import TemplateError
+
     from flowforge.engine.context import build, render_sql
     ctx = build('fuzz')
     ctx['_secret_var_keys'] = set(secret_keys)

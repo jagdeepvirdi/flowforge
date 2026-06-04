@@ -3,8 +3,12 @@ from flask import Blueprint, jsonify, request
 import flowforge.audit as audit
 from flowforge.api.auth import require_auth
 from flowforge.db.models import (
-    DEFAULT_PROJECT_ID, EmailConfig, Pipeline, Project, RecipientGroup,
-    ReportConfig, db,
+    EmailConfig,
+    Pipeline,
+    Project,
+    RecipientGroup,
+    ReportConfig,
+    db,
 )
 
 bp = Blueprint('projects', __name__)

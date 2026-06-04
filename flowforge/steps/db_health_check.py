@@ -48,9 +48,12 @@ class DbHealthCheckStep(BaseStep):
                 db_type = getattr(conn, 'db_type', None)
                 if not db_type:
                     cls_name = conn.__class__.__name__.lower()
-                    if 'postgres' in cls_name:  db_type = 'postgresql'
-                    elif 'oracle' in cls_name:  db_type = 'oracle'
-                    elif 'mysql'  in cls_name:  db_type = 'mysql'
+                    if 'postgres' in cls_name:
+                        db_type = 'postgresql'
+                    elif 'oracle' in cls_name:
+                        db_type = 'oracle'
+                    elif 'mysql' in cls_name:
+                        db_type = 'mysql'
 
                 if db_type == 'postgresql':
                     sections, log_summary = self._check_postgres(conn)

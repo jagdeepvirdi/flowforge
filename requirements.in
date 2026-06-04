@@ -26,3 +26,4 @@ celery[redis]>=5.4
 pyyaml>=6.0
 gunicorn>=26
 gevent>=26
+flower>=2.0.1

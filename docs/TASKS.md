@@ -85,8 +85,8 @@ Report: https://securityscorecards.dev/viewer/?uri=github.com/jagdeepvirdi/flowf
 
 ##### Pinned-Dependencies (6/10 — Medium)
 - [x] Pin `gunicorn==26.0.0` and `gevent==26.5.0` in `requirements.txt`; pin `flower==2.0.1` in Dockerfile; pin `pip-audit==2.10.0` and `bandit[toml]==1.9.4` in `test.yml`
-- [ ] Generate hashes with `pip-compile --generate-hashes requirements.in > requirements.txt` for full hash-pinning (score → 10)
-- [ ] Confirm 5/5 pip invocations in workflows are pinned; re-run scorecard to validate
+- [x] Generated full hash-pinned `requirements.txt` via `pip-compile --generate-hashes requirements.in` (974 lines, 827 SHA-256 hashes covering all transitive deps). Dockerfile now uses `--require-hashes` to enforce hash verification at build time.
+- [ ] Re-run scorecard to confirm Pinned-Dependencies score improves; confirm 5/5 pip invocations are covered
 
 ##### SAST (8/10 — Medium)
 - [x] Investigated: `codeql.yml` already has `push: branches: ['**']` — ALL commits on ALL branches are scanned, not just PRs. Coverage gap was likely a transient Scorecard fetch issue.
@@ -94,8 +94,21 @@ Report: https://securityscorecards.dev/viewer/?uri=github.com/jagdeepvirdi/flowf
 - [ ] Re-run scorecard to confirm SAST moves to 10/10
 
 ##### CII-Best-Practices (5/10 — Medium)
-- [ ] Currently holds OpenSSF **Passing** badge; pursue **Silver** badge for higher score
-- [ ] Review Silver criteria at https://bestpractices.coreinfrastructure.org and fill in gaps
+Silver gaps addressed in code:
+- [x] `code_of_conduct` — `CODE_OF_CONDUCT.md` added (Contributor Covenant 2.1)
+- [x] `governance` / `roles_responsibilities` / `access_continuity` — `GOVERNANCE.md` added
+- [x] `documentation_roadmap` — `ROADMAP.md` added (v1/v2/v3 plan)
+- [x] `assurance_case` — `docs/threat-model.md` added (7 threats, mitigations, trust boundaries, security invariants)
+- [x] `warnings_strict` — `ruff check .` and `npm run lint` added to CI; 465 issues auto-fixed; remaining 27 manually resolved; ruff now passes clean
+- [x] `build_repeatable` — `requirements.txt` fully hash-pinned via `pip-compile --generate-hashes`
+- [x] `signed_releases` — `release.yml` with SLSA attestation ✅
+- [x] `dependency_monitoring` — `pip-audit` + `npm audit` in CI ✅
+- [x] `coding_standards_enforced` — ruff + ESLint in CI ✅
+Remaining Silver gaps requiring user action:
+- [ ] `test_statement_coverage80` — currently at 72%; needs improvement to 80% before claiming this criterion (see coverage section)
+- [ ] `bus_factor` (SHOULD) — solo project; document or recruit a co-maintainer
+- [ ] `dco` (SHOULD) — consider adding DCO sign-off requirement to PR template
+- [ ] Complete the Silver questionnaire at https://bestpractices.dev once all MUST criteria are met
 - [ ] Update badge URL in README once Silver is awarded
 
 ##### Fuzzing (0/10 — Medium)

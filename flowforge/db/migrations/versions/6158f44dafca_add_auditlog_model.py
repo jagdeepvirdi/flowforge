@@ -5,17 +5,16 @@ Revises: 0019
 Create Date: 2026-05-28 01:37:59.901979
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.dialects import postgresql
 
 revision: str = '6158f44dafca'
-down_revision: Union[str, None] = '0019'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = '0019'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

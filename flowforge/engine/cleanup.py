@@ -1,7 +1,7 @@
 """Delete generated output files older than the configured TTL."""
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ def cleanup_output_files(
         logger.info("Output directory does not exist, skipping cleanup: %s", directory)
         return {'deleted': 0, 'bytes_freed': 0, 'errors': 0}
 
-    cutoff = datetime.now(timezone.utc).timestamp() - days * 86_400
+    cutoff = datetime.now(UTC).timestamp() - days * 86_400
     deleted = bytes_freed = errors = 0
 
     for path in directory.iterdir():

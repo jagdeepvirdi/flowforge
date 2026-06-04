@@ -3,10 +3,7 @@ import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-from flowforge.steps.ssh_health_check import SshHealthCheckStep, _ALL_METRICS
-
+from flowforge.steps.ssh_health_check import _ALL_METRICS, SshHealthCheckStep
 
 # ── SSH mock helpers ──────────────────────────────────────────────────────────
 

@@ -1,9 +1,8 @@
 """Tests for Excel, CSV, PDF, and JSON report file generation."""
 import csv
-import os
-import pytest
 from pathlib import Path
 
+import pytest
 
 COLUMNS = ['id', 'name', 'amount', 'date']
 ROWS = [
@@ -105,8 +104,9 @@ def test_excel_creates_file(tmp_path):
 
 
 def test_excel_header_row(tmp_path):
-    from flowforge.reports.excel_report import generate
     from openpyxl import load_workbook
+
+    from flowforge.reports.excel_report import generate
     out = tmp_path / 'report.xlsx'
     generate(ROWS, COLUMNS, out)
     wb = load_workbook(out)
@@ -116,8 +116,9 @@ def test_excel_header_row(tmp_path):
 
 
 def test_excel_header_is_bold(tmp_path):
-    from flowforge.reports.excel_report import generate
     from openpyxl import load_workbook
+
+    from flowforge.reports.excel_report import generate
     out = tmp_path / 'report.xlsx'
     generate(ROWS, COLUMNS, out)
     wb = load_workbook(out)
@@ -126,8 +127,9 @@ def test_excel_header_is_bold(tmp_path):
 
 
 def test_excel_data_rows(tmp_path):
-    from flowforge.reports.excel_report import generate
     from openpyxl import load_workbook
+
+    from flowforge.reports.excel_report import generate
     out = tmp_path / 'report.xlsx'
     generate(ROWS, COLUMNS, out)
     wb = load_workbook(out)
@@ -138,8 +140,9 @@ def test_excel_data_rows(tmp_path):
 
 
 def test_excel_correct_row_count(tmp_path):
-    from flowforge.reports.excel_report import generate
     from openpyxl import load_workbook
+
+    from flowforge.reports.excel_report import generate
     out = tmp_path / 'report.xlsx'
     generate(ROWS, COLUMNS, out)
     wb = load_workbook(out)
@@ -148,8 +151,9 @@ def test_excel_correct_row_count(tmp_path):
 
 
 def test_excel_custom_sheet_name(tmp_path):
-    from flowforge.reports.excel_report import generate
     from openpyxl import load_workbook
+
+    from flowforge.reports.excel_report import generate
     out = tmp_path / 'report.xlsx'
     generate(ROWS, COLUMNS, out, sheet_name='Revenue')
     wb = load_workbook(out)
@@ -157,8 +161,9 @@ def test_excel_custom_sheet_name(tmp_path):
 
 
 def test_excel_empty_rows(tmp_path):
-    from flowforge.reports.excel_report import generate
     from openpyxl import load_workbook
+
+    from flowforge.reports.excel_report import generate
     out = tmp_path / 'empty.xlsx'
     generate([], COLUMNS, out)
     wb = load_workbook(out)
@@ -199,6 +204,7 @@ def test_json_returns_output_path(tmp_path):
 
 def test_json_is_valid_json(tmp_path):
     import json
+
     from flowforge.reports.json_report import generate
     out = tmp_path / 'report.json'
     generate(ROWS, COLUMNS, out)
@@ -209,6 +215,7 @@ def test_json_is_valid_json(tmp_path):
 
 def test_json_keys_match_columns(tmp_path):
     import json
+
     from flowforge.reports.json_report import generate
     out = tmp_path / 'report.json'
     generate(ROWS, COLUMNS, out)
@@ -218,6 +225,7 @@ def test_json_keys_match_columns(tmp_path):
 
 def test_json_values_correct(tmp_path):
     import json
+
     from flowforge.reports.json_report import generate
     out = tmp_path / 'report.json'
     generate(ROWS, COLUMNS, out)
@@ -228,6 +236,7 @@ def test_json_values_correct(tmp_path):
 
 def test_json_empty_rows(tmp_path):
     import json
+
     from flowforge.reports.json_report import generate
     out = tmp_path / 'empty.json'
     generate([], COLUMNS, out)
@@ -243,7 +252,6 @@ def test_json_creates_parent_dirs(tmp_path):
 
 
 def test_json_custom_indent(tmp_path):
-    import json
     from flowforge.reports.json_report import generate
     out = tmp_path / 'compact.json'
     generate(ROWS, COLUMNS, out, indent=0)
@@ -255,8 +263,9 @@ def test_json_custom_indent(tmp_path):
 def test_json_non_serialisable_value(tmp_path):
     """default=str fallback handles non-JSON-serialisable types (dates, Decimal)."""
     import json
-    from decimal import Decimal
     from datetime import date
+    from decimal import Decimal
+
     from flowforge.reports.json_report import generate
     rows = [(1, Decimal('9.99'), date(2026, 1, 1))]
     cols = ['id', 'price', 'date']
@@ -271,9 +280,9 @@ def test_json_non_serialisable_value(tmp_path):
 
 def test_pdf_generates_file(tmp_path):
     """PDF generation writes a file when WeasyPrint is mocked."""
-    from unittest.mock import MagicMock, patch
-    from types import ModuleType
     import sys
+    from types import ModuleType
+    from unittest.mock import MagicMock, patch
 
     mock_weasyprint = ModuleType('weasyprint')
     mock_html_instance = MagicMock()
@@ -290,9 +299,9 @@ def test_pdf_generates_file(tmp_path):
 
 
 def test_pdf_uses_default_template_when_no_template_path(tmp_path):
-    from unittest.mock import MagicMock, patch
-    from types import ModuleType
     import sys
+    from types import ModuleType
+    from unittest.mock import MagicMock, patch
 
     mock_weasyprint = ModuleType('weasyprint')
     captured = {}
@@ -315,9 +324,9 @@ def test_pdf_uses_default_template_when_no_template_path(tmp_path):
 
 
 def test_pdf_uses_custom_template(tmp_path):
-    from unittest.mock import MagicMock, patch
-    from types import ModuleType
     import sys
+    from types import ModuleType
+    from unittest.mock import MagicMock, patch
 
     # Write a minimal custom template
     tmpl_file = tmp_path / 'custom.html'
@@ -343,9 +352,9 @@ def test_pdf_uses_custom_template(tmp_path):
 
 
 def test_pdf_creates_parent_dirs(tmp_path):
-    from unittest.mock import MagicMock, patch
-    from types import ModuleType
     import sys
+    from types import ModuleType
+    from unittest.mock import MagicMock, patch
 
     mock_weasyprint = ModuleType('weasyprint')
     mock_html_instance = MagicMock()

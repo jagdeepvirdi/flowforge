@@ -54,7 +54,9 @@ class NotificationStep(BaseStep):
         if not webhook_url:
             return StepResult(success=False, error='webhook_url is required for Slack notifications')
 
-        import urllib.request, urllib.error, json
+        import json
+        import urllib.error
+        import urllib.request
         body = json.dumps({'text': message}).encode()
         req  = urllib.request.Request(webhook_url, data=body, headers={'Content-Type': 'application/json'}, method='POST')
         try:
@@ -73,7 +75,9 @@ class NotificationStep(BaseStep):
         if not webhook_url:
             return StepResult(success=False, error='webhook_url is required for Teams notifications')
 
-        import urllib.request, urllib.error, json
+        import json
+        import urllib.error
+        import urllib.request
 
         # Teams Incoming Webhook expects Adaptive Card or legacy MessageCard
         payload: dict = {'type': 'message'}
@@ -110,7 +114,10 @@ class NotificationStep(BaseStep):
         if not chat_id:
             return StepResult(success=False, error='chat_id is required for Telegram notifications')
 
-        import urllib.request, urllib.error, urllib.parse, json
+        import json
+        import urllib.error
+        import urllib.parse
+        import urllib.request
 
         text = f'<b>{title}</b>\n\n{message}' if title and parse_mode == 'HTML' else (
             f'*{title}*\n\n{message}' if title else message

@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 import pytest
 
-
 # ── Default: AI always enabled within this module ────────────────────────────
 
 @pytest.fixture(autouse=True)

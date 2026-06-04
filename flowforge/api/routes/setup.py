@@ -27,6 +27,7 @@ def auth_login():
 @require_auth
 def auth_refresh():
     from flask import request as req
+
     from flowforge.api.auth import generate_token, verify_token
     from flowforge.db.models import User, db
     header = req.headers.get('Authorization', '')

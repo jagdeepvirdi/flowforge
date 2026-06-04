@@ -1,5 +1,5 @@
 """Tests for JWT authentication endpoints and token revocation (NEW-4)."""
-import pytest
+from datetime import UTC
 
 
 def test_health(client):
@@ -145,15 +145,16 @@ def test_me_requires_auth(client):
 
 def test_me_rejects_legacy_token_without_uid(app, client):
     """Tokens without a uid claim (pre-multi-user) get a clear 401 from /auth/me."""
+    from datetime import datetime, timedelta
+
     import jwt as _jwt
-    from datetime import datetime, timedelta, timezone
     with app.app_context():
         secret = app.config.get('JWT_SECRET') or app.config['SECRET_KEY']
         legacy_token = _jwt.encode({
             'sub': 'testadmin',
             'role': 'admin',
-            'iat': datetime.now(timezone.utc),
-            'exp': datetime.now(timezone.utc) + timedelta(hours=1),
+            'iat': datetime.now(UTC),
+            'exp': datetime.now(UTC) + timedelta(hours=1),
         }, secret, algorithm='HS256')
     resp = client.get('/api/auth/me', headers={'Authorization': f'Bearer {legacy_token}'})
     assert resp.status_code == 401
@@ -162,16 +163,17 @@ def test_me_rejects_legacy_token_without_uid(app, client):
 
 def test_revoke_token_without_jti_returns_username(app):
     """Legacy tokens (no jti) are not blocklisted but revoke_token still returns the sub."""
+    from datetime import datetime, timedelta
+
     import jwt as _jwt
-    from datetime import datetime, timedelta, timezone
     with app.app_context():
         from flowforge.api.auth import revoke_token
         secret = app.config.get('JWT_SECRET') or app.config['SECRET_KEY']
         # Craft a token with no jti (simulates pre-NEW-4 tokens)
         payload = {
             'sub': 'testadmin',
-            'iat': datetime.now(timezone.utc),
-            'exp': datetime.now(timezone.utc) + timedelta(hours=1),
+            'iat': datetime.now(UTC),
+            'exp': datetime.now(UTC) + timedelta(hours=1),
         }
         token = _jwt.encode(payload, secret, algorithm='HS256')
         username = revoke_token(token)

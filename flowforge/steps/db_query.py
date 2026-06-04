@@ -123,6 +123,7 @@ class DbQueryStep(BaseStep):
             from flowforge.connections.factory import get_connection
             return get_connection(connection_id)
         import os
+
         from flowforge.connections.postgres import PostgreSQLConnection
         return PostgreSQLConnection(
             host=os.environ.get('DB_HOST', ''),

@@ -1,13 +1,8 @@
 """Tests for AiAnalyzeStep and its helper functions."""
-import os
 import urllib.error
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from flowforge.steps.ai_analyze import AiAnalyzeStep, _format_data
-
 
 # ── _format_data helper ───────────────────────────────────────────────────────
 

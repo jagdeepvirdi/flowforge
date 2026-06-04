@@ -1,7 +1,6 @@
 """JWT authentication — single-user v1 / multi-user v2 with optional MFA."""
-import os
 import uuid as _uuid_mod
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from functools import wraps
 
 import bcrypt
@@ -30,8 +29,8 @@ def generate_token(user: User) -> str:
         'uid': user.id,
         'role': user.role,
         'jti': str(_uuid_mod.uuid4()),
-        'iat': datetime.now(timezone.utc),
-        'exp': datetime.now(timezone.utc) + timedelta(hours=_expiry_hours()),
+        'iat': datetime.now(UTC),
+        'exp': datetime.now(UTC) + timedelta(hours=_expiry_hours()),
     }
     return jwt.encode(payload, _secret(), algorithm=_algorithm())
 
@@ -44,8 +43,8 @@ def generate_mfa_token(user: User) -> str:
         'role': user.role,
         'jti': str(_uuid_mod.uuid4()),
         'mfa_step': True,
-        'iat': datetime.now(timezone.utc),
-        'exp': datetime.now(timezone.utc) + timedelta(minutes=5),
+        'iat': datetime.now(UTC),
+        'exp': datetime.now(UTC) + timedelta(minutes=5),
     }
     return jwt.encode(payload, _secret(), algorithm=_algorithm())
 
@@ -92,7 +91,7 @@ def revoke_token(token: str) -> str | None:
     jti = payload.get('jti')
     exp = payload.get('exp')
     if jti:
-        expires_at = datetime.fromtimestamp(exp, tz=timezone.utc) if exp else datetime.now(timezone.utc)
+        expires_at = datetime.fromtimestamp(exp, tz=UTC) if exp else datetime.now(UTC)
         db.session.merge(TokenBlocklist(jti=jti, expires_at=expires_at))
         db.session.commit()
     return payload.get('sub')

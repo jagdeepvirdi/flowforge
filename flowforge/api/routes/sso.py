@@ -13,7 +13,6 @@ Configure via environment variables:
 import os
 import secrets
 import time
-from typing import Optional
 
 import bcrypt
 from flask import Blueprint, jsonify, redirect, request
@@ -45,7 +44,7 @@ def _new_state(provider: str) -> str:
     return token
 
 
-def _consume_state(token: str) -> Optional[str]:
+def _consume_state(token: str) -> str | None:
     _expire_states()
     entry = _SSO_STATES.pop(token, None)
     if not entry:
@@ -61,7 +60,7 @@ def _expire_states() -> None:
         del _SSO_STATES[k]
 
 
-def _find_or_create_user(email: str, provider: str) -> Optional[User]:
+def _find_or_create_user(email: str, provider: str) -> User | None:
     """Return a User for the given SSO email, or create one if FLOWFORGE_SSO_AUTO_CREATE=true."""
     user = db.session.query(User).filter_by(sso_email=email).first()
     if user:
@@ -157,7 +156,6 @@ def sso_google_callback():
 
     try:
         from google_auth_oauthlib.flow import Flow
-        import google.auth.transport.requests as google_requests
 
         callback = f'{_app_url()}/api/auth/sso/google/callback'
         flow = Flow.from_client_config(

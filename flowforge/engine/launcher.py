@@ -1,6 +1,7 @@
 import logging
 import os
 import threading
+from datetime import UTC
 from typing import Any
 
 from flowforge.db.models import Pipeline, PipelineRun, db
@@ -84,13 +85,13 @@ def _run_in_thread(app, pipeline_id: str, pipeline_name: str, triggered_by: str,
 
 
 def _mark_failed(run_id: str, message: str) -> None:
-    from datetime import datetime, timezone
+    from datetime import datetime
     try:
         run = db.session.get(PipelineRun, run_id)
         if run:
             run.status = 'failed'
             run.error_message = message
-            run.finished_at = datetime.now(timezone.utc)
+            run.finished_at = datetime.now(UTC)
             db.session.commit()
     except Exception:
         logger.exception("Could not mark run %s as failed", run_id)

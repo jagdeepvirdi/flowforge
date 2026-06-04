@@ -1,10 +1,10 @@
 """Auth routes — POST /api/auth/login, POST /api/auth/logout."""
 from flask import Blueprint, g, jsonify, request
 
+from flowforge import audit
 from flowforge.api.app import limiter
 from flowforge.api.auth import login as auth_login
 from flowforge.api.auth import require_auth, revoke_token
-from flowforge import audit
 
 bp = Blueprint('auth', __name__)
 

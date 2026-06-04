@@ -5,7 +5,7 @@ import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -178,9 +178,9 @@ def _run_parallel_wave(
     def _run_one(idx: int) -> None:
         step = wave[idx]
         retry_count, retry_delay = _get_retry_config(step)
-        t0 = datetime.now(timezone.utc)
+        t0 = datetime.now(UTC)
         step_results[idx] = _run_step_with_retry(pipeline_name, step, snapshots[idx], retry_count, retry_delay)
-        step_times[idx] = (t0, datetime.now(timezone.utc))
+        step_times[idx] = (t0, datetime.now(UTC))
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=n, thread_name_prefix='ff_parallel') as executor:
         futures = [executor.submit(_run_one, i) for i in range(n)]
@@ -197,7 +197,7 @@ def _run_parallel_wave(
             step_result = StepResult(success=False, error='Step did not produce a result')
             step_results[i] = step_result
 
-        t0, t1 = step_times[i] or (datetime.now(timezone.utc), datetime.now(timezone.utc))
+        t0, t1 = step_times[i] or (datetime.now(UTC), datetime.now(UTC))
         duration_ms = int((t1 - t0).total_seconds() * 1000)
 
         result.step_results[step.name] = step_result
@@ -271,9 +271,9 @@ def run_pipeline(
                 step = wave[0]
                 logger.info("[%s] Starting step: %s", pipeline_name, step.name)
                 retry_count, retry_delay = _get_retry_config(step)
-                step_start = datetime.now(timezone.utc)
+                step_start = datetime.now(UTC)
                 step_result = _run_step_with_retry(pipeline_name, step, context, retry_count, retry_delay)
-                step_end = datetime.now(timezone.utc)
+                step_end = datetime.now(UTC)
                 duration_ms = int((step_end - step_start).total_seconds() * 1000)
                 result.step_results[step.name] = step_result
                 result.steps_run += 1
@@ -345,7 +345,7 @@ def _trigger_downstream_pipelines(pipeline_id: str) -> None:
     (or ever, if the downstream has never run).
     """
     try:
-        from flowforge.db.models import PipelineDependency, PipelineRun, Pipeline, db
+        from flowforge.db.models import Pipeline, PipelineDependency, PipelineRun, db
         from flowforge.engine.launcher import launch_run
 
         # Find all downstream pipelines that list this pipeline as an upstream
@@ -456,7 +456,7 @@ def _finish_run_record(run_record, success: bool, error_step: str = '', error_me
     try:
         from flowforge.db.models import db
         run_record.status = 'success' if success else 'failed'
-        run_record.finished_at = datetime.now(timezone.utc)
+        run_record.finished_at = datetime.now(UTC)
         if run_record.started_at:
             run_record.duration_ms = int(
                 (run_record.finished_at - run_record.started_at).total_seconds() * 1000

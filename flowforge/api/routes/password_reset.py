@@ -11,7 +11,7 @@ Token is delivered in the link: {FLOWFORGE_APP_URL}/#reset_token=<token>
 """
 import os
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import bcrypt
 from flask import Blueprint, jsonify, request
@@ -96,10 +96,10 @@ def request_reset():
     (db.session.query(PasswordResetToken)
      .filter_by(user_id=user.id)
      .filter(PasswordResetToken.used_at.is_(None))
-     .update({'expires_at': datetime.now(timezone.utc)}, synchronize_session=False))
+     .update({'expires_at': datetime.now(UTC)}, synchronize_session=False))
 
     token      = secrets.token_hex(32)
-    expires_at = datetime.now(timezone.utc) + timedelta(hours=_TOKEN_TTL_HOURS)
+    expires_at = datetime.now(UTC) + timedelta(hours=_TOKEN_TTL_HOURS)
     db.session.add(PasswordResetToken(token=token, user_id=user.id, expires_at=expires_at))
     db.session.commit()
 
@@ -123,7 +123,7 @@ def confirm_reset():
     if len(new_password) < _MIN_PW_LEN:
         return jsonify({'error': f'new_password must be at least {_MIN_PW_LEN} characters'}), 400
 
-    now   = datetime.now(timezone.utc)
+    now   = datetime.now(UTC)
     entry = db.session.get(PasswordResetToken, token_val)
 
     if not entry or entry.used_at is not None or entry.expires_at < now:
@@ -144,7 +144,7 @@ def confirm_reset():
 @bp.get('/auth/password-reset/validate/<token>')
 def validate_reset_token(token: str):
     """Check whether a reset token is still valid (used by the frontend before showing the form)."""
-    now   = datetime.now(timezone.utc)
+    now   = datetime.now(UTC)
     entry = db.session.get(PasswordResetToken, token)
     valid = bool(entry and entry.used_at is None and entry.expires_at >= now)
     return jsonify({'valid': valid})

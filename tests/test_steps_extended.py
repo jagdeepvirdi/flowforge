@@ -1,7 +1,6 @@
 """Extended tests for pipeline step CRUD — covers validation and step_order swap."""
 import pytest
 
-
 PIPELINE_PAYLOAD = {'name': '__steps_ext__', 'enabled': True}
 STEP_PAYLOAD = {
     'name': 'Query Step',

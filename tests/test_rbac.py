@@ -3,7 +3,6 @@ Admin/editor tokens must still pass on all routes.
 """
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Fixtures: viewer and editor tokens
 # ---------------------------------------------------------------------------

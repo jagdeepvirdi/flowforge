@@ -1,11 +1,17 @@
 """SSH connection implementation using paramiko."""
+from __future__ import annotations
+
 import logging
 import os
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from flowforge.db.models import SSHConnection as SSHConnectionRow, db
+if TYPE_CHECKING:
+    import paramiko
+
 from flowforge.crypto import decrypt_config
+from flowforge.db.models import SSHConnection as SSHConnectionRow
+from flowforge.db.models import db
 
 logger = logging.getLogger(__name__)
 

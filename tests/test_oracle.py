@@ -4,8 +4,8 @@ Uses sys.modules patching to mock oracledb — no Oracle Instant Client required
 """
 import sys
 from unittest.mock import MagicMock, patch
-import pytest
 
+import pytest
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 

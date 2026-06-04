@@ -268,7 +268,8 @@ def _load_bulk_load_config(config_id: str) -> dict | None:
 
 def _resolve_connection(connection_id: str) -> dict:
     from flowforge.crypto import decrypt_config
-    from flowforge.db.models import DbConnection as DbConnectionModel, db
+    from flowforge.db.models import DbConnection as DbConnectionModel
+    from flowforge.db.models import db
 
     row = db.session.get(DbConnectionModel, connection_id)
     if not row:

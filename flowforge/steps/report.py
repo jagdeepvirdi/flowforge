@@ -52,7 +52,7 @@ class ReportStep(BaseStep):
             else:
                 return StepResult(success=False, error=f"Unknown report format: {fmt}")
 
-            from flowforge.crypto import output_encryption_enabled, encrypt_file
+            from flowforge.crypto import encrypt_file, output_encryption_enabled
             if output_encryption_enabled():
                 output_path = encrypt_file(output_path)
 
@@ -96,6 +96,7 @@ class ReportStep(BaseStep):
             from flowforge.connections.factory import get_connection
             return get_connection(connection_id)
         import os
+
         from flowforge.connections.postgres import PostgreSQLConnection
         return PostgreSQLConnection(
             host=os.environ.get('DB_HOST', ''),

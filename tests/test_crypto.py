@@ -1,12 +1,13 @@
 """Unit tests for AES-256-GCM credential encryption. No DB needed."""
 import os
+
 import pytest
 
 os.environ['FLOWFORGE_SECRET_KEY'] = 'ab' * 32   # 32 bytes = 64 hex chars
 
 
 def test_encrypt_decrypt_roundtrip():
-    from flowforge.crypto import encrypt_config, decrypt_config
+    from flowforge.crypto import decrypt_config, encrypt_config
     data = {'host': 'localhost', 'port': 5432, 'password': 'secret123'}
     token = encrypt_config(data)
     assert isinstance(token, str)
@@ -26,6 +27,7 @@ def test_missing_key_raises():
     original = os.environ.pop('FLOWFORGE_SECRET_KEY', None)
     try:
         import importlib
+
         import flowforge.crypto as crypto_mod
         importlib.reload(crypto_mod)
         with pytest.raises(RuntimeError, match='FLOWFORGE_SECRET_KEY'):
@@ -34,15 +36,17 @@ def test_missing_key_raises():
         if original:
             os.environ['FLOWFORGE_SECRET_KEY'] = original
         import importlib
+
         import flowforge.crypto as crypto_mod
         importlib.reload(crypto_mod)
 
 
 def test_wrong_key_fails_decrypt():
-    from flowforge.crypto import encrypt_config
     import base64
+
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-    from cryptography.exceptions import InvalidTag
+
+    from flowforge.crypto import encrypt_config
 
     token = encrypt_config({'secret': 'value'})
 
@@ -58,6 +62,7 @@ def test_short_key_raises():
     os.environ['FLOWFORGE_SECRET_KEY'] = 'tooshort'
     try:
         import importlib
+
         import flowforge.crypto as crypto_mod
         importlib.reload(crypto_mod)
         with pytest.raises(RuntimeError, match='32-byte'):
@@ -65,5 +70,6 @@ def test_short_key_raises():
     finally:
         os.environ['FLOWFORGE_SECRET_KEY'] = 'ab' * 32
         import importlib
+
         import flowforge.crypto as crypto_mod
         importlib.reload(crypto_mod)

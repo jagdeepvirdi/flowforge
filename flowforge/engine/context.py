@@ -138,7 +138,8 @@ def _built_ins() -> dict[str, Any]:
     q_end_month   = q_start_month + 2
     quarter_end   = date(today.year, q_end_month, calendar.monthrange(today.year, q_end_month)[1])
 
-    _ts = lambda d, h, m, s: f"{d.strftime('%Y%m%d')}{h:02d}{m:02d}{s:02d}"
+    def _ts(d, h, m, s):
+        return f"{d.strftime('%Y%m%d')}{h:02d}{m:02d}{s:02d}"
 
     return {
         # Date strings (YYYY-MM-DD)

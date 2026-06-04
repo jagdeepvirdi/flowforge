@@ -1,7 +1,6 @@
 """Tests for report config CRUD and query preview."""
 import pytest
 
-
 REPORT_PAYLOAD = {
     'name': 'Test Report',
     'description': 'Automated test report',

@@ -5,17 +5,15 @@ Revises: 6158f44dafca
 Create Date: 2026-05-30 10:14:27.311660
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import postgresql
-
 
 revision: str = 'b7a76582c1ea'
-down_revision: Union[str, None] = '6158f44dafca'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = '6158f44dafca'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 _NEW_TYPES = (
     "'db_procedure','db_query','report','email','drive_upload',"

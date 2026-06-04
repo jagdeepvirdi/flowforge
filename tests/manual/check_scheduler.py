@@ -11,8 +11,8 @@ import argparse
 import json
 import sys
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 
 
 def _request(method, url, data=None, token=None):
@@ -99,7 +99,7 @@ def main():
     try:
         run = wait_for_scheduled_run(base, token, pipeline_id, timeout=args.timeout)
         if run:
-            print(f'[PASS] Scheduler test passed — run triggered automatically')
+            print('[PASS] Scheduler test passed — run triggered automatically')
             print(f'       Triggered by: {run.get("triggered_by")}')
             print(f'       Status:       {run.get("status")}')
         else:

@@ -11,11 +11,10 @@ Usage:
     .venv\Scripts\python.exe verify_celery.py
 """
 import os
-import sys
 import subprocess
+import sys
 import time
 import uuid
-from datetime import datetime, timezone
 from pathlib import Path
 
 # ── env vars must be set BEFORE any flowforge import ──────────────────────────
@@ -39,16 +38,22 @@ def _header(title: str) -> None:
     print(f'  {title}')
     print('─'*60)
 
-def _ok(msg: str)   -> None: print(f'  {PASS}  {msg}')
-def _err(msg: str)  -> None: print(f'  {FAIL}  {msg}'); sys.exit(1)
-def _warn(msg: str) -> None: print(f'  !  {msg}')
+def _ok(msg: str) -> None:
+    print(f'  {PASS}  {msg}')
+
+
+def _err(msg: str) -> None:
+    print(f'  {FAIL}  {msg}')
+    sys.exit(1)
+
+
+def _warn(msg: str) -> None:
+    print(f'  !  {msg}')
 
 # ── import after env vars are set ─────────────────────────────────────────────
 from flowforge.api.app import create_app
 from flowforge.crypto import encrypt_config
-from flowforge.db.models import (
-    db, DbConnection, Pipeline, PipelineStep, PipelineRun, StepRun
-)
+from flowforge.db.models import DbConnection, Pipeline, PipelineRun, PipelineStep, StepRun, db
 
 _POLL_SECS = 45  # max seconds to wait for a run to complete
 
@@ -150,7 +155,7 @@ def test_celery_path():
 
     # Start a worker as a subprocess
     worker_env = os.environ.copy()
-    worker_out = []
+    worker_out: list[str] = []  # noqa: F841 — reserved for future verbose output
 
     print('  Starting flowforge worker…')
     worker = subprocess.Popen(
@@ -254,7 +259,7 @@ def test_thread_fallback():
         pipeline_id = _create_test_pipeline(app_no_redis, conn_id)
         _ok('Test pipeline created')
 
-        from flowforge.engine.launcher import launch_run, _use_celery
+        from flowforge.engine.launcher import _use_celery, launch_run
         if _use_celery():
             _err('_use_celery() returned True even with FLOWFORGE_REDIS_URL unset')
         _ok('_use_celery() correctly returns False')
@@ -278,7 +283,7 @@ def test_thread_fallback():
         if run.status in ('success', 'failed'):
             _ok(f'Run completed with status="{run.status}" (thread mode confirmed)')
         else:
-            _err(f'Run still "running" after timeout — thread executor may have stalled')
+            _err('Run still "running" after timeout — thread executor may have stalled')
 
         step_runs = _get_step_runs(app_no_redis, run_id)
         if step_runs:

@@ -4,9 +4,9 @@ Uses mocked db.session — no live database required.
 Covers: _import_step_class, load_pipeline (not-found, disabled, variables,
 secret decryption, disabled-step skip, unknown step type, on_error propagation).
 """
-from unittest.mock import MagicMock, patch, call
-import pytest
+from unittest.mock import MagicMock, patch
 
+import pytest
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 

@@ -74,7 +74,7 @@ class ScriptReportStep(BaseStep):
             else:
                 return StepResult(success=False, error=f"Unknown report format: {fmt}")
 
-            from flowforge.crypto import output_encryption_enabled, encrypt_file
+            from flowforge.crypto import encrypt_file, output_encryption_enabled
             if output_encryption_enabled():
                 output_path = encrypt_file(output_path)
 
@@ -111,8 +111,8 @@ class ScriptReportStep(BaseStep):
             try:
                 dialect = csv.Sniffer().sniff(raw_data[:1024])
                 reader = csv.reader(f, dialect)
-            except:
-                reader = csv.reader(f) # Fallback to default
+            except csv.Error:
+                reader = csv.reader(f)
             
             all_rows = list(reader)
             if not all_rows:
