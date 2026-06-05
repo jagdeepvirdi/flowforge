@@ -7,7 +7,6 @@ import pytest
 
 from flowforge.db.models import PipelineRun, StepRun, db
 
-
 # ── _check_anomaly ────────────────────────────────────────────────────────────
 
 def test_check_anomaly_current_none():

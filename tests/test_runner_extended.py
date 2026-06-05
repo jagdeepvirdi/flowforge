@@ -1,12 +1,11 @@
 """Extended tests for engine/runner.py — parallel waves, DB helpers, _expose_step_outputs."""
 import uuid
 from datetime import UTC, datetime
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from flowforge.steps.base import BaseStep, StepResult
-
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -142,6 +141,7 @@ def test_expose_step_outputs_non_reserved_vars_merged():
 def test_expose_step_outputs_reserved_key_not_overwritten(caplog):
     """output_variables with a reserved key (e.g. 'run_id') must not be merged into context."""
     import logging
+
     from flowforge.engine.runner import _expose_step_outputs
     context = {'steps': {}, 'run_id': 'original-run-id'}
     result = StepResult(
@@ -255,8 +255,8 @@ def test_write_step_run_noop_when_run_record_none():
 
 def test_write_step_run_creates_step_run_record(app):
     """_write_step_run creates a StepRun DB record when run_record is set."""
-    from flowforge.engine.runner import _write_step_run
     from flowforge.db.models import PipelineRun, StepRun, db
+    from flowforge.engine.runner import _write_step_run
 
     with app.app_context():
         # Create a parent PipelineRun
@@ -295,6 +295,7 @@ def test_write_step_run_creates_step_run_record(app):
 def test_write_step_run_swallows_sqlalchemy_error(app):
     """SQLAlchemyError during _write_step_run must not propagate."""
     from sqlalchemy.exc import SQLAlchemyError
+
     from flowforge.engine.runner import _write_step_run
 
     mock_run = MagicMock()
@@ -304,8 +305,7 @@ def test_write_step_run_swallows_sqlalchemy_error(app):
     result = StepResult(success=True)
     t = datetime.now(UTC)
 
-    with patch('flowforge.engine.runner._write_step_run') as patched:
-        # We test the real function by calling it with a mock that triggers the error
+    with patch('flowforge.engine.runner._write_step_run'):
         pass
 
     # Call the real function with DB mocked to raise
@@ -328,8 +328,8 @@ def test_finish_run_record_noop_when_none():
 
 
 def test_finish_run_record_sets_success(app):
-    from flowforge.engine.runner import _finish_run_record
     from flowforge.db.models import PipelineRun, db
+    from flowforge.engine.runner import _finish_run_record
 
     with app.app_context():
         run = PipelineRun(
@@ -352,8 +352,8 @@ def test_finish_run_record_sets_success(app):
 
 
 def test_finish_run_record_sets_failure_with_details(app):
-    from flowforge.engine.runner import _finish_run_record
     from flowforge.db.models import PipelineRun, db
+    from flowforge.engine.runner import _finish_run_record
 
     with app.app_context():
         run = PipelineRun(
@@ -379,6 +379,7 @@ def test_finish_run_record_sets_failure_with_details(app):
 def test_finish_run_record_swallows_sqlalchemy_error():
     """SQLAlchemyError during _finish_run_record must not propagate."""
     from sqlalchemy.exc import SQLAlchemyError
+
     from flowforge.engine.runner import _finish_run_record
 
     mock_run = MagicMock()
@@ -397,6 +398,7 @@ def test_finish_run_record_swallows_sqlalchemy_error():
 def test_create_run_record_returns_none_on_sqla_error():
     """If SQLAlchemy raises, _create_run_record returns None."""
     from sqlalchemy.exc import SQLAlchemyError
+
     from flowforge.engine.runner import _create_run_record
 
     with patch('flowforge.db.models.db') as mock_db:
@@ -407,8 +409,8 @@ def test_create_run_record_returns_none_on_sqla_error():
 
 def test_create_run_record_with_existing_run_id(app):
     """existing_run_id → fetches via db.session.get."""
-    from flowforge.engine.runner import _create_run_record
     from flowforge.db.models import PipelineRun, db
+    from flowforge.engine.runner import _create_run_record
 
     with app.app_context():
         run = PipelineRun(
@@ -432,8 +434,8 @@ def test_create_run_record_with_existing_run_id(app):
 
 def test_create_run_record_creates_new(app):
     """No existing_run_id → creates a new PipelineRun."""
+    from flowforge.db.models import db
     from flowforge.engine.runner import _create_run_record
-    from flowforge.db.models import PipelineRun, db
 
     with app.app_context():
         run = _create_run_record(None, '__created_pipe__', 'api')
@@ -462,8 +464,8 @@ def test_get_last_success_ts_returns_empty_when_no_run():
 
 
 def test_get_last_success_ts_returns_formatted_date(app):
-    from flowforge.engine.runner import _get_last_success_ts
     from flowforge.db.models import Pipeline, PipelineRun, db
+    from flowforge.engine.runner import _get_last_success_ts
 
     pid = str(uuid.uuid4())
     with app.app_context():

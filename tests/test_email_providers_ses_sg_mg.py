@@ -4,12 +4,10 @@ All external I/O (requests, boto3) is mocked — no cloud credentials required.
 Also tests the factory._build_provider paths for these three provider types.
 """
 import sys
-from pathlib import Path
 from types import ModuleType
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 # ── SendGrid ───────────────────────────────────────────────────────────────────
 

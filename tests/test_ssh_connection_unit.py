@@ -2,14 +2,11 @@
 
 All tests mock paramiko via sys.modules patching.
 """
-import os
-import sys
 import uuid
 from types import ModuleType
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -54,8 +51,6 @@ def _make_ssh(host='localhost', port=22, username='user',
 def test_connect_paramiko_not_installed():
     """ImportError if paramiko is not available."""
     with patch.dict('sys.modules', {'paramiko': None}):
-        from importlib import reload
-        import flowforge.connections.ssh as ssh_mod
         conn = _make_ssh()
         with pytest.raises((ImportError, Exception)):
             conn.connect()
@@ -68,7 +63,7 @@ def test_connect_password_auth():
     with patch.dict('sys.modules', {'paramiko': mock_paramiko}):
         from flowforge.connections.ssh import SSHConnection
         conn = SSHConnection(host='myhost', username='myuser', password='mypass')
-        result = conn.connect()
+        conn.connect()
 
     mock_client.connect.assert_called_once()
     kwargs = mock_client.connect.call_args[1]

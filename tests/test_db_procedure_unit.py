@@ -2,13 +2,9 @@
   1. validate_identifier raises ValueError for an invalid procedure name (lines 20-21)
   2. _get_connection — both the connection_id branch and the env-var fallback (lines 37-45)
 """
-import os
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from flowforge.steps.db_procedure import DbProcedureStep
-
 
 # ── validate_identifier error path ─────────────────────────────────────────────
 

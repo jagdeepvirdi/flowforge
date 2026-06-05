@@ -3,8 +3,6 @@ import urllib.error
 from io import BytesIO
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from flowforge.steps.notification import NotificationStep
 
 

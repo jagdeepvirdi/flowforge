@@ -10,8 +10,6 @@ Covers the previously-uncovered test() method (lines 79-93 of smtp.py):
 import smtplib
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from flowforge.email_providers.smtp import SMTPProvider
 
 

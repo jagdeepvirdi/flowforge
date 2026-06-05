@@ -3,7 +3,6 @@
 Covers: encrypt_file, decrypt_file_to_bytes, decrypt_file_to_stream.
 """
 import io
-import os
 
 import pytest
 

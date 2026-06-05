@@ -10,7 +10,6 @@ import pytest
 
 from flowforge.db.models import Pipeline, PipelineRun, db
 
-
 # ── fixtures ───────────────────────────────────────────────────────────────────
 
 @pytest.fixture

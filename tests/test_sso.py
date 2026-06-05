@@ -3,10 +3,7 @@ import sys
 import time
 import uuid
 from types import ModuleType
-from unittest.mock import MagicMock, patch, patch as mock_patch
-
-import pytest
-
+from unittest.mock import MagicMock, patch
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -74,7 +71,7 @@ def test_new_state_returns_token():
 
 def test_consume_state_valid_token():
     _clear_sso_states()
-    from flowforge.api.routes.sso import _new_state, _consume_state
+    from flowforge.api.routes.sso import _consume_state, _new_state
     token = _new_state('google')
     provider = _consume_state(token)
     assert provider == 'google'
@@ -89,7 +86,7 @@ def test_consume_state_invalid_token():
 
 def test_consume_state_removes_token():
     _clear_sso_states()
-    from flowforge.api.routes.sso import _new_state, _consume_state
+    from flowforge.api.routes.sso import _consume_state, _new_state
     token = _new_state('microsoft')
     _consume_state(token)
     # Second consume should return None
@@ -586,10 +583,12 @@ def test_sso_microsoft_callback_success(client, monkeypatch, app):
 
 def test_find_or_create_user_existing_sso_email(app, monkeypatch):
     monkeypatch.setenv('FLOWFORGE_SSO_AUTO_CREATE', 'false')
+    import secrets as sec_mod
+
+    import bcrypt as bc_mod
+
     from flowforge.api.routes.sso import _find_or_create_user
     from flowforge.db.models import User, db
-    import secrets as sec_mod
-    import bcrypt as bc_mod
 
     test_email = 'sso_exist@example.com'
     uid = str(uuid.uuid4())
@@ -647,10 +646,12 @@ def test_find_or_create_user_autocreate_creates_user(app, monkeypatch):
 def test_find_or_create_user_username_collision_uses_email(app, monkeypatch):
     """When username collision exists, full email is used as username."""
     monkeypatch.setenv('FLOWFORGE_SSO_AUTO_CREATE', 'true')
+    import secrets as sec_mod
+
+    import bcrypt as bc_mod
+
     from flowforge.api.routes.sso import _find_or_create_user
     from flowforge.db.models import User, db
-    import secrets as sec_mod
-    import bcrypt as bc_mod
 
     # Create a user with username that would collide
     conflicting_username = 'collision_user_x'
@@ -681,10 +682,12 @@ def test_find_or_create_user_username_collision_uses_email(app, monkeypatch):
 def test_find_or_create_user_links_existing_username_without_sso(app, monkeypatch):
     """No auto-create but username matches existing user without sso_email → link."""
     monkeypatch.setenv('FLOWFORGE_SSO_AUTO_CREATE', 'false')
+    import secrets as sec_mod
+
+    import bcrypt as bc_mod
+
     from flowforge.api.routes.sso import _find_or_create_user
     from flowforge.db.models import User, db
-    import secrets as sec_mod
-    import bcrypt as bc_mod
 
     username = 'linkable_sso_user'
     test_email = f'{username}@example.com'

@@ -5,9 +5,7 @@ Covers: _register_cleanup_job, _register_sync_job, _cleanup_job,
         _sync_db_job, _run_pipeline_job.
 """
 import os
-from unittest.mock import MagicMock, call, patch
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 
 def _make_mock_app():

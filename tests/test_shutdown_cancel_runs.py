@@ -73,6 +73,7 @@ def test_cancel_stuck_runs_no_runs_returns_early():
 
 def test_cancel_stuck_runs_swallows_sqlalchemy_error():
     from sqlalchemy.exc import SQLAlchemyError
+
     import flowforge.engine.shutdown as sd
 
     mock_db = MagicMock()

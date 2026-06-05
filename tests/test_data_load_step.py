@@ -3,15 +3,11 @@
 All DB calls are mocked — no live database required.
 """
 import csv
-import io
-from pathlib import Path
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from flowforge.steps.data_load import DataLoadStep
-from flowforge.steps.base import StepResult
-
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -45,7 +41,7 @@ def test_missing_target_connection_id():
 
 def test_missing_target_table():
     step = make_step({
-        'target_connection_id': str('fake-uuid'),
+        'target_connection_id': 'fake-uuid',
         'mode': 'append',
         'source': {'type': 'file', 'file_path': '/tmp/x.csv'},
     })
