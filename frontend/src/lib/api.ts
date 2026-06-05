@@ -40,9 +40,26 @@ const del  = <T>(path: string)             => request<T>('DELETE', path)
 
 // Auth
 export const login  = (username: string, password: string) =>
-  post<{ token: string }>('/auth/login', { username, password })
+  post<{ token: string } | { mfa_required: true; mfa_token: string }>('/auth/login', { username, password })
 export const logout = () => post<{ message: string }>('/auth/logout')
 export const getMe  = () => get<import('./types').CurrentUser>('/auth/me')
+
+// MFA
+export const getMfaStatus    = () => get<{ mfa_enabled: boolean; sso_provider: string | null }>('/auth/mfa/status')
+export const mfaEnroll       = () => post<{ provisioning_uri: string; secret: string }>('/auth/mfa/enroll')
+export const mfaConfirm      = (code: string) => post<{ backup_codes: string[] }>('/auth/mfa/confirm', { code })
+export const mfaDisable      = (password: string) => post<{ message: string }>('/auth/mfa/disable', { password })
+export const mfaVerify       = (mfa_token: string, code: string) =>
+  post<{ token: string }>('/auth/mfa/verify', { mfa_token, code })
+export const mfaUseBackup    = (mfa_token: string, backup_code: string) =>
+  post<{ token: string; backup_codes_remaining: number }>('/auth/mfa/use-backup', { mfa_token, backup_code })
+
+// SSO
+export const getSsoProviders = () => get<{ google: boolean; microsoft: boolean }>('/auth/sso/providers')
+
+// GDPR (admin)
+export const exportUserData = (id: string) => get<object>(`/users/${id}/export`)
+export const purgeUserData  = (id: string) => request<{ message: string; purged: boolean }>('DELETE', `/users/${id}?purge=true`)
 
 // Projects
 export const getProjects    = () => get<import('./types').Project[]>('/projects')
@@ -62,6 +79,8 @@ export const createPipeline  = (data: Partial<import('./types').Pipeline>) => po
 export const updatePipeline  = (id: string, data: Partial<import('./types').Pipeline>) => put<import('./types').Pipeline>(`/pipelines/${id}`, data)
 export const deletePipeline  = (id: string) => del<{ deleted: string }>(`/pipelines/${id}`)
 export const clonePipeline    = (id: string) => post<import('./types').Pipeline>(`/pipelines/${id}/clone`)
+export const promotePipeline  = (id: string, target_project_id: string, name_suffix?: string) =>
+  post<{ pipeline: import('./types').Pipeline; warnings: string[] }>(`/pipelines/${id}/promote`, { target_project_id, name_suffix })
 export const runPipeline      = (id: string) => post<{ run_id: string; status: string; pipeline_name: string }>(`/pipelines/${id}/run`)
 export const exportPipeline   = async (id: string): Promise<Blob> => {
   const token = useAuth.getState().token
@@ -74,6 +93,14 @@ export const exportPipeline   = async (id: string): Promise<Blob> => {
 export const importPipeline   = (yamlContent: string) =>
   post<import('./types').Pipeline>('/pipelines/import', { yaml_content: yamlContent })
 export const getPipelineRuns  = (id: string) => get<import('./types').PipelineRun[]>(`/pipelines/${id}/runs`)
+
+// Pipeline dependencies
+export const getPipelineDeps    = (id: string) =>
+  get<{ upstream: import('./types').PipelineDep[]; downstream: import('./types').PipelineDep[] }>(`/pipelines/${id}/dependencies`)
+export const addPipelineDep     = (id: string, upstream_id: string) =>
+  post<{ dep_id: string }>(`/pipelines/${id}/dependencies`, { upstream_id })
+export const removePipelineDep  = (id: string, dep_id: string) =>
+  del<{ deleted: string }>(`/pipelines/${id}/dependencies/${dep_id}`)
 export const getDashboardSummary = (projectId?: string) => {
   const qs = projectId ? `?project_id=${projectId}` : ''
   return get<{ pipeline_runs: Record<string, import('./types').PipelineRun[]> }>(`/dashboard/summary${qs}`)
@@ -168,8 +195,9 @@ export const getRuns = (params?: { pipeline_id?: string; project_id?: string; st
   const q = qs.toString()
   return get<import('./types').PipelineRun[]>(`/runs${q ? `?${q}` : ''}`)
 }
-export const getRun = (id: string) => get<import('./types').PipelineRun>(`/runs/${id}`)
+export const getRun          = (id: string) => get<import('./types').PipelineRun>(`/runs/${id}`)
 export const getRunAnomalies = (id: string) => get<import('./types').StepAnomaly[]>(`/runs/${id}/anomalies`)
+export const getRunDiff      = (id: string) => get<import('./types').RunDiff>(`/runs/${id}/diff`)
 export const getAnomalyNarrative = (payload: {
   step_name: string; metric: 'rows' | 'duration'
   value: number; mean: number; pct_diff: number
@@ -184,6 +212,14 @@ export const updateUser  = (id: string, data: { role?: string; username?: string
 export const deleteUser  = (id: string) => del<{ message: string }>(`/users/${id}`)
 export const changePassword = (data: { current_password: string; new_password: string }) =>
   post<{ message: string }>('/auth/change-password', data)
+
+// Password reset (no auth required)
+export const requestPasswordReset  = (username: string) =>
+  post<{ message: string }>('/auth/password-reset/request', { username })
+export const confirmPasswordReset  = (token: string, new_password: string) =>
+  post<{ message: string }>('/auth/password-reset/confirm', { token, new_password })
+export const validateResetToken    = (token: string) =>
+  get<{ valid: boolean }>(`/auth/password-reset/validate/${token}`)
 
 // Setup / OAuth status
 export type SetupStatus = {

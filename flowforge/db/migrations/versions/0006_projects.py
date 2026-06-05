@@ -4,16 +4,16 @@ Revision ID: 0006
 Revises: 0005
 Create Date: 2026-05-23
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import UUID
 
 revision: str = '0006'
-down_revision: Union[str, None] = '0005'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = '0005'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 # Fixed UUID so the Default project is always identifiable across environments.
 DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000001'

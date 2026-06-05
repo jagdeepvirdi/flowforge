@@ -1,7 +1,6 @@
 """Tests for bulk-load config CRUD API (/api/bulk-load-configs)."""
 import pytest
 
-
 PAYLOAD = {
     'name': 'Test Bulk Load',
     'description': 'Automated test bulk load config',

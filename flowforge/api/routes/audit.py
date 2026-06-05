@@ -1,7 +1,8 @@
 """Audit log API endpoints."""
 import csv
 from io import StringIO
-from flask import Blueprint, jsonify, request, Response
+
+from flask import Blueprint, Response, jsonify, request
 
 # ... (keep existing imports)
 from sqlalchemy import desc

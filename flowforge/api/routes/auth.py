@@ -1,10 +1,10 @@
 """Auth routes — POST /api/auth/login, POST /api/auth/logout."""
 from flask import Blueprint, g, jsonify, request
 
+from flowforge import audit
 from flowforge.api.app import limiter
 from flowforge.api.auth import login as auth_login
 from flowforge.api.auth import require_auth, revoke_token
-from flowforge import audit
 
 bp = Blueprint('auth', __name__)
 
@@ -20,13 +20,17 @@ def login():
     if not username or not password:
         return jsonify({'error': 'Username and password are required'}), 400
 
-    token = auth_login(username, password)
-    audit.log_login(username, success=token is not None, remote_addr=remote_addr)
+    result = auth_login(username, password)
+    audit.log_login(username, success=result is not None, remote_addr=remote_addr)
 
-    if not token:
+    if not result:
         return jsonify({'error': 'Invalid username or password'}), 401
 
-    return jsonify({'token': token})
+    # MFA second step required — return challenge token instead of full JWT
+    if isinstance(result, dict):
+        return jsonify(result)
+
+    return jsonify({'token': result})
 
 
 @bp.get('/auth/me')

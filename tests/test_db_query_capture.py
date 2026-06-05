@@ -1,8 +1,6 @@
 """Tests for db_query step capture_rows feature."""
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from flowforge.steps.db_query import DbQueryStep, _render_kv_html, _render_table_html
 
 

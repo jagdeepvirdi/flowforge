@@ -1,10 +1,8 @@
 """Tests for OneDrive storage module and OneDriveUploadStep."""
 import os
-from pathlib import Path
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 # ── storage: onedrive.upload_file ─────────────────────────────────────────────
 
@@ -49,6 +47,7 @@ def test_upload_small_file_direct(mock_msal_mod, tmp_small_file):
 
     with patch.dict('sys.modules', {'msal': mock_msal_mod, 'requests': mock_requests}):
         from importlib import reload
+
         import flowforge.storage.onedrive as mod
         reload(mod)
         result = mod.upload_file(tmp_small_file, 'root')
@@ -81,6 +80,7 @@ def test_upload_returns_share_url(mock_msal_mod, tmp_small_file):
 
     with patch.dict('sys.modules', {'msal': mock_msal_mod, 'requests': mock_requests}):
         from importlib import reload
+
         import flowforge.storage.onedrive as mod
         reload(mod)
         url = mod.upload_file(tmp_small_file, 'root', make_shareable=True)
@@ -105,6 +105,7 @@ def test_upload_requires_user_email(mock_msal_mod, tmp_small_file):
     mock_requests = MagicMock()
     with patch.dict('sys.modules', {'msal': mock_msal_mod, 'requests': mock_requests}):
         from importlib import reload
+
         import flowforge.storage.onedrive as mod
         reload(mod)
         with pytest.raises(ValueError, match='MICROSOFT_SENDER_EMAIL'):
@@ -131,6 +132,7 @@ def test_upload_uses_folder_id_in_path(mock_msal_mod, tmp_small_file):
 
     with patch.dict('sys.modules', {'msal': mock_msal_mod, 'requests': mock_requests}):
         from importlib import reload
+
         import flowforge.storage.onedrive as mod
         reload(mod)
         mod.upload_file(tmp_small_file, 'FOLDERID123')

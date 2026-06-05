@@ -376,6 +376,192 @@ Or using the step namespace (useful when multiple ai_analyze steps run):
 
 ---
 
+## ssh_command
+
+Executes a command or script on a remote server via SSH. Can capture stdout into a pipeline variable, save the full output to a file for email attachment, or both. Requires an **SSH Connection** configured in the Connections page.
+
+```yaml
+step_type: ssh_command
+config:
+  ssh_connection_id: <uuid>        # SSH Connection from Connections page (required)
+  command: "python /scripts/extract.py --date {{ current_date }}"   # supports {{ variables }}
+  timeout: 60                      # execution timeout in seconds (default: 60)
+  capture_output: true             # include stdout/stderr in Run History logs (default: true)
+  output_var: script_result        # store stdout in this pipeline variable (optional)
+  save_output: false               # save stdout to a file for email attachment (default: false)
+  output_filename: "script_{{ current_date }}.log"   # filename when save_output is true (optional)
+  include_stderr: true             # append stderr section to saved file (default: true)
+```
+
+**`output_var`:** When set, stdout is injected into the pipeline context as `{{ script_result }}`. Use it in downstream step configs or email body templates.
+
+**`save_output`:** When `true`, stdout (and optionally stderr) is written to a file and `output_path` is set on the result — so it can be attached to a downstream `email` step alongside an Excel report:
+
+```yaml
+# Step 1 — run the remote script, save its log
+- name: run_extraction
+  step_type: ssh_command
+  config:
+    ssh_connection_id: <uuid>
+    command: "python /scripts/nightly_extract.py --date {{ current_date }}"
+    save_output: true
+    output_filename: "extract_{{ current_date }}.log"
+
+# Step 2 — generate Excel from the updated DB table
+- name: generate_report
+  step_type: report
+  config:
+    report_config_id: <uuid>
+
+# Step 3 — email both the log and the Excel
+- name: send_results
+  step_type: email
+  config:
+    email_config_id: <uuid>
+    attachments:
+      - "{{ steps.run_extraction.output_path }}"
+      - "{{ steps.generate_report.output_path }}"
+```
+
+`output_path` is set even when the command exits non-zero, so the log file is always available for diagnosis.
+
+**Exit codes:** A non-zero exit status fails the step. This is useful for threshold checks — write a command that exits 1 when a condition is breached, then set `on_error: stop` to halt the pipeline (and optionally alert via `send_only_on_failure`).
+
+**Host key verification:** By default FlowForge uses strict host key checking (`RejectPolicy`). Set `FLOWFORGE_SSH_ALLOW_UNKNOWN_HOSTS=true` to auto-accept unknown hosts (not recommended for production). The recommended approach is `ssh-keyscan -H <host> >> ~/.ssh/known_hosts` on the FlowForge server.
+
+**Outputs:**
+- `{{ steps.<name>.output_path }}` — path to saved log file (only when `save_output: true`)
+- `{{ <output_var> }}` — stdout trimmed (only when `output_var` is set)
+
+---
+
+## db_health_check
+
+Collects industry-standard health metrics from a configured database connection, generates an Excel or CSV report, and writes a text summary to step logs. The report file can be attached to a downstream `email` step.
+
+```yaml
+step_type: db_health_check
+config:
+  connection_id: <uuid>        # DB Connection from Connections page (required)
+  format: excel                # 'excel' | 'csv'  (default: excel)
+  output_filename: "db_health_{{ current_date }}.xlsx"   # optional
+```
+
+**PostgreSQL metrics collected (one Excel sheet each):**
+- Active sessions (`pg_stat_activity`)
+- Buffer cache hit ratio (`pg_statio_user_tables`)
+- Replication lag per replica (`pg_stat_replication`) — omitted if no replicas
+
+**Oracle metrics collected:**
+- Active user sessions (`v$session`)
+- Buffer cache hit ratio (`v$sysstat`)
+- Tablespaces over 80% capacity (`dba_tablespace_usage_metrics`)
+
+**MySQL metrics collected:**
+- Connected threads (`SHOW STATUS`)
+
+**Outputs:**
+- `{{ steps.<name>.output_path }}` — path to the generated report file
+
+Use in a downstream `email` step:
+```yaml
+attachments:
+  - "{{ steps.check_db.output_path }}"
+```
+
+## ssh_health_check
+
+Connects to a server via SSH, collects standard system health metrics, and generates an Excel or CSV report file. All four metrics are collected by default; use the `metrics` field to select specific ones.
+
+```yaml
+step_type: ssh_health_check
+config:
+  ssh_connection_id: <uuid>   # SSH Connection from Connections page (required)
+  metrics:                    # optional — all four enabled by default
+    - load_average            # uptime: 1/5/15-min load + CPU count
+    - memory                  # free -m: RAM and swap (total / used / free)
+    - disk_usage              # df -h: per-filesystem usage
+    - top_processes           # ps aux: top 10 processes by CPU
+  format: excel               # 'excel' | 'csv'  (default: excel)
+  output_filename: "ssh_health_{{ current_date }}.xlsx"  # optional
+```
+
+Each metric becomes one sheet in the Excel report (or one section in CSV).
+
+**Metric details:**
+
+| Metric | Command | Columns |
+|---|---|---|
+| `load_average` | `cat /proc/loadavg && nproc` | Metric, Value |
+| `memory` | `free -m` | Type, Total, Used, Free, Available |
+| `disk_usage` | `df -h` | Filesystem, Size, Used, Available, Use%, Mounted On |
+| `top_processes` | `ps aux --sort=-%cpu \| head -11` | User, PID, CPU%, MEM%, Command |
+
+**Fault tolerance:** If one metric command fails (e.g. the server lacks `ps`), that metric is skipped with a warning. The step still succeeds with whatever metrics were collected. The step only fails if *all* metrics fail, or if the SSH connection itself cannot be established.
+
+**Outputs:**
+- `{{ steps.<name>.output_path }}` — path to the generated report file
+
+Use in a downstream `email` step:
+```yaml
+attachments:
+  - "{{ steps.check_server.output_path }}"
+```
+
+---
+
+## data_report
+
+Generates an Excel, CSV, PDF, or JSON report file from data stored in a pipeline context variable. Used to turn raw output (e.g. from `ssh_command` or `db_query` `output_variable`) into a formatted attachment.
+
+```yaml
+step_type: data_report
+config:
+  data_var: disk_csv            # pipeline variable containing the data (required)
+  data_format: csv              # format of the variable's content: 'csv' | 'json' (default: csv)
+  format: excel                 # output file format: 'excel' | 'csv' | 'pdf' | 'json' (default: excel)
+  output_filename: "disk_usage_{{ current_date }}.xlsx"   # supports {{ variables }} (required)
+  columns: []                   # optional — override column names from the data
+  sheet_name: Sheet1            # Excel only — tab name (default: Sheet1)
+  title: Disk Usage Report      # PDF only — document title
+```
+
+**`data_format: csv`:** The variable must contain a CSV string with a header row. The first row becomes the column names; remaining rows become data rows. Delimiter is auto-detected.
+
+**`data_format: json`:** The variable must contain a JSON array of objects (one object per row). Object keys become column names.
+
+**Example — SSH command → Excel report:**
+
+```yaml
+# Step 1: collect disk usage as CSV
+- name: collect_disk
+  step_type: ssh_command
+  config:
+    ssh_connection_id: <uuid>
+    command: >
+      df -h | awk 'NR==1{print "Filesystem,Size,Used,Available,Use%,Mounted"}
+                   NR>1{printf "%s,%s,%s,%s,%s,%s\n",$1,$2,$3,$4,$5,$6}'
+    output_var: disk_csv
+
+# Step 2: generate Excel from the CSV variable
+- name: generate_disk_report
+  step_type: data_report
+  config:
+    data_var: disk_csv
+    data_format: csv
+    format: excel
+    output_filename: "disk_report_{{ current_date }}.xlsx"
+    sheet_name: Disk Usage
+```
+
+**Outputs:**
+- `{{ steps.<name>.output_path }}` — absolute path to the generated file
+- `{{ steps.<name>.rows_affected }}` — number of data rows in the report
+
+Use `output_path` in the `email` step's `attachments` field.
+
+---
+
 ## sftp_transfer
 
 Downloads files from or uploads files to a remote SFTP server. Supports password authentication and private-key authentication (RSA, ECDSA, Ed25519, DSS). Requires `pip install paramiko` (or `pip install 'flowforge[sftp]'`).

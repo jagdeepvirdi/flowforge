@@ -4,17 +4,16 @@ Pure unit tests — no DB, no Flask app context required.
 """
 from flowforge.api.validators import (
     _check_len,
+    validate_connection,
+    validate_email_config,
     validate_pipeline,
     validate_pipeline_step,
     validate_pipeline_variable,
-    validate_report,
-    validate_email_config,
-    validate_recipient_group,
-    validate_connection,
-    validate_provider,
     validate_project,
+    validate_provider,
+    validate_recipient_group,
+    validate_report,
 )
-
 
 # ── _check_len ────────────────────────────────────────────────────────────────
 

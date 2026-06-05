@@ -1,7 +1,7 @@
 """Tests for SftpTransferStep."""
 import stat
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -11,7 +11,6 @@ from flowforge.steps.sftp_transfer import (
     _remote_is_dir,
     _sftp_connect,
 )
-
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -41,6 +40,7 @@ def _make_sftp_entry(name, is_dir=False):
 def test_sftp_connect_raises_import_error_without_paramiko():
     with patch.dict('sys.modules', {'paramiko': None}):
         import importlib
+
         import flowforge.steps.sftp_transfer as m
         importlib.reload(m)
         with pytest.raises(ImportError, match='paramiko'):
@@ -279,7 +279,7 @@ def test_download_file_places_inside_dir_when_local_is_directory(tmp_path):
     sftp = MagicMock()
     # First stat call checks if remote is dir → it's a file
     sftp.stat.return_value.st_mode = stat.S_IFREG | 0o644
-    sftp.get.side_effect = lambda r, l: Path(l).write_text('x')
+    sftp.get.side_effect = lambda r, loc: Path(loc).write_text('x')
 
     with patch('flowforge.steps.sftp_transfer._sftp_connect') as mock_ctx:
         mock_ctx.return_value.__enter__ = lambda s: sftp
@@ -299,7 +299,7 @@ def test_download_directory_downloads_all_files(tmp_path):
     sftp.stat.return_value.st_mode = stat.S_IFDIR | 0o755
     entries = [_make_sftp_entry('a.csv'), _make_sftp_entry('b.csv')]
     sftp.listdir_attr.return_value = entries
-    sftp.get.side_effect = lambda r, l: Path(l).write_text('data')
+    sftp.get.side_effect = lambda r, loc: Path(loc).write_text('data')
 
     with patch('flowforge.steps.sftp_transfer._sftp_connect') as mock_ctx:
         mock_ctx.return_value.__enter__ = lambda s: sftp
@@ -319,7 +319,7 @@ def test_download_directory_applies_glob_pattern(tmp_path):
     sftp.stat.return_value.st_mode = stat.S_IFDIR | 0o755
     entries = [_make_sftp_entry('data.csv'), _make_sftp_entry('notes.txt')]
     sftp.listdir_attr.return_value = entries
-    sftp.get.side_effect = lambda r, l: Path(l).write_text('x')
+    sftp.get.side_effect = lambda r, loc: Path(loc).write_text('x')
 
     with patch('flowforge.steps.sftp_transfer._sftp_connect') as mock_ctx:
         mock_ctx.return_value.__enter__ = lambda s: sftp
@@ -339,7 +339,7 @@ def test_download_directory_skips_subdirectories(tmp_path):
     sftp.stat.return_value.st_mode = stat.S_IFDIR | 0o755
     entries = [_make_sftp_entry('file.csv'), _make_sftp_entry('subdir', is_dir=True)]
     sftp.listdir_attr.return_value = entries
-    sftp.get.side_effect = lambda r, l: Path(l).write_text('x')
+    sftp.get.side_effect = lambda r, loc: Path(loc).write_text('x')
 
     with patch('flowforge.steps.sftp_transfer._sftp_connect') as mock_ctx:
         mock_ctx.return_value.__enter__ = lambda s: sftp
@@ -536,7 +536,7 @@ def test_step_renders_jinja_in_remote_path(tmp_path):
     ctx = build('test')
     month = ctx['current_month']
 
-    local_file = tmp_path / f'report_{month}.csv'
+    _local_file = tmp_path / f'report_{month}.csv'
     step = SftpTransferStep(name='sftp', config={
         'host': 'h', 'username': 'u', 'password': 'p',
         'operation': 'download',
@@ -546,7 +546,7 @@ def test_step_renders_jinja_in_remote_path(tmp_path):
 
     sftp = MagicMock()
     sftp.stat.return_value.st_mode = stat.S_IFREG | 0o644
-    sftp.get.side_effect = lambda r, l: Path(l).write_text('x')
+    sftp.get.side_effect = lambda r, loc: Path(loc).write_text('x')
 
     with patch('flowforge.steps.sftp_transfer._sftp_connect') as mock_ctx:
         mock_ctx.return_value.__enter__ = lambda s: sftp

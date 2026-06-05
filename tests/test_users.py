@@ -1,6 +1,5 @@
 """Tests for user management API (MU-2): POST/GET/PATCH/DELETE /api/users
 and POST /api/auth/change-password."""
-import pytest
 
 
 # ---------------------------------------------------------------------------

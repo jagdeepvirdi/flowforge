@@ -27,6 +27,7 @@ def auth_login():
 @require_auth
 def auth_refresh():
     from flask import request as req
+
     from flowforge.api.auth import generate_token, verify_token
     from flowforge.db.models import User, db
     header = req.headers.get('Authorization', '')
@@ -73,7 +74,8 @@ def setup_status():
         'retention': {
             'run_days': int(os.environ.get('FLOWFORGE_RUN_RETENTION_DAYS', 90)),
             'audit_days': int(os.environ.get('FLOWFORGE_AUDIT_RETENTION_DAYS', os.environ.get('FLOWFORGE_RUN_RETENTION_DAYS', 90))),
-        }
+        },
+        'encrypt_output': os.environ.get('FLOWFORGE_ENCRYPT_OUTPUT', '').lower() == 'true',
     })
 
 

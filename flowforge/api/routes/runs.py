@@ -2,12 +2,13 @@ import mimetypes
 import os
 import statistics
 from collections import defaultdict
+from datetime import UTC
 from pathlib import Path
 
 from flask import Blueprint, jsonify, request, send_file
 
 from flowforge.api.auth import require_auth, require_role
-from flowforge.api.serializers import run_dict, step_run_dict
+from flowforge.api.serializers import run_dict
 from flowforge.db.models import Pipeline, PipelineRun, StepRun, db
 
 # ── constants ──
@@ -154,6 +155,85 @@ def get_run_anomalies(run_id):
     return jsonify(result)
 
 
+@bp.get('/runs/<uuid:run_id>/diff')
+@require_auth
+def get_run_diff(run_id):
+    """Compare this run's step metrics vs the previous successful run of the same pipeline."""
+    import os
+    from pathlib import Path as _Path
+
+    run = db.session.get(PipelineRun, str(run_id))
+    if not run:
+        return jsonify({'error': _NOT_FOUND}), 404
+    if not run.pipeline_id:
+        return jsonify({'prev_run_id': None, 'steps': []})
+
+    prev_run = (
+        db.session.query(PipelineRun)
+        .filter(
+            PipelineRun.pipeline_id == run.pipeline_id,
+            PipelineRun.status == 'success',
+            PipelineRun.id != str(run_id),
+            PipelineRun.started_at < run.started_at,
+        )
+        .order_by(PipelineRun.started_at.desc())
+        .first()
+    )
+
+    if not prev_run:
+        return jsonify({'prev_run_id': None, 'steps': []})
+
+    prev_steps = {s.step_name: s for s in prev_run.step_runs}
+    output_root = _Path(os.environ.get('FLOWFORGE_OUTPUT_DIR', 'output')).resolve()
+
+    def _file_size(path_str: str | None) -> int | None:
+        if not path_str:
+            return None
+        try:
+            p = _Path(path_str).resolve()
+            if str(p).startswith(str(output_root)) and p.is_file():
+                return p.stat().st_size
+        except Exception:
+            pass
+        return None
+
+    result = []
+    for step in sorted(run.step_runs, key=lambda s: s.step_order):
+        prev = prev_steps.get(step.step_name)
+
+        rows_delta = None
+        if step.rows_affected is not None and prev and prev.rows_affected is not None:
+            rows_delta = step.rows_affected - prev.rows_affected
+
+        dur_delta_pct = None
+        if step.duration_ms and prev and prev.duration_ms:
+            dur_delta_pct = round(
+                (step.duration_ms - prev.duration_ms) / prev.duration_ms * 100, 1
+            )
+
+        size_curr = _file_size(step.output_path)
+        size_prev = _file_size(prev.output_path if prev else None)
+        size_delta = (size_curr - size_prev) if (size_curr is not None and size_prev is not None) else None
+
+        result.append({
+            'step_name':         step.step_name,
+            'step_type':         step.step_type,
+            'step_order':        step.step_order,
+            'is_new_step':       prev is None,
+            'rows_current':      step.rows_affected,
+            'rows_prev':         prev.rows_affected if prev else None,
+            'rows_delta':        rows_delta,
+            'duration_current':  step.duration_ms,
+            'duration_prev':     prev.duration_ms if prev else None,
+            'duration_delta_pct': dur_delta_pct,
+            'size_current':      size_curr,
+            'size_prev':         size_prev,
+            'size_delta':        size_delta,
+        })
+
+    return jsonify({'prev_run_id': prev_run.id, 'steps': result})
+
+
 @bp.get('/step-runs/<uuid:step_run_id>/download')
 @require_auth
 def download_step_output(step_run_id):
@@ -170,6 +250,19 @@ def download_step_output(step_run_id):
     if not abs_path.is_file():
         return jsonify({'error': 'Output file no longer exists on disk'}), 404
 
+    # Transparently decrypt files that were encrypted at rest (.enc suffix).
+    if abs_path.suffix == '.enc':
+        from flowforge.crypto import decrypt_file_to_stream
+        stream    = decrypt_file_to_stream(abs_path)
+        real_name = abs_path.stem   # strip the .enc suffix
+        mime, _   = mimetypes.guess_type(real_name)
+        return send_file(
+            stream,
+            mimetype=mime or 'application/octet-stream',
+            as_attachment=True,
+            download_name=real_name,
+        )
+
     mime, _ = mimetypes.guess_type(str(abs_path))
     return send_file(
         abs_path,
@@ -182,13 +275,13 @@ def download_step_output(step_run_id):
 @bp.post('/runs/<uuid:run_id>/cancel')
 @require_role(['admin', 'editor'])
 def cancel_run(run_id):
-    from datetime import datetime, timezone
+    from datetime import datetime
     run = db.session.get(PipelineRun, str(run_id))
     if not run:
         return jsonify({'error': _NOT_FOUND}), 404
     if run.status not in ('running', 'pending'):
         return jsonify({'error': f'Cannot cancel a run with status {run.status!r}'}), 409
     run.status = 'cancelled'
-    run.finished_at = datetime.now(timezone.utc)
+    run.finished_at = datetime.now(UTC)
     db.session.commit()
     return jsonify({'message': 'Run cancelled', 'run_id': str(run_id)})

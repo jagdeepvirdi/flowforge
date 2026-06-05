@@ -1,11 +1,18 @@
 """SQLAlchemy ORM models for FlowForge internal tables."""
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import (
-    Boolean, CheckConstraint, Column, DateTime, ForeignKey,
-    Integer, String, Text, UniqueConstraint,
+    Boolean,
+    CheckConstraint,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import relationship
@@ -26,7 +33,7 @@ def _uuid():
 
 
 def _utcnow():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class AuditLog(db.Model):
@@ -62,11 +69,19 @@ class User(db.Model):
         CheckConstraint("role IN ('admin', 'editor', 'viewer')", name='ck_user_role'),
     )
 
-    id            = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
-    username      = Column(String(100), nullable=False, unique=True)
-    password_hash = Column(String(255), nullable=False)
-    role          = Column(String(20), nullable=False, default='editor')
-    created_at    = Column(DateTime(timezone=True), default=_utcnow)
+    id               = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    username         = Column(String(100), nullable=False, unique=True)
+    password_hash    = Column(String(255), nullable=False)
+    role             = Column(String(20), nullable=False, default='editor')
+    email            = Column(String(255), index=True)  # optional — for password reset
+    # MFA (TOTP) — secret and backup codes stored AES-256 encrypted
+    mfa_secret       = Column(Text)
+    mfa_enabled      = Column(Boolean, nullable=False, default=False)
+    mfa_backup_codes = Column(Text)                    # encrypted JSON list of remaining codes
+    # SSO — provider ('google' | 'microsoft') and matched email
+    sso_provider     = Column(String(20))
+    sso_email        = Column(String(255), index=True)
+    created_at       = Column(DateTime(timezone=True), default=_utcnow)
 
 
 class RecipientGroup(db.Model):
@@ -86,7 +101,7 @@ class RecipientGroup(db.Model):
 class EmailProvider(db.Model):
     __tablename__ = 'ff_email_providers'
     __table_args__ = (
-        CheckConstraint("provider_type IN ('gmail', 'microsoft365', 'smtp')", name='ck_email_provider_type'),
+        CheckConstraint("provider_type IN ('gmail', 'microsoft365', 'smtp', 'sendgrid', 'ses', 'mailgun')", name='ck_email_provider_type'),
     )
 
     id            = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
@@ -102,7 +117,7 @@ class EmailProvider(db.Model):
 class DbConnection(db.Model):
     __tablename__ = 'ff_db_connections'
     __table_args__ = (
-        CheckConstraint("db_type IN ('postgresql', 'oracle', 'mysql')", name='ck_db_connection_type'),
+        CheckConstraint("db_type IN ('postgresql', 'oracle', 'mysql', 'mssql', 'odbc')", name='ck_db_connection_type'),
     )
 
     id         = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
@@ -114,6 +129,15 @@ class DbConnection(db.Model):
 
     report_configs    = relationship('ReportConfig', back_populates='connection')
     bulk_load_configs = relationship('BulkLoadConfig', back_populates='connection')
+
+
+class SSHConnection(db.Model):
+    __tablename__ = 'ff_ssh_connections'
+
+    id         = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    name       = Column(String(100), nullable=False)
+    config     = Column(Text, nullable=False)   # encrypted JSON (host, port, username, password, key_path)
+    created_at = Column(DateTime(timezone=True), default=_utcnow)
 
 
 class BulkLoadConfig(db.Model):
@@ -148,20 +172,21 @@ class ReportConfig(db.Model):
         CheckConstraint("format IN ('excel', 'csv', 'pdf', 'json')", name='ck_report_format'),
     )
 
-    id              = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
-    name            = Column(String(255), nullable=False)
-    description     = Column(Text)
-    connection_id   = Column(UUID(as_uuid=False), ForeignKey('ff_db_connections.id', ondelete=_SET_NULL))
-    query           = Column(Text, nullable=False)
-    format          = Column(String(20), nullable=False)
-    template_path   = Column(String(500))
-    output_filename = Column(String(500), nullable=False)
-    title           = Column(String(255))
-    sheet_name      = Column(String(100))
-    columns         = Column(ARRAY(Text))
-    project_id      = Column(UUID(as_uuid=False), ForeignKey(_FF_PROJECTS_ID, ondelete=_SET_NULL), nullable=True)
-    created_at      = Column(DateTime(timezone=True), default=_utcnow)
-    updated_at      = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+    id                 = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    name               = Column(String(255), nullable=False)
+    description        = Column(Text)
+    connection_id      = Column(UUID(as_uuid=False), ForeignKey('ff_db_connections.id', ondelete=_SET_NULL))
+    query              = Column(Text, nullable=False)
+    format             = Column(String(20), nullable=False)
+    template_path      = Column(String(500))
+    output_filename    = Column(String(500), nullable=False)
+    title              = Column(String(255))
+    sheet_name         = Column(String(100))
+    columns            = Column(ARRAY(Text))
+    column_formatting  = Column(JSONB, default=list)  # list of per-column format rules
+    project_id         = Column(UUID(as_uuid=False), ForeignKey(_FF_PROJECTS_ID, ondelete=_SET_NULL), nullable=True)
+    created_at         = Column(DateTime(timezone=True), default=_utcnow)
+    updated_at         = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
     connection = relationship('DbConnection', back_populates='report_configs')
     project    = relationship('Project', back_populates='report_configs')
@@ -205,6 +230,7 @@ class Pipeline(db.Model):
     enabled                 = Column(Boolean, default=True)
     timeout_minutes         = Column(Integer, default=60)
     on_failure_webhook_url  = Column(String(500))
+    send_only_on_failure    = Column(Boolean, default=False)
     project_id              = Column(UUID(as_uuid=False), ForeignKey(_FF_PROJECTS_ID, ondelete=_SET_NULL), nullable=True)
     created_at              = Column(DateTime(timezone=True), default=_utcnow)
     updated_at              = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
@@ -217,29 +243,37 @@ class Pipeline(db.Model):
     webhook_tokens = relationship('WebhookToken', back_populates='pipeline',
                                   cascade=_CASCADE)
     project        = relationship('Project', back_populates='pipelines')
+    upstream_deps  = relationship('PipelineDependency',
+                                  foreign_keys='PipelineDependency.downstream_id',
+                                  back_populates='downstream', cascade=_CASCADE)
+    downstream_deps = relationship('PipelineDependency',
+                                   foreign_keys='PipelineDependency.upstream_id',
+                                   back_populates='upstream', cascade=_CASCADE)
 
 
 class PipelineStep(db.Model):
     __tablename__ = 'ff_pipeline_steps'
     __table_args__ = (
         CheckConstraint(
-            "step_type IN ('db_procedure','db_query','report','email','drive_upload','data_load','bulk_load','onedrive_upload','ai_analyze','sftp_transfer')",
+            "step_type IN ('db_procedure','db_query','report','email','drive_upload','data_load','bulk_load','onedrive_upload','ai_analyze','sftp_transfer','ssh_command','db_health_check','data_report','ssh_health_check','notification')",
             name='ck_step_type',
         ),
         CheckConstraint("on_error IN ('stop', 'continue')", name='ck_on_error'),
         UniqueConstraint('pipeline_id', 'step_order', name='uq_pipeline_step_order'),
     )
 
-    id          = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
-    pipeline_id = Column(UUID(as_uuid=False), ForeignKey(_FF_PIPELINES_ID, ondelete='CASCADE'), nullable=False)
-    step_order  = Column(Integer, nullable=False)
-    name        = Column(String(255), nullable=False)
-    step_type   = Column(String(50), nullable=False)
-    config      = Column(JSONB, nullable=False, default=dict)
-    on_error    = Column(String(20), default='stop')
-    enabled     = Column(Boolean, default=True)
+    id             = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    pipeline_id    = Column(UUID(as_uuid=False), ForeignKey(_FF_PIPELINES_ID, ondelete='CASCADE'), nullable=False)
+    step_order     = Column(Integer, nullable=False)
+    name           = Column(String(255), nullable=False)
+    step_type      = Column(String(50), nullable=False)
+    config         = Column(JSONB, nullable=False, default=dict)
+    on_error       = Column(String(20), default='stop')
+    enabled        = Column(Boolean, default=True)
+    parallel_group = Column(String(100))  # non-null steps with same value run concurrently
 
     pipeline = relationship('Pipeline', back_populates='steps')
+
 
 
 class PipelineVariable(db.Model):
@@ -255,6 +289,23 @@ class PipelineVariable(db.Model):
     is_secret   = Column(Boolean, default=False)
 
     pipeline = relationship('Pipeline', back_populates='variables')
+
+
+class PipelineDependency(db.Model):
+    """Downstream pipeline B runs automatically when all its upstream pipelines succeed."""
+    __tablename__ = 'ff_pipeline_dependencies'
+    __table_args__ = (
+        UniqueConstraint('upstream_id', 'downstream_id', name='uq_pipeline_dependency'),
+        CheckConstraint('upstream_id != downstream_id', name='ck_no_self_dependency'),
+    )
+
+    id            = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    upstream_id   = Column(UUID(as_uuid=False), ForeignKey(_FF_PIPELINES_ID, ondelete='CASCADE'), nullable=False, index=True)
+    downstream_id = Column(UUID(as_uuid=False), ForeignKey(_FF_PIPELINES_ID, ondelete='CASCADE'), nullable=False, index=True)
+    created_at    = Column(DateTime(timezone=True), default=_utcnow)
+
+    upstream   = relationship('Pipeline', foreign_keys=[upstream_id],   back_populates='downstream_deps')
+    downstream = relationship('Pipeline', foreign_keys=[downstream_id], back_populates='upstream_deps')
 
 
 class PipelineRun(db.Model):
@@ -300,6 +351,17 @@ class TokenBlocklist(db.Model):
     jti        = Column(String(36), primary_key=True)
     revoked_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
     expires_at = Column(DateTime(timezone=True), nullable=False)
+
+
+class PasswordResetToken(db.Model):
+    """Single-use password reset tokens, valid for 1 hour."""
+    __tablename__ = 'ff_password_reset_tokens'
+
+    token      = Column(String(64),              primary_key=True)
+    user_id    = Column(UUID(as_uuid=False),      ForeignKey('ff_users.id', ondelete='CASCADE'), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True),  nullable=False, default=_utcnow)
+    expires_at = Column(DateTime(timezone=True),  nullable=False)
+    used_at    = Column(DateTime(timezone=True))
 
 
 class StepRun(db.Model):

@@ -173,6 +173,7 @@ def test_last_success_at_empty_on_first_run(app, pipeline_with_vars):
 def test_last_success_at_set_after_successful_run(app, pipeline_with_vars):
     """_get_last_success_ts returns the finished_at of the most recent success."""
     from datetime import datetime
+
     from flowforge.db.models import PipelineRun, db
     from flowforge.engine.runner import _get_last_success_ts
 
@@ -205,6 +206,7 @@ def test_last_success_at_set_after_successful_run(app, pipeline_with_vars):
 def test_last_success_at_picks_most_recent(app, pipeline_with_vars):
     """When multiple successful runs exist the most recent finished_at is returned."""
     from datetime import datetime
+
     from flowforge.db.models import PipelineRun, db
     from flowforge.engine.runner import _get_last_success_ts
 

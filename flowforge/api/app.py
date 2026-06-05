@@ -1,9 +1,11 @@
 """Flask application factory."""
+import ipaddress
 import logging
 import os
+from datetime import UTC
 from pathlib import Path
 
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -32,6 +34,13 @@ def create_app(config: dict | None = None) -> Flask:
     )
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB — prevents OOM on large POST bodies
+
+    # Connection pool tuning — tune via env vars for multi-worker Gunicorn deployments.
+    # Rule of thumb: POOL_SIZE × gunicorn_workers ≤ max_connections on PostgreSQL side.
+    app.config['SQLALCHEMY_POOL_SIZE']    = int(os.environ.get('SQLALCHEMY_POOL_SIZE',    '5'))
+    app.config['SQLALCHEMY_MAX_OVERFLOW'] = int(os.environ.get('SQLALCHEMY_MAX_OVERFLOW', '10'))
+    app.config['SQLALCHEMY_POOL_TIMEOUT'] = int(os.environ.get('SQLALCHEMY_POOL_TIMEOUT', '30'))
+    app.config['SQLALCHEMY_POOL_RECYCLE'] = int(os.environ.get('SQLALCHEMY_POOL_RECYCLE', '1800'))
 
     # AES-256 encryption key — used exclusively by flowforge/crypto.py
     app.config['SECRET_KEY'] = os.environ.get('FLOWFORGE_SECRET_KEY', '')  # NOSONAR
@@ -84,6 +93,7 @@ def create_app(config: dict | None = None) -> Flask:
 
     _register_blueprints(app)
     _register_error_handlers(app)
+    _register_ip_allowlist(app)
 
     with app.app_context():
         _sweep_stuck_runs(app)
@@ -91,11 +101,44 @@ def create_app(config: dict | None = None) -> Flask:
     return app
 
 
+def _register_ip_allowlist(app: Flask) -> None:
+    """If FLOWFORGE_ALLOWED_IPS is set, reject /api/* requests from non-listed IPs."""
+    raw = os.environ.get('FLOWFORGE_ALLOWED_IPS', '').strip()
+    if not raw:
+        return
+
+    networks: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = []
+    for cidr in raw.split(','):
+        cidr = cidr.strip()
+        if not cidr:
+            continue
+        try:
+            networks.append(ipaddress.ip_network(cidr, strict=False))
+        except ValueError:
+            app.logger.warning('FLOWFORGE_ALLOWED_IPS: invalid CIDR %r — skipped', cidr)
+
+    if not networks:
+        return
+
+    @app.before_request
+    def _check_ip():
+        if not request.path.startswith('/api/'):
+            return None
+        client_ip = request.remote_addr or ''
+        try:
+            addr = ipaddress.ip_address(client_ip)
+            if not any(addr in net for net in networks):
+                return jsonify({'error': 'Access denied: your IP is not allowed'}), 403
+        except ValueError:
+            return jsonify({'error': 'Access denied: invalid client IP'}), 403
+        return None
+
+
 def _sweep_stuck_runs(app: Flask) -> None:
     """Mark any pipeline runs left in 'running' state as failed (interrupted by restart)."""
     try:
-        from datetime import datetime, timezone
-        from sqlalchemy.exc import OperationalError
+        from datetime import datetime
+
         from flowforge.db.models import PipelineRun
         stuck = db.session.query(PipelineRun).filter_by(status='running').all()
         if not stuck:
@@ -104,7 +147,7 @@ def _sweep_stuck_runs(app: Flask) -> None:
             run.status = 'failed'
             run.error_message = 'Run interrupted by server restart'
             if not run.finished_at:
-                run.finished_at = datetime.now(timezone.utc)
+                run.finished_at = datetime.now(UTC)
         db.session.commit()
         app.logger.warning('Swept %d stuck pipeline run(s) left from previous session.', len(stuck))
     except Exception:
@@ -118,6 +161,9 @@ def _register_blueprints(app: Flask) -> None:
     from flowforge.api.routes.bulk_loads import bp as bulk_loads_bp
     from flowforge.api.routes.connections import bp as connections_bp
     from flowforge.api.routes.emails import bp as emails_bp
+    from flowforge.api.routes.metrics import bp as metrics_bp
+    from flowforge.api.routes.mfa import bp as mfa_bp
+    from flowforge.api.routes.password_reset import bp as password_reset_bp
     from flowforge.api.routes.pipelines import bp as pipelines_bp
     from flowforge.api.routes.projects import bp as projects_bp
     from flowforge.api.routes.providers import bp as providers_bp
@@ -125,12 +171,14 @@ def _register_blueprints(app: Flask) -> None:
     from flowforge.api.routes.reports import bp as reports_bp
     from flowforge.api.routes.runs import bp as runs_bp
     from flowforge.api.routes.setup import bp as setup_bp
+    from flowforge.api.routes.sso import bp as sso_bp
     from flowforge.api.routes.steps import bp as steps_bp
     from flowforge.api.routes.users import bp as users_bp
 
     for blueprint in (
-        ai_bp, audit_bp, auth_bp, bulk_loads_bp, connections_bp, emails_bp, pipelines_bp, projects_bp,
-        providers_bp, recipients_bp, reports_bp, runs_bp, setup_bp, steps_bp, users_bp,
+        ai_bp, audit_bp, auth_bp, bulk_loads_bp, connections_bp, emails_bp, metrics_bp,
+        mfa_bp, password_reset_bp, pipelines_bp, projects_bp, providers_bp, recipients_bp,
+        reports_bp, runs_bp, setup_bp, sso_bp, steps_bp, users_bp,
     ):
         app.register_blueprint(blueprint, url_prefix='/api')
 

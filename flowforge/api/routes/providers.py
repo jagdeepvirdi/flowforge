@@ -40,8 +40,9 @@ def create_provider():
     data = request.get_json() or {}
     if not data.get('name'):
         return jsonify({'error': 'name is required'}), 400
-    if data.get('provider_type') not in ('gmail', 'microsoft365', 'smtp'):
-        return jsonify({'error': 'provider_type must be gmail, microsoft365, or smtp'}), 400
+    _VALID = {'gmail', 'microsoft365', 'smtp', 'sendgrid', 'ses', 'mailgun'}
+    if data.get('provider_type') not in _VALID:
+        return jsonify({'error': f'provider_type must be one of: {", ".join(sorted(_VALID))}'}), 400
     if not data.get('config'):
         return jsonify({'error': 'config is required'}), 400
 

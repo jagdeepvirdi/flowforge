@@ -15,8 +15,9 @@ import FieldTooltip from '../components/shared/FieldTooltip'
 
 type Tab = 'db' | 'mail'
 
-const DB_COLORS: Record<string, string> = { postgresql: '#3B82F6', oracle: '#EF4444', mysql: '#14B8A6' }
-const DB_LABELS: Record<string, string>  = { postgresql: 'PostgreSQL', oracle: 'Oracle', mysql: 'MySQL' }
+const DB_COLORS: Record<string, string> = { postgresql: '#3B82F6', oracle: '#EF4444', mysql: '#14B8A6', mssql: '#A855F7', odbc: '#6B7280' }
+const DB_LABELS: Record<string, string>  = { postgresql: 'PostgreSQL', oracle: 'Oracle', mysql: 'MySQL', mssql: 'SQL Server', odbc: 'ODBC' }
+const PROVIDER_LABELS: Record<string, string> = { gmail: 'Gmail', microsoft365: 'Microsoft 365', smtp: 'SMTP', sendgrid: 'SendGrid', ses: 'AWS SES', mailgun: 'Mailgun' }
 
 function StatCol({ label, value }: { label: string; value: string }) {
   return (
@@ -30,31 +31,45 @@ function StatCol({ label, value }: { label: string; value: string }) {
 // ── modal state types ────────────────────────────────────────────────────────
 
 type DbForm = {
-  name: string; db_type: 'postgresql' | 'oracle' | 'mysql'
+  name: string; db_type: 'postgresql' | 'oracle' | 'mysql' | 'mssql' | 'odbc'
   host: string; port: string; database: string; username: string; password: string
+  driver: string        // mssql only
+  dsn: string           // odbc only
+  connection_string: string  // odbc only
   is_default: boolean
 }
 
 type MailForm = {
-  name: string; provider_type: 'gmail' | 'microsoft365' | 'smtp'
+  name: string; provider_type: 'gmail' | 'microsoft365' | 'smtp' | 'sendgrid' | 'ses' | 'mailgun'
   // smtp
   host: string; port: string; username: string; password: string
   use_tls: boolean
   // gmail/m365
   client_id: string; client_secret: string; refresh_token: string; sender: string
   tenant_id: string
+  // sendgrid / mailgun / ses
+  api_key: string; from_email: string; from_name: string
+  // ses
+  aws_access_key_id: string; aws_secret_access_key: string; aws_region: string
+  // mailgun
+  domain: string; region: string
   is_default: boolean
 }
 
 const emptyDb = (): DbForm => ({
   name: '', db_type: 'postgresql', host: 'localhost', port: '5432',
-  database: '', username: '', password: '', is_default: false,
+  database: '', username: '', password: '',
+  driver: 'ODBC Driver 17 for SQL Server', dsn: '', connection_string: '',
+  is_default: false,
 })
 
 const emptyMail = (): MailForm => ({
   name: '', provider_type: 'smtp', host: '', port: '587',
   username: '', password: '', use_tls: true,
   client_id: '', client_secret: '', refresh_token: '', sender: '', tenant_id: '',
+  api_key: '', from_email: '', from_name: '',
+  aws_access_key_id: '', aws_secret_access_key: '', aws_region: 'us-east-1',
+  domain: '', region: 'us',
   is_default: false,
 })
 
@@ -63,19 +78,31 @@ const emptyMail = (): MailForm => ({
 function defaultDbPort(dbType: string): string {
   if (dbType === 'oracle') return '1521'
   if (dbType === 'mysql')  return '3306'
+  if (dbType === 'mssql')  return '1433'
   return '5432'
 }
 
+
 function buildMailProviderConfig(form: MailForm): Record<string, unknown> {
-  const config: Record<string, unknown> = { sender: form.sender }
   if (form.provider_type === 'smtp') {
-    Object.assign(config, { host: form.host, port: Number(form.port), username: form.username, password: form.password, use_tls: form.use_tls })
-  } else if (form.provider_type === 'gmail') {
-    Object.assign(config, { client_id: form.client_id, client_secret: form.client_secret, refresh_token: form.refresh_token })
-  } else {
-    Object.assign(config, { tenant_id: form.tenant_id, client_id: form.client_id, client_secret: form.client_secret })
+    return { host: form.host, port: Number(form.port), username: form.username, password: form.password, use_tls: form.use_tls, sender: form.sender }
   }
-  return config
+  if (form.provider_type === 'gmail') {
+    return { client_id: form.client_id, client_secret: form.client_secret, refresh_token: form.refresh_token, sender: form.sender }
+  }
+  if (form.provider_type === 'microsoft365') {
+    return { tenant_id: form.tenant_id, client_id: form.client_id, client_secret: form.client_secret, sender: form.sender }
+  }
+  if (form.provider_type === 'sendgrid') {
+    return { api_key: form.api_key, from_email: form.from_email, from_name: form.from_name }
+  }
+  if (form.provider_type === 'ses') {
+    return { aws_access_key_id: form.aws_access_key_id, aws_secret_access_key: form.aws_secret_access_key, aws_region: form.aws_region, from_email: form.from_email, from_name: form.from_name }
+  }
+  if (form.provider_type === 'mailgun') {
+    return { api_key: form.api_key, domain: form.domain, from_email: form.from_email, from_name: form.from_name, region: form.region }
+  }
+  return {}
 }
 
 function Field({ label, children, tooltip }: { label: string; children: React.ReactNode; tooltip?: React.ReactNode }) {
@@ -134,12 +161,22 @@ export default function Connections() {
   function openModal() { setEditId(null); setDbForm(emptyDb()); setMailForm(emptyMail()); setFormError(''); setModalTest({ status: 'idle', msg: '' }); setShowModal(true) }
   function closeModal() { setShowModal(false); setEditId(null); setFormError(''); setModalTest({ status: 'idle', msg: '' }) }
 
+  function buildDbConfig(form: DbForm): Record<string, unknown> {
+    if (form.db_type === 'odbc') {
+      return { dsn: form.dsn, connection_string: form.connection_string }
+    }
+    const cfg: Record<string, unknown> = {
+      host: form.host, port: Number(form.port),
+      database: form.database, username: form.username, password: form.password,
+    }
+    if (form.db_type === 'mssql') cfg.driver = form.driver
+    return cfg
+  }
+
   function runModalTest() {
     setModalTest({ status: 'testing', msg: '' })
-    testDbConnectionRaw(dbForm.db_type, {
-      host: dbForm.host, port: Number(dbForm.port),
-      database: dbForm.database, username: dbForm.username, password: dbForm.password,
-    }).then(r => setModalTest({ status: 'ok', msg: `Connected · ${r.latency_ms}ms` }))
+    testDbConnectionRaw(dbForm.db_type, buildDbConfig(dbForm))
+      .then(r => setModalTest({ status: 'ok', msg: `Connected · ${r.latency_ms}ms` }))
       .catch(e => setModalTest({ status: 'fail', msg: e.message }))
   }
 
@@ -149,18 +186,32 @@ export default function Connections() {
       getDbConnection(id).then(data => {
         const cfg = (data as any).config ?? {}
         const port = String(cfg.port ?? defaultDbPort(data.db_type))
-        setDbForm({ name: data.name, db_type: data.db_type as DbForm['db_type'], is_default: data.is_default,
+        setDbForm({
+          name: data.name, db_type: data.db_type as DbForm['db_type'],
+          is_default: data.is_default,
           host: cfg.host ?? '', port, database: cfg.database ?? '',
-          username: cfg.username ?? '', password: '***' })
+          username: cfg.username ?? '', password: '***',
+          driver: cfg.driver ?? 'ODBC Driver 17 for SQL Server',
+          dsn: cfg.dsn ?? '', connection_string: cfg.connection_string ?? '',
+        })
       }).catch(() => setFormError('Failed to load connection details'))
     } else {
       getEmailProvider(id).then(data => {
         const cfg = (data as any).config ?? {}
-        setMailForm({ name: data.name, provider_type: data.provider_type as MailForm['provider_type'],
+        setMailForm({
+          name: data.name, provider_type: data.provider_type as MailForm['provider_type'],
           is_default: data.is_default, sender: cfg.sender ?? '',
           host: cfg.host ?? '', port: String(cfg.port ?? 587),
           username: cfg.username ?? '', password: '***', use_tls: cfg.use_tls ?? true,
-          client_id: cfg.client_id ?? '', client_secret: '***', refresh_token: cfg.refresh_token ? '***' : '', tenant_id: cfg.tenant_id ?? '' })
+          client_id: cfg.client_id ?? '', client_secret: '***',
+          refresh_token: cfg.refresh_token ? '***' : '', tenant_id: cfg.tenant_id ?? '',
+          api_key: cfg.api_key ? '***' : '', from_email: cfg.from_email ?? '',
+          from_name: cfg.from_name ?? '',
+          aws_access_key_id: cfg.aws_access_key_id ? '***' : '',
+          aws_secret_access_key: cfg.aws_secret_access_key ? '***' : '',
+          aws_region: cfg.aws_region ?? 'us-east-1',
+          domain: cfg.domain ?? '', region: cfg.region ?? 'us',
+        })
       }).catch(() => setFormError('Failed to load provider details'))
     }
   }
@@ -169,8 +220,7 @@ export default function Connections() {
     e.preventDefault(); setFormError('')
     const payload = {
       name: dbForm.name, db_type: dbForm.db_type, is_default: dbForm.is_default,
-      config: { host: dbForm.host, port: Number(dbForm.port), database: dbForm.database,
-                username: dbForm.username, password: dbForm.password },
+      config: buildDbConfig(dbForm),
     }
     if (editId) saveDb({ id: editId, data: payload })
     else addDb(payload)
@@ -412,11 +462,11 @@ export default function Connections() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
                         <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{p.name}</span>
-                        <span className="mono" style={{ fontSize: 10.5, padding: '1px 6px', borderRadius: 4, background: 'var(--surface-2)', color: 'var(--text-3)' }}>{p.provider_type}</span>
+                        <span className="mono" style={{ fontSize: 10.5, padding: '1px 6px', borderRadius: 4, background: 'var(--surface-2)', color: 'var(--text-3)' }}>{PROVIDER_LABELS[p.provider_type] ?? p.provider_type}</span>
                         {ts === 'ok'   && <StatusBadge status="success" label="Verified" />}
                         {ts === 'fail' && <StatusBadge status="failed"  label="Failed" />}
                       </div>
-                      <div className="mono" style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{p.provider_type} · {p.is_default ? 'default' : 'not default'}</div>
+                      <div className="mono" style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{PROVIDER_LABELS[p.provider_type] ?? p.provider_type} · {p.is_default ? 'default' : 'not default'}</div>
                       {ts === 'fail' && testErrors[p.id] && (
                         <div className="mono" style={{ fontSize: 11, color: 'var(--failure)', marginTop: 4, wordBreak: 'break-all' }}>{testErrors[p.id]}</div>
                       )}
@@ -496,30 +546,65 @@ export default function Connections() {
                     <option value="postgresql">PostgreSQL</option>
                     <option value="oracle">Oracle</option>
                     <option value="mysql">MySQL / MariaDB</option>
+                    <option value="mssql">SQL Server (MSSQL)</option>
+                    <option value="odbc">Generic ODBC</option>
                   </select>
                 </Field>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: 10 }}>
-                  <Field label="Host" tooltip={<FieldTooltip field={dbForm.db_type === 'oracle' ? 'oracle_connection' : 'db_host_port'} />}>
-                    <input className="input" value={dbForm.host} onChange={e => setDbForm(f => ({ ...f, host: e.target.value }))} placeholder="localhost" required />
-                  </Field>
-                  <Field label="Port">
-                    <input className="input" type="number" value={dbForm.port} onChange={e => setDbForm(f => ({ ...f, port: e.target.value }))} required />
-                  </Field>
-                </div>
+                {/* ODBC-specific fields */}
+                {dbForm.db_type === 'odbc' ? (
+                  <>
+                    <Field label="DSN (Data Source Name)" tooltip={<FieldTooltip field="db_host_port" />}>
+                      <input className="input" value={dbForm.dsn}
+                        onChange={e => setDbForm(f => ({ ...f, dsn: e.target.value }))}
+                        placeholder="my_dsn  (leave blank to use connection string)" />
+                    </Field>
+                    <Field label="Connection String">
+                      <input className="input" value={dbForm.connection_string}
+                        onChange={e => setDbForm(f => ({ ...f, connection_string: e.target.value }))}
+                        placeholder='Driver={...};Server=...;Database=...;UID=...;PWD=...' />
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
+                        DSN takes precedence if both are set.
+                      </span>
+                    </Field>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: 10 }}>
+                      <Field label="Host" tooltip={<FieldTooltip field={dbForm.db_type === 'oracle' ? 'oracle_connection' : 'db_host_port'} />}>
+                        <input className="input" value={dbForm.host} onChange={e => setDbForm(f => ({ ...f, host: e.target.value }))} placeholder="localhost" required />
+                      </Field>
+                      <Field label="Port">
+                        <input className="input" type="number" value={dbForm.port} onChange={e => setDbForm(f => ({ ...f, port: e.target.value }))} required />
+                      </Field>
+                    </div>
 
-                <Field label="Database">
-                  <input className="input" value={dbForm.database} onChange={e => setDbForm(f => ({ ...f, database: e.target.value }))} placeholder="mydb" required />
-                </Field>
+                    <Field label={dbForm.db_type === 'oracle' ? 'Service Name' : 'Database'}>
+                      <input className="input" value={dbForm.database} onChange={e => setDbForm(f => ({ ...f, database: e.target.value }))}
+                        placeholder={dbForm.db_type === 'oracle' ? 'ORCL' : 'mydb'} required />
+                    </Field>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <Field label="Username">
-                    <input className="input" value={dbForm.username} onChange={e => setDbForm(f => ({ ...f, username: e.target.value }))} required />
-                  </Field>
-                  <Field label="Password">
-                    <input className="input" type="password" value={dbForm.password} onChange={e => setDbForm(f => ({ ...f, password: e.target.value }))} />
-                  </Field>
-                </div>
+                    {dbForm.db_type === 'mssql' && (
+                      <Field label="ODBC Driver">
+                        <input className="input" value={dbForm.driver}
+                          onChange={e => setDbForm(f => ({ ...f, driver: e.target.value }))}
+                          placeholder="ODBC Driver 17 for SQL Server" />
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
+                          Install: <code style={{ color: 'var(--text-3)' }}>msodbcsql17</code> or <code style={{ color: 'var(--text-3)' }}>msodbcsql18</code>
+                        </span>
+                      </Field>
+                    )}
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <Field label="Username">
+                        <input className="input" value={dbForm.username} onChange={e => setDbForm(f => ({ ...f, username: e.target.value }))} required />
+                      </Field>
+                      <Field label="Password">
+                        <input className="input" type="password" value={dbForm.password} onChange={e => setDbForm(f => ({ ...f, password: e.target.value }))} />
+                      </Field>
+                    </div>
+                  </>
+                )}
 
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-3)', cursor: 'pointer' }}>
                   <input type="checkbox" checked={dbForm.is_default} onChange={e => setDbForm(f => ({ ...f, is_default: e.target.checked }))} />{' '}
@@ -559,6 +644,9 @@ export default function Connections() {
                     <option value="smtp">SMTP (Generic)</option>
                     <option value="gmail">Gmail (OAuth2)</option>
                     <option value="microsoft365">Microsoft 365 (OAuth2)</option>
+                    <option value="sendgrid">SendGrid</option>
+                    <option value="ses">AWS SES</option>
+                    <option value="mailgun">Mailgun</option>
                   </select>
                 </Field>
 
@@ -613,6 +701,70 @@ export default function Connections() {
                         </span>
                       </Field>
                     )}
+                  </>
+                )}
+
+                {/* SendGrid */}
+                {mailForm.provider_type === 'sendgrid' && (
+                  <>
+                    <Field label="API Key">
+                      <input className="input" type="password" value={mailForm.api_key} onChange={e => setMailForm(f => ({ ...f, api_key: e.target.value }))} required />
+                    </Field>
+                    <Field label="From Email">
+                      <input className="input" type="email" value={mailForm.from_email} onChange={e => setMailForm(f => ({ ...f, from_email: e.target.value }))} required />
+                    </Field>
+                    <Field label="From Name (optional)">
+                      <input className="input" value={mailForm.from_name} onChange={e => setMailForm(f => ({ ...f, from_name: e.target.value }))} />
+                    </Field>
+                  </>
+                )}
+
+                {/* AWS SES */}
+                {mailForm.provider_type === 'ses' && (
+                  <>
+                    <Field label="AWS Access Key ID">
+                      <input className="input mono-input" value={mailForm.aws_access_key_id} onChange={e => setMailForm(f => ({ ...f, aws_access_key_id: e.target.value }))} required />
+                    </Field>
+                    <Field label="AWS Secret Access Key">
+                      <input className="input" type="password" value={mailForm.aws_secret_access_key} onChange={e => setMailForm(f => ({ ...f, aws_secret_access_key: e.target.value }))} required />
+                    </Field>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <Field label="AWS Region">
+                        <input className="input mono-input" value={mailForm.aws_region} onChange={e => setMailForm(f => ({ ...f, aws_region: e.target.value }))} placeholder="us-east-1" required />
+                      </Field>
+                      <Field label="From Email">
+                        <input className="input" type="email" value={mailForm.from_email} onChange={e => setMailForm(f => ({ ...f, from_email: e.target.value }))} required />
+                      </Field>
+                    </div>
+                    <Field label="From Name (optional)">
+                      <input className="input" value={mailForm.from_name} onChange={e => setMailForm(f => ({ ...f, from_name: e.target.value }))} />
+                    </Field>
+                  </>
+                )}
+
+                {/* Mailgun */}
+                {mailForm.provider_type === 'mailgun' && (
+                  <>
+                    <Field label="API Key">
+                      <input className="input" type="password" value={mailForm.api_key} onChange={e => setMailForm(f => ({ ...f, api_key: e.target.value }))} required />
+                    </Field>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10 }}>
+                      <Field label="Domain">
+                        <input className="input mono-input" value={mailForm.domain} onChange={e => setMailForm(f => ({ ...f, domain: e.target.value }))} placeholder="mg.yourdomain.com" required />
+                      </Field>
+                      <Field label="Region">
+                        <select className="input" value={mailForm.region} onChange={e => setMailForm(f => ({ ...f, region: e.target.value }))} style={{ height: 34 }}>
+                          <option value="us">US</option>
+                          <option value="eu">EU</option>
+                        </select>
+                      </Field>
+                    </div>
+                    <Field label="From Email">
+                      <input className="input" type="email" value={mailForm.from_email} onChange={e => setMailForm(f => ({ ...f, from_email: e.target.value }))} required />
+                    </Field>
+                    <Field label="From Name (optional)">
+                      <input className="input" value={mailForm.from_name} onChange={e => setMailForm(f => ({ ...f, from_name: e.target.value }))} />
+                    </Field>
                   </>
                 )}
 

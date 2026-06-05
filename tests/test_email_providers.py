@@ -1,7 +1,7 @@
 """Tests for email provider CRUD (/api/email-providers) and mocked send."""
-import pytest
 from unittest.mock import MagicMock, patch
 
+import pytest
 
 SMTP_PAYLOAD = {
     'name': 'Test SMTP',
@@ -51,7 +51,7 @@ def test_create_provider_missing_name(client, headers):
 
 
 def test_create_provider_invalid_type(client, headers):
-    bad = {**SMTP_PAYLOAD, 'provider_type': 'sendgrid'}
+    bad = {**SMTP_PAYLOAD, 'provider_type': 'fax_machine'}
     resp = client.post('/api/email-providers', json=bad, headers=headers)
     assert resp.status_code == 400
 
@@ -232,7 +232,7 @@ def test_smtp_ssl_uses_smtp_ssl():
 
     with patch('smtplib.SMTP_SSL', return_value=mock_server) as mock_ssl, \
          patch('smtplib.SMTP') as mock_plain:
-        result = provider.send([], [], [], 'S', 'B', [])
+        _ = provider.send([], [], [], 'S', 'B', [])
 
     mock_ssl.assert_called_once()
     mock_plain.assert_not_called()

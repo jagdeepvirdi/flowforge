@@ -5,19 +5,24 @@ from flowforge.db.models import Pipeline, PipelineStep, db
 
 bp = Blueprint('steps', __name__)
 
-_VALID_TYPES = {'db_procedure', 'db_query', 'report', 'email', 'drive_upload', 'ai_analyze', 'data_load', 'bulk_load'}
+_VALID_TYPES = {
+    'db_procedure', 'db_query', 'report', 'email', 'drive_upload',
+    'onedrive_upload', 'ai_analyze', 'data_load', 'bulk_load', 'sftp_transfer',
+    'ssh_command', 'db_health_check', 'data_report', 'ssh_health_check',
+}
 
 
 def _step_dict(s: PipelineStep) -> dict:
     return {
-        'id': s.id,
-        'pipeline_id': s.pipeline_id,
-        'step_order': s.step_order,
-        'name': s.name,
-        'step_type': s.step_type,
-        'config': s.config,
-        'on_error': s.on_error,
-        'enabled': s.enabled,
+        'id':             s.id,
+        'pipeline_id':    s.pipeline_id,
+        'step_order':     s.step_order,
+        'name':           s.name,
+        'step_type':      s.step_type,
+        'config':         s.config,
+        'on_error':       s.on_error,
+        'enabled':        s.enabled,
+        'parallel_group': s.parallel_group,
     }
 
 
@@ -52,6 +57,7 @@ def add_step(pipeline_id):
         config=data.get('config', {}),
         on_error=data.get('on_error', 'stop'),
         enabled=data.get('enabled', True),
+        parallel_group=data.get('parallel_group') or None,
     )
     db.session.add(step)
     db.session.commit()
@@ -66,9 +72,9 @@ def update_step(step_id):
         return jsonify({'error': 'Step not found'}), 404
 
     data = request.get_json() or {}
-    for field in ('name', 'config', 'on_error', 'enabled'):
+    for field in ('name', 'config', 'on_error', 'enabled', 'parallel_group'):
         if field in data:
-            setattr(step, field, data[field])
+            setattr(step, field, data[field] or None if field == 'parallel_group' else data[field])
     if 'step_type' in data:
         if data['step_type'] not in _VALID_TYPES:
             return jsonify({'error': 'Invalid step_type'}), 400

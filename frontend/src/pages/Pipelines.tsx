@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { Plus, Play, Pencil, Trash2, Copy, Upload, Search, ChevronDown } from 'lucide-react'
-import { getPipelines, deletePipeline, clonePipeline, runPipeline, exportPipeline, importPipeline } from '../lib/api'
+import { Plus, Play, Pencil, Trash2, Copy, Upload, Search, ChevronDown, ArrowUpRight, X } from 'lucide-react'
+import { getPipelines, deletePipeline, clonePipeline, runPipeline, exportPipeline, importPipeline, promotePipeline, getProjects } from '../lib/api'
 import { useProjectStore } from '../lib/store'
 import { useCurrentUser } from '../lib/auth'
 import StatusBadge from '../components/shared/StatusBadge'
@@ -58,6 +58,9 @@ function FilterChip({ label, value, options, onChange }: {
 export default function Pipelines() {
   const [search, setSearch]           = useState('')
   const [statusFilter, setStatusFilter]     = useState('All')
+  const [promoteTarget, setPromoteTarget]   = useState<{ id: string; name: string } | null>(null)
+  const [promoteProjectId, setPromoteProjectId] = useState('')
+  const [promoteWarnings, setPromoteWarnings]   = useState<string[]>([])
   const [scheduleFilter, setScheduleFilter] = useState('Any')
   const qc = useQueryClient()
   const { activeProjectId } = useProjectStore()
@@ -68,6 +71,7 @@ export default function Pipelines() {
     queryKey: ['pipelines', activeProjectId],
     queryFn: () => getPipelines(activeProjectId ? { project_id: activeProjectId } : undefined),
   })
+  const { data: allProjects = [] } = useQuery({ queryKey: ['projects'], queryFn: getProjects })
   const { mutate: remove } = useMutation({
     mutationFn: deletePipeline,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['pipelines'] }),
@@ -75,6 +79,18 @@ export default function Pipelines() {
   const { mutate: clone } = useMutation({
     mutationFn: clonePipeline,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['pipelines'] }),
+  })
+  const promoteMut = useMutation({
+    mutationFn: ({ id, targetId }: { id: string; targetId: string }) => promotePipeline(id, targetId),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['pipelines'] })
+      if (data.warnings.length > 0) {
+        setPromoteWarnings(data.warnings)
+      } else {
+        setPromoteTarget(null)
+        setPromoteProjectId('')
+      }
+    },
   })
   const { mutate: trigger } = useMutation({
     mutationFn: runPipeline,
@@ -205,6 +221,12 @@ export default function Pipelines() {
                             <button className="btn btn-sm btn-ghost btn-icon" title="Clone" onClick={() => clone(p.id)}>
                               <Copy size={12} />
                             </button>
+                            {allProjects.length > 1 && (
+                              <button className="btn btn-sm btn-ghost btn-icon" title="Promote to another project"
+                                onClick={() => { setPromoteTarget({ id: p.id, name: p.name }); setPromoteProjectId(''); setPromoteWarnings([]) }}>
+                                <ArrowUpRight size={12} />
+                              </button>
+                            )}
                             <Link to={`/pipelines/${p.id}/edit`} className="btn btn-sm btn-ghost btn-icon" title="Edit">
                               <Pencil size={12} />
                             </Link>
@@ -229,6 +251,63 @@ export default function Pipelines() {
           </div>
         )}
       </div>
+
+      {/* Promote modal */}
+      {promoteTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16 }}
+          onClick={e => { if (e.target === e.currentTarget) { setPromoteTarget(null); setPromoteWarnings([]) } }}>
+          <div className="card" style={{ width: '100%', maxWidth: 440, padding: 24, position: 'relative' }}>
+            <button onClick={() => { setPromoteTarget(null); setPromoteWarnings([]) }}
+              style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+              <X size={15} />
+            </button>
+
+            <h3 style={{ margin: '0 0 6px', fontSize: 14, fontWeight: 600 }}>Promote Pipeline</h3>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 18px', lineHeight: 1.5 }}>
+              Copy <strong style={{ color: 'var(--text)' }}>{promoteTarget.name}</strong> to another project.
+              The promoted copy starts disabled — enable it after reviewing step configurations.
+            </p>
+
+            {promoteWarnings.length > 0 ? (
+              <>
+                <div style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(249,115,22,0.07)', border: '1px solid rgba(249,115,22,0.25)', borderRadius: 6 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#F97316', marginBottom: 6 }}>Review required</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    {promoteWarnings.map((w, i) => (
+                      <div key={i} style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>• {w}</div>
+                    ))}
+                  </div>
+                </div>
+                <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}
+                  onClick={() => { setPromoteTarget(null); setPromoteWarnings([]) }}>
+                  Got it — I'll update the step configs
+                </button>
+              </>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div className="field">
+                  <label htmlFor="promote-project">Target project *</label>
+                  <select id="promote-project" className="input" value={promoteProjectId}
+                    onChange={e => setPromoteProjectId(e.target.value)}>
+                    <option value="">Select target project…</option>
+                    {allProjects
+                      .filter(p => p.id !== activeProjectId)
+                      .map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button className="btn" onClick={() => setPromoteTarget(null)}>Cancel</button>
+                  <button className="btn btn-primary"
+                    disabled={!promoteProjectId || promoteMut.isPending}
+                    onClick={() => promoteTarget && promoteMut.mutate({ id: promoteTarget.id, targetId: promoteProjectId })}>
+                    {promoteMut.isPending ? 'Promoting…' : 'Promote'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </>
   )
 }

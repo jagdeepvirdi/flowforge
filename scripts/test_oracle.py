@@ -60,7 +60,7 @@ def test_dataloader(pool) -> None:
     """
     print("\n[2] DataLoader simulation")
 
-    import oracledb
+
     from flowforge.connections.oracle import OracleConnection
 
     conn = OracleConnection(

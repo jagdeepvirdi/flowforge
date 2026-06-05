@@ -1,5 +1,4 @@
 """Tests for Jinja2 variable resolution in engine/context.py."""
-import os
 import re
 from datetime import datetime, timedelta
 
@@ -31,8 +30,9 @@ def test_built_in_yesterday():
 
 
 def test_built_in_run_id_is_uuid():
-    from flowforge.engine.context import build
     import uuid
+
+    from flowforge.engine.context import build
     ctx = build('test')
     uuid.UUID(ctx['run_id'])   # raises if not valid UUID
 
@@ -117,8 +117,9 @@ def test_built_in_prev_month_start():
 
 
 def test_built_in_prev_month_end():
-    from flowforge.engine.context import build
     import calendar
+
+    from flowforge.engine.context import build
     ctx = build('test')
     val = ctx['prev_month_end']
     assert re.match(r'^\d{4}-\d{2}-\d{2}$', val), f"Expected YYYY-MM-DD, got {val}"
@@ -316,6 +317,7 @@ def test_safe_env_missing_var_returns_empty(monkeypatch):
 def test_pipeline_var_collision_emits_warning(caplog):
     """A WARNING must be logged when a pipeline variable shadows a built-in key."""
     import logging
+
     from flowforge.engine.context import build
     with caplog.at_level(logging.WARNING, logger='flowforge.engine.context'):
         build('test', pipeline_vars={'current_date': '2020-01-01'})
@@ -334,6 +336,7 @@ def test_pipeline_var_collision_value_wins(caplog):
 def test_pipeline_var_collision_multiple_keys(caplog):
     """Multiple collisions are all mentioned in a single warning log line."""
     import logging
+
     from flowforge.engine.context import build
     with caplog.at_level(logging.WARNING, logger='flowforge.engine.context'):
         build('test', pipeline_vars={
@@ -347,6 +350,7 @@ def test_pipeline_var_collision_multiple_keys(caplog):
 def test_no_collision_warning_for_normal_vars(caplog):
     """No warning is emitted when pipeline variables do not shadow built-ins."""
     import logging
+
     from flowforge.engine.context import build
     with caplog.at_level(logging.WARNING, logger='flowforge.engine.context'):
         build('test', pipeline_vars={'my_custom_var': 'hello', 'report_region': 'APAC'})
@@ -438,3 +442,67 @@ def test_safe_env_allowlist_credential_explicitly_listed(monkeypatch):
     from flowforge.engine.context import build, render
     ctx = build('test')
     assert render('{{ env.MY_CUSTOM_KEY }}', ctx) == 'custom-value'
+
+
+# ── render_sql — SEC-3 secret-in-SQL detection ────────────────────────────────
+
+def test_render_sql_works_like_render_for_normal_vars():
+    from flowforge.engine.context import build, render_sql
+    ctx = build('test', pipeline_vars={'report_date': '2026-05'})
+    ctx['_secret_var_keys'] = set()
+    result = render_sql('SELECT * FROM t WHERE month = {{ report_date }}', ctx)
+    assert '2026-05' in result
+
+
+def test_render_sql_still_renders_secret_vars(caplog):
+    """Secret vars still render — render_sql is warn-only, not blocking."""
+    from flowforge.engine.context import build, render_sql
+    ctx = build('test', pipeline_vars={'MY_SECRET': 'topsecret'})
+    ctx['_secret_var_keys'] = {'MY_SECRET'}
+    result = render_sql("SELECT '{{ MY_SECRET }}'", ctx)
+    assert 'topsecret' in result
+
+
+def test_render_sql_logs_warning_for_secret_in_sql(caplog):
+    import logging
+
+    from flowforge.engine.context import build, render_sql
+    ctx = build('test', pipeline_vars={'DB_PASS': 's3cr3t'})
+    ctx['_secret_var_keys'] = {'DB_PASS'}
+    with caplog.at_level(logging.WARNING, logger='flowforge.engine.context'):
+        render_sql("SELECT * FROM t WHERE pass = '{{ DB_PASS }}'", ctx)
+    assert any('DB_PASS' in r.message for r in caplog.records)
+    assert any('secret' in r.message.lower() for r in caplog.records)
+
+
+def test_render_sql_no_warning_for_non_secret_vars(caplog):
+    import logging
+
+    from flowforge.engine.context import build, render_sql
+    ctx = build('test', pipeline_vars={'report_month': '2026-05'})
+    ctx['_secret_var_keys'] = {'MY_OTHER_SECRET'}  # different key
+    with caplog.at_level(logging.WARNING, logger='flowforge.engine.context'):
+        render_sql('SELECT * FROM t WHERE month = {{ report_month }}', ctx)
+    # No warning about non-secret var
+    assert not any('report_month' in r.message for r in caplog.records)
+
+
+def test_render_sql_no_secret_keys_in_context():
+    """render_sql must not crash when _secret_var_keys is absent from context."""
+    from flowforge.engine.context import build, render_sql
+    ctx = build('test')
+    # _secret_var_keys not set
+    result = render_sql('SELECT 1', ctx)
+    assert result == 'SELECT 1'
+
+
+def test_render_sql_warns_for_multiple_secrets(caplog):
+    import logging
+
+    from flowforge.engine.context import build, render_sql
+    ctx = build('test', pipeline_vars={'KEY1': 'a', 'KEY2': 'b'})
+    ctx['_secret_var_keys'] = {'KEY1', 'KEY2'}
+    with caplog.at_level(logging.WARNING, logger='flowforge.engine.context'):
+        render_sql("SELECT '{{ KEY1 }}', '{{ KEY2 }}'", ctx)
+    msgs = ' '.join(r.message for r in caplog.records)
+    assert 'KEY1' in msgs or 'KEY2' in msgs

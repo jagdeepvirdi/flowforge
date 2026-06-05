@@ -1,0 +1,29 @@
+# Source file for pip-compile.
+# To regenerate requirements.txt with hash-pinning run:
+#   pip install pip-tools
+#   pip-compile --generate-hashes requirements.in -o requirements.txt
+#
+# This file lists direct runtime dependencies with minimum version constraints.
+# requirements.txt is the locked, hash-pinned output consumed by Docker builds.
+
+flask>=3.1
+flask-sqlalchemy>=3.1
+psycopg2-binary>=2.9
+sqlalchemy>=2.0
+alembic>=1.18
+apscheduler>=3.11
+jinja2>=3.1
+openpyxl>=3.1
+click>=8.4
+cryptography>=48
+PyJWT>=2.12
+bcrypt>=5.0
+pyotp>=2.9
+flask-cors>=6.0
+flask-limiter>=4.1
+python-dotenv>=1.2
+celery[redis]>=5.4
+pyyaml>=6.0
+gunicorn>=26
+gevent>=26
+flower>=2.0.1

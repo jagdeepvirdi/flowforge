@@ -18,6 +18,11 @@ _STEP_CLASSES: dict[str, str] = {
     'bulk_load':       'flowforge.steps.bulk_load.BulkLoadStep',
     'ai_analyze':      'flowforge.steps.ai_analyze.AiAnalyzeStep',
     'sftp_transfer':   'flowforge.steps.sftp_transfer.SftpTransferStep',
+    'ssh_command':      'flowforge.steps.ssh_command.SshCommandStep',
+    'db_health_check':  'flowforge.steps.db_health_check.DbHealthCheckStep',
+    'data_report':      'flowforge.steps.script_report.ScriptReportStep',
+    'ssh_health_check': 'flowforge.steps.ssh_health_check.SshHealthCheckStep',
+    'notification':     'flowforge.steps.notification.NotificationStep',
 }
 
 
@@ -44,6 +49,7 @@ def load_pipeline(pipeline_id: str) -> tuple[list[BaseStep], dict[str, str], set
         raise ValueError(f"Pipeline is disabled: {pipeline.name}")
 
     pipeline_vars: dict[str, str] = {}
+    pipeline_vars['pipeline_send_only_on_failure'] = 'true' if pipeline.send_only_on_failure else 'false'
     secret_keys: set[str] = set()
     for v in pipeline.variables:
         try:
@@ -67,7 +73,9 @@ def load_pipeline(pipeline_id: str) -> tuple[list[BaseStep], dict[str, str], set
 
         cls = _import_step_class(cls_path)
         config = dict(step_row.config)
-        config['on_error'] = step_row.on_error
+        config['on_error']        = step_row.on_error
+        config['parallel_group']  = step_row.parallel_group
+        config['_db_step_order']  = step_row.step_order
         steps.append(cls(name=step_row.name, config=config))
         logger.debug("Loaded step %d: %s (%s)", step_row.step_order, step_row.name, step_row.step_type)
 

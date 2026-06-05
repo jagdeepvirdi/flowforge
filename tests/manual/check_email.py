@@ -34,8 +34,8 @@ def check_env():
 
 def send_test_email(to_address: str):
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+
     from flowforge.email_providers.gmail import GmailProvider
-    from pathlib import Path
 
     config = {
         'client_id':     os.environ['GMAIL_CLIENT_ID'],

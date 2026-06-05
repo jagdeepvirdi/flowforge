@@ -1,11 +1,8 @@
 """Tests for the audit log API routes (GET /audit-logs, GET /audit-logs/export)."""
 import uuid
-from datetime import datetime, timezone
-
-import pytest
+from datetime import UTC, datetime
 
 from flowforge.db.models import AuditLog, db
-
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -14,7 +11,7 @@ def _insert_log(app, action: str, username: str, details: dict | None = None):
     with app.app_context():
         entry = AuditLog(
             id=str(uuid.uuid4()),
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             action=action,
             username=username,
             details=details or {},
@@ -48,7 +45,7 @@ def test_list_audit_logs_requires_auth(client):
 def test_list_audit_logs_requires_admin(client, app):
     """Editor role must be rejected (admin-only endpoint)."""
     # Create an editor user and get a token
-    create = client.post(
+    _ = client.post(
         '/api/users',
         json={'username': '__audit_editor__', 'password': 'password123', 'role': 'editor'},
         headers={'Authorization': f'Bearer {client.application.extensions}'},

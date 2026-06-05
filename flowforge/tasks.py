@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from flowforge.celery_app import celery
 from flowforge.db.models import Pipeline, PipelineRun, db
@@ -28,7 +28,7 @@ def run_pipeline_task(self, pipeline_id: str, triggered_by: str, run_id: str):
         if run:
             run.status = 'failed'
             run.error_message = f'Failed to load pipeline: {e}'
-            run.finished_at = datetime.now(timezone.utc)
+            run.finished_at = datetime.now(UTC)
             db.session.commit()
         return
 

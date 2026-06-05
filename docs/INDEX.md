@@ -10,7 +10,7 @@ All documentation files in this directory and what they contain.
 |---|---|
 | [getting-started.md](getting-started.md) | Full setup walkthrough: prerequisites, install, `.env` config, first pipeline, CLI reference, Gmail/Drive OAuth2 setup, OneDrive setup, AI features (Ollama), scheduler diagnostics |
 | [deployment.md](deployment.md) | Production deployment guide: Docker Compose (recommended) and bare-metal Gunicorn + Nginx + systemd on Ubuntu/Debian, TLS with Let's Encrypt, upgrade procedure |
-| [step-types.md](step-types.md) | Complete config reference for every step type: `db_procedure`, `db_query`, `report`, `email`, `drive_upload`, `onedrive_upload`, `data_load`, `bulk_load`, `ai_analyze`, `sftp_transfer` — with JSONB examples, field tables, output variable docs, and full Jinja2 variable reference |
+| [step-types.md](step-types.md) | Complete config reference for every step type: `db_procedure`, `db_query`, `report`, `email`, `drive_upload`, `onedrive_upload`, `data_load`, `bulk_load`, `ai_analyze`, `sftp_transfer`, `ssh_command`, `db_health_check`, `data_report` — with JSONB examples, field tables, output variable docs, and full Jinja2 variable reference |
 | [email-providers.md](email-providers.md) | Setup guides for all three email providers: SMTP (with presets for Outlook, Yahoo, SendGrid), Microsoft 365 (Azure AD app registration + admin consent + token refresh), Gmail (OAuth2 via `flowforge setup gmail`) |
 | [gmail-oauth2-setup.md](gmail-oauth2-setup.md) | Step-by-step Gmail OAuth2 credential setup in Google Cloud Console — screenshots and common errors |
 | [running-the-server.md](running-the-server.md) | How to run FlowForge in dev and prod modes, manage the scheduler process, use `flowforge.ps1` / `flowforge.sh`, troubleshoot common startup errors |
@@ -66,9 +66,12 @@ All documentation files in this directory and what they contain.
 
 | Path | Purpose |
 |---|---|
+| `scenarios/` | End-to-end pipeline setup guides for real-world use cases |
+| `scenarios/health-monitoring.md` | Daily infrastructure health monitoring — SSH metrics + DB health + Excel report + conditional alerts |
+| `scenarios/log-extraction.md` | Remote script & log processing — SSH run script + DB report + email with log + Excel attached |
 | `feature-requests/` | Extended notes and design decisions for specific features (e.g., `manual-testing-reviews.md`) |
 | `screenshots/` | UI screenshots used in README and docs |
 
 ---
 
-*Last updated: 2026-05-29*
+*Last updated: 2026-05-30*

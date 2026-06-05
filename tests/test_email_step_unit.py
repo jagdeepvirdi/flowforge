@@ -3,12 +3,10 @@
 No DB or real email providers are touched — all external I/O is mocked.
 """
 import sys
-from pathlib import Path
 from types import ModuleType
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 # ─── _handle_attachments ─────────────────────────────────────────────────────
 
@@ -82,6 +80,35 @@ class TestHandleAttachments:
         assert 'big.xlsx' in extra
         assert 'Google Drive' in extra
 
+    def test_drive_upload_failure_falls_back_to_direct(self, tmp_path):
+        """Drive upload failure must not fail the step — file attaches directly instead."""
+        from flowforge.steps.email_step import _handle_attachments
+        f = tmp_path / 'big.xlsx'
+        f.write_bytes(b'x' * (11 * 1024 * 1024))
+        warnings: list[str] = []
+        with patch('flowforge.storage.google_drive.upload_file', side_effect=Exception("API quota exceeded")):
+            direct, extra = _handle_attachments(
+                [f], 10, 'folder-id', '', {}, warnings_out=warnings,
+            )
+        assert f in direct          # fell back to direct attachment
+        assert extra == ''          # no Drive link in body
+        assert len(warnings) == 1
+        assert 'Google Drive' in warnings[0]
+        assert 'big.xlsx' in warnings[0]
+
+    def test_onedrive_upload_failure_falls_back_to_direct(self, tmp_path):
+        from flowforge.steps.email_step import _handle_attachments
+        f = tmp_path / 'report.xlsx'
+        f.write_bytes(b'x' * (11 * 1024 * 1024))
+        warnings: list[str] = []
+        with patch('flowforge.storage.onedrive.upload_file', side_effect=Exception("401 Unauthorized")):
+            direct, extra = _handle_attachments(
+                [f], 10, '', '', {}, onedrive_folder_id='od-folder', warnings_out=warnings,
+            )
+        assert f in direct
+        assert len(warnings) == 1
+        assert 'OneDrive' in warnings[0]
+
     def test_multiple_attachments_mixed(self, tmp_path):
         small = tmp_path / 'small.csv'
         small.write_bytes(b'x' * 100)
@@ -99,14 +126,14 @@ class TestHandleAttachments:
 class TestBuildInlineProvider:
 
     def test_smtp_is_default(self):
-        from flowforge.steps.email_step import _build_inline_provider
         from flowforge.email_providers.smtp import SMTPProvider
+        from flowforge.steps.email_step import _build_inline_provider
         p = _build_inline_provider({'host': 'smtp.test.com', 'port': 587})
         assert isinstance(p, SMTPProvider)
 
     def test_smtp_explicit(self):
-        from flowforge.steps.email_step import _build_inline_provider
         from flowforge.email_providers.smtp import SMTPProvider
+        from flowforge.steps.email_step import _build_inline_provider
         p = _build_inline_provider({'provider_type': 'smtp', 'host': 'smtp.x.com'})
         assert isinstance(p, SMTPProvider)
 
@@ -118,8 +145,8 @@ class TestBuildInlineProvider:
 
         google_mocks = _make_google_mocks()
         with patch.dict(sys.modules, google_mocks):
-            from flowforge.steps.email_step import _build_inline_provider
             from flowforge.email_providers.gmail import GmailProvider
+            from flowforge.steps.email_step import _build_inline_provider
             p = _build_inline_provider({'provider_type': 'gmail'})
             assert isinstance(p, GmailProvider)
 
@@ -133,8 +160,8 @@ class TestBuildInlineProvider:
         msal_app = MagicMock()
         msal_mock.ConfidentialClientApplication = MagicMock(return_value=msal_app)
         with patch.dict(sys.modules, {'msal': msal_mock}):
-            from flowforge.steps.email_step import _build_inline_provider
             from flowforge.email_providers.microsoft365 import Microsoft365Provider
+            from flowforge.steps.email_step import _build_inline_provider
             p = _build_inline_provider({'provider_type': 'microsoft365'})
             assert isinstance(p, Microsoft365Provider)
 

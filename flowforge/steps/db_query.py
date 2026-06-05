@@ -73,9 +73,9 @@ class DbQueryStep(BaseStep):
     step_type = 'db_query'
 
     def run(self, context: dict[str, Any]) -> StepResult:
-        from flowforge.engine.context import render
+        from flowforge.engine.context import render_sql
 
-        sql = render(self.config['query'], context)
+        sql = render_sql(self.config['query'], context)
         output_table = self.config.get('output_table', '')
         mode = self.config.get('mode', 'replace')
         capture_rows = bool(self.config.get('capture_rows', False))
@@ -123,6 +123,7 @@ class DbQueryStep(BaseStep):
             from flowforge.connections.factory import get_connection
             return get_connection(connection_id)
         import os
+
         from flowforge.connections.postgres import PostgreSQLConnection
         return PostgreSQLConnection(
             host=os.environ.get('DB_HOST', ''),

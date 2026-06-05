@@ -1,0 +1,110 @@
+# FlowForge — Infrastructure Health Alert
+#
+# Variant: Threshold Alert (only emails when disk > 90%)
+# Runs daily, suppresses email on healthy days (send_only_on_failure: true).
+# The disk threshold step exits with code 1 if any filesystem exceeds the
+# threshold — failing the pipeline and triggering the alert email.
+#
+# HOW TO USE:
+#   1. Go to Settings → Import Pipeline and upload this file.
+#   2. Replace all <YOUR_*_ID> placeholders with your real UUIDs.
+#   3. Adjust DISK_THRESHOLD_PCT variable (default: 90) if needed.
+#   4. Set the email body template from docs/scenarios/health-monitoring.md
+#      (Alert Email Body Template section).
+#
+# See docs/scenarios/health-monitoring.md for the full setup guide.
+
+name: Infrastructure Health Alert
+description: >
+  Runs daily and emails only when a threshold is breached (disk > 90%,
+  or any SSH/DB step fails). Silent on healthy days.
+schedule: "0 7 * * *"
+enabled: false
+timeout_minutes: 30
+send_only_on_failure: true
+
+steps:
+  # ── Threshold check ──────────────────────────────────────────────────────
+  # Exits 0 (healthy) or 1 (breached). Failing this step triggers the email.
+  # Captures the alert message so it can be used in the email body.
+  - name: check_disk_threshold
+    step_type: ssh_command
+    step_order: 1
+    config:
+      ssh_connection_id: <YOUR_SSH_CONNECTION_ID>
+      command: >-
+        df -h | awk 'NR>1 {
+          gsub(/%/, "", $5);
+          if ($5+0 > {{ DISK_THRESHOLD_PCT }}) {
+            print "ALERT: "$6" at "$5"% (threshold: {{ DISK_THRESHOLD_PCT }}%)";
+            found=1
+          }
+        }
+        END { exit (found ? 1 : 0) }'
+      output_var: threshold_alert
+      timeout: 30
+    on_error: stop
+    enabled: true
+
+  # ── Collect metrics (for report attachment) ───────────────────────────────
+  - name: collect_disk_usage
+    step_type: ssh_command
+    step_order: 2
+    config:
+      ssh_connection_id: <YOUR_SSH_CONNECTION_ID>
+      command: >-
+        df -h | awk 'NR==1{print "Filesystem,Size,Used,Available,Use%,Mounted"}
+        NR>1{printf "%s,%s,%s,%s,%s,%s\n",$1,$2,$3,$4,$5,$6}'
+      output_var: disk_csv
+      timeout: 30
+    on_error: continue
+    enabled: true
+
+  - name: collect_memory_usage
+    step_type: ssh_command
+    step_order: 3
+    config:
+      ssh_connection_id: <YOUR_SSH_CONNECTION_ID>
+      command: "free -m | awk 'NR==2{printf \"%s MB total / %s MB used / %s MB free\", $2, $3, $4}'"
+      output_var: memory_usage
+      timeout: 30
+    on_error: continue
+    enabled: true
+
+  - name: check_db_health
+    step_type: db_health_check
+    step_order: 4
+    config:
+      connection_id: <YOUR_PG_CONNECTION_ID>
+    on_error: continue
+    enabled: true
+
+  # ── Report ────────────────────────────────────────────────────────────────
+  - name: generate_disk_report
+    step_type: data_report
+    step_order: 5
+    config:
+      data_var: disk_csv
+      data_format: csv
+      format: excel
+      output_filename: "disk_alert_{{ current_date }}.xlsx"
+      sheet_name: Disk Usage
+    on_error: continue
+    enabled: true
+
+  # ── Alert email ───────────────────────────────────────────────────────────
+  # send_only_on_failure: true means this only fires if check_disk_threshold failed.
+  - name: send_alert
+    step_type: email
+    step_order: 6
+    config:
+      email_config_id: <YOUR_EMAIL_CONFIG_ID>
+      attachments:
+        - "{{ steps.generate_disk_report.output_path }}"
+    on_error: continue
+    enabled: true
+
+variables:
+  - var_key: DISK_THRESHOLD_PCT
+    var_value: "90"
+    is_secret: false

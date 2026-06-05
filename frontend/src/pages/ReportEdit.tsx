@@ -4,12 +4,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { ArrowLeft, Play, Save, RefreshCw, Check, BarChart2, Lightbulb, Wand2, Activity, X } from 'lucide-react'
+import { ArrowLeft, Play, Save, RefreshCw, Check, BarChart2, Lightbulb, Wand2, Activity, X, Plus, Trash2 } from 'lucide-react'
 import {
   getReportConfig, createReportConfig, updateReportConfig, previewReport,
   generateChartConfig, aiQuery, profileData, getDbConnections, getSetupStatus,
 } from '../lib/api'
-import type { ReportFormat } from '../lib/types'
+import type { ReportFormat, ColumnFormatRule, ColumnConditionalRule } from '../lib/types'
 import ChartPreview, { type ChartConfig } from '../components/report/ChartPreview'
 import { useProjectStore } from '../lib/store'
 import TopBar from '../components/shared/TopBar'
@@ -30,6 +30,141 @@ const schema = z.object({
   title:     z.string(),
 })
 type FormValues = z.infer<typeof schema>
+
+const NUMBER_FORMAT_PRESETS = [
+  { label: 'Integer',       value: '#,##0' },
+  { label: '2 decimals',    value: '#,##0.00' },
+  { label: 'Currency $',    value: '$#,##0.00' },
+  { label: 'Percentage',    value: '0.00%' },
+  { label: 'Date DD/MM/YY', value: 'DD/MM/YYYY' },
+  { label: 'Date MM/DD/YY', value: 'MM/DD/YYYY' },
+  { label: 'Date ISO',      value: 'YYYY-MM-DD' },
+  { label: 'Datetime',      value: 'YYYY-MM-DD HH:MM:SS' },
+]
+
+const OPERATORS: { value: ColumnConditionalRule['operator']; label: string }[] = [
+  { value: 'lt',  label: '<' },
+  { value: 'lte', label: '≤' },
+  { value: 'gt',  label: '>' },
+  { value: 'gte', label: '≥' },
+  { value: 'eq',  label: '=' },
+  { value: 'ne',  label: '≠' },
+]
+
+function ColumnFormattingCard({
+  rules, setRules,
+}: {
+  rules: ColumnFormatRule[]
+  setRules: React.Dispatch<React.SetStateAction<ColumnFormatRule[]>>
+}) {
+  const updateRule = (i: number, patch: Partial<ColumnFormatRule>) =>
+    setRules(prev => prev.map((r, j) => j === i ? { ...r, ...patch } : r))
+
+  const addCond = (i: number) =>
+    setRules(prev => prev.map((r, j) => j === i
+      ? { ...r, conditional: [...(r.conditional ?? []), { operator: 'lt', value: 0, bg_color: 'FFC7CE', font_color: '9C0006' }] }
+      : r))
+
+  const updateCond = (ri: number, ci: number, patch: Partial<ColumnConditionalRule>) =>
+    setRules(prev => prev.map((r, j) => j === ri
+      ? { ...r, conditional: (r.conditional ?? []).map((c, k) => k === ci ? { ...c, ...patch } : c) }
+      : r))
+
+  const removeCond = (ri: number, ci: number) =>
+    setRules(prev => prev.map((r, j) => j === ri
+      ? { ...r, conditional: (r.conditional ?? []).filter((_, k) => k !== ci) }
+      : r))
+
+  return (
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ fontSize: 12, fontWeight: 600 }}>Column Formatting</div>
+        <button type="button" className="btn btn-sm"
+          onClick={() => setRules(r => [...r, { column: '', number_format: '', width: undefined, conditional: [] }])}>
+          <Plus size={10} /> Add rule
+        </button>
+      </div>
+      {rules.length === 0 && (
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
+          No formatting rules. Add one to apply number formats and conditional cell colours to Excel output.
+        </p>
+      )}
+      {rules.map((rule, i) => (
+        <div key={i} style={{ border: '1px solid var(--border)', borderRadius: 7, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {/* Rule header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              className="input"
+              style={{ flex: 1, height: 28, fontSize: 12 }}
+              placeholder="Column name (exact)"
+              value={rule.column}
+              onChange={e => updateRule(i, { column: e.target.value })}
+            />
+            <select
+              className="input"
+              style={{ height: 28, fontSize: 12, maxWidth: 160 }}
+              value={rule.number_format ?? ''}
+              onChange={e => updateRule(i, { number_format: e.target.value })}
+            >
+              <option value="">Number format…</option>
+              {NUMBER_FORMAT_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+            </select>
+            <input
+              className="input mono-input"
+              style={{ width: 80, height: 28, fontSize: 12 }}
+              placeholder="custom"
+              value={rule.number_format ?? ''}
+              onChange={e => updateRule(i, { number_format: e.target.value })}
+            />
+            <input
+              className="input"
+              type="number"
+              style={{ width: 56, height: 28, fontSize: 12 }}
+              placeholder="width"
+              value={rule.width ?? ''}
+              onChange={e => updateRule(i, { width: e.target.value ? Number(e.target.value) : undefined })}
+              min={3} max={255}
+            />
+            <button type="button" onClick={() => setRules(r => r.filter((_, j) => j !== i))}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '2px 4px' }}>
+              <Trash2 size={12} />
+            </button>
+          </div>
+
+          {/* Conditional rules */}
+          {(rule.conditional ?? []).map((cond, ci) => (
+            <div key={ci} style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 8, borderLeft: '2px solid var(--border)' }}>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>if value</span>
+              <select className="input" style={{ width: 46, height: 26, fontSize: 12, padding: '0 4px' }}
+                value={cond.operator}
+                onChange={e => updateCond(i, ci, { operator: e.target.value as ColumnConditionalRule['operator'] })}>
+                {OPERATORS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+              <input className="input" type="number" style={{ width: 64, height: 26, fontSize: 12 }}
+                value={cond.value} onChange={e => updateCond(i, ci, { value: Number(e.target.value) })} />
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>bg</span>
+              <input type="color" value={`#${cond.bg_color}`}
+                onChange={e => updateCond(i, ci, { bg_color: e.target.value.slice(1) })}
+                style={{ width: 28, height: 26, cursor: 'pointer', border: '1px solid var(--border)', borderRadius: 4, padding: 1 }} />
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>text</span>
+              <input type="color" value={cond.font_color ? `#${cond.font_color}` : '#000000'}
+                onChange={e => updateCond(i, ci, { font_color: e.target.value.slice(1) })}
+                style={{ width: 28, height: 26, cursor: 'pointer', border: '1px solid var(--border)', borderRadius: 4, padding: 1 }} />
+              <button type="button" onClick={() => removeCond(i, ci)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '2px 4px' }}>
+                <X size={11} />
+              </button>
+            </div>
+          ))}
+          <button type="button" className="btn btn-sm" style={{ alignSelf: 'flex-start', fontSize: 11 }}
+            onClick={() => addCond(i)}>
+            <Plus size={9} /> Add condition
+          </button>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export default function ReportEdit() {
   const { id } = useParams()
@@ -53,6 +188,7 @@ export default function ReportEdit() {
     },
   })
 
+  const [columnFormatting, setColumnFormatting] = useState<ColumnFormatRule[]>([])
   const [error, setError] = useState('')
   const [preview, setPreview] = useState<{ columns: string[]; rows: unknown[][] } | null>(null)
   const [previewing, setPreviewing] = useState(false)
@@ -71,7 +207,8 @@ export default function ReportEdit() {
   const name   = watch('name')
 
   useEffect(() => {
-    if (existing) reset({
+    if (!existing) return
+    reset({
       name:      existing.name,
       desc:      existing.description ?? '',
       connId:    existing.connection_id ?? '',
@@ -81,6 +218,7 @@ export default function ReportEdit() {
       sheetName: existing.sheet_name ?? 'Sheet1',
       title:     existing.title ?? '',
     })
+    setColumnFormatting(existing.column_formatting ?? [])
   }, [existing, reset])
 
   const onSubmit = async (values: FormValues) => {
@@ -92,6 +230,7 @@ export default function ReportEdit() {
         query: values.query, format: values.format,
         output_filename: values.filename,
         sheet_name: values.sheetName, title: values.title,
+        column_formatting: columnFormatting,
         ...(isNew && activeProjectId ? { project_id: activeProjectId } : {}),
       }
       isNew ? await createReportConfig(payload) : await updateReportConfig(id!, payload)
@@ -359,6 +498,11 @@ export default function ReportEdit() {
               </div>
             </div>
           </div>
+
+          {/* Column Formatting — Excel only */}
+          {format === 'excel' && (
+            <ColumnFormattingCard rules={columnFormatting} setRules={setColumnFormatting} />
+          )}
         </div>
 
         {/* Right panel: SQL editor + preview */}

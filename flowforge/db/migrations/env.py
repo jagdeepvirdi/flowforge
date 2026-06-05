@@ -16,6 +16,7 @@ if config.config_file_name is not None:
 
 # Import models so SQLAlchemy metadata is populated for autogenerate
 from flowforge.db.models import db  # noqa: E402
+
 target_metadata = db.metadata
 
 # Tables managed outside of Alembic — APScheduler creates apscheduler_jobs itself.

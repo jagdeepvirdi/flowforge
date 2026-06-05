@@ -40,7 +40,7 @@
 ## Phase 2 — Code Quality Badges (remaining items)
 
 ### 2.1 SonarCloud
-- [ ] Take a screenshot of the SonarCloud dashboard for LinkedIn post
+- [x] Take a screenshot of the SonarCloud dashboard for LinkedIn post
 
 #### 2.1f Major Code Smells (one remaining)
 - [x] Add explicit `{' '}` between inline JSX elements — `Layout.tsx:103,148`, `Projects.tsx:232`, `PipelineEdit.tsx:313`, `BulkLoadEdit.tsx:186`
@@ -52,7 +52,85 @@
 - [x] Replace `dict()` / `list()` constructor calls with literals `{}` / `[]` — `sftp_transfer.py:60`
 
 ### 2.2 OpenSSF Scorecard
-- [ ] Review final Scorecard score after next weekly run (Saturday); target ≥ 7.0
+**Current score: 6.0 / 10** (2026-05-30) — target ≥ 8.0
+Report: https://securityscorecards.dev/viewer/?uri=github.com/jagdeepvirdi/flowforge
+
+#### Passing checks (no action needed)
+- Binary-Artifacts: 10/10 — no binaries in repo ✅
+- CI-Tests: 10/10 — 8/8 merged PRs checked by CI ✅
+- Dangerous-Workflow: 10/10 — no unsafe GitHub Actions patterns ✅
+- Dependency-Update-Tool: 10/10 — Dependabot configured ✅
+- License: 10/10 — MIT license declared ✅
+- Security-Policy: 10/10 — SECURITY.md with disclosure procedures ✅
+- Token-Permissions: 10/10 — workflows use least-privilege ✅
+
+#### Critical — fix immediately (score 0)
+
+##### Vulnerabilities (0/10 — Critical)
+- [x] Run `pip-audit` and `npm audit` locally, identify all 17 reported CVEs
+- [x] Upgrade or patch every vulnerable dependency until `pip-audit` exits clean — `requirements.txt` updated to latest CVE-free versions; `npm audit` reports 0 vulnerabilities after upgrading vite→8.0.16, vitest→4.1.8, @vitejs/plugin-react→6.0.2, react-router-dom patched
+- [ ] Re-run scorecard after fixes; confirm Vulnerabilities moves to 10
+
+##### Code-Review (0/10 — Critical)
+- [ ] Enable **branch protection** on `master`: require at least 1 approving review before merge
+- [ ] In GitHub → Settings → Branches → Add rule: check "Require a pull request before merging" + "Require approvals (1)"
+- [ ] Self-review all 9 existing un-reviewed merged PRs via a single "catch-up" review PR description (documents intent retroactively)
+- [ ] Going forward: never push directly to `master`; always open a PR and self-approve before merging
+
+##### Maintained (0/10 — Critical — time-based)
+- [ ] No direct fix: score improves automatically after the repo has ≥ 90 days of commit activity
+- [ ] Ensure at least 1 commit per week during the 90-day window to build history
+
+#### Medium — improve score
+
+##### Pinned-Dependencies (6/10 — Medium)
+- [x] Pin `gunicorn==26.0.0` and `gevent==26.5.0` in `requirements.txt`; pin `flower==2.0.1` in Dockerfile; pin `pip-audit==2.10.0` and `bandit[toml]==1.9.4` in `test.yml`
+- [x] Generated full hash-pinned `requirements.txt` via `pip-compile --generate-hashes requirements.in` (974 lines, 827 SHA-256 hashes covering all transitive deps). Dockerfile now uses `--require-hashes` to enforce hash verification at build time.
+- [ ] Re-run scorecard to confirm Pinned-Dependencies score improves; confirm 5/5 pip invocations are covered
+
+##### SAST (8/10 — Medium)
+- [x] Investigated: `codeql.yml` already has `push: branches: ['**']` — ALL commits on ALL branches are scanned, not just PRs. Coverage gap was likely a transient Scorecard fetch issue.
+- [x] `on: push: branches: [master]` trigger confirmed present (covered by `['**']`)
+- [ ] Re-run scorecard to confirm SAST moves to 10/10
+
+##### CII-Best-Practices (5/10 — Medium)
+Silver gaps addressed in code:
+- [x] `code_of_conduct` — `CODE_OF_CONDUCT.md` added (Contributor Covenant 2.1)
+- [x] `governance` / `roles_responsibilities` / `access_continuity` — `GOVERNANCE.md` added
+- [x] `documentation_roadmap` — `ROADMAP.md` added (v1/v2/v3 plan)
+- [x] `assurance_case` — `docs/threat-model.md` added (7 threats, mitigations, trust boundaries, security invariants)
+- [x] `warnings_strict` — `ruff check .` and `npm run lint` added to CI; 465 issues auto-fixed; remaining 27 manually resolved; ruff now passes clean
+- [x] `build_repeatable` — `requirements.txt` fully hash-pinned via `pip-compile --generate-hashes`
+- [x] `signed_releases` — `release.yml` with SLSA attestation ✅
+- [x] `dependency_monitoring` — `pip-audit` + `npm audit` in CI ✅
+- [x] `coding_standards_enforced` — ruff + ESLint in CI ✅
+Remaining Silver gaps requiring user action:
+- [ ] `test_statement_coverage80` — currently at 72%; needs improvement to 80% before claiming this criterion (see coverage section)
+- [ ] `bus_factor` (SHOULD) — solo project; document or recruit a co-maintainer
+- [ ] `dco` (SHOULD) — consider adding DCO sign-off requirement to PR template
+- [ ] Complete the Silver questionnaire at https://bestpractices.dev once all MUST criteria are met
+- [ ] Update badge URL in README once Silver is awarded
+
+##### Fuzzing (0/10 — Medium)
+- [x] Add `hypothesis>=6.0` to dev extras in `pyproject.toml`; create `tests_fuzz/test_fuzz.py` with 12 property-based tests covering `build()` invariants, `render()` crash safety, blocklist enforcement, `render_sql()` robustness, and pipeline var injection safety
+- [x] Fuzz tests run in a separate `tests_fuzz/` directory (no DB required) so they can run anywhere
+- [x] Add `pytest tests_fuzz/ -q --hypothesis-seed=0` step to CI `test.yml` after main test suite
+
+#### Low / N/A — resolve when releasing
+
+##### Signed-Releases (-1 — N/A, no releases yet)
+- [x] Create `.github/workflows/release.yml` — triggers on `v*` tags; builds wheel + sdist; generates SLSA provenance via `actions/attest-build-provenance@v4.1.0`; creates GitHub Release with auto-notes and signed artifacts
+- [x] Document release signing in RUNBOOK.md §12 (one-time setup, cutting a release, verifying attestation)
+- [ ] Cut v1.0.0 tag when ready to release — triggers the workflow
+
+##### Packaging (-1 — no publishing workflow)
+- [x] Create `.github/workflows/publish.yml` — builds wheel + sdist, publishes to PyPI via OIDC trusted publishing (`pypa/gh-action-pypi-publish@v1.14.0`) with `attestations: true` for SLSA provenance; no API token needed
+- [ ] Configure PyPI Trusted Publisher once (pypi.org → Account → Publishing → add `publish.yml` / environment `pypi`) — one-time manual step
+- [ ] Publish `flowforge` to PyPI by cutting v1.0.0 tag
+
+##### Branch-Protection (-1 — auth error during scan)
+- [ ] Confirm the Scorecard GitHub App has sufficient read permissions on the repo (Settings → Integrations → Installed GitHub Apps)
+- [ ] Re-run scorecard after branch protection rules are set (see Code-Review tasks above); error should resolve
 
 ---
 
@@ -116,31 +194,36 @@
 ## Phase 6 — Production Hardening (P1)
 
 ### 6.1 Gunicorn Deployment Guide
-- [ ] Document `gunicorn -w 4 -k gevent flowforge.api.app:create_app()` in RUNBOOK.md
-- [ ] Explain why Celery is required when running multiple Gunicorn workers
-- [ ] Add Nginx reverse-proxy config example
-- [ ] Add systemd unit for Gunicorn (alongside existing scheduler unit)
+- [x] Document `gunicorn --workers 4 --worker-class gevent` in RUNBOOK.md (§4a)
+- [x] Explain why Celery is required when running multiple Gunicorn workers
+- [x] Add Nginx reverse-proxy config example
+- [x] Add systemd units for web, scheduler, and Celery worker (RUNBOOK.md §4a)
 
 ### 6.2 SQLAlchemy Pool Tuning
-- [ ] Document `SQLALCHEMY_POOL_SIZE`, `SQLALCHEMY_MAX_OVERFLOW`, `SQLALCHEMY_POOL_TIMEOUT` in `.env.example`
-- [ ] Add pool settings to `create_app()` from env vars
-- [ ] Add PgBouncer note for deployments with 100+ concurrent pipelines
+- [x] Document `SQLALCHEMY_POOL_SIZE`, `SQLALCHEMY_MAX_OVERFLOW`, `SQLALCHEMY_POOL_TIMEOUT`, `SQLALCHEMY_POOL_RECYCLE` in `.env.example`
+- [x] Add pool settings to `create_app()` from env vars
+- [x] Add PgBouncer note in RUNBOOK.md §9
 
 ### 6.3 Prometheus Metrics Endpoint
-- [ ] `GET /api/metrics` — plain-text Prometheus format
-- [ ] Counters: `flowforge_runs_total{status}`, `flowforge_runs_active`, `flowforge_queue_depth`
-- [ ] Expose via `prometheus_client` library (add to requirements)
-- [ ] Document scrape config for Grafana / Prometheus stack
+- [x] `GET /api/metrics` — plain-text Prometheus format (no extra dependency)
+- [x] Metrics: `flowforge_runs_total{status}`, `flowforge_runs_active`, `flowforge_queue_depth`
+- [x] Requires Bearer token auth; documented scrape config + Grafana PromQL in RUNBOOK.md §10
 
 ### 6.4 Flower Dashboard (Celery Monitoring)
-- [ ] Add `flower` service to `docker-compose.yml` (port 5555)
-- [ ] Add `FLOWER_BASIC_AUTH` env var for basic auth protection
-- [ ] Document in RUNBOOK.md
+- [x] `flower` service added to `docker-compose.yml` with `--profile monitoring` (opt-in)
+- [x] `FLOWER_BASIC_AUTH` and `FLOWER_PORT` env vars in `.env.example`
+- [x] Documented in RUNBOOK.md §11 (Docker Compose + bare-metal + monitoring guide)
 
 ### 6.5 Dependency Audit in CI
-- [ ] Add `pip-audit` step to GitHub Actions — fail on CRITICAL CVEs
-- [ ] `npm audit --audit-level=high` already runs; confirm it fails the build correctly
-- [ ] Pin all dependencies to exact versions in `requirements.txt` (currently pinned ✅ — verify)
+- [x] `pip-audit` already runs in GitHub Actions `test.yml` — fails on any CVE
+- [x] `npm audit --audit-level=high` already runs in `frontend` job
+- [x] All `requirements.txt` deps pinned to exact versions ✅
+
+### 6.6 Reliability & Hardening (from Codebase Review)
+- [x] **[ARCH-2] Persistent Scheduler Jobstore** — APScheduler already uses `SQLAlchemyJobStore` when `FLOWFORGE_DB_URL` is set; falls back to memory with a warning. Tests confirm both paths.
+- [x] **[CODE-3] Drive API Failure Visibility** — `_handle_attachments` now wraps each upload in try/except; failures fall back to direct attachment and are surfaced in Run History step logs via `warnings_out`.
+- [x] **[DB-1] Prevent Invisible History** — `PipelineRun.pipeline_id` already uses `ondelete=SET NULL` (nullable); deleting a pipeline preserves all run rows with their denormalized `pipeline_name`.
+- [x] **[SEC-3] SQL Sandbox Protection** — `render_sql()` added to `context.py`; warns when secret pipeline variables appear in SQL templates. `_secret_var_keys` stored in context by runner. Used in `db_query` and `report` steps for query rendering.
 
 ---
 
@@ -152,24 +235,24 @@
 
 ---
 
-## Phase 8 — Compliance Track (P2 — Regulated Environments)
+## Phase 8 — Compliance Track (P2 — Regulated Environments) ✅ *(COMPLETE 2026-05-30)*
 
 *Required before FlowForge can be deployed in finance, healthcare, or SOC2-reviewed environments.*
 
 ### 8.1 Data Protection
-- [ ] **Report file encryption at rest** — encrypt output files using `FLOWFORGE_SECRET_KEY`; decrypt transparently on download
-- [ ] **Secrets scanning in CI** — add `detect-secrets` or `truffleHog` GitHub Action; block commits with credential patterns
-- [ ] **GDPR data export** — `GET /api/admin/users/{id}/export` — all run history, pipeline config, and personal data for a user
-- [ ] **GDPR data deletion** — `DELETE /api/admin/users/{id}?purge=true` — anonymize run history, remove credentials, delete user record
+- [x] **Report file encryption at rest** — AES-256-GCM via `FLOWFORGE_ENCRYPT_OUTPUT=true`; `crypto.py` gains `encrypt_file()` / `decrypt_file_to_stream()`; `report.py` + `script_report.py` encrypt after generation; download endpoint decrypts `.enc` files transparently
+- [x] **Secrets scanning in CI** — `.github/workflows/secrets-scan.yml` using TruffleHog OSS (`--only-verified --fail`) on every push and PR
+- [x] **GDPR data export** — `GET /api/admin/users/{id}/export` — user profile, audit log entries, pipeline run history as JSON; Download button in Users UI
+- [x] **GDPR data deletion** — `DELETE /api/admin/users/{id}?purge=true` — anonymises audit log (username → `[deleted:...]`, ip_address removed), then deletes user record; GDPR purge button in Users UI
 
 ### 8.2 Identity Hardening
-- [ ] **MFA (TOTP)** — `pyotp`; QR code enrollment in Settings; per-user or globally enforced by admin; backup codes
-- [ ] **SSO / OAuth2 login** — "Sign in with Google" or "Sign in with Microsoft" using existing MSAL; map to internal user records by email
-- [ ] **IP allowlisting** — `FLOWFORGE_ALLOWED_IPS=10.0.0.0/8,192.168.1.0/24`; reject at `before_request` middleware
+- [x] **MFA (TOTP)** — `pyotp` added to deps; DB migration `0020_mfa_sso.py` adds `mfa_secret`, `mfa_enabled`, `mfa_backup_codes` (all AES-256 encrypted); `POST /auth/mfa/enroll|confirm|disable|verify|use-backup`; Login page shows step-2 TOTP input; Settings page shows MFA enrollment card with QR code + 10 backup codes
+- [x] **SSO / OAuth2 login** — `GET /api/auth/sso/google|microsoft` + callbacks; `GOOGLE_SSO_CLIENT_ID/SECRET` + `MICROSOFT_SSO_TENANT_ID/CLIENT_ID/SECRET`; `FLOWFORGE_SSO_AUTO_CREATE`; Login page shows SSO buttons when configured; token delivered via `/#sso_token=<jwt>` hash fragment
+- [x] **IP allowlisting** — `FLOWFORGE_ALLOWED_IPS=10.0.0.0/8,192.168.1.0/24`; `_register_ip_allowlist()` in `app.py` registers `before_request` handler using stdlib `ipaddress`; invalid CIDRs logged as warnings and skipped
 
 ### 8.3 Compliance Documentation
-- [ ] **Data flow diagram** — which data FlowForge touches (query results, report files, email addresses), where stored, where transmitted
-- [ ] **SAML support** — `python3-saml` for Okta / Azure AD / Ping enterprise IdP *(v2.x, lower priority)*
+- [x] **Data flow diagram** — `docs/data-flow.md` — full inventory: data types, storage locations, transmission targets, encryption, data retention, GDPR rights, authentication security, audit events, network ports
+- [ ] **SAML support** — `python3-saml` for Okta / Azure AD / Ping enterprise IdP *(v2.x, lower priority — deferred)*
 
 ---
 
@@ -182,24 +265,24 @@
 ## New Connectors & Providers
 - [ ] Snowflake / BigQuery / Redshift connectors
 - [ ] AWS S3 / Azure Blob upload step
-- [ ] MSSQL / SQL Server connection support
-- [ ] Generic ODBC connection support
-- [ ] SendGrid API email provider
-- [ ] AWS SES email provider
-- [ ] Mailgun email provider
-- [ ] Telegram / Slack / Teams notification step
+- [x] MSSQL / SQL Server connection support — `connections/mssql.py` via `pyodbc`; `flowforge[mssql]` optional extra *(2026-05-30)*
+- [x] Generic ODBC connection support — `connections/odbc.py` via `pyodbc`; DSN or connection string config *(2026-05-30)*
+- [x] SendGrid API email provider — `email_providers/sendgrid.py`; Web API v3; base64 attachments; `pip install flowforge[all]` *(2026-05-30)*
+- [x] AWS SES email provider — `email_providers/ses.py`; boto3 SES client; raw MIME for attachments; `pip install flowforge[ses]` *(2026-05-30)*
+- [x] Mailgun email provider — `email_providers/mailgun.py`; Messages API v3; US/EU region; multipart attachments *(2026-05-30)*
+- [x] Telegram / Slack / Teams notification step — `steps/notification.py`; step_type `notification`; platform selector in StepEditor; Slack/Teams via incoming webhook; Telegram via Bot API *(2026-05-30)*
 
 ## Pipeline Features
-- [ ] Pipeline dependencies — run pipeline B only after pipeline A succeeds
-- [ ] Parallel step execution within a single pipeline
-- [ ] Pipeline run diff view — row count and output size delta vs last run
-- [ ] Report column formatting rules — number format, date format, conditional cell colours in Excel
-- [ ] Environment promotion workflow — dev → staging → prod config sync
+- [x] Pipeline dependencies — `ff_pipeline_dependencies` table; cycle detection; `_trigger_downstream_pipelines()` in runner fires eligible downstreams after success; CRUD at `GET/POST/DELETE /api/pipelines/{id}/dependencies`; Dependencies card in PipelineEdit *(2026-05-30)*
+- [x] Parallel step execution — `parallel_group VARCHAR(100)` on `ff_pipeline_steps`; runner groups steps into waves; same-group steps run in `ThreadPoolExecutor`; context snapshots per thread, outputs merged after wave; visual group badge + indigo border in StepEditor *(2026-05-30)*
+- [x] Pipeline run diff view — `GET /api/runs/{id}/diff` compares step rows/duration/file-size vs prev successful run; collapsible DiffPanel with colour-coded delta badges in RunDetail *(2026-05-30)*
+- [x] Report column formatting rules — `column_formatting JSONB` on `ff_report_configs`; Excel generator applies `number_format`, `width`, conditional `PatternFill`/`Font` per rule; ColumnFormattingCard UI in ReportEdit (presets + colour pickers) *(2026-05-30)*
+- [x] Environment promotion workflow — `POST /api/pipelines/{id}/promote` clones to target project (disabled); warns on secret vars + unresolved references; Promote (↗) button on Pipelines page with project picker modal *(2026-05-30)*
 
 ## Platform
 - [ ] Plugin system — community step types loaded from a directory
 - [ ] `ff_project_members` join table — team-scoped project access (deferred from v2)
-- [ ] Password reset flow via email (deferred from v2)
+- [x] Password reset flow via email — `ff_password_reset_tokens` table; `POST /auth/password-reset/request|confirm`, `GET /auth/password-reset/validate/<token>`; user `email` column; "Forgot password?" on Login; Users page shows/sets email *(2026-05-30)*
 - [ ] Distributed Redis-backed concurrency lock (replaces per-process semaphore for horizontal scale)
 
 ---
@@ -207,24 +290,22 @@
 ## Phase 9 — Automation Scenarios (SSH & Remote Execution)
 
 ### 9.1 Infrastructure Support
-- [ ] **Implement `SSHConnection`** — new connection type to store host, port, credentials (password/key_path)
-- [ ] **Implement `SshCommandStep`** — execute remote commands/scripts via paramiko; capture stdout/stderr
-- [ ] **Implement `DbHealthCheckStep`** — industry-standard metrics (Lag, Locks, Bloat, Sessions)
-- [ ] **Smart Alerting Logic** — add `send_only_on_failure` toggle to pipelines to suppress routine emails
-- [ ] **Alembic migration** — update `ck_step_type` to include `ssh_command`, `db_health_check`, and `data_report`
-- [ ] **Implement `DataReportStep`** — generate Excel/CSV/PDF from pipeline context variables
+- [x] **Implement `SSHConnection`** — new connection type to store host, port, credentials (password/key_path)
+- [x] **Implement `SshCommandStep`** — execute remote commands/scripts via paramiko; capture stdout/stderr
+- [x] **Implement `DbHealthCheckStep`** — industry-standard metrics (Lag, Locks, Bloat, Sessions)
+- [x] **Smart Alerting Logic** — add `send_only_on_failure` toggle to pipelines to suppress routine emails
+- [x] **Alembic migration** — update `ck_step_type` to include `ssh_command`, `db_health_check`, and `data_report`
+- [x] **Implement `ScriptReportStep`** — generate Excel/CSV/PDF from pipeline context variables (e.g. Shell script outputs)
 
 ### 9.2 Scenario 1: Industry-Standard Health Monitoring
-- [ ] **Configure Daily Health Pipeline** — 4 SSH steps + 2 DB Health steps + Data Report step + Email step
-- [ ] **Standard SSH Metrics**: Load Average, Memory Usage (`free -m`), Disk I/O, and `df -h`.
-- [ ] **Standard DB Metrics**:
-    - **Oracle**: `v$instance`, `v$sysstat` (buffer cache hit ratio), `v$dataguard_stats`.
-    - **Postgres**: `pg_stat_database` (cache hit ratio), `pg_stat_replication`, `pg_stat_activity`.
-- [ ] **Conditional Execution**: Use FlowForge's `on_error: stop` and variable checks to only email if thresholds are exceeded (e.g., Disk > 90%).
+- [x] **Configure Daily Health Pipeline** — importable YAML templates in `examples/` (daily digest + alerting variant)
+- [x] **Standard SSH Metrics**: Load Average, Memory Usage (`free -m`), Disk I/O, and `df -h` — documented in `docs/scenarios/health-monitoring.md`
+- [x] **Standard DB Metrics**: PostgreSQL (`pg_stat_activity`, cache hit ratio, replication lag) and Oracle (`v$session`, `v$sysstat`, tablespace usage) — implemented in `DbHealthCheckStep`
+- [x] **Conditional Execution**: Threshold-check SSH step exits 1 on breach; `send_only_on_failure: true` suppresses routine emails — documented with example in alerting YAML template
 
 ### 9.3 Scenario 2: Remote Script & Log Processing
-- [ ] **Configure Log Extraction Pipeline** — SSH step (run script) + existing `ReportStep` (query the updated table) + Email step
-- [ ] **Log Handling**: Attach the stdout/stderr log from the SSH step directly to the email alongside the Excel.
+- [x] **Configure Log Extraction Pipeline** — importable YAML in `examples/log-extraction-pipeline.yaml` (SSH → Report → Email, 3 steps)
+- [x] **Log Handling**: `ssh_command` gains `save_output: true` — writes stdout/stderr to a `.log` file and sets `output_path`; attach alongside Excel via `{{ steps.<name>.output_path }}`
 
 ---
 

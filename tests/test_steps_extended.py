@@ -1,7 +1,6 @@
 """Extended tests for pipeline step CRUD — covers validation and step_order swap."""
 import pytest
 
-
 PIPELINE_PAYLOAD = {'name': '__steps_ext__', 'enabled': True}
 STEP_PAYLOAD = {
     'name': 'Query Step',
@@ -91,8 +90,11 @@ def test_add_step_nonexistent_pipeline_returns_404(client, headers):
 
 
 def test_add_step_all_valid_types(client, headers, pipeline_id):
-    valid_types = ['db_procedure', 'db_query', 'report', 'email', 'drive_upload',
-                   'ai_analyze', 'data_load', 'bulk_load']
+    valid_types = [
+        'db_procedure', 'db_query', 'report', 'email', 'drive_upload',
+        'onedrive_upload', 'ai_analyze', 'data_load', 'bulk_load', 'sftp_transfer',
+        'ssh_command', 'db_health_check', 'data_report', 'ssh_health_check',
+    ]
     created_ids = []
     for stype in valid_types:
         resp = client.post(

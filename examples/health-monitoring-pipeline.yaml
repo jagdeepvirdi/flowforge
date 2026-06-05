@@ -1,0 +1,97 @@
+# FlowForge — Daily Infrastructure Health Check
+#
+# Variant: Daily Digest (always emails)
+# Collects SSH system metrics and DB health every weekday morning,
+# generates an Excel disk-usage report, and emails it to your team.
+#
+# HOW TO USE:
+#   1. Go to Settings → Import Pipeline and upload this file.
+#   2. Replace all <YOUR_*_ID> placeholders with your real UUIDs:
+#        - <YOUR_SSH_CONNECTION_ID>  : SSH Connection (Connections → SSH)
+#        - <YOUR_PG_CONNECTION_ID>   : DB Connection (Connections → Database)
+#        - <YOUR_EMAIL_CONFIG_ID>    : Email Config (Email Designer)
+#   3. Enable the pipeline and click "Run Now" to test.
+#
+# See docs/scenarios/health-monitoring.md for the email body template
+# and full setup guide.
+
+name: Daily Infrastructure Health Check
+description: >
+  Collects SSH system metrics (load, memory, disk) and PostgreSQL health stats,
+  generates an Excel disk-usage report, and emails results to the ops team.
+schedule: "0 7 * * 1-5"
+enabled: false
+timeout_minutes: 30
+send_only_on_failure: false
+
+steps:
+  - name: collect_load_average
+    step_type: ssh_command
+    step_order: 1
+    config:
+      ssh_connection_id: <YOUR_SSH_CONNECTION_ID>
+      command: "uptime | awk -F'load average: ' '{print $2}'"
+      output_var: load_average
+      timeout: 30
+    on_error: continue
+    enabled: true
+
+  - name: collect_memory_usage
+    step_type: ssh_command
+    step_order: 2
+    config:
+      ssh_connection_id: <YOUR_SSH_CONNECTION_ID>
+      command: "free -m | awk 'NR==2{printf \"%s MB total / %s MB used / %s MB free\", $2, $3, $4}'"
+      output_var: memory_usage
+      timeout: 30
+    on_error: continue
+    enabled: true
+
+  - name: collect_disk_usage
+    step_type: ssh_command
+    step_order: 3
+    config:
+      ssh_connection_id: <YOUR_SSH_CONNECTION_ID>
+      # Outputs CSV with header row: Filesystem,Size,Used,Available,Use%,Mounted
+      command: >-
+        df -h | awk 'NR==1{print "Filesystem,Size,Used,Available,Use%,Mounted"}
+        NR>1{printf "%s,%s,%s,%s,%s,%s\n",$1,$2,$3,$4,$5,$6}'
+      output_var: disk_csv
+      timeout: 30
+    on_error: continue
+    enabled: true
+
+  - name: check_postgres_health
+    step_type: db_health_check
+    step_order: 4
+    config:
+      connection_id: <YOUR_PG_CONNECTION_ID>
+    on_error: continue
+    enabled: true
+
+  - name: generate_disk_report
+    step_type: data_report
+    step_order: 5
+    config:
+      data_var: disk_csv
+      data_format: csv
+      format: excel
+      output_filename: "disk_usage_{{ current_date }}.xlsx"
+      sheet_name: Disk Usage
+    on_error: continue
+    enabled: true
+
+  - name: send_health_report
+    step_type: email
+    step_order: 6
+    config:
+      email_config_id: <YOUR_EMAIL_CONFIG_ID>
+      attachments:
+        - "{{ steps.generate_disk_report.output_path }}"
+    on_error: continue
+    enabled: true
+
+variables:
+  - var_key: DISK_THRESHOLD_PCT
+    var_value: "90"
+    is_secret: false

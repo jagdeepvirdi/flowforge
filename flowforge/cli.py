@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+from datetime import UTC
 
 import click
 
@@ -187,6 +188,7 @@ def export(pipeline_name: str, output: str | None):
     app = _create_app()
     with app.app_context():
         import yaml
+
         from flowforge.db.models import Pipeline, db
 
         pipeline = db.session.query(Pipeline).filter_by(name=pipeline_name).first()
@@ -228,8 +230,8 @@ def export(pipeline_name: str, output: str | None):
 def cleanup(days: int | None, output_dir: str | None, dry_run: bool):
     """Delete generated output files older than the TTL."""
     import os
+    from datetime import datetime
     from pathlib import Path
-    from datetime import datetime, timezone
 
     directory = Path(output_dir or os.environ.get('FLOWFORGE_OUTPUT_DIR', 'output'))
     ttl = days if days is not None else int(os.environ.get('FLOWFORGE_OUTPUT_TTL_DAYS', 7))
@@ -238,7 +240,7 @@ def cleanup(days: int | None, output_dir: str | None, dry_run: bool):
         click.echo(f"Output directory does not exist: {directory}")
         return
 
-    cutoff = datetime.now(timezone.utc).timestamp() - ttl * 86_400
+    cutoff = datetime.now(UTC).timestamp() - ttl * 86_400
     to_delete = [
         p for p in directory.iterdir()
         if p.is_file() and p.stat().st_mtime < cutoff
@@ -274,6 +276,7 @@ def db_group():
 def _alembic_cfg():
     """Return an Alembic Config pointed at the bundled migrations directory."""
     from pathlib import Path
+
     from alembic.config import Config
     migrations_dir = Path(__file__).parent / 'db' / 'migrations'
     cfg = Config()
@@ -402,6 +405,7 @@ def import_pipeline(file_path: str, overwrite: bool):
     app = _create_app()
     with app.app_context():
         import yaml
+
         from flowforge.db.models import Pipeline, PipelineStep, PipelineVariable, db
 
         with open(file_path) as f:

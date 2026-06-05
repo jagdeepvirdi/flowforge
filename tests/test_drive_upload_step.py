@@ -1,10 +1,7 @@
 """Tests for steps/drive_upload.py and storage/google_drive.py."""
 import sys
-from pathlib import Path
 from types import ModuleType
-from unittest.mock import MagicMock, patch, call
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 
 def _make_google_mocks():

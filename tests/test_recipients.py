@@ -1,7 +1,6 @@
 """Tests for recipient group CRUD."""
 import pytest
 
-
 GROUP_PAYLOAD = {
     'name': 'Test Team',
     'description': 'Automated test group',

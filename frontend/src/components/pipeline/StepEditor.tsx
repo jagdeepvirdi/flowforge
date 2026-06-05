@@ -15,6 +15,7 @@ const STEP_META: Record<StepType, { label: string; cls: string }> = {
   ai_analyze:   { label: 'AI',     cls: 'tbadge-transform' },
   data_load:    { label: 'Load',   cls: 'tbadge-load' },
   bulk_load:    { label: 'Bulk',   cls: 'tbadge-bulk' },
+  notification: { label: 'Notify', cls: 'tbadge-email' },
 }
 
 type Props = Readonly<{
@@ -44,7 +45,8 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
     <div ref={setNodeRef} style={{ ...style, marginBottom: 6 }}>
       <div style={{
         background: expanded ? 'var(--surface)' : 'var(--bg-code)',
-        border: `1px solid ${expanded ? 'var(--border-strong)' : 'var(--border)'}`,
+        border: `1px solid ${step.parallel_group ? 'rgba(99,102,241,0.5)' : expanded ? 'var(--border-strong)' : 'var(--border)'}`,
+        borderLeft: step.parallel_group ? '3px solid #6366f1' : undefined,
         borderRadius: 10,
         overflow: 'hidden',
       }}>
@@ -59,6 +61,11 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
           </span>
 
           <span className={`tbadge ${meta.cls}`}>{meta.label}</span>
+          {step.parallel_group && (
+            <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 3, background: 'rgba(99,102,241,0.15)', color: '#818CF8', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
+              ∥ {step.parallel_group}
+            </span>
+          )}
 
           <input
             style={{ background: 'transparent', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 13, fontWeight: 500, flex: 1, fontFamily: 'inherit', cursor: 'text' }}
@@ -97,6 +104,17 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
               style={{ width: 52, height: 26, padding: '0 6px', fontSize: 11 }}
             />
             <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>s</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} title="Steps sharing the same group name run concurrently">
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>∥ Group</span>
+            <input
+              className="input mono-input"
+              placeholder="none"
+              value={step.parallel_group ?? ''}
+              onChange={e => onChange(step.id, { parallel_group: e.target.value.trim() || null })}
+              style={{ width: 72, height: 26, padding: '0 6px', fontSize: 11 }}
+            />
           </div>
 
           <button onClick={() => setExpanded(x => !x)} className="btn btn-sm btn-ghost btn-icon">
@@ -339,6 +357,48 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
                 setConfig={setConfig}
                 bulkLoadConfigs={bulkLoadConfigs}
               />
+            )}
+
+            {step.step_type === 'notification' && (
+              <>
+                <Field label="Platform">
+                  <select className="input" value={String(cfg.platform ?? 'slack')} onChange={e => setConfig('platform', e.target.value)} style={{ height: 34 }}>
+                    <option value="slack">Slack</option>
+                    <option value="teams">Microsoft Teams</option>
+                    <option value="telegram">Telegram</option>
+                  </select>
+                </Field>
+
+                {(String(cfg.platform ?? 'slack') === 'slack' || String(cfg.platform ?? 'slack') === 'teams') && (
+                  <Field label="Webhook URL">
+                    <input className="input" type="url" value={String(cfg.webhook_url ?? '')} onChange={e => setConfig('webhook_url', e.target.value)} placeholder="https://hooks.slack.com/…" />
+                  </Field>
+                )}
+
+                {String(cfg.platform) === 'telegram' && (
+                  <>
+                    <Field label="Bot token">
+                      <input className="input" type="password" value={String(cfg.bot_token ?? '')} onChange={e => setConfig('bot_token', e.target.value)} placeholder="123456:ABC-DEF…" />
+                    </Field>
+                    <Field label="Chat ID">
+                      <input className="input mono-input" value={String(cfg.chat_id ?? '')} onChange={e => setConfig('chat_id', e.target.value)} placeholder="-100123456789" />
+                    </Field>
+                  </>
+                )}
+
+                <Field label="Title (optional)">
+                  <input className="input" value={String(cfg.title ?? '')} onChange={e => setConfig('title', e.target.value)} placeholder="Pipeline alert" />
+                </Field>
+
+                <Field label="Message (Jinja2)">
+                  <textarea className="input mono-input" rows={3} value={String(cfg.message ?? '')} onChange={e => setConfig('message', e.target.value)}
+                    placeholder="Pipeline {{ pipeline_name }} finished at {{ current_date }}."
+                    style={{ height: 'auto', resize: 'none' }} />
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
+                    Supports all pipeline variables: <code style={{ color: 'var(--text-3)' }}>{'{{ pipeline_name }}'}</code> <code style={{ color: 'var(--text-3)' }}>{'{{ run_id }}'}</code> <code style={{ color: 'var(--text-3)' }}>{'{{ current_date }}'}</code>
+                  </span>
+                </Field>
+              </>
             )}
           </div>
         )}

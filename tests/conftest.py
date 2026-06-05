@@ -2,10 +2,11 @@
 import os
 import sys
 import uuid
-import pytest
-import bcrypt
 from pathlib import Path
 from urllib.parse import urlparse
+
+import bcrypt
+import pytest
 
 # ---------------------------------------------------------------------------
 # FLOWFORGE_DB_URL must be set before running the test suite.
@@ -56,15 +57,14 @@ def apply_migrations():
 
     engine = create_engine(db_url)
     with engine.begin() as conn:
-        for table in [
-            'ff_audit_log',
-            'ff_step_runs', 'ff_pipeline_runs', 'ff_pipeline_variables',
-            'ff_pipeline_steps', 'ff_webhook_tokens', 'ff_pipelines',
-            'ff_email_configs', 'ff_report_configs', 'ff_bulk_load_configs',
-            'ff_db_connections', 'ff_email_providers', 'ff_recipient_groups',
-            'ff_projects', 'ff_users', 'ff_token_blocklist', 'alembic_version',
-        ]:
-            conn.execute(text(f'DROP TABLE IF EXISTS {table} CASCADE'))
+        # Discover all ff_* tables dynamically so new migrations never break this list
+        rows = conn.execute(text(
+            "SELECT tablename FROM pg_tables "
+            "WHERE schemaname = 'public' "
+            "  AND (tablename LIKE 'ff_%' OR tablename = 'alembic_version')"
+        )).fetchall()
+        for (table,) in rows:
+            conn.execute(text(f'DROP TABLE IF EXISTS "{table}" CASCADE'))
     engine.dispose()
 
     cfg = Config()

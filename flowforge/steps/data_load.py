@@ -20,14 +20,16 @@ _TEXT_TYPE = {'postgresql': 'TEXT', 'oracle': 'VARCHAR2(4000)'}
 
 def _is_int(s: str) -> bool:
     try:
-        int(s); return True
+        int(s)
+        return True
     except ValueError:
         return False
 
 
 def _is_float(s: str) -> bool:
     try:
-        float(s); return True
+        float(s)
+        return True
     except ValueError:
         return False
 

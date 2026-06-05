@@ -1,7 +1,5 @@
 """Tests for smart attachment logic in email_step._handle_attachments."""
-import pytest
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 
 def _handle(attachments, max_mb=10, drive_folder_id='folder123',

@@ -6,9 +6,10 @@ touch the real audit.log and don't interfere with each other.
 import io
 import json
 import logging
-import pytest
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 
 @pytest.fixture(autouse=True)
@@ -335,8 +336,9 @@ def test_json_stdout_handler_contains_logger_name():
 
 
 def test_json_stdout_handler_ts_is_utc_iso_format():
-    from flowforge.audit import _JsonStdoutHandler
     import re
+
+    from flowforge.audit import _JsonStdoutHandler
     handler = _JsonStdoutHandler()
     buf = io.StringIO()
     with patch('sys.stdout', buf):

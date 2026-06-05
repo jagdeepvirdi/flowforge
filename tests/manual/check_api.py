@@ -8,11 +8,11 @@ Usage:
     python tests/manual/check_api.py --url http://localhost:5000 --user admin --pass <your-password>
 """
 import argparse
+import json
 import os
 import sys
-import json
-import urllib.request
 import urllib.error
+import urllib.request
 
 GREEN = '\033[92m'
 RED   = '\033[91m'

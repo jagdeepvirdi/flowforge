@@ -27,7 +27,7 @@ import os
 import signal
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +138,7 @@ def _cancel_stuck_runs() -> None:
                 stuck = db.session.query(PipelineRun).filter_by(status='running').all()
                 if not stuck:
                     return
-                now = datetime.now(timezone.utc)
+                now = datetime.now(UTC)
                 for run in stuck:
                     run.status = 'cancelled'
                     run.finished_at = now

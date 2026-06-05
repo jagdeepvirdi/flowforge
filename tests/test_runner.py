@@ -1,8 +1,7 @@
 """Tests for the pipeline runner (engine/runner.py). Uses mock steps — no DB."""
-import pytest
 from unittest.mock import MagicMock, patch
-from flowforge.steps.base import BaseStep, StepResult
 
+from flowforge.steps.base import BaseStep, StepResult
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

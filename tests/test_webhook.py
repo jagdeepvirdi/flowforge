@@ -1,5 +1,6 @@
 """Tests for webhook token management and the public trigger endpoint (NEW-10)."""
 import hashlib
+
 import pytest
 
 PIPELINE_PAYLOAD = {
@@ -82,7 +83,7 @@ def test_list_tokens_after_create(client, headers, pipeline_id, webhook_token):
 
 def test_raw_token_not_stored_as_plaintext(client, headers, pipeline_id, webhook_token):
     """The list endpoint must not expose the plaintext token."""
-    raw = webhook_token['token']
+    _raw = webhook_token['token']
     listed = client.get(f'/api/pipelines/{pipeline_id}/webhook-tokens', headers=headers).get_json()
     assert all('token' not in t for t in listed)
     assert all(t.get('token_hash') is None for t in listed)  # hash also not exposed

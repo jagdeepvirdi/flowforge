@@ -44,9 +44,11 @@ class BaseStep(ABC):
     step_type: str = ''     # overridden by each concrete step class
 
     def __init__(self, name: str, config: dict[str, Any]):
-        self.name = name
-        self.config = config
-        self.on_error = config.get('on_error', 'stop')
+        self.name           = name
+        self.config         = config
+        self.on_error       = config.get('on_error', 'stop')
+        self.parallel_group = config.get('parallel_group') or None
+        self.db_step_order  = int(config.get('_db_step_order', 0))
 
     @abstractmethod
     def run(self, context: dict[str, Any]) -> StepResult: ...

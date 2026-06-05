@@ -14,7 +14,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -30,7 +30,7 @@ class _JsonStdoutHandler(logging.Handler):
 
     def emit(self, record: logging.LogRecord) -> None:
         payload = {
-            'ts':      datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'ts':      datetime.now(UTC).strftime('%Y-%m-%dT%H:%M:%SZ'),
             'level':   record.levelname,
             'logger':  record.name,
             'message': record.getMessage(),
@@ -86,6 +86,7 @@ def _write_db_audit(action: str, username: str, user_id: str, ip_address: str, d
         if not current_app:
             return
         from sqlalchemy import insert
+
         from flowforge.db.models import AuditLog, db
         
         stmt = insert(AuditLog).values(

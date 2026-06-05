@@ -1,10 +1,10 @@
-"""User management API — admin-only CRUD + self-service change-password."""
+"""User management API — admin-only CRUD + self-service change-password + GDPR endpoints."""
 import bcrypt
 from flask import Blueprint, g, jsonify, request
 
 import flowforge.audit as audit
 from flowforge.api.auth import require_auth, require_role
-from flowforge.db.models import User, db
+from flowforge.db.models import AuditLog, PipelineRun, User, db
 
 bp = Blueprint('users', __name__)
 
@@ -19,6 +19,9 @@ def _user_dict(u: User) -> dict:
         'id': u.id,
         'username': u.username,
         'role': u.role,
+        'email': u.email,
+        'mfa_enabled': u.mfa_enabled,
+        'sso_provider': u.sso_provider,
         'created_at': u.created_at.isoformat() if u.created_at else None,
     }
 
@@ -45,8 +48,9 @@ def create_user():
     if db.session.query(User).filter_by(username=username).first():
         return jsonify({'error': 'Username already exists'}), 409
 
+    email = (data.get('email') or '').strip().lower() or None
     pw_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-    user = User(username=username, password_hash=pw_hash, role=role)
+    user = User(username=username, password_hash=pw_hash, role=role, email=email)
     db.session.add(user)
     db.session.commit()
     audit.log_pipeline_change('USER_CREATED', username, user.id)
@@ -77,6 +81,10 @@ def update_user(user_id):
             return jsonify({'error': 'Username already exists'}), 409
         user.username = new_username
 
+    new_email = data.get('email')
+    if new_email is not None:
+        user.email = (new_email.strip().lower() or None)
+
     db.session.commit()
     audit.log_pipeline_change('USER_UPDATED', user.username, user.id)
     return jsonify(_user_dict(user))
@@ -93,10 +101,74 @@ def delete_user(user_id):
         return jsonify({'error': _NOT_FOUND}), 404
 
     username = user.username
+    uid      = user.id
+    purge    = request.args.get('purge', '').lower() == 'true'
+
+    if purge:
+        _gdpr_anonymize(uid, username)
+
     db.session.delete(user)
     db.session.commit()
-    audit.log_pipeline_change('USER_DELETED', username, str(user_id))
-    return jsonify({'message': f'User {username!r} deleted'})
+    audit.log_pipeline_change('USER_DELETED', username, uid)
+    return jsonify({'message': f'User {username!r} deleted', 'purged': purge})
+
+
+def _gdpr_anonymize(user_id: str, username: str) -> None:
+    """Anonymize all personal data in audit log entries for this user."""
+    anon_name = f'[deleted:{user_id[:8]}]'
+    (db.session.query(AuditLog)
+     .filter((AuditLog.user_id == user_id) | (AuditLog.username == username))
+     .update({'username': anon_name, 'user_id': None, 'ip_address': None},
+             synchronize_session=False))
+
+
+@bp.get('/users/<uuid:user_id>/export')
+@require_role('admin')
+def export_user_data(user_id):
+    """GDPR data export — returns all personal data stored for a user as JSON."""
+    user = db.session.get(User, str(user_id))
+    if not user:
+        return jsonify({'error': _NOT_FOUND}), 404
+
+    audit_entries = (
+        db.session.query(AuditLog)
+        .filter((AuditLog.user_id == user.id) | (AuditLog.username == user.username))
+        .order_by(AuditLog.timestamp.desc())
+        .limit(1000)
+        .all()
+    )
+
+    pipeline_runs = (
+        db.session.query(PipelineRun)
+        .filter(PipelineRun.triggered_by == user.username)
+        .order_by(PipelineRun.started_at.desc())
+        .limit(500)
+        .all()
+    )
+
+    return jsonify({
+        'user': _user_dict(user),
+        'audit_log': [
+            {
+                'id': e.id,
+                'timestamp': e.timestamp.isoformat() if e.timestamp else None,
+                'action': e.action,
+                'ip_address': e.ip_address,
+                'details': e.details,
+            }
+            for e in audit_entries
+        ],
+        'pipeline_runs': [
+            {
+                'id': r.id,
+                'pipeline_name': r.pipeline_name,
+                'status': r.status,
+                'started_at': r.started_at.isoformat() if r.started_at else None,
+                'triggered_by': r.triggered_by,
+            }
+            for r in pipeline_runs
+        ],
+    })
 
 
 @bp.post('/auth/change-password')

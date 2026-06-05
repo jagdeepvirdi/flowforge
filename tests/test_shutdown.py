@@ -1,7 +1,7 @@
 """Tests for engine/shutdown.py — graceful shutdown coordination."""
 import threading
 import time
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 import pytest
 

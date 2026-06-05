@@ -3,7 +3,6 @@ import pytest
 
 from flowforge.db.models import DEFAULT_PROJECT_ID
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 @pytest.fixture

@@ -1,5 +1,4 @@
 """Tests for setup/status endpoints and auth refresh."""
-import pytest
 
 
 # ── POST /auth/refresh ────────────────────────────────────────────────────────

@@ -2,8 +2,6 @@
 import time
 from pathlib import Path
 
-import pytest
-
 
 def _touch_old(path: Path, age_seconds: float) -> None:
     """Create a file and backdate its mtime."""

@@ -1,7 +1,6 @@
 """Tests for email config CRUD (/api/email-configs)."""
 import pytest
 
-
 EMAIL_PAYLOAD = {
     'name': 'Test Email Config',
     'description': 'Automated test',

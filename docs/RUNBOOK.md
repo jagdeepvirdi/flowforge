@@ -169,6 +169,171 @@ flowforge db current             # should show: <revision> (head)
 
 ---
 
+## 4a. Production Deployment (Gunicorn + Nginx + systemd)
+
+### Why Gunicorn over `flowforge web`
+
+`flowforge web` (Flask dev server) is single-threaded and not production-safe. For production use Gunicorn with gevent workers — it handles concurrent requests and long-running pipeline HTTP calls without blocking.
+
+### Gunicorn command
+
+```bash
+gunicorn \
+  --bind 0.0.0.0:5000 \
+  --workers 4 \
+  --worker-class gevent \
+  --timeout 120 \
+  --access-logfile - \
+  wsgi:app
+```
+
+**Worker count formula:** `(2 × CPU_count) + 1`. Start with 4 and tune under load.  
+**Timeout:** Set to at least your longest expected pipeline step duration. Long DB queries will cause the request to be killed if timeout is too low.  
+**gevent:** Required for async I/O. Install with `pip install gunicorn gevent` (already in the Docker image).
+
+Override via env vars in `.env`:
+```env
+GUNICORN_WORKERS=4
+GUNICORN_TIMEOUT=120
+```
+
+### Why Celery is required with multiple Gunicorn workers
+
+When running multiple Gunicorn workers, pipeline execution **must** use Celery. Here's why:
+
+- Without Celery, `POST /api/pipelines/{id}/run` spawns a background thread in the current process. With multiple workers, the HTTP request might land on worker A, but the pipeline run thread is in worker A's memory — worker B knows nothing about it.
+- Status polling (`GET /api/runs/{id}`) might hit a different worker and see the run as "running" in the DB but with no way to cancel it.
+- The DB is the source of truth, so run records work fine across workers — but cancellation and the concurrency semaphore are process-local.
+
+**With Celery:** the pipeline task is dispatched to a Redis queue, any Celery worker picks it up, and all state flows through the DB + Redis. All Gunicorn workers are equal and stateless.
+
+```
+Client → Gunicorn (worker A) → Celery queue (Redis) → Celery worker → DB
+```
+
+**Without Celery (threading mode):** safe only when running a **single** Gunicorn worker (`--workers 1`), or with `flowforge web`.
+
+### Nginx reverse-proxy configuration
+
+```nginx
+upstream flowforge {
+    server 127.0.0.1:5000;
+    keepalive 32;
+}
+
+server {
+    listen 80;
+    server_name flowforge.yourcompany.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name flowforge.yourcompany.com;
+
+    ssl_certificate     /etc/letsencrypt/live/flowforge.yourcompany.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/flowforge.yourcompany.com/privkey.pem;
+
+    # Pass real client IP to Gunicorn (required for rate limiting)
+    # Must match FLOWFORGE_TRUSTED_PROXIES=1 in .env
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Host              $host;
+
+    client_max_body_size 20M;   # must be ≥ FLOWFORGE_ATTACHMENT_MAX_MB
+
+    location / {
+        proxy_pass         http://flowforge;
+        proxy_http_version 1.1;
+        proxy_set_header   Connection "";
+        proxy_read_timeout 130s;   # slightly above GUNICORN_TIMEOUT
+    }
+}
+```
+
+Set `FLOWFORGE_TRUSTED_PROXIES=1` and `FLOWFORGE_CORS_ORIGIN=https://flowforge.yourcompany.com` in `.env`.
+
+### systemd unit files
+
+Place these in `/etc/systemd/system/`. Run `systemctl daemon-reload` after creating them.
+
+**`/etc/systemd/system/flowforge-web.service`**
+```ini
+[Unit]
+Description=FlowForge Web Server (Gunicorn)
+After=network.target postgresql.service
+
+[Service]
+Type=notify
+User=flowforge
+Group=flowforge
+WorkingDirectory=/opt/flowforge
+EnvironmentFile=/opt/flowforge/.env
+ExecStart=/opt/flowforge/.venv/bin/gunicorn \
+    --bind 0.0.0.0:5000 \
+    --workers ${GUNICORN_WORKERS:-4} \
+    --worker-class gevent \
+    --timeout ${GUNICORN_TIMEOUT:-120} \
+    --access-logfile - \
+    wsgi:app
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+TimeoutStopSec=90
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**`/etc/systemd/system/flowforge-scheduler.service`**
+```ini
+[Unit]
+Description=FlowForge Pipeline Scheduler
+After=network.target flowforge-web.service
+
+[Service]
+Type=simple
+User=flowforge
+Group=flowforge
+WorkingDirectory=/opt/flowforge
+EnvironmentFile=/opt/flowforge/.env
+ExecStart=/opt/flowforge/.venv/bin/flowforge schedule
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**`/etc/systemd/system/flowforge-worker.service`** *(only when using Celery/Redis)*
+```ini
+[Unit]
+Description=FlowForge Celery Worker
+After=network.target redis.service
+
+[Service]
+Type=simple
+User=flowforge
+Group=flowforge
+WorkingDirectory=/opt/flowforge
+EnvironmentFile=/opt/flowforge/.env
+ExecStart=/opt/flowforge/.venv/bin/celery -A flowforge.celery_app worker --loglevel=info
+Restart=always
+RestartSec=10
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+```bash
+systemctl enable flowforge-web flowforge-scheduler
+systemctl start  flowforge-web flowforge-scheduler
+systemctl status flowforge-web
+```
+
 ## 4a. Scheduler Troubleshooting
 
 If pipelines with a cron schedule are not firing, run the built-in diagnostic:
@@ -298,3 +463,186 @@ After import, set any secret variables (`***`) manually via the Pipeline Builder
 - **Schema changes without Alembic** (e.g. direct `ALTER TABLE`) will cause Alembic's autogenerate to detect drift. Run `flowforge db revision -m "description" --autogenerate` to capture them.
 - **M365 tokens** are refreshed automatically before each send — MSAL handles the 1-hour expiry transparently via its in-memory cache.
 - **Output file cleanup**: `flowforge cleanup --days 7` deletes generated reports older than 7 days. Can be added as a cron job or scheduled pipeline.
+
+---
+
+## 9. SQLAlchemy Connection Pool Tuning
+
+FlowForge uses SQLAlchemy's connection pool to reuse DB connections across requests. Each Gunicorn worker process maintains its own pool.
+
+| Variable | Default | Description |
+|---|---|---|
+| `SQLALCHEMY_POOL_SIZE` | `5` | Persistent connections per worker |
+| `SQLALCHEMY_MAX_OVERFLOW` | `10` | Extra connections during spikes |
+| `SQLALCHEMY_POOL_TIMEOUT` | `30` | Seconds to wait before raising |
+| `SQLALCHEMY_POOL_RECYCLE` | `1800` | Recycle connections older than N seconds |
+
+**Total max connections used:**
+```
+GUNICORN_WORKERS × (POOL_SIZE + MAX_OVERFLOW)
+```
+
+Example: 4 workers × (5 + 10) = 60 max connections. Ensure PostgreSQL's `max_connections` (default 100) is higher than this.
+
+**PgBouncer (100+ concurrent pipelines):** When running many concurrent pipelines, SQLAlchemy's per-worker pool can exhaust PostgreSQL connections. Put [PgBouncer](https://www.pgbouncer.org/) in front in transaction pooling mode. Point `FLOWFORGE_DB_URL` at PgBouncer's port and set `SQLALCHEMY_POOL_SIZE=1` (PgBouncer handles the pooling). PgBouncer can multiplex thousands of app connections onto ~20 PostgreSQL server connections.
+
+---
+
+## 10. Prometheus Metrics
+
+FlowForge exposes runtime metrics at `GET /api/metrics` in Prometheus plain-text format.
+
+### Metrics exposed
+
+| Metric | Type | Description |
+|---|---|---|
+| `flowforge_runs_total{status}` | counter | Total pipeline runs by final status (`success`, `failed`, `cancelled`) |
+| `flowforge_runs_active` | gauge | Runs currently executing |
+| `flowforge_queue_depth` | gauge | Tasks waiting in the Celery queue (0 if not using Redis) |
+
+### Authentication
+
+The endpoint requires a Bearer token (same as all other `/api` endpoints). Configure Prometheus to pass it:
+
+```yaml
+# prometheus.yml scrape config
+scrape_configs:
+  - job_name: flowforge
+    scheme: https
+    static_configs:
+      - targets: ['flowforge.yourcompany.com']
+    metrics_path: /api/metrics
+    bearer_token: <your-api-token>
+```
+
+To get a token: log in via `POST /api/auth/login` and use the returned JWT. For a long-lived scrape token, create a dedicated `viewer` role user in Settings → Users.
+
+### Grafana dashboard (quick start)
+
+1. Add a Prometheus data source pointing at your Prometheus instance.
+2. Create panels using these PromQL queries:
+
+```promql
+# Run rate (successes per minute)
+rate(flowforge_runs_total{status="success"}[5m])
+
+# Failure rate
+rate(flowforge_runs_total{status="failed"}[5m])
+
+# Currently active runs
+flowforge_runs_active
+
+# Queue backlog
+flowforge_queue_depth
+```
+
+---
+
+## 11. Flower — Celery Monitoring Dashboard
+
+Flower is a real-time web UI for monitoring Celery workers and tasks. It is **optional** and only useful when using Celery/Redis mode.
+
+### Docker Compose (recommended)
+
+Flower is included as an opt-in service using Docker Compose profiles:
+
+```bash
+# Start Flower alongside the main stack
+docker compose --profile monitoring up -d
+
+# Or start just Flower (stack must already be running)
+docker compose --profile monitoring up -d flower
+```
+
+Access the dashboard at `http://localhost:5555` (or your configured `FLOWER_PORT`).
+
+Set `FLOWER_BASIC_AUTH=youruser:yourpassword` in `.env` before exposing Flower to the network.
+
+### Bare-metal
+
+```bash
+pip install flower
+celery -A flowforge.celery_app flower --port=5555 --basic-auth=admin:changeme
+```
+
+### What to monitor
+
+| Indicator | Healthy | Investigate when |
+|---|---|---|
+| Active workers | ≥ 1 | 0 workers — pipelines queue but never execute |
+| Queue depth | Near 0 | Growing queue — workers can't keep up, scale out |
+| Task failure rate | < 5% | High — check Run History for error details |
+| Task duration | Consistent | Sudden spike — DB query or external service is slow |
+
+---
+
+## §12 — Releasing a New Version
+
+### Overview
+
+The release process is fully automated via two GitHub Actions workflows:
+
+| Workflow | File | Trigger | What it does |
+|---|---|---|---|
+| **Release** | `.github/workflows/release.yml` | `git push --tags v*` | Builds wheel + sdist, generates SLSA provenance attestation, creates GitHub Release |
+| **Publish** | `.github/workflows/publish.yml` | After Release workflow succeeds | Publishes to PyPI via OIDC trusted publishing (includes SLSA attestation) |
+
+### One-time Setup
+
+**1. Configure PyPI Trusted Publisher** (do this once before the first release):
+
+1. Log into [pypi.org](https://pypi.org) → Account → Publishing → Add a new publisher
+2. Fill in:
+   - **PyPI project name**: `flowforge`
+   - **Owner**: `jagdeepvirdi`
+   - **Repository name**: `flowforge`
+   - **Workflow filename**: `publish.yml`
+   - **Environment name**: `pypi`
+3. In the GitHub repo: Settings → Environments → New environment → name it `pypi`
+
+No API tokens needed — PyPI will accept the OIDC token from GitHub Actions automatically.
+
+**2. Ensure the `softprops/action-gh-release` action has write permissions** — the release workflow already requests `contents: write`.
+
+### Cutting a Release
+
+```bash
+# 1. Update version in pyproject.toml
+#    version = "1.0.0"
+
+# 2. Commit the version bump
+git add pyproject.toml
+git commit -m "chore: bump version to v1.0.0"
+
+# 3. Tag and push — this triggers the release workflow
+git tag v1.0.0
+git push origin master --tags
+```
+
+The Release workflow will:
+1. Build `flowforge-1.0.0-py3-none-any.whl` and `flowforge-1.0.0.tar.gz`
+2. Generate a SLSA provenance attestation (satisfies OpenSSF Signed-Releases check)
+3. Create a GitHub Release with auto-generated release notes and the built artifacts attached
+
+The Publish workflow will then automatically:
+4. Download the built artifacts
+5. Publish to PyPI with OIDC (no manual token needed)
+6. Attach a SLSA attestation to the PyPI release
+
+### Verifying the Attestation
+
+After a release, anyone can verify the SLSA provenance using the GitHub CLI:
+
+```bash
+gh attestation verify flowforge-1.0.0-py3-none-any.whl \
+  --repo jagdeepvirdi/flowforge
+```
+
+Or via `sigstore-python`:
+
+```bash
+pip install sigstore
+python -m sigstore verify github \
+  --cert-identity "https://github.com/jagdeepvirdi/flowforge/.github/workflows/release.yml@refs/tags/v1.0.0" \
+  flowforge-1.0.0-py3-none-any.whl
+```

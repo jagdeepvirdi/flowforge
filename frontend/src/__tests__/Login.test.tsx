@@ -13,6 +13,7 @@ const mockSetUser  = vi.hoisted(() => vi.fn())
 vi.mock('../lib/api', () => ({
   login: mockLogin,
   getMe: mockGetMe,
+  getSsoProviders: vi.fn(() => Promise.resolve({ google: false, microsoft: false })),
 }))
 
 vi.mock('../lib/auth', () => ({

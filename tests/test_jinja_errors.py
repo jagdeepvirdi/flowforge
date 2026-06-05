@@ -3,10 +3,12 @@
 The runner catches any exception from step.run() and returns StepResult(success=False).
 This verifies the pipeline doesn't crash on bad template strings.
 """
-import pytest
 from unittest.mock import patch
-from flowforge.steps.base import BaseStep, StepResult
+
+import pytest
+
 from flowforge.engine.runner import run_pipeline
+from flowforge.steps.base import BaseStep, StepResult
 
 
 def _run(steps):
@@ -30,6 +32,7 @@ class BadTemplateStep(BaseStep):
 
 def test_render_raises_on_unclosed_tag():
     from jinja2 import TemplateSyntaxError
+
     from flowforge.engine.context import render
     with pytest.raises(TemplateSyntaxError):
         render('{{ unclosed', {})
@@ -37,6 +40,7 @@ def test_render_raises_on_unclosed_tag():
 
 def test_render_raises_on_bad_block():
     from jinja2 import TemplateSyntaxError
+
     from flowforge.engine.context import render
     with pytest.raises(TemplateSyntaxError):
         render('{% if %}missing condition{% endif %}', {})

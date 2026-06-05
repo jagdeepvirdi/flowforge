@@ -43,4 +43,22 @@ def get_connection(connection_id: str) -> BaseConnection:
             port=int(cfg.get('port', 3306)),
         )
 
+    if row.db_type == 'mssql':
+        from flowforge.connections.mssql import MSSQLConnection
+        return MSSQLConnection(
+            host=cfg['host'],
+            database=cfg.get('database', ''),
+            user=cfg.get('user') or cfg.get('username', ''),
+            password=cfg['password'],
+            port=int(cfg.get('port', 1433)),
+            driver=cfg.get('driver', 'ODBC Driver 17 for SQL Server'),
+        )
+
+    if row.db_type == 'odbc':
+        from flowforge.connections.odbc import ODBCConnection
+        return ODBCConnection(
+            dsn=cfg.get('dsn', ''),
+            connection_string=cfg.get('connection_string', ''),
+        )
+
     raise ValueError(f"Unsupported db_type: {row.db_type}")

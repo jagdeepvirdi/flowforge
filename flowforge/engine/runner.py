@@ -1,10 +1,11 @@
+import concurrent.futures
 import json
 import logging
 import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -135,6 +136,95 @@ def _handle_failed_step(
     return False
 
 
+def _build_execution_waves(steps: list[BaseStep]) -> list[list[BaseStep]]:
+    """Group steps into sequential waves; steps sharing the same parallel_group run concurrently."""
+    waves: list[list[BaseStep]] = []
+    i = 0
+    while i < len(steps):
+        step = steps[i]
+        pg = step.parallel_group
+        if not pg:
+            waves.append([step])
+            i += 1
+        else:
+            group: list[BaseStep] = [step]
+            i += 1
+            while i < len(steps) and steps[i].parallel_group == pg:
+                group.append(steps[i])
+                i += 1
+            waves.append(group)
+    return waves
+
+
+def _run_parallel_wave(
+    wave: list[BaseStep],
+    context: dict,
+    result: PipelineResult,
+    run_record: Any,
+    pipeline_name: str,
+    vars_log: str,
+) -> bool:
+    """Run all steps in a parallel wave concurrently.
+
+    Returns True if the pipeline should stop (any step with on_error=stop failed).
+    Context is updated in-place with merged outputs after all steps complete.
+    """
+    n = len(wave)
+    # Each thread gets its own shallow context snapshot
+    snapshots = [{**context, 'steps': dict(context.get('steps', {}))} for _ in range(n)]
+    step_results: list[StepResult | None] = [None] * n
+    step_times:   list[tuple[datetime, datetime] | None] = [None] * n
+
+    def _run_one(idx: int) -> None:
+        step = wave[idx]
+        retry_count, retry_delay = _get_retry_config(step)
+        t0 = datetime.now(UTC)
+        step_results[idx] = _run_step_with_retry(pipeline_name, step, snapshots[idx], retry_count, retry_delay)
+        step_times[idx] = (t0, datetime.now(UTC))
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=n, thread_name_prefix='ff_parallel') as executor:
+        futures = [executor.submit(_run_one, i) for i in range(n)]
+        concurrent.futures.wait(futures)
+
+    # Propagate any uncaught exceptions from threads (shouldn't happen — _run_step_with_retry catches all)
+    for f in futures:
+        if f.exception():
+            logger.error("[%s] Parallel step raised an unexpected exception: %s", pipeline_name, f.exception())
+
+    should_stop = False
+    for i, (step, step_result) in enumerate(zip(wave, step_results)):
+        if step_result is None:
+            step_result = StepResult(success=False, error='Step did not produce a result')
+            step_results[i] = step_result
+
+        t0, t1 = step_times[i] or (datetime.now(UTC), datetime.now(UTC))
+        duration_ms = int((t1 - t0).total_seconds() * 1000)
+
+        result.step_results[step.name] = step_result
+        result.steps_run += 1
+        _expose_step_outputs(context, pipeline_name, step.name, step_result)
+        _write_step_run(run_record, step, step.db_step_order or (i + 1),
+                        step_result, t0, t1, duration_ms,
+                        vars_log if i == 0 else '')
+
+        if not step_result.success:
+            result.steps_failed += 1
+            result.success = False
+            context['_pipeline_has_failed'] = True
+            if step.on_error == 'stop':
+                logger.error("[%s] Parallel step '%s' failed (on_error=stop).", pipeline_name, step.name)
+                if not result.error:
+                    result.error      = step_result.error
+                    result.error_step = step.name
+                should_stop = True
+            else:
+                logger.warning("[%s] Parallel step '%s' failed (on_error=continue).", pipeline_name, step.name)
+                if not result.error:
+                    result.error = step_result.error
+
+    return should_stop
+
+
 def run_pipeline(
     pipeline_name: str,
     steps: list[BaseStep],
@@ -155,6 +245,8 @@ def run_pipeline(
 
     context = build(pipeline_name, pipeline_vars=pipeline_vars)
     context['triggered_by'] = triggered_by
+    context['_pipeline_has_failed'] = False
+    context['_secret_var_keys'] = secret_var_keys or set()
     vars_log = _build_vars_log(context, secret_var_keys)
 
     result = PipelineResult(success=True, pipeline_name=pipeline_name)
@@ -167,26 +259,49 @@ def run_pipeline(
 
     audit.log_pipeline_run(pipeline_name, triggered_by, result.run_id or context['run_id'], 'STARTED')
 
-    step_order = 0
+    waves = _build_execution_waves(steps)
+    wave_num = 0
+    pipeline_stopped = False
+
     try:
-        for step in steps:
-            step_order += 1
-            logger.info("[%s] Starting step: %s", pipeline_name, step.name)
-            retry_count, retry_delay = _get_retry_config(step)
-            step_start = datetime.now(timezone.utc)
-            step_result = _run_step_with_retry(pipeline_name, step, context, retry_count, retry_delay)
-            step_end = datetime.now(timezone.utc)
-            duration_ms = int((step_end - step_start).total_seconds() * 1000)
-            result.step_results[step.name] = step_result
-            result.steps_run += 1
-            _expose_step_outputs(context, pipeline_name, step.name, step_result)
-            _write_step_run(run_record, step, step_order, step_result, step_start, step_end, duration_ms, vars_log)
-            if not step_result.success:
-                result.steps_failed += 1
-                result.success = False
-                if _handle_failed_step(result, pipeline_name, step, step_result, run_record):
+        for wave in waves:
+            wave_num += 1
+            if len(wave) == 1:
+                # ── Sequential step ────────────────────────────────────────
+                step = wave[0]
+                logger.info("[%s] Starting step: %s", pipeline_name, step.name)
+                retry_count, retry_delay = _get_retry_config(step)
+                step_start = datetime.now(UTC)
+                step_result = _run_step_with_retry(pipeline_name, step, context, retry_count, retry_delay)
+                step_end = datetime.now(UTC)
+                duration_ms = int((step_end - step_start).total_seconds() * 1000)
+                result.step_results[step.name] = step_result
+                result.steps_run += 1
+                _expose_step_outputs(context, pipeline_name, step.name, step_result)
+                _write_step_run(run_record, step, step.db_step_order or wave_num,
+                                step_result, step_start, step_end, duration_ms, vars_log)
+                vars_log = ''  # only include var dump in the first step's logs
+                if not step_result.success:
+                    result.steps_failed += 1
+                    result.success = False
+                    context['_pipeline_has_failed'] = True
+                    if _handle_failed_step(result, pipeline_name, step, step_result, run_record):
+                        pipeline_stopped = True
+                        break
+            else:
+                # ── Parallel wave ─────────────────────────────────────────
+                names = ', '.join(s.name for s in wave)
+                logger.info("[%s] Starting parallel wave (%d steps): %s", pipeline_name, len(wave), names)
+                should_stop = _run_parallel_wave(wave, context, result, run_record, pipeline_name, vars_log)
+                vars_log = ''
+                if should_stop:
+                    _finish_run_record(run_record, success=False,
+                                       error_step=result.error_step,
+                                       error_message=result.error)
+                    pipeline_stopped = True
                     break
-        else:
+
+        if not pipeline_stopped:
             if result.success:
                 logger.info("[%s] Pipeline completed (%d steps)", pipeline_name, result.steps_run)
             _finish_run_record(run_record, success=result.success)
@@ -194,13 +309,17 @@ def run_pipeline(
         if run_record:
             shutdown.unregister_run(run_record.id)
 
-    if not result.success and result.steps_run < len(steps):
-        logger.error("[%s] Pipeline failed after %d/%d steps", pipeline_name, result.steps_run, len(steps))
+    total_steps = sum(len(w) for w in waves)
+    if not result.success and result.steps_run < total_steps:
+        logger.error("[%s] Pipeline failed after %d/%d steps", pipeline_name, result.steps_run, total_steps)
 
     audit.log_pipeline_run(
         pipeline_name, triggered_by, result.run_id or context['run_id'],
         'SUCCESS' if result.success else 'FAILED',
     )
+
+    if result.success and pipeline_id:
+        _trigger_downstream_pipelines(pipeline_id)
 
     if not result.success and on_failure_webhook_url:
         _fire_failure_webhook(on_failure_webhook_url, {
@@ -212,6 +331,72 @@ def run_pipeline(
         })
 
     return result
+
+
+# ─────────────────────────────────────────
+# Pipeline dependency trigger
+# ─────────────────────────────────────────
+
+def _trigger_downstream_pipelines(pipeline_id: str) -> None:
+    """After a successful run, check and launch eligible downstream pipelines.
+
+    A downstream pipeline is eligible when ALL its upstream dependencies have
+    a successful run that completed after the downstream's last run started
+    (or ever, if the downstream has never run).
+    """
+    try:
+        from flowforge.db.models import Pipeline, PipelineDependency, PipelineRun, db
+        from flowforge.engine.launcher import launch_run
+
+        # Find all downstream pipelines that list this pipeline as an upstream
+        fanout = db.session.query(PipelineDependency).filter_by(upstream_id=pipeline_id).all()
+        if not fanout:
+            return
+
+        for dep in fanout:
+            downstream_id = dep.downstream_id
+            downstream = db.session.get(Pipeline, downstream_id)
+            if not downstream or not downstream.enabled:
+                continue
+
+            # When did downstream last run?
+            last_run = (
+                db.session.query(PipelineRun)
+                .filter_by(pipeline_id=downstream_id)
+                .order_by(PipelineRun.started_at.desc())
+                .first()
+            )
+            since = last_run.started_at if last_run else None
+
+            # Check ALL upstreams of that downstream have a success run after `since`
+            all_upstream_deps = (
+                db.session.query(PipelineDependency)
+                .filter_by(downstream_id=downstream_id)
+                .all()
+            )
+            all_satisfied = True
+            for up_dep in all_upstream_deps:
+                q = (
+                    db.session.query(PipelineRun)
+                    .filter_by(pipeline_id=up_dep.upstream_id, status='success')
+                )
+                if since is not None:
+                    q = q.filter(PipelineRun.finished_at > since)
+                if not q.first():
+                    all_satisfied = False
+                    break
+
+            if all_satisfied:
+                logger.info(
+                    "Dependency trigger: launching '%s' (all upstreams satisfied)",
+                    downstream.name,
+                )
+                try:
+                    launch_run(downstream, triggered_by='dependency')
+                except Exception:
+                    logger.exception("Failed to trigger downstream pipeline '%s'", downstream.name)
+    except Exception:
+        logger.exception("Error in _trigger_downstream_pipelines for pipeline %s", pipeline_id)
 
 
 # ─────────────────────────────────────────
@@ -271,7 +456,7 @@ def _finish_run_record(run_record, success: bool, error_step: str = '', error_me
     try:
         from flowforge.db.models import db
         run_record.status = 'success' if success else 'failed'
-        run_record.finished_at = datetime.now(timezone.utc)
+        run_record.finished_at = datetime.now(UTC)
         if run_record.started_at:
             run_record.duration_ms = int(
                 (run_record.finished_at - run_record.started_at).total_seconds() * 1000

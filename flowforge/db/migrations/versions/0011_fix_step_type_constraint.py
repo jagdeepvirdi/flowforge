@@ -9,14 +9,14 @@ were accepted by the API but rejected at the DB level, causing unhandled 500s.
 ai_analyze was in the constraint but has no implementation; removed until the
 AI features track ships.
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 from alembic import op
 
 revision: str = '0011'
-down_revision: Union[str, None] = '0010'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = '0010'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

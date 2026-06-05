@@ -18,10 +18,9 @@ Covers:
 import csv
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 # ─── CSV helpers ──────────────────────────────────────────────────────────────
 
@@ -938,7 +937,7 @@ def test_sqlldr_chmod_not_implemented_is_silenced(tmp_path):
     csv_file = tmp_path / 'src.csv'
     csv_file.write_text('id,name\n1,A\n')
 
-    original_write_text = Path.write_text
+    _original_write_text = Path.write_text
 
     def _chmod_raises(self, mode):
         raise NotImplementedError('chmod not supported')

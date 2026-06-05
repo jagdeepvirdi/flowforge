@@ -1,14 +1,13 @@
 """Tests for JWT token validation edge cases."""
-import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 
 def _make_token(app, username='testadmin', expiry_delta=timedelta(hours=1), secret=None):
     import jwt
     payload = {
         'sub': username,
-        'iat': datetime.now(timezone.utc),
-        'exp': datetime.now(timezone.utc) + expiry_delta,
+        'iat': datetime.now(UTC),
+        'exp': datetime.now(UTC) + expiry_delta,
     }
     key = secret or app.config['SECRET_KEY']
     return jwt.encode(payload, key, algorithm='HS256')
@@ -58,7 +57,7 @@ def test_verify_token_valid(app):
         role = 'admin'
 
     with app.app_context():
-        from flowforge.api.auth import verify_token, generate_token
+        from flowforge.api.auth import generate_token, verify_token
         token = generate_token(_FakeUser())
         payload = verify_token(token)
         assert payload is not None and payload.get('sub') == 'testadmin'

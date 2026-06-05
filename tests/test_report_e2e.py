@@ -8,6 +8,7 @@ Requires FLOWFORGE_DB_URL pointing to a database whose name contains "test".
 import csv
 import os
 import uuid
+
 import pytest
 
 SEED_QUERY = (
@@ -69,8 +70,8 @@ def excel_report_id(client, headers, report_conn_id):
 
 def _run_report_step(app, report_config_id: str, tmp_path):
     """Instantiate ReportStep, monkeypatch output dir, run inside app context."""
-    from flowforge.steps.report import ReportStep
     from flowforge.engine.context import build
+    from flowforge.steps.report import ReportStep
 
     os.environ['FLOWFORGE_OUTPUT_DIR'] = str(tmp_path)
     try:

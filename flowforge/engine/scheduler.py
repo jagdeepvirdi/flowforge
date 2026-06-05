@@ -1,6 +1,7 @@
 """APScheduler integration — loads enabled pipelines and registers cron jobs."""
 import logging
 import os
+from datetime import UTC
 
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -144,10 +145,10 @@ def _prune_old_runs() -> None:
         return
         
     try:
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
         with _app.app_context():
             from flowforge.db.models import PipelineRun, db
-            cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+            cutoff = datetime.now(UTC) - timedelta(days=retention_days)
             # Delete runs older than cutoff. Cascading takes care of step_runs.
             deleted = (
                 db.session.query(PipelineRun)
@@ -170,10 +171,10 @@ def _prune_old_audit_logs() -> None:
         return
         
     try:
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
         with _app.app_context():
             from flowforge.db.models import AuditLog, db
-            cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+            cutoff = datetime.now(UTC) - timedelta(days=retention_days)
             deleted = (
                 db.session.query(AuditLog)
                 .filter(AuditLog.timestamp < cutoff)
@@ -190,12 +191,12 @@ def _prune_token_blocklist() -> None:
     if _app is None:
         return
     try:
-        from datetime import datetime, timezone
+        from datetime import datetime
         with _app.app_context():
             from flowforge.db.models import TokenBlocklist, db
             deleted = (
                 db.session.query(TokenBlocklist)
-                .filter(TokenBlocklist.expires_at < datetime.now(timezone.utc))
+                .filter(TokenBlocklist.expires_at < datetime.now(UTC))
                 .delete()
             )
             db.session.commit()

@@ -10,6 +10,9 @@ export interface User {
   id: string
   username: string
   role: Role
+  email: string | null
+  mfa_enabled: boolean
+  sso_provider: string | null
   created_at: string
 }
 
@@ -24,11 +27,11 @@ export interface Project {
 }
 
 export type PipelineStatus = 'success' | 'failed' | 'running' | 'cancelled' | 'never run'
-export type StepType = 'db_procedure' | 'db_query' | 'report' | 'email' | 'drive_upload' | 'ai_analyze' | 'data_load' | 'bulk_load'
+export type StepType = 'db_procedure' | 'db_query' | 'report' | 'email' | 'drive_upload' | 'ai_analyze' | 'data_load' | 'bulk_load' | 'notification'
 export type OnError = 'stop' | 'continue'
 export type ReportFormat = 'excel' | 'csv' | 'pdf' | 'json'
-export type ProviderType = 'gmail' | 'microsoft365' | 'smtp'
-export type DbType = 'postgresql' | 'oracle' | 'mysql'
+export type ProviderType = 'gmail' | 'microsoft365' | 'smtp' | 'sendgrid' | 'ses' | 'mailgun'
+export type DbType = 'postgresql' | 'oracle' | 'mysql' | 'mssql' | 'odbc'
 
 export interface Pipeline {
   id: string
@@ -44,6 +47,8 @@ export interface Pipeline {
   updated_at: string
   steps: PipelineStep[]
   variables: PipelineVariable[]
+  upstream_deps: PipelineDep[]
+  downstream_deps: PipelineDep[]
 }
 
 export interface PipelineStep {
@@ -55,6 +60,13 @@ export interface PipelineStep {
   config: Record<string, unknown>
   on_error: OnError
   enabled: boolean
+  parallel_group: string | null
+}
+
+export interface PipelineDep {
+  dep_id: string
+  pipeline_id: string
+  pipeline_name: string
 }
 
 export interface PipelineVariable {
@@ -105,6 +117,20 @@ export interface StepRun {
   error_message: string | null
 }
 
+export interface ColumnConditionalRule {
+  operator: 'lt' | 'lte' | 'gt' | 'gte' | 'eq' | 'ne'
+  value: number
+  bg_color: string     // 6-char hex, no #
+  font_color?: string
+}
+
+export interface ColumnFormatRule {
+  column: string
+  number_format?: string
+  width?: number
+  conditional?: ColumnConditionalRule[]
+}
+
 export interface ReportConfig {
   id: string
   name: string
@@ -117,9 +143,31 @@ export interface ReportConfig {
   title: string | null
   sheet_name: string | null
   columns: string[]
+  column_formatting: ColumnFormatRule[]
   project_id: string | null
   created_at: string
   updated_at: string
+}
+
+export interface StepDiff {
+  step_name: string
+  step_type: string
+  step_order: number
+  is_new_step: boolean
+  rows_current: number | null
+  rows_prev: number | null
+  rows_delta: number | null
+  duration_current: number | null
+  duration_prev: number | null
+  duration_delta_pct: number | null
+  size_current: number | null
+  size_prev: number | null
+  size_delta: number | null
+}
+
+export interface RunDiff {
+  prev_run_id: string | null
+  steps: StepDiff[]
 }
 
 export interface EmailConfig {

@@ -3,9 +3,7 @@
 Exercises job sync logic and jobstore configuration without starting a real
 scheduler or connecting to a real database.
 """
-import pytest
-from unittest.mock import MagicMock, patch, call
-
+from unittest.mock import MagicMock, patch
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -217,7 +215,7 @@ def test_start_scheduler_uses_postgres_jobstore_when_db_url_set():
 
     with patch.dict('os.environ', {'FLOWFORGE_DB_URL': 'postgresql://u:p@db/flowforge'}), \
          patch('flowforge.engine.scheduler.BlockingScheduler', side_effect=fake_blocking_scheduler), \
-         patch('flowforge.engine.scheduler.SQLAlchemyJobStore') as mock_store, \
+         patch('flowforge.engine.scheduler.SQLAlchemyJobStore') as _mock_store, \
          patch('flowforge.engine.scheduler._sync_pipeline_jobs'), \
          patch('flowforge.engine.scheduler._register_cleanup_job'), \
          patch('flowforge.engine.scheduler._register_sync_job'):
@@ -262,6 +260,7 @@ def test_start_scheduler_uses_memory_jobstore_when_no_db_url():
 def test_start_scheduler_logs_postgres_jobstore(caplog):
     """A log message confirms the PostgreSQL jobstore is active."""
     import logging
+
     from flowforge.engine.scheduler import start_scheduler
 
     mock_app = MagicMock()
@@ -291,6 +290,7 @@ def test_start_scheduler_logs_postgres_jobstore(caplog):
 def test_start_scheduler_logs_warning_when_no_db_url(caplog):
     """A WARNING is emitted when falling back to in-memory jobstore."""
     import logging
+
     from flowforge.engine.scheduler import start_scheduler
 
     mock_app = MagicMock()
@@ -322,6 +322,7 @@ def test_start_scheduler_logs_warning_when_no_db_url(caplog):
 def test_postgres_url_credentials_not_logged(caplog):
     """Database credentials in FLOWFORGE_DB_URL must not appear in log output."""
     import logging
+
     from flowforge.engine.scheduler import start_scheduler
 
     mock_app = MagicMock()

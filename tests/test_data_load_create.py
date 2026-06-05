@@ -5,12 +5,9 @@ and _infer_col_type.
 All DB calls are mocked — no live database required for this module.
 """
 from datetime import date, datetime
-from unittest.mock import MagicMock, call, patch
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from flowforge.steps.data_load import DataLoadStep, _infer_col_type
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # _infer_col_type — PostgreSQL
@@ -301,7 +298,7 @@ def test_create_if_missing_false_no_catalog_check(mock_get_conn, mock_load_sourc
     mock_get_conn.return_value = conn
 
     step = _make_step(create_if_missing=False)
-    result = step.run({})
+    _ = step.run({})
 
     # execute_query (catalog check) should not have been called
     conn.execute_query.assert_not_called()

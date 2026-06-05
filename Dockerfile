@@ -12,7 +12,7 @@ WORKDIR /app
 
 # Install dependencies first (cached layer)
 COPY requirements.txt pyproject.toml README.md LICENSE ./
-RUN pip install --no-cache-dir -r requirements.txt gunicorn
+RUN pip install --no-cache-dir --require-hashes -r requirements.txt
 
 # Copy source, then install the package itself to register the entry point
 COPY flowforge/ flowforge/
@@ -24,4 +24,4 @@ COPY --from=frontend /build/dist/ frontend/dist/
 RUN mkdir -p output
 
 EXPOSE 5000
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "120", "wsgi:app"]
+CMD ["sh", "-c", "exec gunicorn --bind 0.0.0.0:5000 --workers ${GUNICORN_WORKERS:-4} --worker-class gevent --timeout ${GUNICORN_TIMEOUT:-120} --access-logfile - wsgi:app"]

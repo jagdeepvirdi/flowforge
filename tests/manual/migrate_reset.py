@@ -9,11 +9,12 @@ Requires FLOWFORGE_DB_URL to be set. Uses FLOWFORGE_USERNAME (default: testadmin
 """
 import os
 import uuid
+from pathlib import Path
+
 import bcrypt
 from alembic import command as alembic_cmd
 from alembic.config import Config
 from sqlalchemy import create_engine, text
-from pathlib import Path
 
 db_url = os.environ['FLOWFORGE_DB_URL']
 print(f"Connecting to: {db_url}")

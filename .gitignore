@@ -59,6 +59,12 @@ output/
 coverage.json
 coverage.xml
 .coverage
+frontend/coverage/
+test_tmp.db
+*.db
+
+# GitHub API / tooling dumps
+alerts.json
 
 # Internal working documents (not for public repo)
 docs/code-review.md
@@ -67,3 +73,5 @@ docs/ports-in-use.csv
 
 # Legacy internal source code (kept locally for reference only)
 code/
+
+LAUNCH_STRATEGY.md

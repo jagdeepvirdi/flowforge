@@ -14,11 +14,11 @@ class ReportStep(BaseStep):
     step_type = 'report'
 
     def run(self, context: dict[str, Any]) -> StepResult:
-        from flowforge.engine.context import render
+        from flowforge.engine.context import render, render_sql
 
         report_cfg = self._load_config()
 
-        query = render(report_cfg.get('query', ''), context)
+        query = render_sql(report_cfg.get('query', ''), context)
         fmt = report_cfg.get('format', 'excel').lower()
         output_filename = render(report_cfg.get('output_filename', 'report'), context)
         output_dir = Path(os.environ.get('FLOWFORGE_OUTPUT_DIR', './output'))
@@ -38,7 +38,8 @@ class ReportStep(BaseStep):
                 tmpl = _resolve_template_path(report_cfg.get('template_path'))
                 generate(rows, columns, output_path,
                          sheet_name=report_cfg.get('sheet_name', 'Sheet1'),
-                         template_path=tmpl)
+                         template_path=tmpl,
+                         column_formats=report_cfg.get('column_formatting') or None)
             elif fmt == 'csv':
                 from flowforge.reports.csv_report import generate
                 generate(rows, columns, output_path)
@@ -50,6 +51,10 @@ class ReportStep(BaseStep):
                 generate(rows, columns, output_path)
             else:
                 return StepResult(success=False, error=f"Unknown report format: {fmt}")
+
+            from flowforge.crypto import encrypt_file, output_encryption_enabled
+            if output_encryption_enabled():
+                output_path = encrypt_file(output_path)
 
             logger.info("Report generated: %s (%d rows)", output_path, len(rows))
             import flowforge.audit as audit
@@ -73,14 +78,15 @@ class ReportStep(BaseStep):
             if not row:
                 raise ValueError(f"ReportConfig not found: {report_config_id}")
             return {
-                'connection_id': row.connection_id,
-                'query': row.query,
-                'format': row.format,
-                'template_path': row.template_path,
-                'output_filename': row.output_filename,
-                'title': row.title,
-                'sheet_name': row.sheet_name,
-                'columns': row.columns,
+                'connection_id':    row.connection_id,
+                'query':            row.query,
+                'format':           row.format,
+                'template_path':    row.template_path,
+                'output_filename':  row.output_filename,
+                'title':            row.title,
+                'sheet_name':       row.sheet_name,
+                'columns':          row.columns,
+                'column_formatting': row.column_formatting or [],
             }
         return self.config.get('inline_config', {})
 
@@ -90,6 +96,7 @@ class ReportStep(BaseStep):
             from flowforge.connections.factory import get_connection
             return get_connection(connection_id)
         import os
+
         from flowforge.connections.postgres import PostgreSQLConnection
         return PostgreSQLConnection(
             host=os.environ.get('DB_HOST', ''),
