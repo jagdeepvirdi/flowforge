@@ -111,15 +111,17 @@ def list_runs():
 def export_runs():
     """Export pipeline runs as CSV"""
     format_type = request.args.get('format', 'csv')
-    if format_type != 'csv':
+    if format_type.lower() != 'csv':
         return jsonify({'error': 'Only CSV format is supported'}), 400
-    
+
+    limit = min(int(request.args.get('limit', 10_000)), 10_000)
+
     query = db.session.query(PipelineRun).order_by(PipelineRun.started_at.desc())
-    
+
     pipeline_id = request.args.get('pipeline_id')
     project_id  = request.args.get('project_id')
     status      = request.args.get('status')
-    
+
     if pipeline_id:
         query = query.filter(PipelineRun.pipeline_id == pipeline_id)
     if project_id:
@@ -130,8 +132,8 @@ def export_runs():
         )
     if status:
         query = query.filter(PipelineRun.status == status)
-    
-    runs = query.all()
+
+    runs = query.limit(limit).all()
     
     # Create CSV in memory
     output = io.StringIO()

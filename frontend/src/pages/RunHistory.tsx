@@ -70,16 +70,19 @@ export default function RunHistory() {
     if (token) headers['Authorization'] = `Bearer ${token}`
     
     fetch(url, { headers })
-      .then(res => res.blob())
+      .then(res => {
+        if (!res.ok) throw new Error(`Export failed: ${res.status}`)
+        return res.blob()
+      })
       .then(blob => {
-        const url = window.URL.createObjectURL(blob)
+        const objectUrl = window.URL.createObjectURL(blob)
         const a = document.createElement('a')
-        a.href = url
+        a.href = objectUrl
         a.download = `run_history_${new Date().toISOString().split('T')[0]}.csv`
         document.body.appendChild(a)
         a.click()
         document.body.removeChild(a)
-        window.URL.revokeObjectURL(url)
+        window.URL.revokeObjectURL(objectUrl)
       })
       .catch(err => console.error('Export failed:', err))
   }
@@ -214,10 +217,9 @@ export default function RunHistory() {
             <option value="cancelled">Cancelled</option>
           </select>
           <button
-            className="btn btn-sm"
+            className="btn btn-sm ml-auto flex items-center gap-1.5"
             onClick={handleExportCSV}
             disabled={filtered.length === 0}
-            style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}
           >
             <Download size={14} />
             Export CSV
