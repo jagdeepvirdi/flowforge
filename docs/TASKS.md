@@ -105,7 +105,7 @@ Silver gaps addressed in code:
 - [x] `dependency_monitoring` — `pip-audit` + `npm audit` in CI ✅
 - [x] `coding_standards_enforced` — ruff + ESLint in CI ✅
 Remaining Silver gaps requiring user action:
-- [ ] `test_statement_coverage80` — currently at 72%; needs improvement to 80% before claiming this criterion (see coverage section)
+- [x] `test_statement_coverage80` — pushed from 72% → 88% (317 new tests across 17 files, merged PR #38 2026-06-05)
 - [ ] `bus_factor` (SHOULD) — solo project; document or recruit a co-maintainer
 - [ ] `dco` (SHOULD) — consider adding DCO sign-off requirement to PR template
 - [ ] Complete the Silver questionnaire at https://bestpractices.dev once all MUST criteria are met
