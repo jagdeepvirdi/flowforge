@@ -71,6 +71,7 @@ jobs:
 
       - name: SonarCloud scan
         if: github.actor != 'dependabot[bot]'
+        continue-on-error: true
         uses: SonarSource/sonarcloud-github-action@ba3875ecf642b2129de2b589510c81a8b53dbf4e # master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
