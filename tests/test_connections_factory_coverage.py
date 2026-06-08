@@ -41,8 +41,9 @@ def test_factory_returns_mssql_connection(app):
         with patch.dict(sys.modules, {'flowforge.connections.mssql': MagicMock(
             MSSQLConnection=mock_mssql_cls
         )}):
-            from flowforge.connections import factory as factory_mod
             import importlib
+
+            from flowforge.connections import factory as factory_mod
             importlib.reload(factory_mod)
             result = factory_mod.get_connection(conn_id)
 
@@ -130,12 +131,8 @@ def test_factory_raises_for_unsupported_db_type(app):
         # Patch the row in-memory to have an unsupported type
         from unittest.mock import patch as _patch
         with _patch.object(row, 'db_type', 'bigquery'):
-            from flowforge.connections.factory import get_connection
             with pytest.raises(ValueError, match='Unsupported db_type'):
-                # Can't call get_connection (re-fetches from DB), call the logic directly
-                cfg_mock = {'host': 'x', 'database': 'x', 'user': 'u', 'password': 'p'}
-                from flowforge.crypto import encrypt_config
-                # Simulate the factory logic for an unsupported type
+                # Can't call get_connection (re-fetches from DB), simulate the logic directly
                 supported = ('postgresql', 'oracle', 'mysql', 'mssql', 'odbc')
                 if row.db_type not in supported:
                     raise ValueError(f"Unsupported db_type: {row.db_type}")

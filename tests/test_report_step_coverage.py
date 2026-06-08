@@ -1,12 +1,10 @@
 """Tests for report.py branches: _resolve_template_path path traversal, unknown format."""
 import os
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from flowforge.steps.report import ReportStep, _resolve_template_path
-
 
 # ── _resolve_template_path ────────────────────────────────────────────────────
 
@@ -71,8 +69,6 @@ def test_report_step_json_format(tmp_path):
             'output_filename': 'out.json',
         }
     })
-    conn = _make_conn([[1]], ['col'])
-
     mock_json_gen = MagicMock()
     with patch('flowforge.reports.json_report.generate', mock_json_gen), \
          patch.dict(os.environ, {'FLOWFORGE_OUTPUT_DIR': str(tmp_path)}):
@@ -96,8 +92,6 @@ def test_report_step_pdf_format_not_installed(tmp_path):
             'output_filename': 'out.pdf',
         }
     })
-    conn = _make_conn([[1]], ['col'])
-
     with patch('flowforge.connections.postgres.PostgreSQLConnection') as cls:
         instance = cls.return_value
         instance.__enter__ = lambda s: s

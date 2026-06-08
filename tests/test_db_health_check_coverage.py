@@ -2,7 +2,6 @@
 MySQL, class-name db_type detection, exception paths.
 """
 import os
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from flowforge.steps.db_health_check import DbHealthCheckStep

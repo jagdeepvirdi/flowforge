@@ -49,6 +49,7 @@ def test_celery_queue_depth_redis_error():
         mock_redis.from_url.side_effect = Exception('connection refused')
         with patch.dict('sys.modules', {'redis': mock_redis}):
             from importlib import reload
+
             import flowforge.api.routes.metrics as m
             reload(m)
             assert m._celery_queue_depth() == 0

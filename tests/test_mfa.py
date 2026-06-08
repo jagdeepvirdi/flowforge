@@ -1,7 +1,6 @@
 """Tests for MFA (TOTP) endpoints — enroll, confirm, disable, verify, use-backup."""
 from unittest.mock import MagicMock, patch
 
-
 # ── /auth/mfa/status ──────────────────────────────────────────────────────────
 
 def test_mfa_status_requires_auth(client):

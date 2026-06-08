@@ -2,10 +2,7 @@
 onedrive upload failure, gdrive upload failure with warnings_out,
 send_only_on_failure suppression, _build_inline_provider branches.
 """
-from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 
 class TestHandleAttachmentsCoverage:
@@ -102,7 +99,6 @@ def test_email_step_not_suppressed_when_pipeline_failed(tmp_path):
 # ── _build_inline_provider branches ──────────────────────────────────────────
 
 def test_build_inline_provider_gmail():
-    from flowforge.email_providers.gmail import GmailProvider
     from flowforge.steps.email_step import _build_inline_provider
     mock_creds = MagicMock()
     mock_creds_cls = MagicMock(return_value=mock_creds)
@@ -126,7 +122,6 @@ def test_build_inline_provider_gmail():
 
 
 def test_build_inline_provider_microsoft365():
-    from flowforge.email_providers.microsoft365 import Microsoft365Provider
     from flowforge.steps.email_step import _build_inline_provider
     mock_app = MagicMock()
     mock_msal = MagicMock()

@@ -3,7 +3,6 @@ import secrets
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
-
 # ── /auth/password-reset/request ─────────────────────────────────────────────
 
 def test_request_reset_missing_username(client):

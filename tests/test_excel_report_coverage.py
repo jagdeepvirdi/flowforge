@@ -1,6 +1,4 @@
 """Tests for reports/excel_report.py — column formats, conditionals, template mode."""
-import pytest
-from pathlib import Path
 
 
 def test_generate_basic(tmp_path):
@@ -117,6 +115,7 @@ def test_generate_unknown_operator_skipped(tmp_path):
 def test_generate_with_template(tmp_path):
     """When a template .xlsx exists, rows are appended after the last row."""
     from openpyxl import Workbook
+
     from flowforge.reports.excel_report import generate
 
     # Build a minimal template

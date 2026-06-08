@@ -2,7 +2,6 @@
 import os
 from unittest.mock import patch
 
-
 # ── Error handlers ────────────────────────────────────────────────────────────
 
 def test_404_handler(client, headers):
@@ -123,7 +122,7 @@ def test_jwt_fallback_warning_emitted_without_jwt_secret():
         if 'FLOWFORGE_JWT_SECRET' in os.environ:
             del os.environ['FLOWFORGE_JWT_SECRET']
         from flowforge.api.app import create_app
-        with warnings.catch_warnings(record=True) as w:
+        with warnings.catch_warnings(record=True):
             warnings.simplefilter('always')
             create_app({'TESTING': True,
                         'SQLALCHEMY_DATABASE_URI': os.environ.get(

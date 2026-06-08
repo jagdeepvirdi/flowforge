@@ -1,5 +1,4 @@
 """Tests for auth.py branches: MFA token generation/verification, require_role."""
-from datetime import UTC, datetime, timedelta
 
 
 # ── generate_mfa_token / verify_mfa_token ─────────────────────────────────────
