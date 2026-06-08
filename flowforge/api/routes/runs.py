@@ -114,7 +114,10 @@ def export_runs():
     if format_type.lower() != 'csv':
         return jsonify({'error': 'Only CSV format is supported'}), 400
 
-    limit = min(int(request.args.get('limit', 10_000)), 10_000)
+    try:
+        limit = min(int(request.args.get('limit', 10_000)), 10_000)
+    except ValueError:
+        return jsonify({'error': 'limit must be an integer'}), 400
 
     query = db.session.query(PipelineRun).order_by(PipelineRun.started_at.desc())
 

@@ -110,3 +110,54 @@ def test_export_runs_invalid_format(client, headers):
 def test_export_runs_requires_auth(client):
     resp = client.get('/api/runs/export?format=csv')
     assert resp.status_code == 401
+
+
+def test_export_runs_with_pipeline_id_filter(client, headers):
+    resp = client.get(
+        '/api/runs/export?format=csv&pipeline_id=00000000-0000-0000-0000-000000000000',
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert 'text/csv' in resp.content_type
+
+
+def test_export_runs_with_project_id_filter(client, headers):
+    resp = client.get(
+        '/api/runs/export?format=csv&project_id=00000000-0000-0000-0000-000000000000',
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert 'text/csv' in resp.content_type
+
+
+def test_export_runs_with_explicit_limit(client, headers):
+    resp = client.get('/api/runs/export?format=csv&limit=5', headers=headers)
+    assert resp.status_code == 200
+    assert 'text/csv' in resp.content_type
+
+
+def test_export_runs_invalid_limit(client, headers):
+    resp = client.get('/api/runs/export?format=csv&limit=abc', headers=headers)
+    assert resp.status_code == 400
+    assert 'integer' in resp.get_json().get('error', '').lower()
+
+
+def test_export_runs_data_rows_present(client, headers):
+    """Trigger a run so the CSV row-writing loop body is exercised."""
+    create = client.post(
+        '/api/pipelines',
+        json={'name': 'CSV Export Coverage Pipeline'},
+        headers=headers,
+    )
+    assert create.status_code == 201
+    pid = create.get_json()['id']
+
+    # launch_run commits a 'running' record immediately before async dispatch
+    client.post(f'/api/pipelines/{pid}/run', headers=headers)
+
+    resp = client.get(f'/api/runs/export?format=csv&pipeline_id={pid}', headers=headers)
+    assert resp.status_code == 200
+    lines = resp.data.decode().strip().split('\n')
+    assert len(lines) >= 2  # header + at least one data row
+
+    client.delete(f'/api/pipelines/{pid}', headers=headers)
