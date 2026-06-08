@@ -254,15 +254,21 @@ export default function Pipelines() {
 
       {/* Promote modal */}
       {promoteTarget && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16 }}
-          onClick={e => { if (e.target === e.currentTarget) { setPromoteTarget(null); setPromoteWarnings([]) } }}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="promote-modal-title"
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16 }}
+          onClick={e => { if (e.target === e.currentTarget) { setPromoteTarget(null); setPromoteWarnings([]) } }}
+          onKeyDown={e => { if (e.key === 'Escape') { setPromoteTarget(null); setPromoteWarnings([]) } }}
+        >
           <div className="card" style={{ width: '100%', maxWidth: 440, padding: 24, position: 'relative' }}>
             <button onClick={() => { setPromoteTarget(null); setPromoteWarnings([]) }}
               style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
               <X size={15} />
             </button>
 
-            <h3 style={{ margin: '0 0 6px', fontSize: 14, fontWeight: 600 }}>Promote Pipeline</h3>
+            <h3 id="promote-modal-title" style={{ margin: '0 0 6px', fontSize: 14, fontWeight: 600 }}>Promote Pipeline</h3>
             <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 18px', lineHeight: 1.5 }}>
               Copy <strong style={{ color: 'var(--text)' }}>{promoteTarget.name}</strong> to another project.
               The promoted copy starts disabled — enable it after reviewing step configurations.

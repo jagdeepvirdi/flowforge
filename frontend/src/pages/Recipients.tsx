@@ -9,7 +9,7 @@ import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 import PageIntro from '../components/shared/PageIntro'
 
-function ChipInput({ values, onChange }: { values: string[]; onChange: (v: string[]) => void }) {
+function ChipInput({ values, onChange, id }: { values: string[]; onChange: (v: string[]) => void; id?: string }) {
   const [input, setInput] = useState('')
   const add = () => {
     const v = input.trim()
@@ -23,7 +23,7 @@ function ChipInput({ values, onChange }: { values: string[]; onChange: (v: strin
           {v}<button onClick={() => onChange(values.filter(x => x !== v))}><X size={10}/></button>
         </span>
       ))}
-      <input className="flex-1 bg-transparent outline-none text-sm min-w-40"
+      <input id={id} className="flex-1 bg-transparent outline-none text-sm min-w-40"
         value={input} onChange={e => setInput(e.target.value)}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add() } }}
         onBlur={add} placeholder={values.length === 0 ? 'email@example.com, …' : ''}/>
@@ -128,7 +128,7 @@ export default function Recipients() {
               <div className="field"><label htmlFor="rg-name">Name *</label><input id="rg-name" className="input" value={newName} onChange={e => setNewName(e.target.value)} /></div>
               <div className="field"><label htmlFor="rg-desc">Description</label><input id="rg-desc" className="input" value={newDesc} onChange={e => setNewDesc(e.target.value)} /></div>
             </div>
-            <div className="field"><label id="rg-addresses-label">Email addresses</label><ChipInput values={newAddrs} onChange={setNewAddrs} aria-labelledby="rg-addresses-label" /></div>
+            <div className="field"><label htmlFor="rg-addresses">Email addresses</label><ChipInput id="rg-addresses" values={newAddrs} onChange={setNewAddrs} /></div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn btn-primary btn-sm" onClick={() => add()} disabled={isPending || !newName}>
                 {isPending ? <Spinner size={12} /> : null} Create
