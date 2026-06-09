@@ -934,6 +934,499 @@ use any accessible SFTP endpoint you have credentials for.)*
 
 ---
 
+## 17. Multi-User Roles & Access Control
+
+*(Requires the server running with multi-user support. Create test accounts via
+Settings → Users.)*
+
+### 17a. Create users with different roles
+
+1. Log in as `admin`
+2. Go to **Settings → Users → Add User**
+3. Create three accounts:
+
+   | Username | Role |
+   |---|---|
+   | `editor_test` | `editor` |
+   | `viewer_test` | `viewer` |
+   | `admin_test` | `admin` |
+
+- [ ] All three users created and visible in the user list
+
+### 17b. Viewer restrictions
+
+1. Log out and log in as `viewer_test`
+2. Open the Dashboard — pipelines are visible
+
+- [ ] **Run Now** button is absent or disabled on pipeline cards
+- [ ] No **New Pipeline** button visible
+- [ ] Connections page: no **Add** or **Delete** buttons
+- [ ] Settings → Users page: not accessible (redirected or 403)
+
+### 17c. Editor permissions
+
+1. Log in as `editor_test`
+2. Create a new pipeline, add a step, and save
+
+- [ ] Pipeline created successfully
+- [ ] **Run Now** works — pipeline runs
+- [ ] Settings → Users page: not accessible
+
+### 17d. Admin full access
+
+1. Log in as `admin_test`
+
+- [ ] Can access Settings → Users
+- [ ] Can create/edit/delete users
+- [ ] Can run pipelines and edit all configs
+
+### 17e. Self-service password change
+
+1. Log in as `editor_test`
+2. Go to **Settings → Change Password**
+3. Enter current password and a new one, confirm
+
+- [ ] Password changed successfully
+- [ ] Can log in with the new password
+- [ ] Old password rejected
+
+### 17f. JWT token revocation (logout)
+
+1. Log in as any user — capture the JWT token from browser DevTools (Application → Local Storage → `token`)
+2. Log out via **Settings → Logout** (or the top-right menu)
+3. In Postman or curl, call any protected endpoint with the old token:
+   ```
+   GET /api/pipelines
+   Authorization: Bearer <old-token>
+   ```
+
+- [ ] Server returns `401 Unauthorized` — token is revoked immediately on logout
+- [ ] Logging back in issues a new token that works
+
+---
+
+## 18. Pipeline Clone & YAML Import/Export
+
+### 18a. Clone a pipeline
+
+1. Go to **Pipelines**
+2. Open any pipeline with at least two steps
+3. Click the **Clone** button (three-dot menu or toolbar)
+4. Confirm — a copy is created with name `<original> (copy)`
+
+- [ ] Clone appears in the pipeline list
+- [ ] All steps, schedules, and variables are copied
+- [ ] Editing the clone does not affect the original
+
+### 18b. Export pipeline as YAML
+
+1. Open a pipeline → click **Export YAML** (Settings or toolbar)
+2. Download the `.yaml` file
+
+- [ ] File downloads successfully
+- [ ] YAML contains `name`, `steps`, `schedule`, `variables` keys
+- [ ] Step configs are intact (connection IDs, queries, etc.)
+
+Also available via CLI:
+```powershell
+flowforge export "Pipeline Name"
+```
+
+- [ ] CLI produces same YAML content as the UI export
+
+### 18c. Import pipeline from YAML
+
+1. Modify the exported YAML — change the `name` to `Imported Pipeline`
+2. Go to **Settings → Import YAML** (or **Pipelines → Import**)
+3. Upload the modified file
+
+- [ ] Pipeline imported and visible in the list with the new name
+- [ ] All steps and configs intact
+
+CLI equivalent:
+```powershell
+flowforge import pipeline.yaml
+flowforge import pipeline.yaml --overwrite   # replace if name exists
+```
+
+- [ ] CLI import succeeds
+- [ ] `--overwrite` replaces an existing pipeline without error
+
+---
+
+## 19. Step Retry & Failure Webhook
+
+### 19a. Step retry on transient failure
+
+1. Open a pipeline → edit a step → expand **Advanced**
+2. Set:
+
+   | Field | Value |
+   |---|---|
+   | Retry count | `3` |
+   | Retry delay (seconds) | `5` |
+
+3. Point the step at a temporarily unavailable resource (e.g. a wrong DB host) and run
+
+- [ ] Run History shows the step retried 3 times before failing
+- [ ] Step logs show "attempt 1/4", "attempt 2/4", etc.
+- [ ] Total run duration reflects the delays (≥ 15 s)
+
+### 19b. Retry succeeds on later attempt
+
+1. Configure a step that will fail once then succeed (e.g. restore the correct DB host mid-run, or use `on_error: continue` on a preceding step)
+2. Set retry count to `2`
+
+- [ ] Step log shows it succeeded on attempt 2 (not attempt 1)
+- [ ] Pipeline overall status is `success`
+
+### 19c. Failure webhook
+
+1. Open a pipeline → **Advanced** → set **On-failure webhook URL** to a public test endpoint (e.g. `https://webhook.site/<your-id>`)
+2. Add a step that will intentionally fail (bad SQL)
+3. Run the pipeline
+
+- [ ] Pipeline fails
+- [ ] Webhook receives a `POST` with JSON payload containing `pipeline_name`, `run_id`, `error_step`, `error_message`
+- [ ] Webhook fires once per pipeline failure (not per step)
+
+4. Fix the pipeline — run again successfully
+
+- [ ] Webhook does **not** fire on success
+
+---
+
+## 20. API / Webhook Trigger
+
+### 20a. Get the pipeline trigger token
+
+1. Open a pipeline → **Settings** (or three-dot menu) → **API Trigger**
+2. Copy the trigger URL and token, e.g.:
+   ```
+   POST /api/pipelines/<id>/trigger?token=flwf_...
+   ```
+
+- [ ] Token is shown (masked, with a reveal button)
+- [ ] Token starts with `flwf_`
+
+### 20b. Trigger via curl / Postman
+
+```powershell
+Invoke-WebRequest -Method POST `
+  -Uri "http://localhost:5000/api/pipelines/<id>/trigger?token=flwf_..." `
+  -UseBasicParsing
+```
+
+- [ ] Response: `{ "run_id": "...", "status": "accepted" }`
+- [ ] Run appears in Run History with `triggered_by = api`
+
+### 20c. Invalid token is rejected
+
+```powershell
+Invoke-WebRequest -Method POST `
+  -Uri "http://localhost:5000/api/pipelines/<id>/trigger?token=invalid" `
+  -UseBasicParsing
+```
+
+- [ ] Response: `401 Unauthorized`
+- [ ] No run created
+
+### 20d. Audit trail
+
+1. Go to **Settings → Audit Log**
+2. Filter by action `PIPELINE_TRIGGER`
+
+- [ ] Trigger event logged with the pipeline name and `triggered_by = api`
+
+---
+
+## 21. Audit Log
+
+1. Go to **Settings → Audit Log** (admin only)
+
+### 21a. Events are recorded
+
+Perform these actions and confirm each appears in the log:
+- [ ] Login → action `LOGIN_SUCCESS`
+- [ ] Failed login (wrong password) → action `LOGIN_FAILURE`
+- [ ] Create a pipeline → action `PIPELINE_CREATE`
+- [ ] Run a pipeline → action `PIPELINE_RUN`
+- [ ] Delete a connection → action `CONNECTION_DELETE`
+
+### 21b. Filters
+
+1. Filter by **Action** = `PIPELINE_RUN`
+- [ ] Only run events shown
+
+2. Filter by **Username** = `admin`
+- [ ] Only admin events shown
+
+### 21c. Pagination
+
+1. Generate more than 50 audit events (run several pipelines, login/logout multiple times)
+2. Open the Audit Log page
+
+- [ ] Paginated — 50 rows per page
+- [ ] Next/Previous page controls work
+
+### 21d. CSV export
+
+1. Click **Export CSV**
+
+- [ ] CSV downloads with all visible (filtered) log entries
+- [ ] Columns: `timestamp`, `action`, `username`, `ip_address`, `details`
+
+### 21e. Viewer/editor cannot access audit log
+
+1. Log in as `viewer_test` or `editor_test`
+2. Navigate to `/settings/audit`
+
+- [ ] Redirected or `403 Forbidden`
+
+---
+
+## 22. Notification Step (Slack / Teams / Telegram)
+
+### 22a. Slack
+
+1. Set up a Slack incoming webhook in your Slack workspace (Apps → Incoming Webhooks)
+2. Create a pipeline with a **Notification** step:
+
+   | Field | Value |
+   |---|---|
+   | Platform | `slack` |
+   | Webhook URL | Your Slack webhook URL |
+   | Message | `Pipeline {{ pipeline_name }} completed on {{ current_date }}` |
+
+3. Run the pipeline
+
+- [ ] Slack message received with variables resolved
+- [ ] Message not empty or literal `{{ pipeline_name }}`
+
+### 22b. Microsoft Teams
+
+1. Set up an Incoming Webhook connector in a Teams channel
+2. Add a **Notification** step:
+
+   | Field | Value |
+   |---|---|
+   | Platform | `teams` |
+   | Webhook URL | Your Teams webhook URL |
+   | Title | `FlowForge Alert` |
+   | Message | `{{ pipeline_name }} finished at {{ current_date }}` |
+
+- [ ] Teams message received with bold title and resolved variables
+
+### 22c. Telegram
+
+1. Create a Telegram bot via @BotFather; note the bot token
+2. Get your chat ID (send `/start` to the bot then call `https://api.telegram.org/bot<token>/getUpdates`)
+3. Add a **Notification** step:
+
+   | Field | Value |
+   |---|---|
+   | Platform | `telegram` |
+   | Bot token | Your bot token |
+   | Chat ID | Your chat ID |
+   | Parse mode | `HTML` |
+   | Message | `<b>{{ pipeline_name }}</b> completed successfully.` |
+
+- [ ] Telegram message received with bold formatting applied
+
+### 22d. Notification on pipeline failure
+
+1. Add a **Notification** step at the end of a pipeline that also has a step set to `on_error: continue`
+2. Force the first step to fail
+3. Run the pipeline
+
+- [ ] Notification step still runs after the failed step
+- [ ] Message body includes `{{ failed_step }}` (if used in the template)
+
+### 22e. Invalid webhook URL
+
+1. Set an obviously wrong webhook URL and run
+
+- [ ] Step fails with a clear error message
+- [ ] Pipeline run status reflects the failure
+
+---
+
+## 23. Additional Email Providers
+
+### 23a. SMTP (generic)
+
+1. Go to **Connections → Email Providers → Add Provider → SMTP**
+2. Fill in:
+
+   | Field | Value |
+   |---|---|
+   | Host | `smtp.gmail.com` (or your SMTP server) |
+   | Port | `587` |
+   | Username | Your email address |
+   | Password | App password |
+   | Use TLS | Ticked |
+
+3. Click **Test**
+
+- [ ] Test email received
+- [ ] SMTP provider saved and selectable in Email configs
+
+### 23b. SendGrid
+
+*(Requires a SendGrid account and API key with `Mail Send` permission.)*
+
+1. Go to **Connections → Email Providers → Add Provider → SendGrid**
+2. Fill in:
+
+   | Field | Value |
+   |---|---|
+   | API Key | Your SendGrid API key (`SG.xxx`) |
+   | From email | A verified sender address |
+   | From name | `FlowForge` |
+
+3. Click **Test**
+
+- [ ] Test email received via SendGrid
+- [ ] Provider saved
+
+### 23c. AWS SES
+
+*(Requires an AWS account, SES verified sender, and an IAM key with `ses:SendRawEmail`.)*
+
+1. Go to **Connections → Email Providers → Add Provider → AWS SES**
+2. Fill in:
+
+   | Field | Value |
+   |---|---|
+   | AWS Access Key ID | Your access key |
+   | AWS Secret Access Key | Your secret key |
+   | AWS Region | `us-east-1` (or your SES region) |
+   | From email | A SES-verified sender address |
+
+3. Click **Test**
+
+- [ ] Email delivered via SES
+- [ ] Provider saved
+
+### 23d. Mailgun
+
+*(Requires a Mailgun account. Free tier allows 5,000 emails/month.)*
+
+1. Go to **Connections → Email Providers → Add Provider → Mailgun**
+2. Fill in:
+
+   | Field | Value |
+   |---|---|
+   | API Key | Your Mailgun API key |
+   | Domain | Your Mailgun sending domain |
+   | Region | `US` or `EU` |
+   | From email | `noreply@yourdomain.com` |
+
+3. Click **Test**
+
+- [ ] Email delivered via Mailgun
+- [ ] Provider saved
+
+---
+
+## 24. Additional Database Connections
+
+### 24a. MySQL / MariaDB
+
+*(Requires MySQL or MariaDB running. Docker: `docker run -p 3306:3306 -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=testdb mysql:8`.)*
+
+1. Go to **Connections → Add Connection → MySQL**
+2. Fill in host, port (`3306`), database, username, password
+3. Click **Test Connection**
+
+- [ ] Test passes (latency shown)
+- [ ] Add a DB Query step pointing at this connection — query executes
+
+### 24b. MSSQL / SQL Server
+
+*(Requires SQL Server or Azure SQL. Docker: `mcr.microsoft.com/mssql/server:2022-latest`.)*
+
+1. Go to **Connections → Add Connection → MSSQL**
+2. Fill in:
+
+   | Field | Value |
+   |---|---|
+   | Host | `localhost` |
+   | Port | `1433` |
+   | Database | `master` (or your DB) |
+   | Username | `sa` |
+   | Password | Your SA password |
+
+3. Test connection
+
+- [ ] Test passes
+- [ ] DB Query step runs a simple `SELECT 1` successfully
+
+### 24c. ODBC (generic)
+
+1. Go to **Connections → Add Connection → ODBC**
+2. Provide a DSN or connection string (e.g. `DSN=MyDSN` or a full ODBC connection string)
+3. Test connection
+
+- [ ] Connection tested (result depends on your ODBC driver/DSN)
+
+---
+
+## 25. Report — JSON Format
+
+1. Go to **Reports → New Report**
+2. Fill in:
+
+   | Field | Value |
+   |---|---|
+   | Name | `Subscriber Summary JSON` |
+   | Connection | `FlowForge DB` |
+   | Query | `SELECT * FROM public.bulk_test_subscribers ORDER BY plan` |
+   | Format | `JSON` |
+   | Output filename | `subscribers_{{ current_date }}.json` |
+
+3. Add to a pipeline as a **Report** step and run
+
+- [ ] JSON file generated at the output path
+- [ ] File is valid JSON (array of objects, one per row)
+- [ ] Column names match query result columns
+- [ ] Output path visible in step run log
+
+---
+
+## 26. Celery / Redis Task Queue (optional)
+
+*(Requires Redis running. Docker: `docker run -p 6379:6379 redis:7`. Set `FLOWFORGE_REDIS_URL=redis://localhost:6379/0` in `.env` and restart.)*
+
+### 26a. Worker starts and picks up tasks
+
+In a separate terminal, start a Celery worker:
+```powershell
+flowforge worker --concurrency 4
+```
+
+- [ ] Worker starts and logs `[celery.worker.consumer] Connected to redis://localhost:6379/0`
+
+### 26b. Pipeline run dispatched as Celery task
+
+1. Trigger a pipeline via **Run Now**
+2. Watch the Celery worker terminal
+
+- [ ] Worker terminal shows `Received task: flowforge.tasks.run_pipeline`
+- [ ] Run History shows `triggered_by = web_ui`
+- [ ] Run completes and status updates in the UI
+
+### 26c. Fallback when Redis is unavailable
+
+1. Stop Redis
+2. Restart the FlowForge server (without `FLOWFORGE_REDIS_URL` set, or with Redis stopped)
+3. Trigger a pipeline
+
+- [ ] Pipeline runs via background thread (no Celery error)
+- [ ] Run History shows the run completed normally
+
+---
+
 ## Notes
 
 | Date | Tester | Section | Result | Notes |
