@@ -121,12 +121,12 @@ Remaining Silver gaps requiring user action:
 ##### Signed-Releases (-1 — N/A, no releases yet)
 - [x] Create `.github/workflows/release.yml` — triggers on `v*` tags; builds wheel + sdist; generates SLSA provenance via `actions/attest-build-provenance@v4.1.0`; creates GitHub Release with auto-notes and signed artifacts
 - [x] Document release signing in RUNBOOK.md §12 (one-time setup, cutting a release, verifying attestation)
-- [ ] Cut v1.0.0 tag when ready to release — triggers the workflow
+- [x] Cut v1.1.0 tag — GitHub Release v1.1.0 created with signed artifacts *(2026-06-08)*
 
 ##### Packaging (-1 — no publishing workflow)
 - [x] Create `.github/workflows/publish.yml` — builds wheel + sdist, publishes to PyPI via OIDC trusted publishing (`pypa/gh-action-pypi-publish@v1.14.0`) with `attestations: true` for SLSA provenance; no API token needed
-- [ ] Configure PyPI Trusted Publisher once (pypi.org → Account → Publishing → add `publish.yml` / environment `pypi`) — one-time manual step
-- [ ] Publish `flowforge` to PyPI by cutting v1.0.0 tag
+- [x] Configure PyPI Trusted Publisher — pypi.org → Publishing → `publish.yml` / environment `pypi` for project `flowforge-io` *(2026-06-09)*
+- [x] Published `flowforge-io` v1.1.0 to PyPI via `workflow_dispatch` — package renamed from `flowforge` (name blocked by existing `flow-forge` on PyPI) *(2026-06-09)*
 
 ##### Branch-Protection (-1 — auth error during scan)
 - [ ] Confirm the Scorecard GitHub App has sufficient read permissions on the repo (Settings → Integrations → Installed GitHub Apps)
