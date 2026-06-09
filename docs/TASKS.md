@@ -72,8 +72,8 @@ Report: https://securityscorecards.dev/viewer/?uri=github.com/jagdeepvirdi/flowf
 - [ ] Re-run scorecard after fixes; confirm Vulnerabilities moves to 10
 
 ##### Code-Review (0/10 — Critical)
-- [ ] Enable **branch protection** on `master`: require at least 1 approving review before merge
-- [ ] In GitHub → Settings → Branches → Add rule: check "Require a pull request before merging" + "Require approvals (1)"
+- [x] Enable **branch protection** on `master`: require at least 1 approving review before merge *(2026-06-09)*
+- [x] In GitHub → Settings → Branches → Add rule: check "Require a pull request before merging" + "Require approvals (1)" *(2026-06-09)*
 - [ ] Self-review all 9 existing un-reviewed merged PRs via a single "catch-up" review PR description (documents intent retroactively)
 - [ ] Going forward: never push directly to `master`; always open a PR and self-approve before merging
 
@@ -130,7 +130,7 @@ Remaining Silver gaps requiring user action:
 
 ##### Branch-Protection (-1 — auth error during scan)
 - [ ] Confirm the Scorecard GitHub App has sufficient read permissions on the repo (Settings → Integrations → Installed GitHub Apps)
-- [ ] Re-run scorecard after branch protection rules are set (see Code-Review tasks above); error should resolve
+- [ ] Re-run scorecard after branch protection rules are set — error should resolve *(branch protection enabled 2026-06-09)*
 
 ---
 
