@@ -308,7 +308,7 @@
 
 ### Storage Steps (shipped 2026-05-24/25)
 
-- [x] **SFTP transfer step** — `sftp_transfer` step type; download (single file or directory with glob pattern) and upload; password or private-key auth (RSA/ECDSA/Ed25519/DSS); `create_remote_dirs`, `overwrite`, `pattern` options; migration 0014 adds `sftp_transfer` to `ck_step_type`; `pip install 'flowforge[sftp]'`
+- [x] **SFTP transfer step** — `sftp_transfer` step type; download (single file or directory with glob pattern) and upload; password or private-key auth (RSA/ECDSA/Ed25519/DSS); `create_remote_dirs`, `overwrite`, `pattern` options; migration 0014 adds `sftp_transfer` to `ck_step_type`; `pip install 'flowforge-io[sftp]'`
 - [x] **OneDrive / SharePoint upload step** — `onedrive_upload` step type (Graph API, MSAL); chunked upload for files > 4 MB; `make_shareable=True` returns anonymous view URL. Smart attachment in `email` step prefers OneDrive when `onedrive_folder_id` is set on the email config. Migration 0012 adds the column.
 
 ### Platform (shipped 2026-05-24)

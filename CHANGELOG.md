@@ -75,11 +75,11 @@ below — see those entries for the full feature breakdown.
 
 ### Added
 
-- **MySQL / MariaDB connector** — `MySQLConnection` using PyMySQL. Implements the same `BaseConnection` interface as PostgreSQL and Oracle — pipelines require no changes to switch databases. Migration adds `mysql` to the `ck_db_type` check constraint. Install with: `pip install 'flowforge[mysql]'`. ([`flowforge/connections/mysql.py`](flowforge/connections/mysql.py))
+- **MySQL / MariaDB connector** — `MySQLConnection` using PyMySQL. Implements the same `BaseConnection` interface as PostgreSQL and Oracle — pipelines require no changes to switch databases. Migration adds `mysql` to the `ck_db_type` check constraint. Install with: `pip install 'flowforge-io[mysql]'`. ([`flowforge/connections/mysql.py`](flowforge/connections/mysql.py))
 
-- **OneDrive upload step** — `onedrive_upload` step type uploads files to Microsoft OneDrive via Microsoft Graph API. Uses a direct PUT for files ≤ 4 MB and chunked upload sessions for larger files. `createLink` generates an anonymous shareable URL stored as `{{ steps.<name>.drive_url }}`. `onedrive_folder_id` added to `ff_email_configs` so the smart-attachment logic routes large attachments to OneDrive when configured, with Google Drive as a fallback. Install with: `pip install 'flowforge[microsoft365]'`. ([`flowforge/steps/onedrive_upload.py`](flowforge/steps/onedrive_upload.py), [`flowforge/storage/onedrive.py`](flowforge/storage/onedrive.py))
+- **OneDrive upload step** — `onedrive_upload` step type uploads files to Microsoft OneDrive via Microsoft Graph API. Uses a direct PUT for files ≤ 4 MB and chunked upload sessions for larger files. `createLink` generates an anonymous shareable URL stored as `{{ steps.<name>.drive_url }}`. `onedrive_folder_id` added to `ff_email_configs` so the smart-attachment logic routes large attachments to OneDrive when configured, with Google Drive as a fallback. Install with: `pip install 'flowforge-io[microsoft365]'`. ([`flowforge/steps/onedrive_upload.py`](flowforge/steps/onedrive_upload.py), [`flowforge/storage/onedrive.py`](flowforge/storage/onedrive.py))
 
-- **SFTP transfer step** — `sftp_transfer` step type for file transfer over SSH/SFTP. Supports download (single file, directory, or glob pattern) and upload modes. Accepts password or private-key authentication. `create_remote_dirs` auto-creates the destination path on the remote server. Configurable `overwrite` flag and `strict_host_keys` mode (defaults to TOFU for compatibility; set `FLOWFORGE_SFTP_STRICT_HOSTKEYS=true` in production). Uses `paramiko`. Install with: `pip install 'flowforge[sftp]'`. ([`flowforge/steps/sftp_transfer.py`](flowforge/steps/sftp_transfer.py))
+- **SFTP transfer step** — `sftp_transfer` step type for file transfer over SSH/SFTP. Supports download (single file, directory, or glob pattern) and upload modes. Accepts password or private-key authentication. `create_remote_dirs` auto-creates the destination path on the remote server. Configurable `overwrite` flag and `strict_host_keys` mode (defaults to TOFU for compatibility; set `FLOWFORGE_SFTP_STRICT_HOSTKEYS=true` in production). Uses `paramiko`. Install with: `pip install 'flowforge-io[sftp]'`. ([`flowforge/steps/sftp_transfer.py`](flowforge/steps/sftp_transfer.py))
 
 - **AI analyze step** — `ai_analyze` step type runs an LLM prompt against query results and injects the response into the pipeline context. Two providers:
   - **Ollama** (default) — runs locally, zero cost, no data leaves your machine. Configure via `OLLAMA_URL` and `OLLAMA_QUERY_MODEL`.
@@ -286,14 +286,14 @@ below — see those entries for the full feature breakdown.
 
 #### Database Connections
 - PostgreSQL via psycopg2 ThreadedConnectionPool
-- Oracle via cx_Oracle (optional extra: `pip install flowforge[oracle]`)
+- Oracle via cx_Oracle (optional extra: `pip install flowforge-io[oracle]`)
 - Both implement a shared `BaseConnection` interface — pipelines don't know which DB they're talking to
 - `execute_query_with_columns()` returns actual column names from `cursor.description`; no more `col0 / col1 / col2` in report headers
 
 #### Report Generation
 - Excel via openpyxl — optional `.xlsx` template support, auto-width columns, bold headers
 - CSV via Python stdlib — UTF-8 BOM, configurable delimiter
-- PDF via WeasyPrint (optional install: `pip install flowforge[pdf]`)
+- PDF via WeasyPrint (optional install: `pip install flowforge-io[pdf]`)
 
 #### Email Providers
 - **SMTP** — any standard mail server (Outlook, Yahoo, corporate), STARTTLS and SSL/TLS support
@@ -364,12 +364,12 @@ below — see those entries for the full feature breakdown.
 - GitHub issue templates — bug report and feature request
 
 ### Dependencies (optional extras)
-- `flowforge[gmail]` — `google-api-python-client`, `google-auth`, `google-auth-oauthlib`
-- `flowforge[drive]` — same as `[gmail]`
-- `flowforge[microsoft365]` — `msal`
-- `flowforge[oracle]` — `cx_Oracle`
-- `flowforge[pdf]` — `weasyprint`
-- `flowforge[dev]` — `pytest`, `pytest-mock`, `responses`, `pytest-cov`
+- `flowforge-io[gmail]` — `google-api-python-client`, `google-auth`, `google-auth-oauthlib`
+- `flowforge-io[drive]` — same as `[gmail]`
+- `flowforge-io[microsoft365]` — `msal`
+- `flowforge-io[oracle]` — `cx_Oracle`
+- `flowforge-io[pdf]` — `weasyprint`
+- `flowforge-io[dev]` — `pytest`, `pytest-mock`, `responses`, `pytest-cov`
 
 [Unreleased]: https://github.com/jagdeepvirdi/flowforge/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.5...v1.0.0

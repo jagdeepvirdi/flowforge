@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "flowforge"
+name = "flowforge-io"
 version = "1.1.0"
 description = "Database-driven pipeline orchestrator. Configure everything from the UI — no YAML required."
 readme = "README.md"
@@ -100,16 +100,16 @@ sso = [
     "requests>=2.31",
 ]
 all = [
-    "flowforge[gmail]",
-    "flowforge[drive]",
-    "flowforge[microsoft365]",
-    "flowforge[pdf]",
-    "flowforge[oracle]",
-    "flowforge[mysql]",
-    "flowforge[sftp]",
-    "flowforge[mssql]",
-    "flowforge[ses]",
-    "flowforge[sso]",
+    "flowforge-io[gmail]",
+    "flowforge-io[drive]",
+    "flowforge-io[microsoft365]",
+    "flowforge-io[pdf]",
+    "flowforge-io[oracle]",
+    "flowforge-io[mysql]",
+    "flowforge-io[sftp]",
+    "flowforge-io[mssql]",
+    "flowforge-io[ses]",
+    "flowforge-io[sso]",
 ]
 dev = [
     "pytest>=8.0",

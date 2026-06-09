@@ -564,7 +564,7 @@ Use `output_path` in the `email` step's `attachments` field.
 
 ## sftp_transfer
 
-Downloads files from or uploads files to a remote SFTP server. Supports password authentication and private-key authentication (RSA, ECDSA, Ed25519, DSS). Requires `pip install paramiko` (or `pip install 'flowforge[sftp]'`).
+Downloads files from or uploads files to a remote SFTP server. Supports password authentication and private-key authentication (RSA, ECDSA, Ed25519, DSS). Requires `pip install paramiko` (or `pip install 'flowforge-io[sftp]'`).
 
 ```yaml
 step_type: sftp_transfer
