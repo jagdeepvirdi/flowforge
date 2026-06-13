@@ -29,7 +29,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install build tool
-        run: pip install build==1.5.0
+        run: pip install --require-hashes -r requirements-build.txt
 
       - name: Build wheel and sdist
         run: python -m build

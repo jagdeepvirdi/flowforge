@@ -48,10 +48,10 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: pip install --require-hashes -r requirements-dev.txt && pip install --no-deps -e .
 
       - name: Vulnerability audit
-        run: pip install --upgrade pip && pip install pip-audit==2.10.0 && pip-audit
+        run: pip-audit
 
       - name: Lint (ruff)
         run: ruff check .
@@ -94,7 +94,7 @@ jobs:
           cache: pip
 
       - name: Install bandit
-        run: pip install "bandit[toml]==1.9.4"
+        run: pip install --require-hashes -r requirements-dev.txt
 
       - name: Run bandit
         run: bandit -c pyproject.toml -r flowforge/ -ll
