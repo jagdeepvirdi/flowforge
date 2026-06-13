@@ -52,85 +52,72 @@
 - [x] Replace `dict()` / `list()` constructor calls with literals `{}` / `[]` — `sftp_transfer.py:60`
 
 ### 2.2 OpenSSF Scorecard
-**Current score: 6.0 / 10** (2026-05-30) — target ≥ 8.0
+**Current score: 6.5 / 10** (2026-06-13, commit dfd329a) — target ≥ 8.0
 Report: https://securityscorecards.dev/viewer/?uri=github.com/jagdeepvirdi/flowforge
 
-#### Passing checks (no action needed)
-- Binary-Artifacts: 10/10 — no binaries in repo ✅
-- CI-Tests: 10/10 — 8/8 merged PRs checked by CI ✅
-- Dangerous-Workflow: 10/10 — no unsafe GitHub Actions patterns ✅
-- Dependency-Update-Tool: 10/10 — Dependabot configured ✅
-- License: 10/10 — MIT license declared ✅
-- Security-Policy: 10/10 — SECURITY.md with disclosure procedures ✅
-- Token-Permissions: 10/10 — workflows use least-privilege ✅
+| Check | Score | Notes |
+|---|---|---|
+| Binary-Artifacts | 10 | ✅ |
+| CI-Tests | 9 | 15/16 PRs checked |
+| CII-Best-Practices | 5 | Passing badge |
+| Code-Review | 0 | 1/15 approved changesets |
+| Dangerous-Workflow | 10 | ✅ |
+| Dependency-Update-Tool | 10 | ✅ |
+| Fuzzing | 0 | Hypothesis not recognized; needs OSS-Fuzz/atheris |
+| License | 10 | ✅ |
+| Maintained | 0 | Repo < 90 days old — auto-improves |
+| Packaging | 10 | ✅ (was -1) |
+| Pinned-Dependencies | 6 | pip installs in workflows still unpinned |
+| SAST | 9 | 16/17 commits scanned (was 8) |
+| Security-Policy | 10 | ✅ |
+| Signed-Releases | 0 | SLSA attestation not picked up (was -1) |
+| Token-Permissions | 10 | ✅ |
+| Vulnerabilities | 10 | ✅ (was 0) |
+| Branch-Protection | -1 | Auth error — needs fine-grained PAT |
+| Contributors | 0 | Solo project, expected |
 
-#### Critical — fix immediately (score 0)
+#### Passing checks ✅
+- Binary-Artifacts, Dangerous-Workflow, Dependency-Update-Tool, License, Packaging, Security-Policy, Token-Permissions, Vulnerabilities — all 10/10
 
-##### Vulnerabilities (0/10 — Critical)
-- [x] Run `pip-audit` and `npm audit` locally, identify all 17 reported CVEs
-- [x] Upgrade or patch every vulnerable dependency until `pip-audit` exits clean — `requirements.txt` updated to latest CVE-free versions; `npm audit` reports 0 vulnerabilities after upgrading vite→8.0.16, vitest→4.1.8, @vitejs/plugin-react→6.0.2, react-router-dom patched
-- [ ] Re-run scorecard after fixes; confirm Vulnerabilities moves to 10
-
-##### Code-Review (0/10 — Critical)
-- [x] Enable **branch protection** on `master`: require at least 1 approving review before merge *(2026-06-09)*
-- [x] In GitHub → Settings → Branches → Add rule: check "Require a pull request before merging" + "Require approvals (1)" *(2026-06-09)*
-- [ ] Self-review all 9 existing un-reviewed merged PRs via a single "catch-up" review PR description (documents intent retroactively)
+#### Critical — Code-Review (0/10)
+- [x] Enable **branch protection** on `master` *(2026-06-09)*
+- [ ] Self-review all existing un-reviewed merged PRs — Scorecard sees "1/15 approved changesets"; need to approve past PRs retroactively via GitHub PR reviews (go to each PR → Review changes → Approve)
 - [ ] Going forward: never push directly to `master`; always open a PR and self-approve before merging
 
-##### Maintained (0/10 — Critical — time-based)
-- [ ] No direct fix: score improves automatically after the repo has ≥ 90 days of commit activity
-- [ ] Ensure at least 1 commit per week during the 90-day window to build history
+#### Critical — Maintained (0/10 — time-based)
+- [ ] No direct fix: score improves automatically after repo has ≥ 90 days of commit activity (repo created ~2026-04, reaches 90 days ~2026-07)
+- [ ] Ensure at least 1 commit per week during the window to build history
 
-#### Medium — improve score
+#### Medium — Pinned-Dependencies (6/10)
+- [x] Hash-pinned `requirements.txt` and Dockerfile
+- [x] Pin the 2 unpinned actions in `secrets-scan.yml` — `actions/checkout@v6` → hash `df4cb1c`, `trufflesecurity/trufflehog@main` → hash `84a2b33` *(2026-06-13)*
+- [x] Replace bare `pip install` calls in workflows with hash-pinned requirements files *(2026-06-13)*: `requirements-build.txt` used in `publish.yml` + `release.yml`; `requirements-dev.txt` (superset: runtime + dev tools) used in `test.yml` test and sast jobs; `pip install --no-deps -e .` for editable package install
+- [ ] `Dockerfile:20` `pip install --no-cache-dir --no-deps .` — local package install, cannot hash-pin; acceptable as-is
+- [ ] Re-run scorecard to confirm Pinned-Dependencies score improves
 
-##### Pinned-Dependencies (6/10 — Medium)
-- [x] Pin `gunicorn==26.0.0` and `gevent==26.5.0` in `requirements.txt`; pin `flower==2.0.1` in Dockerfile; pin `pip-audit==2.10.0` and `bandit[toml]==1.9.4` in `test.yml`
-- [x] Generated full hash-pinned `requirements.txt` via `pip-compile --generate-hashes requirements.in` (974 lines, 827 SHA-256 hashes covering all transitive deps). Dockerfile now uses `--require-hashes` to enforce hash verification at build time.
-- [ ] Re-run scorecard to confirm Pinned-Dependencies score improves; confirm 5/5 pip invocations are covered
+#### Medium — SAST (9/10)
+- [x] CodeQL configured on all branches
+- [ ] One commit (out of 17) not scanned — this resolves naturally as new commits are added; target 10/10 in next scan
 
-##### SAST (8/10 — Medium)
-- [x] Investigated: `codeql.yml` already has `push: branches: ['**']` — ALL commits on ALL branches are scanned, not just PRs. Coverage gap was likely a transient Scorecard fetch issue.
-- [x] `on: push: branches: [master]` trigger confirmed present (covered by `['**']`)
-- [ ] Re-run scorecard to confirm SAST moves to 10/10
+#### Medium — Fuzzing (0/10)
+- [x] Hypothesis property-based tests added to `tests_fuzz/` — but Scorecard only recognizes OSS-Fuzz or atheris integration
+- [ ] Option A: Register project with [OSS-Fuzz](https://google.github.io/oss-fuzz/getting-started/accepting-new-projects/) (open source, free, takes ~1 week to get accepted)
+- [ ] Option B: Add `atheris` fuzzing target + register in `project.yaml` (lighter-weight, faster)
 
-##### CII-Best-Practices (5/10 — Medium)
-Silver gaps addressed in code:
-- [x] `code_of_conduct` — `CODE_OF_CONDUCT.md` added (Contributor Covenant 2.1)
-- [x] `governance` / `roles_responsibilities` / `access_continuity` — `GOVERNANCE.md` added
-- [x] `documentation_roadmap` — `ROADMAP.md` added (v1/v2/v3 plan)
-- [x] `assurance_case` — `docs/threat-model.md` added (7 threats, mitigations, trust boundaries, security invariants)
-- [x] `warnings_strict` — `ruff check .` and `npm run lint` added to CI; 465 issues auto-fixed; remaining 27 manually resolved; ruff now passes clean
-- [x] `build_repeatable` — `requirements.txt` fully hash-pinned via `pip-compile --generate-hashes`
-- [x] `signed_releases` — `release.yml` with SLSA attestation ✅
-- [x] `dependency_monitoring` — `pip-audit` + `npm audit` in CI ✅
-- [x] `coding_standards_enforced` — ruff + ESLint in CI ✅
-Remaining Silver gaps requiring user action:
-- [x] `test_statement_coverage80` — pushed from 72% → 88% (317 new tests across 17 files, merged PR #38 2026-06-05)
+#### Low — Signed-Releases (0/10)
+- [x] `release.yml` uses `actions/attest-build-provenance` — Scorecard not picking it up (expects cosign or SLSA provenance attached as a release asset)
+- [ ] Add cosign signing step to `release.yml`: sign the wheel with `cosign sign-blob` and attach `.sig` + `.pem` as release artifacts — Scorecard reads these directly
+
+#### Low — Branch-Protection (-1 — auth error)
+- [ ] Fix: go to GitHub → Settings → Integrations → GitHub Apps → find "Scorecard" → grant it access to the `flowforge` repo (needs "Administration: read" permission on the fine-grained token used by the Scorecard app)
+- [ ] Alternative: create a fine-grained PAT with `administration:read` scope and add as `SCORECARD_TOKEN` secret in Actions
+
+#### CII-Best-Practices (5/10)
+Silver gaps remaining:
 - [ ] `bus_factor` (SHOULD) — solo project; document or recruit a co-maintainer
 - [ ] `dco` (SHOULD) — consider adding DCO sign-off requirement to PR template
 - [ ] Complete the Silver questionnaire at https://bestpractices.dev once all MUST criteria are met
 - [ ] Update badge URL in README once Silver is awarded
-
-##### Fuzzing (0/10 — Medium)
-- [x] Add `hypothesis>=6.0` to dev extras in `pyproject.toml`; create `tests_fuzz/test_fuzz.py` with 12 property-based tests covering `build()` invariants, `render()` crash safety, blocklist enforcement, `render_sql()` robustness, and pipeline var injection safety
-- [x] Fuzz tests run in a separate `tests_fuzz/` directory (no DB required) so they can run anywhere
-- [x] Add `pytest tests_fuzz/ -q --hypothesis-seed=0` step to CI `test.yml` after main test suite
-
-#### Low / N/A — resolve when releasing
-
-##### Signed-Releases (-1 — N/A, no releases yet)
-- [x] Create `.github/workflows/release.yml` — triggers on `v*` tags; builds wheel + sdist; generates SLSA provenance via `actions/attest-build-provenance@v4.1.0`; creates GitHub Release with auto-notes and signed artifacts
-- [x] Document release signing in RUNBOOK.md §12 (one-time setup, cutting a release, verifying attestation)
-- [x] Cut v1.1.0 tag — GitHub Release v1.1.0 created with signed artifacts *(2026-06-08)*
-
-##### Packaging (-1 — no publishing workflow)
-- [x] Create `.github/workflows/publish.yml` — builds wheel + sdist, publishes to PyPI via OIDC trusted publishing (`pypa/gh-action-pypi-publish@v1.14.0`) with `attestations: true` for SLSA provenance; no API token needed
-- [x] Configure PyPI Trusted Publisher — pypi.org → Publishing → `publish.yml` / environment `pypi` for project `flowforge-io` *(2026-06-09)*
-- [x] Published `flowforge-io` v1.1.0 to PyPI via `workflow_dispatch` — package renamed from `flowforge` (name blocked by existing `flow-forge` on PyPI) *(2026-06-09)*
-
-##### Branch-Protection (-1 — auth error during scan)
-- [ ] Confirm the Scorecard GitHub App has sufficient read permissions on the repo (Settings → Integrations → Installed GitHub Apps)
-- [ ] Re-run scorecard after branch protection rules are set — error should resolve *(branch protection enabled 2026-06-09)*
 
 ---
 
