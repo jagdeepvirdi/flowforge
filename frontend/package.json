@@ -22,7 +22,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^3.6.0",
     "@tanstack/react-query": "^5.40.0",
-    "@tanstack/react-query-devtools": "^5.40.0",
+    "@tanstack/react-query-devtools": "^5.101.0",
     "codemirror": "^6.0.1",
     "lucide-react": "^1.17.0",
     "qrcode": "^1.5.4",
