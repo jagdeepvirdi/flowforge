@@ -33,7 +33,7 @@ docker-compose -f docker-compose.sample-db.yml up -d
 | Name     | Retail Sample   |
 | Type     | PostgreSQL      |
 | Host     | localhost       |
-| Port     | **5433**        |
+| Port     | **5439**        |
 | Database | retail_sample   |
 | Username | retail          |
 | Password | retail123       |
