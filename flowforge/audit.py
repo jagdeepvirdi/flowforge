@@ -46,21 +46,22 @@ def _get_logger() -> logging.Logger:
     global _logger
     if _logger is None:
         logger = logging.getLogger('flowforge.audit')
-        if not logger.handlers:
-            if _AUDIT_FILE:
-                _LOG_DIR.mkdir(parents=True, exist_ok=True)
-                file_handler = RotatingFileHandler(
-                    _LOG_DIR / 'audit.log',
-                    maxBytes=10 * 1024 * 1024,
-                    backupCount=5,
-                    encoding='utf-8',
-                )
-                file_handler.setFormatter(
-                    logging.Formatter('%(asctime)sZ  %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
-                )
-                logger.addHandler(file_handler)
-            if _AUDIT_STDOUT:
-                logger.addHandler(_JsonStdoutHandler())
+        has_file_handler = any(isinstance(h, RotatingFileHandler) for h in logger.handlers)
+        has_stdout_handler = any(isinstance(h, _JsonStdoutHandler) for h in logger.handlers)
+        if _AUDIT_FILE and not has_file_handler:
+            _LOG_DIR.mkdir(parents=True, exist_ok=True)
+            file_handler = RotatingFileHandler(
+                _LOG_DIR / 'audit.log',
+                maxBytes=10 * 1024 * 1024,
+                backupCount=5,
+                encoding='utf-8',
+            )
+            file_handler.setFormatter(
+                logging.Formatter('%(asctime)sZ  %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
+            )
+            logger.addHandler(file_handler)
+        if _AUDIT_STDOUT and not has_stdout_handler:
+            logger.addHandler(_JsonStdoutHandler())
         logger.setLevel(logging.INFO)  # hardcoded — audit log must not follow LOG_LEVEL
         logger.propagate = False
         _logger = logger
