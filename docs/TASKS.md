@@ -33,6 +33,46 @@
 
 ---
 
+# Phase 10 — Consolidated Pending Work
+
+*Every remaining unchecked item in this file, gathered in one place and
+ordered by priority. Historical detail — score tables, dates, what's already
+done — stays under the original Phase headings further down.*
+
+## High priority
+
+*Release-blocking (Release Definition lists "GTM done" under v1.0), quick wins, or ongoing practice that protects a score already earned.*
+
+- [ ] Going forward: never push directly to `master`; always open a PR. Self-approval is blocked by GitHub for PRs you author, so get approval from a collaborator/second account for those, or prefer bot-authored PRs (e.g. Dependabot) *(Scorecard — Code-Review)*
+- [ ] Branch-Protection: grant the Scorecard GitHub App `administration:read` (Settings → Integrations → GitHub Apps), or add a fine-grained PAT as the `SCORECARD_TOKEN` secret — quick fix for a currently-erroring (-1) check *(Scorecard — Branch-Protection)*
+- [ ] Re-run scorecard to confirm Pinned-Dependencies improved after the hash-pinning already done *(Scorecard — Pinned-Dependencies)*
+- [ ] Record a 60–90s demo GIF/MP4 (dashboard → create pipeline with report+email step → run it → Run History) and add to the README — blocks every other GTM item below *(Go-To-Market 5.1)*
+- [ ] Capture a high-quality Dashboard screenshot for the README hero / LinkedIn Featured section *(Go-To-Market 5.1)*
+
+## Medium priority
+
+*Meaningful score/visibility gains that take more setup effort.*
+
+- [ ] Fuzzing: register with [OSS-Fuzz](https://google.github.io/oss-fuzz/getting-started/accepting-new-projects/), or add an `atheris` fuzzing target + register in `project.yaml` *(Scorecard — Fuzzing)*
+- [ ] Signed-Releases: add a cosign signing step to `release.yml` — sign the wheel with `cosign sign-blob`, attach `.sig`/`.pem` as release artifacts *(Scorecard — Signed-Releases)*
+- [ ] CII Silver: document/recruit a co-maintainer (`bus_factor`), add a DCO sign-off requirement to the PR template (`dco`), complete the [Silver questionnaire](https://bestpractices.dev), then update the README badge URL *(CII-Best-Practices)*
+- [ ] ProductHunt: create maker profile, draft the listing (name/tagline/description/gallery), schedule a Tue/Wed launch *(Go-To-Market 5.2)*
+- [ ] Reddit: post in r/selfhosted, r/Python, r/opensource, and cross-post to r/dataengineering *(Go-To-Market 5.3)*
+- [ ] Submit PRs to awesome-selfhosted ("Automation") and awesome-python ("Task Queues"/"Data Pipeline") *(Go-To-Market 5.4)*
+- [ ] LinkedIn: write the launch post, add FlowForge to your Featured section, tag `#OpenSource #Python #LocalAI #DataEngineering #Productivity` *(Go-To-Market 5.5)*
+
+## Low priority
+
+*Passive/automatic, deferred until a precondition exists, or explicitly optional.*
+
+- [ ] Ensure at least 1 commit/week until the repo passes 90 days old (~2026-07) — Maintained check auto-resolves either way, no other fix exists *(Scorecard — Maintained)*
+- [ ] Update screenshots showing old (pre-multi-user) UI *(deferred — no screenshots exist in docs yet, so nothing to do until some are added)*
+- [ ] Code Climate maintainability badge — set up, add to README badge row if grade is A or B *(explicitly optional)*
+
+---
+
+---
+
 # V1.0 RELEASE — REMAINING TASKS
 
 ---
@@ -79,45 +119,35 @@ Report: https://securityscorecards.dev/viewer/?uri=github.com/jagdeepvirdi/flowf
 #### Passing checks ✅
 - Binary-Artifacts, Dangerous-Workflow, Dependency-Update-Tool, License, Packaging, Security-Policy, Token-Permissions, Vulnerabilities — all 10/10
 
+*Remaining action items for every check below are consolidated in Phase 10.*
+
 #### Critical — Code-Review (0/10)
 - [x] Enable **branch protection** on `master` *(2026-06-09)*
 - [x] Self-review all existing un-reviewed merged PRs *(2026-07-01)* — approved 25/41 merged PRs retroactively (all Dependabot-authored). GitHub hard-blocks self-approval via API/UI for the 16 PRs where `jagdeepvirdi` is the actual author (#22,23,25-35,38,50,51) — no workaround with a single account.
-- [ ] Going forward: never push directly to `master`; always open a PR. Since self-approval is blocked by GitHub for PRs you author, get approval from a collaborator/second account for those, or prefer bot-authored PRs (e.g. Dependabot) where approval by the maintainer is allowed.
 
 #### Critical — Maintained (0/10 — time-based)
-- [ ] No direct fix: score improves automatically after repo has ≥ 90 days of commit activity (repo created ~2026-04, reaches 90 days ~2026-07)
-- [ ] Ensure at least 1 commit per week during the window to build history
+Score improves automatically after repo has ≥ 90 days of commit activity (repo created ~2026-04, reaches 90 days ~2026-07). No direct fix besides keeping up regular commits.
 
 #### Medium — Pinned-Dependencies (6/10)
 - [x] Hash-pinned `requirements.txt` and Dockerfile
 - [x] Pin the 2 unpinned actions in `secrets-scan.yml` — `actions/checkout@v6` → hash `df4cb1c`, `trufflesecurity/trufflehog@main` → hash `84a2b33` *(2026-06-13)*
 - [x] Replace bare `pip install` calls in workflows with hash-pinned requirements files *(2026-06-13)*: `requirements-build.txt` used in `publish.yml` + `release.yml`; `requirements-dev.txt` (superset: runtime + dev tools) used in `test.yml` test and sast jobs; `pip install --no-deps -e .` for editable package install
-- [ ] `Dockerfile:20` `pip install --no-cache-dir --no-deps .` — local package install, cannot hash-pin; acceptable as-is
-- [ ] Re-run scorecard to confirm Pinned-Dependencies score improves
+- `Dockerfile:20` `pip install --no-cache-dir --no-deps .` — local package install, cannot hash-pin; accepted as-is, not a pending action
 
 #### Medium — SAST (9/10)
 - [x] CodeQL configured on all branches
-- [ ] One commit (out of 17) not scanned — this resolves naturally as new commits are added; target 10/10 in next scan
+- 1 commit (out of 17) not scanned — resolves naturally as new commits are added, not a pending action
 
 #### Medium — Fuzzing (0/10)
 - [x] Hypothesis property-based tests added to `tests_fuzz/` — but Scorecard only recognizes OSS-Fuzz or atheris integration
-- [ ] Option A: Register project with [OSS-Fuzz](https://google.github.io/oss-fuzz/getting-started/accepting-new-projects/) (open source, free, takes ~1 week to get accepted)
-- [ ] Option B: Add `atheris` fuzzing target + register in `project.yaml` (lighter-weight, faster)
 
 #### Low — Signed-Releases (0/10)
 - [x] `release.yml` uses `actions/attest-build-provenance` — Scorecard not picking it up (expects cosign or SLSA provenance attached as a release asset)
-- [ ] Add cosign signing step to `release.yml`: sign the wheel with `cosign sign-blob` and attach `.sig` + `.pem` as release artifacts — Scorecard reads these directly
 
 #### Low — Branch-Protection (-1 — auth error)
-- [ ] Fix: go to GitHub → Settings → Integrations → GitHub Apps → find "Scorecard" → grant it access to the `flowforge` repo (needs "Administration: read" permission on the fine-grained token used by the Scorecard app)
-- [ ] Alternative: create a fine-grained PAT with `administration:read` scope and add as `SCORECARD_TOKEN` secret in Actions
 
 #### CII-Best-Practices (5/10)
-Silver gaps remaining:
-- [ ] `bus_factor` (SHOULD) — solo project; document or recruit a co-maintainer
-- [ ] `dco` (SHOULD) — consider adding DCO sign-off requirement to PR template
-- [ ] Complete the Silver questionnaire at https://bestpractices.dev once all MUST criteria are met
-- [ ] Update badge URL in README once Silver is awarded
+Silver gaps remaining — see Phase 10.
 
 ---
 
@@ -125,7 +155,8 @@ Silver gaps remaining:
 
 ### 3.4 Getting-Started Quick Check
 - [x] Run through `docs/getting-started.md` end-to-end — verify all commands and screenshots are current
-- [ ] Update any screenshots that show old UI (pre-multi-user) *(deferred — no screenshots in docs yet)*
+
+*Remaining action item consolidated in Phase 10.*
 
 ---
 
@@ -140,41 +171,42 @@ Silver gaps remaining:
 ## Phase 5 — Go-To-Market (P1 — Visibility)
 
 *These do not block the GitHub release tag but should happen within the first week of release.*
+*Tracking checkboxes consolidated in Phase 10 — the detail below is reference material (exact copy/hashtags/etc.) for when you get to each one.*
 
 ### 5.1 Demo Assets
-- [ ] Record a 60–90 second screen recording (GIF or MP4):
+- Record a 60–90 second screen recording (GIF or MP4):
   - Open dashboard → create a pipeline with a report + email step → run it → show Run History with logs
-- [ ] Capture a high-quality static screenshot of the Dashboard for the README hero and LinkedIn Featured section
-- [ ] Add the demo GIF to the README (below the tagline, above the feature list)
+- Capture a high-quality static screenshot of the Dashboard for the README hero and LinkedIn Featured section
+- Add the demo GIF to the README (below the tagline, above the feature list)
 
 ### 5.2 ProductHunt Launch
-- [ ] Create a ProductHunt account / maker profile
-- [ ] Draft the listing:
+- Create a ProductHunt account / maker profile
+- Draft the listing:
   - Name: **FlowForge**
   - Tagline: `SQL-to-Email pipeline orchestrator. No YAML. No Airflow complexity.`
   - Description: Explain the problem (50+ cron scripts), the solution, highlight Celery scaling + local AI
   - Gallery: dashboard screenshot + report designer + run history
-- [ ] Schedule launch for a Tuesday or Wednesday (highest ProductHunt traffic)
+- Schedule launch for a Tuesday or Wednesday (highest ProductHunt traffic)
 
 ### 5.3 Reddit Posts
-- [ ] Post in **r/selfhosted**: "I built an open-source database pipeline orchestrator — SQL → Report → Email, with local AI. No YAML required."
-- [ ] Post in **r/Python**: focus on the Flask + Celery + APScheduler architecture choices
-- [ ] Post in **r/opensource**: general project introduction with demo GIF
-- [ ] Cross-post to **r/dataengineering** focusing on the Oracle + PostgreSQL + MySQL support
+- Post in **r/selfhosted**: "I built an open-source database pipeline orchestrator — SQL → Report → Email, with local AI. No YAML required."
+- Post in **r/Python**: focus on the Flask + Celery + APScheduler architecture choices
+- Post in **r/opensource**: general project introduction with demo GIF
+- Cross-post to **r/dataengineering** focusing on the Oracle + PostgreSQL + MySQL support
 
 ### 5.4 Awesome Lists Submission
-- [ ] Submit PR to [awesome-selfhosted](https://github.com/awesome-selfhosted/awesome-selfhosted) — category: "Automation"
-- [ ] Submit PR to [awesome-python](https://github.com/vinta/awesome-python) — category: "Task Queues" or "Data Pipeline"
+- Submit PR to [awesome-selfhosted](https://github.com/awesome-selfhosted/awesome-selfhosted) — category: "Automation"
+- Submit PR to [awesome-python](https://github.com/vinta/awesome-python) — category: "Task Queues" or "Data Pipeline"
 
 ### 5.5 LinkedIn
-- [ ] Write the launch post:
+- Write the launch post:
   - Hook: "Stop writing boilerplate Python scripts for DB automation..."
   - Highlight: Celery/Redis scaling, local AI (Ollama), full audit logging, multi-user roles
   - Tech stack: React + Flask + PostgreSQL + Celery
   - Link to GitHub repo
   - Attach: demo GIF or dashboard screenshot
-- [ ] Add FlowForge to LinkedIn "Featured" section with dashboard screenshot and 2-sentence value description
-- [ ] Tag: `#OpenSource`, `#Python`, `#LocalAI`, `#DataEngineering`, `#Productivity`
+- Add FlowForge to LinkedIn "Featured" section with dashboard screenshot and 2-sentence value description
+- Tag: `#OpenSource`, `#Python`, `#LocalAI`, `#DataEngineering`, `#Productivity`
 
 ---
 
@@ -217,8 +249,7 @@ Silver gaps remaining:
 ## Phase 7 — Observability & Admin UI
 
 ### 7.3 Code Climate Badge (Optional)
-- [ ] Set up Code Climate maintainability badge
-- [ ] Add to README badge row if grade is A or B
+*Consolidated in Phase 10.*
 
 ---
 
