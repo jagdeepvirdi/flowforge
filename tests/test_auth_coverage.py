@@ -132,13 +132,20 @@ def test_require_role_allows_editor(app, client):
     import bcrypt
 
     with app.app_context():
-        from flowforge.db.models import User, db
+        from flowforge.db.models import Project, ProjectMember, User, db
         editor = User(
             username='editor_role_test',
             password_hash=bcrypt.hashpw(b'editpass', bcrypt.gensalt(4)).decode(),
             role='editor',
         )
         db.session.add(editor)
+        db.session.flush()
+        # This test creates the user directly (bypassing POST /api/users, which
+        # auto-grants this), so grant Default project access explicitly — same
+        # as any real editor account needs to create pipelines.
+        default_project = db.session.query(Project).filter_by(is_default=True).first()
+        if default_project:
+            db.session.add(ProjectMember(project_id=default_project.id, user_id=editor.id))
         db.session.commit()
 
     login = client.post('/api/auth/login',

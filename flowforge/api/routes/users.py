@@ -4,7 +4,7 @@ from flask import Blueprint, g, jsonify, request
 
 import flowforge.audit as audit
 from flowforge.api.auth import require_auth, require_role
-from flowforge.db.models import AuditLog, PipelineRun, User, db
+from flowforge.db.models import AuditLog, PipelineRun, Project, ProjectMember, User, db
 
 bp = Blueprint('users', __name__)
 
@@ -12,6 +12,16 @@ bp = Blueprint('users', __name__)
 _NOT_FOUND = 'User not found'
 
 _VALID_ROLES = {'admin', 'editor', 'viewer'}
+
+
+def _add_default_project_membership(user_id: str) -> None:
+    """New users get access to the Default project automatically — matches the
+    migration backfill for existing users, so small/single-team deployments
+    don't need to manually grant membership for every new account. Admins
+    don't need a membership row (they bypass the check everywhere)."""
+    default_project = db.session.query(Project).filter_by(is_default=True).first()
+    if default_project:
+        db.session.add(ProjectMember(project_id=default_project.id, user_id=user_id))
 
 
 def _user_dict(u: User) -> dict:
@@ -52,6 +62,9 @@ def create_user():
     pw_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     user = User(username=username, password_hash=pw_hash, role=role, email=email)
     db.session.add(user)
+    db.session.flush()
+    if role != 'admin':
+        _add_default_project_membership(user.id)
     db.session.commit()
     audit.log_pipeline_change('USER_CREATED', username, user.id)
     return jsonify(_user_dict(user)), 201

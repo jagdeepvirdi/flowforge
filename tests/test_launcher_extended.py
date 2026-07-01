@@ -12,6 +12,19 @@ from flowforge.db.models import Pipeline, PipelineRun, db
 
 # ── fixtures ───────────────────────────────────────────────────────────────────
 
+@pytest.fixture(autouse=True)
+def _reset_concurrency_slots(monkeypatch):
+    """launch_run() reserves a concurrency slot; these tests mock away the
+    execution path that would normally release it, so reset between tests.
+    Depends on monkeypatch so our post-test reset runs before it reverts
+    FLOWFORGE_REDIS_URL — otherwise a real reachable Redis (as in this dev
+    environment) would leak slots across tests."""
+    from flowforge.engine.concurrency import _reset_for_tests
+    _reset_for_tests()
+    yield
+    _reset_for_tests()
+
+
 @pytest.fixture
 def pipeline(app):
     with app.app_context():

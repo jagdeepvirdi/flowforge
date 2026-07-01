@@ -1,8 +1,12 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2, Layers } from 'lucide-react'
-import { getProjects, createProject, updateProject, deleteProject } from '../lib/api'
+import { Plus, Pencil, Trash2, Layers, Users, X } from 'lucide-react'
+import {
+  getProjects, createProject, updateProject, deleteProject,
+  getProjectMembers, addProjectMember, removeProjectMember, getUsers,
+} from '../lib/api'
 import { useProjectStore } from '../lib/store'
+import { useCurrentUser } from '../lib/auth'
 import type { Project } from '../lib/types'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
@@ -136,7 +140,125 @@ function ProjectModal({
   )
 }
 
-function ProjectCard({ project, onEdit }: { project: Project; onEdit: (p: Project) => void }) {
+function MembersModal({ project, onClose }: { project: Project; onClose: () => void }) {
+  const qc = useQueryClient()
+  const currentUser = useCurrentUser()
+  const isAdmin = currentUser?.role === 'admin'
+  const [selectedUserId, setSelectedUserId] = useState('')
+  const [error, setError] = useState('')
+
+  const { data: members = [], isLoading } = useQuery({
+    queryKey: ['project-members', project.id],
+    queryFn: () => getProjectMembers(project.id),
+  })
+
+  const { data: allUsers = [] } = useQuery({
+    queryKey: ['users'],
+    queryFn: getUsers,
+    enabled: isAdmin,
+  })
+
+  const { mutate: addMember, isPending: adding } = useMutation({
+    mutationFn: () => addProjectMember(project.id, selectedUserId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['project-members', project.id] })
+      setSelectedUserId('')
+      setError('')
+    },
+    onError: (e: Error) => setError(e.message),
+  })
+
+  const { mutate: removeMember } = useMutation({
+    mutationFn: (userId: string) => removeProjectMember(project.id, userId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['project-members', project.id] }),
+  })
+
+  const memberIds = new Set(members.map(m => m.user_id))
+  const addableUsers = allUsers.filter(u => u.role !== 'admin' && !memberIds.has(u.id))
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200,
+    }}>
+      <div style={{
+        background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12,
+        padding: 24, width: 420, maxWidth: '90vw',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Members — {project.name}</h2>
+          <button className="btn btn-sm btn-ghost btn-icon" onClick={onClose}><X size={14} /></button>
+        </div>
+
+        {isLoading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 12 }}><Spinner /></div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 280, overflowY: 'auto' }}>
+            {members.length === 0 && (
+              <p style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>No members yet — admins can still access every project.</p>
+            )}
+            {members.map(m => (
+              <div key={m.id} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '6px 8px', borderRadius: 6, background: 'var(--surface-2)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 13, color: 'var(--text)' }}>{m.username}</span>
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{m.role}</span>
+                </div>
+                {isAdmin && (
+                  <button
+                    className="btn btn-sm btn-ghost btn-icon"
+                    style={{ color: 'var(--text-muted)' }}
+                    onClick={() => removeMember(m.user_id)}
+                    title="Remove member"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {isAdmin && (
+          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+            <select
+              className="input"
+              value={selectedUserId}
+              onChange={e => setSelectedUserId(e.target.value)}
+              style={{ flex: 1 }}
+            >
+              <option value="">Select a user…</option>
+              {addableUsers.map(u => (
+                <option key={u.id} value={u.id}>{u.username} ({u.role})</option>
+              ))}
+            </select>
+            <button
+              className="btn btn-sm btn-primary"
+              disabled={!selectedUserId || adding}
+              onClick={() => addMember()}
+            >
+              Add
+            </button>
+          </div>
+        )}
+
+        {error && (
+          <div style={{ marginTop: 12, padding: '8px 12px', background: 'rgba(239,68,68,0.1)', borderRadius: 6, color: 'var(--failure-text)', fontSize: 12.5 }}>
+            {error}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
+          <button className="btn btn-sm btn-ghost" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ProjectCard({ project, onEdit, onManageMembers }: { project: Project; onEdit: (p: Project) => void; onManageMembers: (p: Project) => void }) {
   const qc = useQueryClient()
   const { activeProjectId, setActiveProjectId } = useProjectStore()
 
@@ -182,6 +304,13 @@ function ProjectCard({ project, onEdit }: { project: Project; onEdit: (p: Projec
           </div>
         </div>
         <div style={{ display: 'flex', gap: 4 }}>
+          <button
+            className="btn btn-sm btn-ghost btn-icon"
+            onClick={e => { e.stopPropagation(); onManageMembers(project) }}
+            title="Manage members"
+          >
+            <Users size={12} />
+          </button>
           {!project.is_default && (
             <>
               <button
@@ -251,6 +380,7 @@ function ProjectCard({ project, onEdit }: { project: Project; onEdit: (p: Projec
 export default function Projects() {
   const [modalProject, setModalProject] = useState<Project | undefined>(undefined)
   const [showModal, setShowModal] = useState(false)
+  const [membersProject, setMembersProject] = useState<Project | undefined>(undefined)
 
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ['projects'],
@@ -300,7 +430,7 @@ export default function Projects() {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
             {projects.map(p => (
-              <ProjectCard key={p.id} project={p} onEdit={openEdit} />
+              <ProjectCard key={p.id} project={p} onEdit={openEdit} onManageMembers={setMembersProject} />
             ))}
           </div>
         )}
@@ -308,6 +438,10 @@ export default function Projects() {
 
       {showModal && (
         <ProjectModal project={modalProject} onClose={() => setShowModal(false)} />
+      )}
+
+      {membersProject && (
+        <MembersModal project={membersProject} onClose={() => setMembersProject(undefined)} />
       )}
     </>
   )

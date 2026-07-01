@@ -203,7 +203,8 @@ When running multiple Gunicorn workers, pipeline execution **must** use Celery. 
 
 - Without Celery, `POST /api/pipelines/{id}/run` spawns a background thread in the current process. With multiple workers, the HTTP request might land on worker A, but the pipeline run thread is in worker A's memory — worker B knows nothing about it.
 - Status polling (`GET /api/runs/{id}`) might hit a different worker and see the run as "running" in the DB but with no way to cancel it.
-- The DB is the source of truth, so run records work fine across workers — but cancellation and the concurrency semaphore are process-local.
+- The DB is the source of truth, so run records work fine across workers — but cancellation is process-local.
+- `FLOWFORGE_MAX_CONCURRENT_RUNS` (see `flowforge/engine/concurrency.py`) is enforced by an in-process `threading.Semaphore` when `FLOWFORGE_REDIS_URL` is unset — correct only within a single worker process. When `FLOWFORGE_REDIS_URL` **is** set, the same limit is enforced by a Redis-backed distributed counter instead, so it holds correctly across every Gunicorn worker and every Celery worker in the deployment.
 
 **With Celery:** the pipeline task is dispatched to a Redis queue, any Celery worker picks it up, and all state flows through the DB + Redis. All Gunicorn workers are equal and stateless.
 
@@ -211,7 +212,7 @@ When running multiple Gunicorn workers, pipeline execution **must** use Celery. 
 Client → Gunicorn (worker A) → Celery queue (Redis) → Celery worker → DB
 ```
 
-**Without Celery (threading mode):** safe only when running a **single** Gunicorn worker (`--workers 1`), or with `flowforge web`.
+**Without Celery (threading mode):** safe only when running a **single** Gunicorn worker (`--workers 1`), or with `flowforge web`, **unless** `FLOWFORGE_REDIS_URL` is set — in which case the concurrency limit (though not cancellation) is still correctly enforced across workers via the Redis-backed counter.
 
 ### Nginx reverse-proxy configuration
 

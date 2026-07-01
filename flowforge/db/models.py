@@ -61,6 +61,7 @@ class Project(db.Model):
     report_configs   = relationship('ReportConfig',   back_populates='project')
     email_configs    = relationship('EmailConfig',    back_populates='project')
     recipient_groups = relationship('RecipientGroup', back_populates='project')
+    members          = relationship('ProjectMember',  back_populates='project', cascade=_CASCADE)
 
 
 class User(db.Model):
@@ -82,6 +83,26 @@ class User(db.Model):
     sso_provider     = Column(String(20))
     sso_email        = Column(String(255), index=True)
     created_at       = Column(DateTime(timezone=True), default=_utcnow)
+
+    project_memberships = relationship('ProjectMember', back_populates='user', cascade=_CASCADE)
+
+
+class ProjectMember(db.Model):
+    """Team-scoped project access — non-admin users can only see/edit resources
+    in projects they're a member of. Admins bypass this check everywhere
+    (see flowforge/api/project_access.py)."""
+    __tablename__ = 'ff_project_members'
+    __table_args__ = (
+        UniqueConstraint('project_id', 'user_id', name='uq_project_member'),
+    )
+
+    id         = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    project_id = Column(UUID(as_uuid=False), ForeignKey(_FF_PROJECTS_ID, ondelete='CASCADE'), nullable=False, index=True)
+    user_id    = Column(UUID(as_uuid=False), ForeignKey('ff_users.id', ondelete='CASCADE'), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), default=_utcnow)
+
+    project = relationship('Project', back_populates='members')
+    user    = relationship('User', back_populates='project_memberships')
 
 
 class RecipientGroup(db.Model):

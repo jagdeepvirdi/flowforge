@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 
 import flowforge.audit as audit
 from flowforge.api.auth import require_auth, require_role
+from flowforge.api.project_access import ACCESS_DENIED, can_access_project, scope_query
 from flowforge.api.validators import validate_recipient_group
 from flowforge.db.models import DEFAULT_PROJECT_ID, Project, RecipientGroup, db
 
@@ -27,9 +28,11 @@ def _group_dict(g: RecipientGroup) -> dict:
 @bp.get('/recipient-groups')
 @require_auth
 def list_groups():
-    query = db.session.query(RecipientGroup).order_by(RecipientGroup.name)
+    query = scope_query(db.session.query(RecipientGroup).order_by(RecipientGroup.name), RecipientGroup.project_id)
     project_id = request.args.get('project_id')
     if project_id:
+        if not can_access_project(project_id):
+            return jsonify(ACCESS_DENIED), 403
         query = query.filter(RecipientGroup.project_id == project_id)
     return jsonify([_group_dict(g) for g in query.all()])
 
@@ -46,11 +49,15 @@ def create_group():
     if err:
         return jsonify({'error': err}), 400
 
+    target_project_id = data.get('project_id') or _default_project_id()
+    if not can_access_project(target_project_id):
+        return jsonify(ACCESS_DENIED), 403
+
     group = RecipientGroup(
         name=data['name'],
         description=data.get('description', ''),
         addresses=data['addresses'],
-        project_id=data.get('project_id') or _default_project_id(),
+        project_id=target_project_id,
     )
     db.session.add(group)
     db.session.commit()
@@ -63,6 +70,8 @@ def get_group(group_id):
     group = db.session.get(RecipientGroup, str(group_id))
     if not group:
         return jsonify({'error': 'Group not found'}), 404
+    if not can_access_project(group.project_id):
+        return jsonify(ACCESS_DENIED), 403
     return jsonify(_group_dict(group))
 
 
@@ -72,8 +81,12 @@ def update_group(group_id):
     group = db.session.get(RecipientGroup, str(group_id))
     if not group:
         return jsonify({'error': 'Group not found'}), 404
+    if not can_access_project(group.project_id):
+        return jsonify(ACCESS_DENIED), 403
 
     data = request.get_json() or {}
+    if 'project_id' in data and data['project_id'] != group.project_id and not can_access_project(data['project_id']):
+        return jsonify(ACCESS_DENIED), 403
     for field in ('name', 'description', 'addresses', 'project_id'):
         if field in data:
             setattr(group, field, data[field])
@@ -88,6 +101,8 @@ def delete_group(group_id):
     group = db.session.get(RecipientGroup, str(group_id))
     if not group:
         return jsonify({'error': 'Group not found'}), 404
+    if not can_access_project(group.project_id):
+        return jsonify(ACCESS_DENIED), 403
     name, gid = group.name, group.id
     db.session.delete(group)
     db.session.commit()

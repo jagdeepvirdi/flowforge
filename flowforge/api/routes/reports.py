@@ -4,6 +4,7 @@ from flask import Blueprint, jsonify, request
 
 import flowforge.audit as audit
 from flowforge.api.auth import require_auth, require_role
+from flowforge.api.project_access import ACCESS_DENIED, can_access_project, scope_query
 from flowforge.api.validators import validate_report
 from flowforge.db.models import DEFAULT_PROJECT_ID, Project, ReportConfig, db
 
@@ -39,9 +40,11 @@ def _report_dict(r: ReportConfig) -> dict:
 @bp.get('/report-configs')
 @require_auth
 def list_report_configs():
-    query = db.session.query(ReportConfig).order_by(ReportConfig.name)
+    query = scope_query(db.session.query(ReportConfig).order_by(ReportConfig.name), ReportConfig.project_id)
     project_id = request.args.get('project_id')
     if project_id:
+        if not can_access_project(project_id):
+            return jsonify(ACCESS_DENIED), 403
         query = query.filter(ReportConfig.project_id == project_id)
     return jsonify([_report_dict(r) for r in query.all()])
 
@@ -60,6 +63,10 @@ def create_report_config():
     if err:
         return jsonify({'error': err}), 400
 
+    target_project_id = data.get('project_id') or _default_project_id()
+    if not can_access_project(target_project_id):
+        return jsonify(ACCESS_DENIED), 403
+
     config = ReportConfig(
         name=data['name'],
         description=data.get('description', ''),
@@ -72,7 +79,7 @@ def create_report_config():
         sheet_name=data.get('sheet_name'),
         columns=data.get('columns'),
         column_formatting=data.get('column_formatting') or [],
-        project_id=data.get('project_id') or _default_project_id(),
+        project_id=target_project_id,
     )
     db.session.add(config)
     db.session.commit()
@@ -85,6 +92,8 @@ def get_report_config(config_id):
     config = db.session.get(ReportConfig, str(config_id))
     if not config:
         return jsonify({'error': 'Report config not found'}), 404
+    if not can_access_project(config.project_id):
+        return jsonify(ACCESS_DENIED), 403
     return jsonify(_report_dict(config))
 
 
@@ -94,11 +103,15 @@ def update_report_config(config_id):
     config = db.session.get(ReportConfig, str(config_id))
     if not config:
         return jsonify({'error': 'Report config not found'}), 404
+    if not can_access_project(config.project_id):
+        return jsonify(ACCESS_DENIED), 403
 
     data = request.get_json() or {}
     err = validate_report(data)
     if err:
         return jsonify({'error': err}), 400
+    if 'project_id' in data and data['project_id'] != config.project_id and not can_access_project(data['project_id']):
+        return jsonify(ACCESS_DENIED), 403
     fields = ('name', 'description', 'connection_id', 'query', 'format',
               'template_path', 'output_filename', 'title', 'sheet_name', 'columns',
               'column_formatting', 'project_id')
@@ -117,6 +130,8 @@ def delete_report_config(config_id):
     config = db.session.get(ReportConfig, str(config_id))
     if not config:
         return jsonify({'error': 'Report config not found'}), 404
+    if not can_access_project(config.project_id):
+        return jsonify(ACCESS_DENIED), 403
     db.session.delete(config)
     db.session.commit()
     return jsonify({'deleted': str(config_id)})
@@ -129,6 +144,8 @@ def preview_report(config_id):
     config = db.session.get(ReportConfig, str(config_id))
     if not config:
         return jsonify({'error': 'Report config not found'}), 404
+    if not can_access_project(config.project_id):
+        return jsonify(ACCESS_DENIED), 403
     if not config.connection_id:
         return jsonify({'error': 'No database connection configured'}), 400
 

@@ -22,7 +22,7 @@ from flask import Blueprint, Response, jsonify, redirect, request
 
 import flowforge.audit as audit
 from flowforge.api.auth import generate_token
-from flowforge.db.models import User, db
+from flowforge.db.models import Project, ProjectMember, User, db
 
 bp = Blueprint('sso', __name__)
 
@@ -91,6 +91,13 @@ def _find_or_create_user(email: str, provider: str) -> User | None:
         role='viewer', sso_provider=provider, sso_email=email,
     )
     db.session.add(user)
+    db.session.flush()
+    # New users get access to the Default project automatically — matches the
+    # migration backfill for existing users (flowforge/api/routes/users.py has
+    # the same logic for admin-created accounts).
+    default_project = db.session.query(Project).filter_by(is_default=True).first()
+    if default_project:
+        db.session.add(ProjectMember(project_id=default_project.id, user_id=user.id))
     db.session.commit()
     audit.log_pipeline_change('SSO_USER_CREATED', username, user.id)
     return user

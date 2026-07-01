@@ -7,6 +7,7 @@ from flask import Blueprint, jsonify, request
 from flowforge import audit
 from flowforge.api.app import limiter
 from flowforge.api.auth import require_auth, require_role
+from flowforge.api.project_access import ACCESS_DENIED, can_access_project, scope_query
 from flowforge.api.serializers import run_dict
 from flowforge.api.validators import validate_pipeline
 from flowforge.crypto import encrypt_value
@@ -160,9 +161,11 @@ def _pipeline_dict(p: Pipeline) -> dict:
 @bp.get('/pipelines')
 @require_auth
 def list_pipelines():
-    query = db.session.query(Pipeline).order_by(Pipeline.name)
+    query = scope_query(db.session.query(Pipeline).order_by(Pipeline.name), Pipeline.project_id)
     project_id = request.args.get('project_id')
     if project_id:
+        if not can_access_project(project_id):
+            return jsonify(ACCESS_DENIED), 403
         query = query.filter(Pipeline.project_id == project_id)
     return jsonify([_pipeline_dict(p) for p in query.all()])
 
@@ -209,6 +212,10 @@ def create_pipeline():
         if err:
             return jsonify({'error': f'Invalid cron expression: {err}'}), 400
 
+    target_project_id = data.get('project_id') or _default_project_id()
+    if not can_access_project(target_project_id):
+        return jsonify(ACCESS_DENIED), 403
+
     pipeline = Pipeline(
         name=data['name'],
         description=data.get('description', ''),
@@ -216,7 +223,7 @@ def create_pipeline():
         enabled=data.get('enabled', True),
         timeout_minutes=data.get('timeout_minutes', 60),
         on_failure_webhook_url=data.get('on_failure_webhook_url'),
-        project_id=data.get('project_id') or _default_project_id(),
+        project_id=target_project_id,
     )
     db.session.add(pipeline)
     db.session.flush()
@@ -242,6 +249,8 @@ def get_pipeline(pipeline_id):
     pipeline = db.session.get(Pipeline, str(pipeline_id))
     if not pipeline:
         return jsonify({'error': _NOT_FOUND}), 404
+    if not can_access_project(pipeline.project_id):
+        return jsonify(ACCESS_DENIED), 403
     return jsonify(_pipeline_dict(pipeline))
 
 
@@ -251,6 +260,8 @@ def update_pipeline(pipeline_id):
     pipeline = db.session.get(Pipeline, str(pipeline_id))
     if not pipeline:
         return jsonify({'error': _NOT_FOUND}), 404
+    if not can_access_project(pipeline.project_id):
+        return jsonify(ACCESS_DENIED), 403
 
     data = request.get_json() or {}
     len_err = validate_pipeline(data)
@@ -260,6 +271,8 @@ def update_pipeline(pipeline_id):
         err = _validate_cron(data['schedule'])
         if err:
             return jsonify({'error': f'Invalid cron expression: {err}'}), 400
+    if 'project_id' in data and data['project_id'] != pipeline.project_id and not can_access_project(data['project_id']):
+        return jsonify(ACCESS_DENIED), 403
 
     for field in ('name', 'description', 'schedule', 'enabled', 'timeout_minutes',
                   'on_failure_webhook_url', 'project_id'):
@@ -287,11 +300,15 @@ def promote_pipeline(pipeline_id):
     src = db.session.get(Pipeline, str(pipeline_id))
     if not src:
         return jsonify({'error': _NOT_FOUND}), 404
+    if not can_access_project(src.project_id):
+        return jsonify(ACCESS_DENIED), 403
 
     data = request.get_json(silent=True) or {}
     target_project_id = str(data.get('target_project_id', '')).strip()
     if not target_project_id:
         return jsonify({'error': 'target_project_id is required'}), 400
+    if not can_access_project(target_project_id):
+        return jsonify(ACCESS_DENIED), 403
 
     target_project = db.session.get(Project, target_project_id)
     if not target_project:
@@ -368,6 +385,8 @@ def clone_pipeline(pipeline_id):
     src = db.session.get(Pipeline, str(pipeline_id))
     if not src:
         return jsonify({'error': _NOT_FOUND}), 404
+    if not can_access_project(src.project_id):
+        return jsonify(ACCESS_DENIED), 403
 
     candidate = _unique_pipeline_name(f"{src.name} (Copy)", fmt='{base} {n}')
 
@@ -414,6 +433,8 @@ def delete_pipeline(pipeline_id):
     pipeline = db.session.get(Pipeline, str(pipeline_id))
     if not pipeline:
         return jsonify({'error': _NOT_FOUND}), 404
+    if not can_access_project(pipeline.project_id):
+        return jsonify(ACCESS_DENIED), 403
     db.session.delete(pipeline)
     db.session.commit()
     return jsonify({'deleted': str(pipeline_id)})
@@ -430,6 +451,8 @@ def export_pipeline(pipeline_id):
     pipeline = db.session.get(Pipeline, str(pipeline_id))
     if not pipeline:
         return jsonify({'error': _NOT_FOUND}), 404
+    if not can_access_project(pipeline.project_id):
+        return jsonify(ACCESS_DENIED), 403
 
     doc = {
         'name': pipeline.name,
@@ -495,6 +518,10 @@ def import_pipeline():
     if not isinstance(doc, dict) or not doc.get('name'):
         return jsonify({'error': 'YAML must be a mapping with a name field'}), 400
 
+    target_project_id = _default_project_id()
+    if not can_access_project(target_project_id):
+        return jsonify(ACCESS_DENIED), 403
+
     pipeline = Pipeline(
         name=_unique_pipeline_name(str(doc['name'])),
         description=doc.get('description', ''),
@@ -502,7 +529,7 @@ def import_pipeline():
         enabled=doc.get('enabled', True),
         timeout_minutes=doc.get('timeout_minutes', 60),
         on_failure_webhook_url=doc.get('on_failure_webhook_url'),
-        project_id=_default_project_id(),
+        project_id=target_project_id,
     )
     db.session.add(pipeline)
     db.session.flush()
@@ -521,6 +548,8 @@ def trigger_run(pipeline_id):
     pipeline = db.session.get(Pipeline, str(pipeline_id))
     if not pipeline:
         return jsonify({'error': _NOT_FOUND}), 404
+    if not can_access_project(pipeline.project_id):
+        return jsonify(ACCESS_DENIED), 403
     res, code = launch_run(pipeline, triggered_by='web_ui')
     return jsonify(res), code
 
@@ -528,6 +557,11 @@ def trigger_run(pipeline_id):
 @bp.get('/pipelines/<uuid:pipeline_id>/runs')
 @require_auth
 def pipeline_runs(pipeline_id):
+    pipeline = db.session.get(Pipeline, str(pipeline_id))
+    if not pipeline:
+        return jsonify({'error': _NOT_FOUND}), 404
+    if not can_access_project(pipeline.project_id):
+        return jsonify(ACCESS_DENIED), 403
     runs = (
         db.session.query(PipelineRun)
         .filter_by(pipeline_id=str(pipeline_id))
@@ -600,6 +634,8 @@ def list_webhook_tokens(pipeline_id):
     pipeline = db.session.get(Pipeline, str(pipeline_id))
     if not pipeline:
         return jsonify({'error': _NOT_FOUND}), 404
+    if not can_access_project(pipeline.project_id):
+        return jsonify(ACCESS_DENIED), 403
     tokens = (
         db.session.query(WebhookToken)
         .filter_by(pipeline_id=str(pipeline_id))
@@ -615,6 +651,8 @@ def create_webhook_token(pipeline_id):
     pipeline = db.session.get(Pipeline, str(pipeline_id))
     if not pipeline:
         return jsonify({'error': _NOT_FOUND}), 404
+    if not can_access_project(pipeline.project_id):
+        return jsonify(ACCESS_DENIED), 403
 
     data = request.get_json(silent=True) or {}
     label = str(data.get('label', '')).strip()[:100]
@@ -654,6 +692,8 @@ def get_dependencies(pipeline_id):
     pipeline = db.session.get(Pipeline, str(pipeline_id))
     if not pipeline:
         return jsonify({'error': _NOT_FOUND}), 404
+    if not can_access_project(pipeline.project_id):
+        return jsonify(ACCESS_DENIED), 403
     return jsonify({
         'upstream':   [{'dep_id': d.id, 'pipeline_id': d.upstream_id,   'pipeline_name': d.upstream.name}   for d in pipeline.upstream_deps],
         'downstream': [{'dep_id': d.id, 'pipeline_id': d.downstream_id, 'pipeline_name': d.downstream.name} for d in pipeline.downstream_deps],
@@ -668,6 +708,8 @@ def add_dependency(pipeline_id):
     pipeline = db.session.get(Pipeline, downstream_id)
     if not pipeline:
         return jsonify({'error': _NOT_FOUND}), 404
+    if not can_access_project(pipeline.project_id):
+        return jsonify(ACCESS_DENIED), 403
 
     data = request.get_json(silent=True) or {}
     upstream_id = str(data.get('upstream_id', '')).strip()
@@ -698,6 +740,11 @@ def add_dependency(pipeline_id):
 @bp.delete('/pipelines/<uuid:pipeline_id>/dependencies/<uuid:dep_id>')
 @require_role(['admin', 'editor'])
 def remove_dependency(pipeline_id, dep_id):
+    pipeline = db.session.get(Pipeline, str(pipeline_id))
+    if not pipeline:
+        return jsonify({'error': _NOT_FOUND}), 404
+    if not can_access_project(pipeline.project_id):
+        return jsonify(ACCESS_DENIED), 403
     dep = db.session.query(PipelineDependency).filter_by(
         id=str(dep_id), downstream_id=str(pipeline_id)
     ).first()
@@ -711,6 +758,11 @@ def remove_dependency(pipeline_id, dep_id):
 @bp.delete('/pipelines/<uuid:pipeline_id>/webhook-tokens/<uuid:token_id>')
 @require_role(['admin', 'editor'])
 def revoke_webhook_token(pipeline_id, token_id):
+    pipeline = db.session.get(Pipeline, str(pipeline_id))
+    if not pipeline:
+        return jsonify({'error': _NOT_FOUND}), 404
+    if not can_access_project(pipeline.project_id):
+        return jsonify(ACCESS_DENIED), 403
     wt = db.session.query(WebhookToken).filter_by(
         id=str(token_id), pipeline_id=str(pipeline_id)
     ).first()

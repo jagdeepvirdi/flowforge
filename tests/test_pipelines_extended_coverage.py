@@ -123,8 +123,9 @@ def test_pipeline_runs_endpoint(client, headers, pipeline_id):
 def test_pipeline_runs_not_found(client, headers):
     resp = client.get('/api/pipelines/00000000-0000-0000-0000-000000000000/runs',
                       headers=headers)
-    # route returns list (empty) for missing pipeline — no 404 guard on list
-    assert resp.status_code == 200
+    # A 404 guard was added alongside the project-membership access check
+    # (which needs to load the pipeline to find its project_id).
+    assert resp.status_code == 404
 
 
 # ── webhook tokens ────────────────────────────────────────────────────────────

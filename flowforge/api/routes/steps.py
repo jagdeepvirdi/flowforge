@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 
 from flowforge.api.auth import require_auth
+from flowforge.api.project_access import ACCESS_DENIED, can_access_project
 from flowforge.db.models import Pipeline, PipelineStep, db
 from flowforge.engine.loader import get_step_types, is_plugin_step_type
 
@@ -37,6 +38,8 @@ def list_steps(pipeline_id):
     pipeline = db.session.get(Pipeline, str(pipeline_id))
     if not pipeline:
         return jsonify({'error': 'Pipeline not found'}), 404
+    if not can_access_project(pipeline.project_id):
+        return jsonify(ACCESS_DENIED), 403
     return jsonify([_step_dict(s) for s in pipeline.steps])
 
 
@@ -46,6 +49,8 @@ def add_step(pipeline_id):
     pipeline = db.session.get(Pipeline, str(pipeline_id))
     if not pipeline:
         return jsonify({'error': 'Pipeline not found'}), 404
+    if not can_access_project(pipeline.project_id):
+        return jsonify(ACCESS_DENIED), 403
 
     data = request.get_json() or {}
     valid_types = set(get_step_types())
@@ -76,6 +81,9 @@ def update_step(step_id):
     step = db.session.get(PipelineStep, str(step_id))
     if not step:
         return jsonify({'error': 'Step not found'}), 404
+    pipeline = db.session.get(Pipeline, step.pipeline_id)
+    if pipeline and not can_access_project(pipeline.project_id):
+        return jsonify(ACCESS_DENIED), 403
 
     data = request.get_json() or {}
     for field in ('name', 'config', 'on_error', 'enabled', 'parallel_group'):
@@ -117,6 +125,9 @@ def delete_step(step_id):
     step = db.session.get(PipelineStep, str(step_id))
     if not step:
         return jsonify({'error': 'Step not found'}), 404
+    pipeline = db.session.get(Pipeline, step.pipeline_id)
+    if pipeline and not can_access_project(pipeline.project_id):
+        return jsonify(ACCESS_DENIED), 403
     db.session.delete(step)
     db.session.commit()
     return jsonify({'deleted': str(step_id)})

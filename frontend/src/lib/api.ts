@@ -68,6 +68,12 @@ export const createProject  = (data: { name: string; description?: string; color
 export const updateProject  = (id: string, data: { name?: string; description?: string; color?: string }) => request<import('./types').Project>('PATCH', `/projects/${id}`, data)
 export const deleteProject  = (id: string) => del<{ deleted: string }>(`/projects/${id}`)
 
+// Project members (team-scoped access)
+export type ProjectMember = { id: string; user_id: string; username: string | null; role: string | null; created_at: string | null }
+export const getProjectMembers    = (projectId: string) => get<ProjectMember[]>(`/projects/${projectId}/members`)
+export const addProjectMember     = (projectId: string, userId: string) => post<ProjectMember>(`/projects/${projectId}/members`, { user_id: userId })
+export const removeProjectMember  = (projectId: string, userId: string) => del<{ deleted: string }>(`/projects/${projectId}/members/${userId}`)
+
 // Pipelines
 export const getPipelines    = (params?: { project_id?: string }) => {
   const qs = params?.project_id ? `?project_id=${params.project_id}` : ''

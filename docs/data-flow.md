@@ -124,6 +124,7 @@ Export is returned as structured JSON (see Right to Access above).
 | MFA | TOTP (RFC 6238) — `pyotp` — 30-second window |
 | MFA backup codes | 10 one-time codes (XXXX-XXXX format), stored encrypted |
 | SSO | Google OAuth2 / Microsoft MSAL / SAML 2.0 (enterprise IdP) — email-based account linking |
+| Project access | `ff_project_members` join table — non-admin users only see/edit pipelines, reports, emails, and recipient groups in projects they're a member of. Admins bypass everywhere. New users and project creators are auto-added to the relevant project |
 | Rate limiting | 10 login attempts / minute (`flask-limiter`) |
 | IP allowlisting | `FLOWFORGE_ALLOWED_IPS` (CIDR ranges) |
 | CORS | Restricted to `FLOWFORGE_CORS_ORIGIN` in production |
@@ -144,7 +145,8 @@ Every security-relevant action is written to both `ff_audit_log` (DB) and
 `EMAIL_SENT`, `REPORT_EXPORTED`,
 `USER_CREATED`, `USER_UPDATED`, `USER_DELETED`,
 `MFA_ENABLED`, `MFA_DISABLED`, `MFA_BACKUP_CODE_USED`,
-`SSO_USER_CREATED`, `WEBHOOK_TRIGGER`
+`SSO_USER_CREATED`, `WEBHOOK_TRIGGER`,
+`MEMBER_ADDED`, `MEMBER_REMOVED`
 
 Audit log UI: `/settings/audit` (admin only) — filterable, exportable as CSV.
 

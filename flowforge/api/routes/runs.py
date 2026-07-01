@@ -10,6 +10,7 @@ from pathlib import Path
 from flask import Blueprint, Response, jsonify, request, send_file
 
 from flowforge.api.auth import require_auth, require_role
+from flowforge.api.project_access import accessible_project_ids, can_access_project, is_admin
 from flowforge.api.serializers import run_dict
 from flowforge.db.models import Pipeline, PipelineRun, StepRun, db
 
@@ -18,6 +19,18 @@ _NOT_FOUND = 'Run not found'
 
 _ANOMALY_MIN_HISTORY = 5
 _ANOMALY_THRESHOLD   = 2.0   # z-score
+
+
+def _run_project_accessible(run: PipelineRun) -> bool:
+    """Whether the current user may see this run. Runs whose pipeline was
+    deleted (pipeline_id nulled — see [DB-1]) can't be attributed to a
+    project anymore, so they're admin-only for non-admins."""
+    if is_admin():
+        return True
+    if not run.pipeline_id:
+        return False
+    pipeline = db.session.get(Pipeline, run.pipeline_id)
+    return bool(pipeline) and can_access_project(pipeline.project_id)
 
 
 def _check_anomaly(history: list, current) -> dict | None:
@@ -55,10 +68,16 @@ def dashboard_summary():
     Returns: { "pipeline_runs": { "<pipeline_id>": [run, ...] } }
     """
     project_id = request.args.get('project_id')
+    if project_id and not can_access_project(project_id):
+        return jsonify({'error': 'Access denied to this project'}), 403
 
     pipeline_q = db.session.query(Pipeline.id)
     if project_id:
         pipeline_q = pipeline_q.filter(Pipeline.project_id == project_id)
+    else:
+        ids = accessible_project_ids()
+        if ids is not None:
+            pipeline_q = pipeline_q.filter(Pipeline.project_id.in_(ids))
     pipeline_ids = [row.id for row in pipeline_q.all()]
 
     if not pipeline_ids:
@@ -94,11 +113,21 @@ def list_runs():
     if pipeline_id:
         query = query.filter(PipelineRun.pipeline_id == pipeline_id)
     if project_id:
+        if not can_access_project(project_id):
+            return jsonify({'error': 'Access denied to this project'}), 403
         query = (
             query
             .join(Pipeline, PipelineRun.pipeline_id == Pipeline.id)
             .filter(Pipeline.project_id == project_id)
         )
+    else:
+        ids = accessible_project_ids()
+        if ids is not None:
+            query = (
+                query
+                .join(Pipeline, PipelineRun.pipeline_id == Pipeline.id)
+                .filter(Pipeline.project_id.in_(ids))
+            )
     if status:
         query = query.filter(PipelineRun.status == status)
 
@@ -128,11 +157,21 @@ def export_runs():
     if pipeline_id:
         query = query.filter(PipelineRun.pipeline_id == pipeline_id)
     if project_id:
+        if not can_access_project(project_id):
+            return jsonify({'error': 'Access denied to this project'}), 403
         query = (
             query
             .join(Pipeline, PipelineRun.pipeline_id == Pipeline.id)
             .filter(Pipeline.project_id == project_id)
         )
+    else:
+        ids = accessible_project_ids()
+        if ids is not None:
+            query = (
+                query
+                .join(Pipeline, PipelineRun.pipeline_id == Pipeline.id)
+                .filter(Pipeline.project_id.in_(ids))
+            )
     if status:
         query = query.filter(PipelineRun.status == status)
 
@@ -184,6 +223,8 @@ def get_run(run_id):
     run = db.session.get(PipelineRun, str(run_id))
     if not run:
         return jsonify({'error': _NOT_FOUND}), 404
+    if not _run_project_accessible(run):
+        return jsonify({'error': 'Access denied to this project'}), 403
     return jsonify(run_dict(run, include_steps=True))
 
 
@@ -194,6 +235,8 @@ def get_run_anomalies(run_id):
     run = db.session.get(PipelineRun, str(run_id))
     if not run:
         return jsonify({'error': _NOT_FOUND}), 404
+    if not _run_project_accessible(run):
+        return jsonify({'error': 'Access denied to this project'}), 403
     if not run.pipeline_id:
         return jsonify([])
 
@@ -239,6 +282,8 @@ def get_run_diff(run_id):
     run = db.session.get(PipelineRun, str(run_id))
     if not run:
         return jsonify({'error': _NOT_FOUND}), 404
+    if not _run_project_accessible(run):
+        return jsonify({'error': 'Access denied to this project'}), 403
     if not run.pipeline_id:
         return jsonify({'prev_run_id': None, 'steps': []})
 
@@ -314,6 +359,9 @@ def download_step_output(step_run_id):
     step_run = db.session.get(StepRun, str(step_run_id))
     if not step_run:
         return jsonify({'error': 'Step run not found'}), 404
+    parent_run = db.session.get(PipelineRun, step_run.pipeline_run_id)
+    if not parent_run or not _run_project_accessible(parent_run):
+        return jsonify({'error': 'Access denied to this project'}), 403
     if not step_run.output_path:
         return jsonify({'error': 'No output file for this step'}), 404
 
@@ -353,6 +401,8 @@ def cancel_run(run_id):
     run = db.session.get(PipelineRun, str(run_id))
     if not run:
         return jsonify({'error': _NOT_FOUND}), 404
+    if not _run_project_accessible(run):
+        return jsonify({'error': 'Access denied to this project'}), 403
     if run.status not in ('running', 'pending'):
         return jsonify({'error': f'Cannot cancel a run with status {run.status!r}'}), 409
     run.status = 'cancelled'

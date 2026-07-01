@@ -4,6 +4,7 @@ from pathlib import Path
 from flask import Blueprint, jsonify, request
 
 from flowforge.api.auth import require_auth, require_role
+from flowforge.api.project_access import ACCESS_DENIED, can_access_project, scope_query
 from flowforge.api.validators import validate_email_config
 from flowforge.db.models import DEFAULT_PROJECT_ID, EmailConfig, Project, db
 
@@ -45,9 +46,11 @@ def _email_dict(e: EmailConfig) -> dict:
 @bp.get('/email-configs')
 @require_auth
 def list_email_configs():
-    query = db.session.query(EmailConfig).order_by(EmailConfig.name)
+    query = scope_query(db.session.query(EmailConfig).order_by(EmailConfig.name), EmailConfig.project_id)
     project_id = request.args.get('project_id')
     if project_id:
+        if not can_access_project(project_id):
+            return jsonify(ACCESS_DENIED), 403
         query = query.filter(EmailConfig.project_id == project_id)
     return jsonify([_email_dict(e) for e in query.all()])
 
@@ -63,6 +66,10 @@ def create_email_config():
     err = validate_email_config(data)
     if err:
         return jsonify({'error': err}), 400
+
+    target_project_id = data.get('project_id') or _default_project_id()
+    if not can_access_project(target_project_id):
+        return jsonify(ACCESS_DENIED), 403
 
     config = EmailConfig(
         name=data['name'],
@@ -80,7 +87,7 @@ def create_email_config():
         drive_folder_id=data.get('drive_folder_id'),
         drive_share_message=data.get('drive_share_message'),
         onedrive_folder_id=data.get('onedrive_folder_id'),
-        project_id=data.get('project_id') or _default_project_id(),
+        project_id=target_project_id,
     )
     db.session.add(config)
     db.session.commit()
@@ -93,6 +100,8 @@ def get_email_config(config_id):
     config = db.session.get(EmailConfig, str(config_id))
     if not config:
         return jsonify({'error': _NOT_FOUND}), 404
+    if not can_access_project(config.project_id):
+        return jsonify(ACCESS_DENIED), 403
     return jsonify(_email_dict(config))
 
 
@@ -102,11 +111,15 @@ def update_email_config(config_id):
     config = db.session.get(EmailConfig, str(config_id))
     if not config:
         return jsonify({'error': _NOT_FOUND}), 404
+    if not can_access_project(config.project_id):
+        return jsonify(ACCESS_DENIED), 403
 
     data = request.get_json() or {}
     err = validate_email_config(data)
     if err:
         return jsonify({'error': err}), 400
+    if 'project_id' in data and data['project_id'] != config.project_id and not can_access_project(data['project_id']):
+        return jsonify(ACCESS_DENIED), 403
     fields = (
         'name', 'description', 'provider_id', 'from_name', 'subject', 'header_text',
         'body_template', 'recipient_group_id', 'to_addresses', 'cc_addresses',
@@ -127,6 +140,8 @@ def delete_email_config(config_id):
     config = db.session.get(EmailConfig, str(config_id))
     if not config:
         return jsonify({'error': _NOT_FOUND}), 404
+    if not can_access_project(config.project_id):
+        return jsonify(ACCESS_DENIED), 403
     db.session.delete(config)
     db.session.commit()
     return jsonify({'deleted': str(config_id)})
@@ -138,6 +153,8 @@ def preview_email_config(config_id):
     config = db.session.get(EmailConfig, str(config_id))
     if not config:
         return jsonify({'error': _NOT_FOUND}), 404
+    if not can_access_project(config.project_id):
+        return jsonify(ACCESS_DENIED), 403
 
     from flowforge.engine.context import build, render
     # Build context with sample step results so previews are more realistic

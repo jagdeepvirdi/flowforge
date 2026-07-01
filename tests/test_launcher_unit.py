@@ -9,6 +9,19 @@ from flowforge.db.models import Pipeline, PipelineRun, db
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
 
+@pytest.fixture(autouse=True)
+def _reset_concurrency_slots(monkeypatch):
+    """launch_run() reserves a concurrency slot; these tests mock away the
+    execution path that would normally release it, so reset between tests.
+    Depends on monkeypatch so our post-test reset runs before it reverts
+    FLOWFORGE_REDIS_URL — otherwise a real reachable Redis (as in this dev
+    environment) would leak slots across tests."""
+    from flowforge.engine.concurrency import _reset_for_tests
+    _reset_for_tests()
+    yield
+    _reset_for_tests()
+
+
 @pytest.fixture
 def enabled_pipeline(app):
     with app.app_context():
@@ -115,6 +128,20 @@ def test_launch_run_dispatches_thread(app, enabled_pipeline, monkeypatch):
         if run:
             db.session.delete(run)
             db.session.commit()
+
+
+def test_launch_run_returns_429_when_concurrency_exhausted(app, enabled_pipeline, monkeypatch):
+    monkeypatch.delenv('FLOWFORGE_REDIS_URL', raising=False)
+    with app.app_context():
+        p = db.session.get(Pipeline, enabled_pipeline.id)
+        with patch('flowforge.engine.launcher.concurrency.try_acquire', return_value=None):
+            from flowforge.engine.launcher import launch_run
+            result, status = launch_run(p, 'web_ui', app)
+
+    assert status == 429
+    assert 'concurrent' in result['error'].lower()
+    # No PipelineRun row should be created when the slot couldn't be reserved
+    assert 'run_id' not in result
 
 
 # ── _mark_failed ─────────────────────────────────────────────────────────────
