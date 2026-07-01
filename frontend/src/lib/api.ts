@@ -55,7 +55,7 @@ export const mfaUseBackup    = (mfa_token: string, backup_code: string) =>
   post<{ token: string; backup_codes_remaining: number }>('/auth/mfa/use-backup', { mfa_token, backup_code })
 
 // SSO
-export const getSsoProviders = () => get<{ google: boolean; microsoft: boolean }>('/auth/sso/providers')
+export const getSsoProviders = () => get<{ google: boolean; microsoft: boolean; saml: boolean }>('/auth/sso/providers')
 
 // GDPR (admin)
 export const exportUserData = (id: string) => get<object>(`/users/${id}/export`)

@@ -1,12 +1,15 @@
-"""SSO (OAuth2) login — Google and Microsoft.
+"""SSO login — Google, Microsoft (OAuth2) and SAML 2.0 (enterprise IdP).
 
 Flows:
   Browser → GET /api/auth/sso/google → (redirect) → Google consent → GET /api/auth/sso/google/callback
                                                                      → redirect to frontend /#sso_token=<jwt>
+  Browser → GET /api/auth/sso/saml/login → (redirect) → IdP login → POST /api/auth/sso/saml/acs
+                                                                    → redirect to frontend /#sso_token=<jwt>
 
 Configure via environment variables:
   GOOGLE_SSO_CLIENT_ID / GOOGLE_SSO_CLIENT_SECRET
   MICROSOFT_SSO_TENANT_ID / MICROSOFT_SSO_CLIENT_ID / MICROSOFT_SSO_CLIENT_SECRET
+  SAML_SP_ENTITY_ID / SAML_IDP_ENTITY_ID / SAML_IDP_SSO_URL / SAML_IDP_X509_CERT
   FLOWFORGE_APP_URL       — base URL of the frontend (default: http://localhost:5000)
   FLOWFORGE_SSO_AUTO_CREATE=true  — create user on first SSO login (default: false)
 """
@@ -15,7 +18,7 @@ import secrets
 import time
 
 import bcrypt
-from flask import Blueprint, jsonify, redirect, request
+from flask import Blueprint, Response, jsonify, redirect, request
 
 import flowforge.audit as audit
 from flowforge.api.auth import generate_token
@@ -283,6 +286,143 @@ def sso_microsoft_callback():
     return _redirect_with_token(generate_token(user))
 
 
+# ── SAML SSO (enterprise IdP: Okta, Azure AD, PingFederate, ...) ──────────────
+
+def _saml_configured() -> bool:
+    return bool(
+        os.environ.get('SAML_SP_ENTITY_ID')
+        and os.environ.get('SAML_IDP_ENTITY_ID')
+        and os.environ.get('SAML_IDP_SSO_URL')
+        and os.environ.get('SAML_IDP_X509_CERT')
+    )
+
+
+def _saml_acs_url() -> str:
+    return f'{_app_url()}/api/auth/sso/saml/acs'
+
+
+def _saml_settings() -> dict:
+    return {
+        'strict': True,
+        'debug': False,
+        'sp': {
+            'entityId': os.environ['SAML_SP_ENTITY_ID'],
+            'assertionConsumerService': {
+                'url':     _saml_acs_url(),
+                'binding': 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST',
+            },
+            'NameIDFormat': 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress',
+        },
+        'idp': {
+            'entityId': os.environ['SAML_IDP_ENTITY_ID'],
+            'singleSignOnService': {
+                'url':     os.environ['SAML_IDP_SSO_URL'],
+                'binding': 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect',
+            },
+            'x509cert': os.environ['SAML_IDP_X509_CERT'],
+        },
+        # SP does not sign requests (no SP key configured) — IdP assertions must be signed.
+        'security': {
+            'wantAssertionsSigned':  True,
+            'wantNameIdEncrypted':   False,
+            'authnRequestsSigned':   False,
+            'logoutRequestSigned':   False,
+            'logoutResponseSigned':  False,
+        },
+    }
+
+
+def _saml_prepare_flask_request(req) -> dict:
+    """Build the plain-dict request shape python3-saml expects (framework-agnostic)."""
+    host, _, port = req.host.partition(':')
+    return {
+        'https':       'on' if req.scheme == 'https' else 'off',
+        'http_host':   host,
+        'server_port': port or ('443' if req.scheme == 'https' else '80'),
+        'script_name': req.path,
+        'get_data':    req.args.copy(),
+        'post_data':   req.form.copy(),
+    }
+
+
+@bp.get('/auth/sso/saml/login')
+def sso_saml_start():
+    if not _saml_configured():
+        return jsonify({'error': 'SAML SSO is not configured'}), 501
+    try:
+        from onelogin.saml2.auth import OneLogin_Saml2_Auth
+    except ImportError:
+        return jsonify({'error': 'python3-saml not installed'}), 501
+
+    state = _new_state('saml')
+    saml_auth = OneLogin_Saml2_Auth(_saml_prepare_flask_request(request), _saml_settings())
+    return redirect(saml_auth.login(return_to=state))
+
+
+@bp.post('/auth/sso/saml/acs')
+def sso_saml_acs():
+    """Assertion Consumer Service — the IdP POSTs the SAMLResponse here."""
+    if not _saml_configured():
+        return _redirect_with_error('SAML+SSO+not+configured')
+    try:
+        from onelogin.saml2.auth import OneLogin_Saml2_Auth
+    except ImportError:
+        return _redirect_with_error('python3-saml+not+installed')
+
+    relay_state = request.form.get('RelayState', '')
+    provider = _consume_state(relay_state)
+    if provider != 'saml':
+        return _redirect_with_error('Invalid+or+expired+SSO+state')
+
+    try:
+        saml_auth = OneLogin_Saml2_Auth(_saml_prepare_flask_request(request), _saml_settings())
+        saml_auth.process_response()
+    except Exception as exc:
+        return _redirect_with_error(f'SAML+response+processing+failed: {exc}')
+
+    if saml_auth.get_errors():
+        return _redirect_with_error(saml_auth.get_last_error_reason() or 'SAML+validation+failed')
+    if not saml_auth.is_authenticated():
+        return _redirect_with_error('SAML+authentication+failed')
+
+    email = (saml_auth.get_nameid() or '').lower().strip()
+    if not email:
+        attrs = saml_auth.get_attributes() or {}
+        for key in ('email', 'mail', 'emailaddress',
+                    'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'):
+            if attrs.get(key):
+                email = attrs[key][0].lower().strip()
+                break
+
+    if not email:
+        return _redirect_with_error('No+email+returned+from+SAML+IdP')
+
+    user = _find_or_create_user(email, 'saml')
+    if not user:
+        return _redirect_with_error('Account+not+found.+Contact+your+administrator.')
+
+    audit.log_login(user.username, success=True, remote_addr=request.remote_addr or '')
+    return _redirect_with_token(generate_token(user))
+
+
+@bp.get('/auth/sso/saml/metadata')
+def sso_saml_metadata():
+    """SP metadata XML — paste this URL into the IdP (Okta/Azure AD/Ping) app config."""
+    if not _saml_configured():
+        return jsonify({'error': 'SAML SSO is not configured'}), 501
+    try:
+        from onelogin.saml2.settings import OneLogin_Saml2_Settings
+    except ImportError:
+        return jsonify({'error': 'python3-saml not installed'}), 501
+
+    saml_settings = OneLogin_Saml2_Settings(settings=_saml_settings(), sp_validation_only=True)
+    metadata = saml_settings.get_sp_metadata()
+    errors = saml_settings.validate_metadata(metadata)
+    if errors:
+        return jsonify({'error': 'Invalid SP metadata', 'details': errors}), 500
+    return Response(metadata, mimetype='text/xml')
+
+
 # ── SSO config status (used by Login page to show/hide buttons) ───────────────
 
 @bp.get('/auth/sso/providers')
@@ -291,4 +431,5 @@ def sso_providers():
     return jsonify({
         'google':    _google_configured(),
         'microsoft': _microsoft_configured(),
+        'saml':      _saml_configured(),
     })

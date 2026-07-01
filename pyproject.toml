@@ -98,6 +98,9 @@ sso = [
     # Microsoft SSO — shares credentials with [microsoft365]
     "msal>=1.28",
     "requests>=2.31",
+    # SAML SSO (enterprise IdP: Okta / Azure AD / PingFederate) — requires system
+    # libxml2 + libxmlsec1 (xmlsec1-dev on Debian/Ubuntu) for the xmlsec binding.
+    "python3-saml>=1.16",
 ]
 all = [
     "flowforge-io[gmail]",

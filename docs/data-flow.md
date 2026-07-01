@@ -20,7 +20,7 @@ SOC 2, GDPR, HIPAA, and other regulated-environment assessments.
 | **User accounts** | Admin (UI) | Authentication | `ff_users` (password bcrypt-hashed) | None |
 | **JWT tokens** | Login flow | Session auth | Browser localStorage | Bearer header on each API call |
 | **TOTP secret** | User (MFA setup) | MFA second factor | `ff_users.mfa_secret` (AES-256 encrypted) | Never |
-| **SSO email** | Google / Microsoft | Account linking | `ff_users.sso_email` | SSO provider during login |
+| **SSO email** | Google / Microsoft / SAML IdP | Account linking | `ff_users.sso_email` | SSO provider during login |
 
 ---
 
@@ -87,6 +87,7 @@ unless explicitly configured to transmit to:
 - **Gmail API** / **Microsoft Graph** — for email delivery
 - **Google Drive API** — for large attachment storage
 - **Google / Microsoft OAuth2** — for SSO login (redirects only; no data sent to FlowForge from the IdP beyond email + name)
+- **SAML 2.0 IdP** (Okta / Azure AD / PingFederate) — for enterprise SSO login (browser redirect + POST of a signed assertion; no data sent to FlowForge beyond the NameID/email in the assertion)
 - **Ollama** — local AI; data stays on your machine
 - **Claude API (Anthropic)** — only if `USE_CLAUDE=true` and `ANTHROPIC_API_KEY` is set; query result rows are sent to Anthropic for analysis
 
@@ -120,7 +121,7 @@ Export is returned as structured JSON (see Right to Access above).
 | Token revocation | `ff_token_blocklist` table (on logout) |
 | MFA | TOTP (RFC 6238) — `pyotp` — 30-second window |
 | MFA backup codes | 10 one-time codes (XXXX-XXXX format), stored encrypted |
-| SSO | Google OAuth2 / Microsoft MSAL — email-based account linking |
+| SSO | Google OAuth2 / Microsoft MSAL / SAML 2.0 (enterprise IdP) — email-based account linking |
 | Rate limiting | 10 login attempts / minute (`flask-limiter`) |
 | IP allowlisting | `FLOWFORGE_ALLOWED_IPS` (CIDR ranges) |
 | CORS | Restricted to `FLOWFORGE_CORS_ORIGIN` in production |

@@ -78,7 +78,7 @@ class User(db.Model):
     mfa_secret       = Column(Text)
     mfa_enabled      = Column(Boolean, nullable=False, default=False)
     mfa_backup_codes = Column(Text)                    # encrypted JSON list of remaining codes
-    # SSO — provider ('google' | 'microsoft') and matched email
+    # SSO — provider ('google' | 'microsoft' | 'saml') and matched email
     sso_provider     = Column(String(20))
     sso_email        = Column(String(255), index=True)
     created_at       = Column(DateTime(timezone=True), default=_utcnow)

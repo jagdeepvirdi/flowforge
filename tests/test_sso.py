@@ -119,11 +119,41 @@ def test_sso_providers_both_false(client, monkeypatch):
     monkeypatch.delenv('MICROSOFT_SSO_TENANT_ID', raising=False)
     monkeypatch.delenv('MICROSOFT_SSO_CLIENT_ID', raising=False)
     monkeypatch.delenv('MICROSOFT_SSO_CLIENT_SECRET', raising=False)
+    monkeypatch.delenv('SAML_SP_ENTITY_ID', raising=False)
+    monkeypatch.delenv('SAML_IDP_ENTITY_ID', raising=False)
+    monkeypatch.delenv('SAML_IDP_SSO_URL', raising=False)
+    monkeypatch.delenv('SAML_IDP_X509_CERT', raising=False)
     resp = client.get('/api/auth/sso/providers')
     assert resp.status_code == 200
     data = resp.get_json()
     assert data['google'] is False
     assert data['microsoft'] is False
+    assert data['saml'] is False
+
+
+def test_sso_providers_saml_true(client, monkeypatch):
+    monkeypatch.delenv('GOOGLE_SSO_CLIENT_ID', raising=False)
+    monkeypatch.delenv('MICROSOFT_SSO_TENANT_ID', raising=False)
+    monkeypatch.setenv('SAML_SP_ENTITY_ID', 'https://flowforge.example.com/saml')
+    monkeypatch.setenv('SAML_IDP_ENTITY_ID', 'https://idp.example.com/entity')
+    monkeypatch.setenv('SAML_IDP_SSO_URL', 'https://idp.example.com/sso')
+    monkeypatch.setenv('SAML_IDP_X509_CERT', 'FAKECERT')
+    resp = client.get('/api/auth/sso/providers')
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data['saml'] is True
+    assert data['google'] is False
+    assert data['microsoft'] is False
+
+
+def test_sso_providers_saml_false_when_partial(client, monkeypatch):
+    """All four SAML env vars are required — missing one keeps saml=False."""
+    monkeypatch.setenv('SAML_SP_ENTITY_ID', 'https://flowforge.example.com/saml')
+    monkeypatch.setenv('SAML_IDP_ENTITY_ID', 'https://idp.example.com/entity')
+    monkeypatch.setenv('SAML_IDP_SSO_URL', 'https://idp.example.com/sso')
+    monkeypatch.delenv('SAML_IDP_X509_CERT', raising=False)
+    resp = client.get('/api/auth/sso/providers')
+    assert resp.get_json()['saml'] is False
 
 
 def test_sso_providers_google_true(client, monkeypatch):
@@ -577,6 +607,340 @@ def test_sso_microsoft_callback_success(client, monkeypatch, app):
         if u:
             db.session.delete(u)
             db.session.commit()
+
+
+# ── SAML SSO helpers ───────────────────────────────────────────────────────────
+
+_SAML_ENV = {
+    'SAML_SP_ENTITY_ID':  'https://flowforge.example.com/saml',
+    'SAML_IDP_ENTITY_ID': 'https://idp.example.com/entity',
+    'SAML_IDP_SSO_URL':   'https://idp.example.com/sso',
+    'SAML_IDP_X509_CERT': 'FAKECERT',
+}
+
+
+def _set_saml_env(monkeypatch):
+    for k, v in _SAML_ENV.items():
+        monkeypatch.setenv(k, v)
+
+
+def _inject_saml_state():
+    from flowforge.api.routes.sso import _new_state
+    return _new_state('saml')
+
+
+def _mock_saml_auth_module(auth_instance):
+    """Build fake onelogin.saml2.auth module exposing OneLogin_Saml2_Auth."""
+    mock_auth_class = MagicMock(return_value=auth_instance)
+    mod = ModuleType('onelogin.saml2.auth')
+    mod.OneLogin_Saml2_Auth = mock_auth_class
+    return mod
+
+
+def _mock_saml_settings_module(settings_instance):
+    """Build fake onelogin.saml2.settings module exposing OneLogin_Saml2_Settings."""
+    mock_settings_class = MagicMock(return_value=settings_instance)
+    mod = ModuleType('onelogin.saml2.settings')
+    mod.OneLogin_Saml2_Settings = mock_settings_class
+    return mod
+
+
+# ── _saml_configured / _saml_settings / _saml_acs_url ────────────────────────
+
+def test_saml_configured_false_when_missing(monkeypatch):
+    monkeypatch.delenv('SAML_SP_ENTITY_ID', raising=False)
+    from flowforge.api.routes.sso import _saml_configured
+    assert _saml_configured() is False
+
+
+def test_saml_configured_true_when_all_set(monkeypatch):
+    _set_saml_env(monkeypatch)
+    from flowforge.api.routes.sso import _saml_configured
+    assert _saml_configured() is True
+
+
+def test_saml_acs_url_uses_app_url(monkeypatch):
+    monkeypatch.setenv('FLOWFORGE_APP_URL', 'https://myapp.example.com')
+    from flowforge.api.routes.sso import _saml_acs_url
+    assert _saml_acs_url() == 'https://myapp.example.com/api/auth/sso/saml/acs'
+
+
+def test_saml_settings_shape(monkeypatch):
+    _set_saml_env(monkeypatch)
+    from flowforge.api.routes.sso import _saml_settings
+    settings = _saml_settings()
+    assert settings['sp']['entityId'] == _SAML_ENV['SAML_SP_ENTITY_ID']
+    assert settings['idp']['entityId'] == _SAML_ENV['SAML_IDP_ENTITY_ID']
+    assert settings['idp']['singleSignOnService']['url'] == _SAML_ENV['SAML_IDP_SSO_URL']
+    assert settings['idp']['x509cert'] == _SAML_ENV['SAML_IDP_X509_CERT']
+    assert settings['security']['wantAssertionsSigned'] is True
+
+
+# ── GET /api/auth/sso/saml/login ──────────────────────────────────────────────
+
+def test_sso_saml_start_not_configured(client, monkeypatch):
+    monkeypatch.delenv('SAML_SP_ENTITY_ID', raising=False)
+    resp = client.get('/api/auth/sso/saml/login')
+    assert resp.status_code == 501
+    assert 'not configured' in resp.get_json()['error'].lower()
+
+
+def test_sso_saml_start_library_not_installed(client, monkeypatch):
+    _set_saml_env(monkeypatch)
+    with patch.dict('sys.modules', {'onelogin.saml2.auth': None}):
+        resp = client.get('/api/auth/sso/saml/login')
+    assert resp.status_code == 501
+    assert 'not installed' in resp.get_json()['error'].lower()
+
+
+def test_sso_saml_start_redirects(client, monkeypatch):
+    _set_saml_env(monkeypatch)
+    _clear_sso_states()
+
+    mock_auth = MagicMock()
+    mock_auth.login.return_value = 'https://idp.example.com/sso?SAMLRequest=xyz'
+
+    with patch.dict('sys.modules', {'onelogin.saml2.auth': _mock_saml_auth_module(mock_auth)}):
+        resp = client.get('/api/auth/sso/saml/login', follow_redirects=False)
+
+    assert resp.status_code == 302
+    assert resp.headers.get('Location') == 'https://idp.example.com/sso?SAMLRequest=xyz'
+
+
+# ── POST /api/auth/sso/saml/acs ───────────────────────────────────────────────
+
+def test_sso_saml_acs_not_configured(client, monkeypatch):
+    monkeypatch.delenv('SAML_SP_ENTITY_ID', raising=False)
+    resp = client.post('/api/auth/sso/saml/acs', data={}, follow_redirects=False)
+    assert resp.status_code == 302
+    assert 'sso_error' in resp.headers['Location']
+
+
+def test_sso_saml_acs_invalid_relay_state(client, monkeypatch):
+    _set_saml_env(monkeypatch)
+    _clear_sso_states()
+    resp = client.post(
+        '/api/auth/sso/saml/acs',
+        data={'RelayState': 'not-a-real-token', 'SAMLResponse': 'xxx'},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 302
+    assert 'sso_error' in resp.headers['Location']
+
+
+def test_sso_saml_acs_processing_exception(client, monkeypatch):
+    _set_saml_env(monkeypatch)
+    _clear_sso_states()
+    token = _inject_saml_state()
+
+    mock_auth = MagicMock()
+    mock_auth.process_response.side_effect = Exception('malformed response')
+
+    with patch.dict('sys.modules', {'onelogin.saml2.auth': _mock_saml_auth_module(mock_auth)}):
+        resp = client.post(
+            '/api/auth/sso/saml/acs',
+            data={'RelayState': token, 'SAMLResponse': 'xxx'},
+            follow_redirects=False,
+        )
+
+    assert resp.status_code == 302
+    assert 'sso_error' in resp.headers['Location']
+
+
+def test_sso_saml_acs_validation_errors(client, monkeypatch):
+    _set_saml_env(monkeypatch)
+    _clear_sso_states()
+    token = _inject_saml_state()
+
+    mock_auth = MagicMock()
+    mock_auth.process_response.return_value = None
+    mock_auth.get_errors.return_value = ['invalid_response']
+    mock_auth.get_last_error_reason.return_value = 'Signature validation failed'
+
+    with patch.dict('sys.modules', {'onelogin.saml2.auth': _mock_saml_auth_module(mock_auth)}):
+        resp = client.post(
+            '/api/auth/sso/saml/acs',
+            data={'RelayState': token, 'SAMLResponse': 'xxx'},
+            follow_redirects=False,
+        )
+
+    assert resp.status_code == 302
+    assert 'sso_error' in resp.headers['Location']
+
+
+def test_sso_saml_acs_not_authenticated(client, monkeypatch):
+    _set_saml_env(monkeypatch)
+    _clear_sso_states()
+    token = _inject_saml_state()
+
+    mock_auth = MagicMock()
+    mock_auth.process_response.return_value = None
+    mock_auth.get_errors.return_value = []
+    mock_auth.is_authenticated.return_value = False
+
+    with patch.dict('sys.modules', {'onelogin.saml2.auth': _mock_saml_auth_module(mock_auth)}):
+        resp = client.post(
+            '/api/auth/sso/saml/acs',
+            data={'RelayState': token, 'SAMLResponse': 'xxx'},
+            follow_redirects=False,
+        )
+
+    assert resp.status_code == 302
+    assert 'sso_error' in resp.headers['Location']
+
+
+def test_sso_saml_acs_no_email(client, monkeypatch):
+    _set_saml_env(monkeypatch)
+    _clear_sso_states()
+    token = _inject_saml_state()
+
+    mock_auth = MagicMock()
+    mock_auth.process_response.return_value = None
+    mock_auth.get_errors.return_value = []
+    mock_auth.is_authenticated.return_value = True
+    mock_auth.get_nameid.return_value = ''
+    mock_auth.get_attributes.return_value = {}
+
+    with patch.dict('sys.modules', {'onelogin.saml2.auth': _mock_saml_auth_module(mock_auth)}):
+        resp = client.post(
+            '/api/auth/sso/saml/acs',
+            data={'RelayState': token, 'SAMLResponse': 'xxx'},
+            follow_redirects=False,
+        )
+
+    assert resp.status_code == 302
+    assert 'No+email' in resp.headers['Location']
+
+
+def test_sso_saml_acs_email_from_attributes(client, monkeypatch, app):
+    """When NameID is empty, fall back to the 'email' attribute."""
+    _set_saml_env(monkeypatch)
+    monkeypatch.setenv('FLOWFORGE_SSO_AUTO_CREATE', 'true')
+    _clear_sso_states()
+    token = _inject_saml_state()
+
+    test_email = 'saml_attr_user@example.com'
+    mock_auth = MagicMock()
+    mock_auth.process_response.return_value = None
+    mock_auth.get_errors.return_value = []
+    mock_auth.is_authenticated.return_value = True
+    mock_auth.get_nameid.return_value = ''
+    mock_auth.get_attributes.return_value = {'email': [test_email]}
+
+    with patch.dict('sys.modules', {'onelogin.saml2.auth': _mock_saml_auth_module(mock_auth)}):
+        resp = client.post(
+            '/api/auth/sso/saml/acs',
+            data={'RelayState': token, 'SAMLResponse': 'xxx'},
+            follow_redirects=False,
+        )
+
+    assert resp.status_code == 302
+    assert 'sso_token' in resp.headers['Location']
+
+    from flowforge.db.models import User, db
+    with app.app_context():
+        u = db.session.query(User).filter_by(sso_email=test_email).first()
+        assert u is not None
+        assert u.sso_provider == 'saml'
+        db.session.delete(u)
+        db.session.commit()
+
+
+def test_sso_saml_acs_account_not_found(client, monkeypatch):
+    _set_saml_env(monkeypatch)
+    monkeypatch.setenv('FLOWFORGE_SSO_AUTO_CREATE', 'false')
+    _clear_sso_states()
+    token = _inject_saml_state()
+
+    mock_auth = MagicMock()
+    mock_auth.process_response.return_value = None
+    mock_auth.get_errors.return_value = []
+    mock_auth.is_authenticated.return_value = True
+    mock_auth.get_nameid.return_value = 'zzz_saml_nomatch@unknown.com'
+    mock_auth.get_attributes.return_value = {}
+
+    with patch.dict('sys.modules', {'onelogin.saml2.auth': _mock_saml_auth_module(mock_auth)}):
+        resp = client.post(
+            '/api/auth/sso/saml/acs',
+            data={'RelayState': token, 'SAMLResponse': 'xxx'},
+            follow_redirects=False,
+        )
+
+    assert resp.status_code == 302
+    assert 'Account+not+found' in resp.headers['Location']
+
+
+def test_sso_saml_acs_success(client, monkeypatch, app):
+    _set_saml_env(monkeypatch)
+    monkeypatch.setenv('FLOWFORGE_SSO_AUTO_CREATE', 'true')
+    _clear_sso_states()
+    token = _inject_saml_state()
+
+    test_email = 'saml_success_user@example.com'
+    mock_auth = MagicMock()
+    mock_auth.process_response.return_value = None
+    mock_auth.get_errors.return_value = []
+    mock_auth.is_authenticated.return_value = True
+    mock_auth.get_nameid.return_value = test_email
+    mock_auth.get_attributes.return_value = {}
+
+    with patch.dict('sys.modules', {'onelogin.saml2.auth': _mock_saml_auth_module(mock_auth)}):
+        resp = client.post(
+            '/api/auth/sso/saml/acs',
+            data={'RelayState': token, 'SAMLResponse': 'xxx'},
+            follow_redirects=False,
+        )
+
+    assert resp.status_code == 302
+    assert 'sso_token' in resp.headers['Location']
+
+    from flowforge.db.models import User, db
+    with app.app_context():
+        u = db.session.query(User).filter_by(sso_email=test_email).first()
+        if u:
+            db.session.delete(u)
+            db.session.commit()
+
+
+# ── GET /api/auth/sso/saml/metadata ───────────────────────────────────────────
+
+def test_sso_saml_metadata_not_configured(client, monkeypatch):
+    monkeypatch.delenv('SAML_SP_ENTITY_ID', raising=False)
+    resp = client.get('/api/auth/sso/saml/metadata')
+    assert resp.status_code == 501
+
+
+def test_sso_saml_metadata_library_not_installed(client, monkeypatch):
+    _set_saml_env(monkeypatch)
+    with patch.dict('sys.modules', {'onelogin.saml2.settings': None}):
+        resp = client.get('/api/auth/sso/saml/metadata')
+    assert resp.status_code == 501
+    assert 'not installed' in resp.get_json()['error'].lower()
+
+
+def test_sso_saml_metadata_success(client, monkeypatch):
+    _set_saml_env(monkeypatch)
+    mock_settings = MagicMock()
+    mock_settings.get_sp_metadata.return_value = b'<EntityDescriptor></EntityDescriptor>'
+    mock_settings.validate_metadata.return_value = []
+
+    with patch.dict('sys.modules', {'onelogin.saml2.settings': _mock_saml_settings_module(mock_settings)}):
+        resp = client.get('/api/auth/sso/saml/metadata')
+
+    assert resp.status_code == 200
+    assert resp.content_type.startswith('text/xml')
+
+
+def test_sso_saml_metadata_invalid(client, monkeypatch):
+    _set_saml_env(monkeypatch)
+    mock_settings = MagicMock()
+    mock_settings.get_sp_metadata.return_value = b'<EntityDescriptor></EntityDescriptor>'
+    mock_settings.validate_metadata.return_value = ['missing_entity_id']
+
+    with patch.dict('sys.modules', {'onelogin.saml2.settings': _mock_saml_settings_module(mock_settings)}):
+        resp = client.get('/api/auth/sso/saml/metadata')
+
+    assert resp.status_code == 500
 
 
 # ── _find_or_create_user ──────────────────────────────────────────────────────

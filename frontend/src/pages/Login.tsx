@@ -20,7 +20,7 @@ export default function Login() {
   const [backupCode, setBackupCode] = useState('')
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
-  const [ssoProviders, setSsoProviders] = useState<{ google: boolean; microsoft: boolean } | null>(null)
+  const [ssoProviders, setSsoProviders] = useState<{ google: boolean; microsoft: boolean; saml: boolean } | null>(null)
 
   // Handle SSO token delivered via URL hash (#sso_token=...)
   useEffect(() => {
@@ -62,7 +62,7 @@ export default function Login() {
   useEffect(() => {
     getSsoProviders()
       .then(setSsoProviders)
-      .catch(() => setSsoProviders({ google: false, microsoft: false }))
+      .catch(() => setSsoProviders({ google: false, microsoft: false, saml: false }))
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -151,7 +151,7 @@ export default function Login() {
     }
   }
 
-  const anySso = ssoProviders && (ssoProviders.google || ssoProviders.microsoft)
+  const anySso = ssoProviders && (ssoProviders.google || ssoProviders.microsoft || ssoProviders.saml)
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
@@ -234,6 +234,11 @@ export default function Login() {
                     {ssoProviders.microsoft && (
                       <a href="/api/auth/sso/microsoft" className="btn" style={{ width: '100%', justifyContent: 'center', gap: 8, textDecoration: 'none' }}>
                         <MicrosoftIcon /> Sign in with Microsoft
+                      </a>
+                    )}
+                    {ssoProviders.saml && (
+                      <a href="/api/auth/sso/saml/login" className="btn" style={{ width: '100%', justifyContent: 'center', gap: 8, textDecoration: 'none' }}>
+                        <SamlIcon /> Sign in with SSO
                       </a>
                     )}
                   </div>
@@ -440,6 +445,15 @@ function MicrosoftIcon() {
       <rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>
       <rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
       <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
+    </svg>
+  )
+}
+
+function SamlIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="11" width="18" height="10" rx="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
     </svg>
   )
 }
