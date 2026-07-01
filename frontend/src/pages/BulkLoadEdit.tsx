@@ -73,7 +73,7 @@ export default function BulkLoadEdit() {
     setFieldErrors({})
 
     let columnMapping: { source: string; target: string }[] = []
-    try { columnMapping = JSON.parse(colMapRaw) } catch {}
+    try { columnMapping = JSON.parse(colMapRaw) } catch { /* invalid JSON — fall back to empty mapping */ }
 
     setSaving(true); setError('')
     try {

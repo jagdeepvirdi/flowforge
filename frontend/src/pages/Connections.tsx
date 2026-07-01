@@ -198,37 +198,39 @@ export default function Connections() {
     setEditId(id); setFormError(''); setModalTest({ status: 'idle', msg: '' }); setShowModal(true)
     if (tab === 'db') {
       getDbConnection(id).then(data => {
-        const cfg = (data as any).config ?? {}
-        const port = String(cfg.port ?? defaultDbPort(data.db_type))
+        const cfg = data.config ?? {}
+        const str = (v: unknown, fallback = '') => v == null ? fallback : String(v)
+        const port = str(cfg.port, defaultDbPort(data.db_type))
         setDbForm({
           name: data.name, db_type: data.db_type as DbForm['db_type'],
           is_default: data.is_default,
-          host: cfg.host ?? '', port, database: cfg.database ?? '',
-          username: cfg.username ?? '', password: '***',
-          driver: cfg.driver ?? 'ODBC Driver 17 for SQL Server',
-          dsn: cfg.dsn ?? '', connection_string: cfg.connection_string ?? '',
-          account: cfg.account ?? '', warehouse: cfg.warehouse ?? '',
-          schema_name: cfg.schema ?? '', role: cfg.role ?? '',
-          project_id: cfg.project_id ?? '', dataset: cfg.dataset ?? '',
+          host: str(cfg.host), port, database: str(cfg.database),
+          username: str(cfg.username), password: '***',
+          driver: str(cfg.driver, 'ODBC Driver 17 for SQL Server'),
+          dsn: str(cfg.dsn), connection_string: str(cfg.connection_string),
+          account: str(cfg.account), warehouse: str(cfg.warehouse),
+          schema_name: str(cfg.schema), role: str(cfg.role),
+          project_id: str(cfg.project_id), dataset: str(cfg.dataset),
           credentials_json: cfg.credentials_json ? '***' : '',
         })
       }).catch(() => setFormError('Failed to load connection details'))
     } else {
       getEmailProvider(id).then(data => {
-        const cfg = (data as any).config ?? {}
+        const cfg = data.config ?? {}
+        const str = (v: unknown, fallback = '') => v == null ? fallback : String(v)
         setMailForm({
           name: data.name, provider_type: data.provider_type as MailForm['provider_type'],
-          is_default: data.is_default, sender: cfg.sender ?? '',
-          host: cfg.host ?? '', port: String(cfg.port ?? 587),
-          username: cfg.username ?? '', password: '***', use_tls: cfg.use_tls ?? true,
-          client_id: cfg.client_id ?? '', client_secret: '***',
-          refresh_token: cfg.refresh_token ? '***' : '', tenant_id: cfg.tenant_id ?? '',
-          api_key: cfg.api_key ? '***' : '', from_email: cfg.from_email ?? '',
-          from_name: cfg.from_name ?? '',
+          is_default: data.is_default, sender: str(cfg.sender),
+          host: str(cfg.host), port: str(cfg.port, '587'),
+          username: str(cfg.username), password: '***', use_tls: Boolean(cfg.use_tls ?? true),
+          client_id: str(cfg.client_id), client_secret: '***',
+          refresh_token: cfg.refresh_token ? '***' : '', tenant_id: str(cfg.tenant_id),
+          api_key: cfg.api_key ? '***' : '', from_email: str(cfg.from_email),
+          from_name: str(cfg.from_name),
           aws_access_key_id: cfg.aws_access_key_id ? '***' : '',
           aws_secret_access_key: cfg.aws_secret_access_key ? '***' : '',
-          aws_region: cfg.aws_region ?? 'us-east-1',
-          domain: cfg.domain ?? '', region: cfg.region ?? 'us',
+          aws_region: str(cfg.aws_region, 'us-east-1'),
+          domain: str(cfg.domain), region: str(cfg.region, 'us'),
         })
       }).catch(() => setFormError('Failed to load provider details'))
     }

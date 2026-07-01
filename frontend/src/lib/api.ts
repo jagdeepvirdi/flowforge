@@ -206,7 +206,7 @@ export const getAnomalyNarrative = (payload: {
 
 // Users (admin)
 export const getUsers    = () => get<import('./types').User[]>('/users')
-export const createUser  = (data: { username: string; password: string; role: string }) =>
+export const createUser  = (data: { username: string; password: string; role: string; email?: string }) =>
   post<import('./types').User>('/users', data)
 export const updateUser  = (id: string, data: { role?: string; username?: string }) =>
   request<import('./types').User>('PATCH', `/users/${id}`, data)
@@ -240,7 +240,7 @@ export type AuditLogEntry = {
   username: string
   user_id: string | null
   ip_address: string | null
-  details: Record<string, any>
+  details: Record<string, unknown>
 }
 export type AuditLogResponse = {
   logs: AuditLogEntry[]

@@ -129,8 +129,8 @@ class DbHealthCheckStep(BaseStep):
                     })
                     max_lag = max(r[1] for r in repl_rows)
                     log_lines.append(f'  Max Replication Lag: {max_lag} bytes')
-        except Exception:
-            pass  # not a primary, or no replicas
+        except Exception:  # nosec B110 — not a primary, or no replicas
+            pass
 
         return sections, '\n'.join(log_lines)
 
@@ -167,7 +167,7 @@ class DbHealthCheckStep(BaseStep):
                 'rows': [('Hit Ratio %', ratio)],
             })
             log_lines.append(f'  Buffer Cache Hit Ratio: {ratio}%')
-        except Exception:
+        except Exception:  # nosec B110 — optional metric, older Oracle versions may lack these views
             pass
 
         # Tablespace usage (>80%)
@@ -188,7 +188,7 @@ class DbHealthCheckStep(BaseStep):
                     '  High Tablespace: '
                     + ', '.join(f"{r[0]} {r[1]}%" for r in ts_rows)
                 )
-        except Exception:
+        except Exception:  # nosec B110 — optional metric, requires DBA view access
             pass
 
         return sections, '\n'.join(log_lines)

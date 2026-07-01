@@ -102,5 +102,5 @@ class BigQueryConnection(BaseConnection):
     def close(self) -> None:
         try:
             self._client.close()
-        except Exception:
+        except Exception:  # nosec B110 — best-effort cleanup, matches other connectors
             pass

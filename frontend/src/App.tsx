@@ -35,7 +35,9 @@ function AppBootstrap({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!token) return
     getMe().then(setUser).catch(() => clearToken())
-  }, [token])
+    // setUser/clearToken are stable Zustand store actions (see lib/auth.ts) — adding
+    // them here doesn't change when this effect re-runs (still only on token change)
+  }, [token, setUser, clearToken])
 
   return <>{children}</>
 }

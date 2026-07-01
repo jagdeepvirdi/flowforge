@@ -56,7 +56,9 @@ export default function Login() {
         })
         .catch(() => setError('Could not validate reset link.'))
     }
-  }, [])
+    // navigate/setToken/setUser are stable references (React Router / Zustand store
+    // actions) — including them doesn't change this effect from running once on mount
+  }, [navigate, setToken, setUser])
 
   // Load SSO provider availability (no auth required)
   useEffect(() => {

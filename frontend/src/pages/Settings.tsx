@@ -4,7 +4,7 @@ import { ExternalLink, CheckCircle2, XCircle, BrainCircuit, Shield, ShieldCheck,
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 import PageIntro from '../components/shared/PageIntro'
-import { getSetupStatus, changePassword, getMfaStatus, mfaEnroll, mfaConfirm, mfaDisable } from '../lib/api'
+import { getSetupStatus, changePassword, getMfaStatus, mfaEnroll, mfaConfirm, mfaDisable, type SetupStatus } from '../lib/api'
 
 function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
@@ -105,7 +105,7 @@ function ChangePasswordCard() {
   )
 }
 
-function GoogleOAuthCard({ status, isLoading }: { status: any; isLoading: boolean }) {
+function GoogleOAuthCard({ status, isLoading }: { status: SetupStatus | undefined; isLoading: boolean }) {
   const driveLabel = !status ? '' : status.drive.configured
     ? (status.drive.folder_id ? 'Drive · folder set' : 'Drive · no folder')
     : 'Drive not configured'
@@ -142,7 +142,7 @@ function GoogleOAuthCard({ status, isLoading }: { status: any; isLoading: boolea
   )
 }
 
-function Microsoft365Card({ status, isLoading }: { status: any; isLoading: boolean }) {
+function Microsoft365Card({ status, isLoading }: { status: SetupStatus | undefined; isLoading: boolean }) {
   return (
     <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -174,7 +174,7 @@ function Microsoft365Card({ status, isLoading }: { status: any; isLoading: boole
   )
 }
 
-function AiOllamaCard({ status, isLoading }: { status: any; isLoading: boolean }) {
+function AiOllamaCard({ status, isLoading }: { status: SetupStatus | undefined; isLoading: boolean }) {
   return (
     <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -454,7 +454,7 @@ function MfaCard() {
   )
 }
 
-function RetentionCard({ status, isLoading }: { status: any; isLoading: boolean }) {
+function RetentionCard({ status, isLoading }: { status: SetupStatus | undefined; isLoading: boolean }) {
   return (
     <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

@@ -204,7 +204,7 @@ export interface EmailProvider {
   provider_type: ProviderType
   is_default: boolean
   created_at: string
-  config?: Record<string, string>
+  config?: Record<string, unknown>
 }
 
 export interface DbConnection {
@@ -213,7 +213,7 @@ export interface DbConnection {
   db_type: DbType
   is_default: boolean
   created_at: string
-  config?: Record<string, string>
+  config?: Record<string, unknown>
 }
 
 export interface BulkLoadConfig {

@@ -17,7 +17,7 @@ export default function PageIntro({ page }: Props) {
 
   useEffect(() => {
     if (!visible) {
-      try { localStorage.setItem(key, '1') } catch {}
+      try { localStorage.setItem(key, '1') } catch { /* localStorage unavailable (private mode, quota) — ignore */ }
     }
   }, [visible, key])
 

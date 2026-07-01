@@ -28,7 +28,7 @@ def _get_service():
         creds = Credentials(
             token=None,
             refresh_token=os.environ.get('GMAIL_REFRESH_TOKEN', ''),
-            token_uri='https://oauth2.googleapis.com/token',
+            token_uri='https://oauth2.googleapis.com/token',  # nosec B106 — public endpoint URL, not a secret
             client_id=os.environ.get('GMAIL_CLIENT_ID', ''),
             client_secret=os.environ.get('GMAIL_CLIENT_SECRET', ''),
             scopes=_DRIVE_SCOPES,

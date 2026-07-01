@@ -224,6 +224,6 @@ def render_sql(template_str: str, context: dict[str, Any]) -> str:
                     "Pass secrets via procedure 'params' (bind variables) instead.",
                     ', '.join(sorted(secrets_in_sql)),
                 )
-        except Exception:
-            pass  # don't block execution on template-parse errors
+        except Exception:  # nosec B110 — don't block execution on template-parse errors
+            pass
     return _jinja.from_string(template_str).render(**context)

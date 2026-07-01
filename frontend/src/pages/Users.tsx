@@ -177,7 +177,7 @@ export default function Users() {
     setFormError('')
     if (!form.username.trim()) { setFormError('Username is required'); return }
     if (form.password.length < 8) { setFormError('Password must be at least 8 characters'); return }
-    createMut.mutate({ username: form.username, password: form.password, role: form.role, email: form.email || undefined } as any)
+    createMut.mutate({ username: form.username, password: form.password, role: form.role, email: form.email || undefined })
   }
 
   function handleDelete(user: User) {

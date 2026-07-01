@@ -9,7 +9,7 @@ import csv
 import io
 import logging
 import shutil
-import subprocess
+import subprocess  # nosec B404 — only used with a fixed arg list, no shell=True (see call site)
 import tempfile
 import time
 from pathlib import Path
@@ -508,7 +508,7 @@ def _load_sqlloader(
             pass  # Windows; tmpdir is already process-private
 
         cmd = ['sqlldr', f'parfile={par_file}']
-        subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
+        subprocess.run(cmd, capture_output=True, text=True, timeout=3600)  # nosec B603 — fixed arg list, no shell, par_file is app-controlled
 
         log_text = log_file.read_text(errors='replace') if log_file.exists() else ''
         records_loaded, records_failed = _parse_sqlldr_counts(log_text)

@@ -131,7 +131,7 @@ def sso_google_start():
                 'client_id':     os.environ['GOOGLE_SSO_CLIENT_ID'],
                 'client_secret': os.environ['GOOGLE_SSO_CLIENT_SECRET'],
                 'auth_uri':      'https://accounts.google.com/o/oauth2/auth',
-                'token_uri':     'https://oauth2.googleapis.com/token',
+                'token_uri':     'https://oauth2.googleapis.com/token',  # nosec B105 — public endpoint URL, not a secret
                 'redirect_uris': [callback],
             }
         },
@@ -167,7 +167,7 @@ def sso_google_callback():
                     'client_id':     os.environ['GOOGLE_SSO_CLIENT_ID'],
                     'client_secret': os.environ['GOOGLE_SSO_CLIENT_SECRET'],
                     'auth_uri':      'https://accounts.google.com/o/oauth2/auth',
-                    'token_uri':     'https://oauth2.googleapis.com/token',
+                    'token_uri':     'https://oauth2.googleapis.com/token',  # nosec B105 — public endpoint URL, not a secret
                     'redirect_uris': [callback],
                 }
             },

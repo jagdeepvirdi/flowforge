@@ -42,11 +42,13 @@ function newStep(type: StepType, order: number): PipelineStep {
   }
 }
 
+type PipelineVar = { key: string; value: string; is_secret: boolean }
+
 function PipelineVariablesCard({ vars, setVars }: {
-  vars: { key: string; value: string; is_secret: boolean }[]
-  setVars: React.Dispatch<React.SetStateAction<{ key: string; value: string; is_secret: boolean }[]>>
+  vars: PipelineVar[]
+  setVars: React.Dispatch<React.SetStateAction<PipelineVar[]>>
 }) {
-  const updateVar = (i: number, updates: any) => {
+  const updateVar = (i: number, updates: Partial<PipelineVar>) => {
     setVars(prev => prev.map((v, j) => j === i ? { ...v, ...updates } : v))
   }
   const removeVar = (i: number) => {
@@ -687,7 +689,9 @@ function CronBuilder({ defaultValue, onChange }: { defaultValue: string; onChang
   useEffect(() => {
     if (!mounted.current) { mounted.current = true; return }
     onChange(currentCron)
-  }, [currentCron])
+    // CronBuilder is only ever passed a useState setter as onChange (stable reference),
+    // so including it here doesn't change when this effect re-runs
+  }, [currentCron, onChange])
 
   const { data: nextData } = useQuery({
     queryKey: ['cron-next', currentCron],

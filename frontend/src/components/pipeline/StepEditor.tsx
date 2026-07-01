@@ -158,7 +158,7 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
                 </Field>
                 <Field label="Parameters (JSON object)">
                   <textarea className="input mono-input" rows={3} value={JSON.stringify(cfg.params ?? {}, null, 2)}
-                    onChange={e => { try { setConfig('params', JSON.parse(e.target.value)) } catch {} }}
+                    onChange={e => { try { setConfig('params', JSON.parse(e.target.value)) } catch { /* invalid JSON while typing — ignore */ } }}
                     style={{ height: 'auto', resize: 'none' }}
                   />
                 </Field>
@@ -463,7 +463,7 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
             {!STEP_TYPES_WITH_FORM.has(step.step_type) && (
               <Field label="Config (JSON)" tooltip="No dedicated form for this step type (a plugin, or a built-in without a form yet) — edit its raw config here.">
                 <textarea className="input mono-input" rows={8} value={JSON.stringify(cfg, null, 2)}
-                  onChange={e => { try { onChange(step.id, { config: JSON.parse(e.target.value) }) } catch {} }}
+                  onChange={e => { try { onChange(step.id, { config: JSON.parse(e.target.value) }) } catch { /* invalid JSON while typing — ignore */ } }}
                   style={{ height: 'auto', resize: 'vertical' }}
                 />
               </Field>
@@ -766,7 +766,7 @@ function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnections }: DataLoa
               rows={4}
               value={columnMapRaw}
               onChange={e => {
-                try { setConfig('column_map', JSON.parse(e.target.value)) } catch {}
+                try { setConfig('column_map', JSON.parse(e.target.value)) } catch { /* invalid JSON while typing — ignore */ }
               }}
               placeholder={'{\n  "SOURCE_COL": "target_col"\n}'}
               style={{ height: 'auto', resize: 'none', fontSize: 12 }}

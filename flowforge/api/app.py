@@ -150,8 +150,8 @@ def _sweep_stuck_runs(app: Flask) -> None:
                 run.finished_at = datetime.now(UTC)
         db.session.commit()
         app.logger.warning('Swept %d stuck pipeline run(s) left from previous session.', len(stuck))
-    except Exception:
-        pass  # Migrations not yet applied or DB unreachable — skip silently
+    except Exception:  # nosec B110 — migrations not yet applied or DB unreachable, skip silently
+        pass
 
 
 def _register_blueprints(app: Flask) -> None:

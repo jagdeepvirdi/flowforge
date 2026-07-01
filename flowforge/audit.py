@@ -38,7 +38,7 @@ class _JsonStdoutHandler(logging.Handler):
         try:
             sys.stdout.write(json.dumps(payload) + '\n')
             sys.stdout.flush()
-        except Exception:
+        except Exception:  # nosec B110 — audit logging must never crash the app
             pass
 
 
@@ -99,7 +99,7 @@ def _write_db_audit(action: str, username: str, user_id: str, ip_address: str, d
         )
         with db.engine.begin() as conn:
             conn.execute(stmt)
-    except Exception:
+    except Exception:  # nosec B110 — audit logging must never crash the app
         pass
 
 

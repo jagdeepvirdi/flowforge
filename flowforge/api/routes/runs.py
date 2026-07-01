@@ -267,7 +267,7 @@ def get_run_diff(run_id):
             p = _Path(path_str).resolve()
             if str(p).startswith(str(output_root)) and p.is_file():
                 return p.stat().st_size
-        except Exception:
+        except Exception:  # nosec B110 — best-effort file size lookup
             pass
         return None
 
