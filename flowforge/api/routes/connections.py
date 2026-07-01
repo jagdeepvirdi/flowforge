@@ -8,7 +8,7 @@ from flowforge.db.models import DbConnection, db
 
 bp = Blueprint('connections', __name__)
 
-_SENSITIVE = {'password', 'token', 'secret', 'key'}
+_SENSITIVE = {'password', 'token', 'secret', 'key', 'credentials'}
 
 
 def _connection_dict(c: DbConnection, include_config: bool = False) -> dict:
@@ -45,7 +45,7 @@ def create_connection():
     err = validate_connection(data)
     if err:
         return jsonify({'error': err}), 400
-    _VALID_TYPES = {'postgresql', 'oracle', 'mysql', 'mssql', 'odbc'}
+    _VALID_TYPES = {'postgresql', 'oracle', 'mysql', 'mssql', 'odbc', 'redshift', 'snowflake', 'bigquery'}
     if data.get('db_type') not in _VALID_TYPES:
         return jsonify({'error': f'db_type must be one of: {", ".join(sorted(_VALID_TYPES))}'}), 400
     if not data.get('config'):
@@ -210,6 +210,58 @@ def test_connection_raw():
             with conn.cursor() as cur:
                 cur.execute("SELECT 1")
             conn.close()
+            return jsonify({'success': True, 'latency_ms': int((time.monotonic() - start) * 1000)})
+        if db_type == 'redshift':
+            import psycopg2
+            start = time.monotonic()
+            conn = psycopg2.connect(
+                host=cfg.get('host', 'localhost'),
+                port=int(cfg.get('port', 5439)),
+                database=cfg.get('database', ''),
+                user=cfg.get('username') or cfg.get('user', ''),
+                password=cfg.get('password', ''),
+                connect_timeout=5,
+            )
+            conn.close()
+            latency_ms = int((time.monotonic() - start) * 1000)
+            return jsonify({'success': True, 'latency_ms': latency_ms})
+        if db_type == 'snowflake':
+            try:
+                import snowflake.connector
+            except ModuleNotFoundError:
+                return jsonify({'success': False, 'error': 'snowflake-connector-python is not installed. Run: pip install "flowforge[snowflake]"'}), 400
+            start = time.monotonic()
+            conn = snowflake.connector.connect(
+                account=cfg.get('account', ''),
+                user=cfg.get('username') or cfg.get('user', ''),
+                password=cfg.get('password', ''),
+                warehouse=cfg.get('warehouse') or None,
+                database=cfg.get('database') or None,
+                schema=cfg.get('schema') or None,
+                role=cfg.get('role') or None,
+                login_timeout=5,
+            )
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+            conn.close()
+            return jsonify({'success': True, 'latency_ms': int((time.monotonic() - start) * 1000)})
+        if db_type == 'bigquery':
+            try:
+                from google.cloud import bigquery
+            except ModuleNotFoundError:
+                return jsonify({'success': False, 'error': 'google-cloud-bigquery is not installed. Run: pip install "flowforge[bigquery]"'}), 400
+            start = time.monotonic()
+            credentials_json = cfg.get('credentials_json', '')
+            if credentials_json:
+                import json as _json
+
+                from google.oauth2 import service_account
+                creds = service_account.Credentials.from_service_account_info(_json.loads(credentials_json))
+                client = bigquery.Client(project=cfg.get('project_id', ''), credentials=creds)
+            else:
+                client = bigquery.Client(project=cfg.get('project_id', ''))
+            client.query("SELECT 1").result()
+            client.close()
             return jsonify({'success': True, 'latency_ms': int((time.monotonic() - start) * 1000)})
         return jsonify({'success': False, 'error': f'Unsupported db_type: {db_type}'}), 400
     except Exception as e:

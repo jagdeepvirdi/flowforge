@@ -93,7 +93,8 @@ def test_add_step_all_valid_types(client, headers, pipeline_id):
     valid_types = [
         'db_procedure', 'db_query', 'report', 'email', 'drive_upload',
         'onedrive_upload', 'ai_analyze', 'data_load', 'bulk_load', 'sftp_transfer',
-        'ssh_command', 'db_health_check', 'data_report', 'ssh_health_check',
+        'ssh_command', 'db_health_check', 'data_report', 'ssh_health_check', 'notification',
+        's3_upload', 'azure_blob_upload',
     ]
     created_ids = []
     for stype in valid_types:
@@ -216,3 +217,21 @@ def test_delete_step_nonexistent_returns_404(client, headers):
 def test_delete_step_requires_auth(client, step_id):
     resp = client.delete(f'/api/pipeline-steps/{step_id}')
     assert resp.status_code == 401
+
+
+# ── GET /step-types ────────────────────────────────────────────────────────────
+
+def test_list_step_types_requires_auth(client):
+    resp = client.get('/api/step-types')
+    assert resp.status_code == 401
+
+
+def test_list_step_types_includes_all_builtins(client, headers):
+    resp = client.get('/api/step-types', headers=headers)
+    assert resp.status_code == 200
+    data = resp.get_json()
+    types = {row['type'] for row in data}
+    for expected in ('db_procedure', 'db_query', 'report', 'email', 'notification'):
+        assert expected in types
+    # built-ins are never flagged as plugins
+    assert all(row['plugin'] is False for row in data if row['type'] in types)

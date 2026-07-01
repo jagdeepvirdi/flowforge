@@ -316,6 +316,48 @@ The report is available here: {{ steps.upload_report.drive_url }}
 
 ---
 
+## s3_upload
+
+Uploads a file to an AWS S3 bucket. Requires `pip install flowforge[s3]`.
+
+```yaml
+step_type: s3_upload
+config:
+  file_path:      "{{ steps.generate_report.output_path }}"
+  bucket:         my-bucket
+  key:            "reports/Revenue_{{ current_month }}.xlsx"  # optional — defaults to the file's own name
+  rename_to:      "Revenue_{{ current_month }}.xlsx"          # optional — rename the local file before upload
+  presigned_url:  true    # default true — return a time-limited HTTPS URL instead of an s3:// URI
+```
+
+**Credentials:** `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_DEFAULT_REGION` env vars, or boto3's default credential chain (instance/task role, shared config file) if unset.
+
+**Outputs:**
+- `{{ steps.<name>.drive_url }}` — presigned HTTPS URL (1 hour expiry), or the `s3://bucket/key` URI if `presigned_url: false`
+
+---
+
+## azure_blob_upload
+
+Uploads a file to an Azure Blob Storage container. Requires `pip install flowforge[azure_blob]`.
+
+```yaml
+step_type: azure_blob_upload
+config:
+  file_path:      "{{ steps.generate_report.output_path }}"
+  container:      mycontainer
+  blob_name:      "Revenue_{{ current_month }}.xlsx"   # optional — defaults to the file's own name
+  rename_to:      "Revenue_{{ current_month }}.xlsx"   # optional — rename the local file before upload
+  shareable_url:  true    # default true — append a read-only SAS token to the URL
+```
+
+**Credentials:** `AZURE_STORAGE_CONNECTION_STRING` env var, or `AZURE_STORAGE_ACCOUNT_URL` (+ `AZURE_STORAGE_ACCOUNT_KEY` for SAS-signed shareable URLs) as a fallback.
+
+**Outputs:**
+- `{{ steps.<name>.drive_url }}` — blob URL, with a 24-hour read-only SAS token appended when `shareable_url: true` and `AZURE_STORAGE_ACCOUNT_KEY` is set; otherwise the plain blob URL (only accessible if the container/blob is public).
+
+---
+
 ## ai_analyze
 
 Runs a SQL query, formats the results as a data table, passes it to an LLM with a user-defined prompt, and stores the response in a pipeline variable. Use it to generate natural-language summaries, anomaly explanations, or commentary that can be embedded in downstream email bodies.

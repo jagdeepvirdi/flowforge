@@ -27,11 +27,18 @@ export interface Project {
 }
 
 export type PipelineStatus = 'success' | 'failed' | 'running' | 'cancelled' | 'never run'
-export type StepType = 'db_procedure' | 'db_query' | 'report' | 'email' | 'drive_upload' | 'ai_analyze' | 'data_load' | 'bulk_load' | 'notification'
+// Known built-in types get autocomplete; `(string & {})` keeps the union open for
+// community plugin step types registered via FLOWFORGE_PLUGIN_DIR (see docs/plugins.md).
+export type StepType =
+  | 'db_procedure' | 'db_query' | 'report' | 'email' | 'drive_upload' | 'onedrive_upload'
+  | 'ai_analyze' | 'data_load' | 'bulk_load' | 'sftp_transfer' | 'ssh_command'
+  | 'db_health_check' | 'data_report' | 'ssh_health_check' | 'notification'
+  | 's3_upload' | 'azure_blob_upload'
+  | (string & {})
 export type OnError = 'stop' | 'continue'
 export type ReportFormat = 'excel' | 'csv' | 'pdf' | 'json'
 export type ProviderType = 'gmail' | 'microsoft365' | 'smtp' | 'sendgrid' | 'ses' | 'mailgun'
-export type DbType = 'postgresql' | 'oracle' | 'mysql' | 'mssql' | 'odbc'
+export type DbType = 'postgresql' | 'oracle' | 'mysql' | 'mssql' | 'odbc' | 'redshift' | 'snowflake' | 'bigquery'
 
 export interface Pipeline {
   id: string

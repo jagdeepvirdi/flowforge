@@ -86,6 +86,8 @@ unless explicitly configured to transmit to:
 
 - **Gmail API** / **Microsoft Graph** — for email delivery
 - **Google Drive API** — for large attachment storage
+- **AWS S3** / **Azure Blob Storage** — if a pipeline uses an `s3_upload` or `azure_blob_upload` step
+- **Snowflake / BigQuery / Amazon Redshift** — if a pipeline's `db_procedure`/`db_query` steps reference a connection of that type (query result rows leave FlowForge's infrastructure for the cloud data warehouse's, same as any other configured DB connection)
 - **Google / Microsoft OAuth2** — for SSO login (redirects only; no data sent to FlowForge from the IdP beyond email + name)
 - **SAML 2.0 IdP** (Okta / Azure AD / PingFederate) — for enterprise SSO login (browser redirect + POST of a signed assertion; no data sent to FlowForge beyond the NameID/email in the assertion)
 - **Ollama** — local AI; data stays on your machine

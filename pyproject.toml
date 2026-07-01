@@ -102,6 +102,20 @@ sso = [
     # libxml2 + libxmlsec1 (xmlsec1-dev on Debian/Ubuntu) for the xmlsec binding.
     "python3-saml>=1.16",
 ]
+snowflake = [
+    "snowflake-connector-python>=3.7",
+]
+bigquery = [
+    "google-cloud-bigquery>=3.17",
+]
+# Redshift is PostgreSQL-wire-compatible — reuses the core psycopg2-binary dependency,
+# no extra package needed.
+s3 = [
+    "boto3>=1.34",
+]
+azure_blob = [
+    "azure-storage-blob>=12.19",
+]
 all = [
     "flowforge-io[gmail]",
     "flowforge-io[drive]",
@@ -113,6 +127,10 @@ all = [
     "flowforge-io[mssql]",
     "flowforge-io[ses]",
     "flowforge-io[sso]",
+    "flowforge-io[snowflake]",
+    "flowforge-io[bigquery]",
+    "flowforge-io[s3]",
+    "flowforge-io[azure_blob]",
 ]
 dev = [
     "pytest>=8.0",

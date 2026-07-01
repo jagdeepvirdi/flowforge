@@ -12,7 +12,7 @@ import {
   getPipeline, createPipeline, updatePipeline,
   addStep, updateStep, deleteStep,
   getDbConnections, getReportConfigs, getEmailConfigs, getBulkLoadConfigs,
-  getCronNext,
+  getCronNext, getStepTypes,
   getWebhookTokens, createWebhookToken, revokeWebhookToken,
   getPipelines,
   addPipelineDep, removePipelineDep,
@@ -26,7 +26,7 @@ import Sk from '../components/shared/Skeleton'
 import FieldTooltip from '../components/shared/FieldTooltip'
 import RouteErrorBoundary from '../components/shared/RouteErrorBoundary'
 
-const STEP_TYPES: StepType[] = ['db_procedure', 'db_query', 'report', 'email', 'drive_upload', 'data_load', 'bulk_load', 'notification']
+const STEP_TYPES: StepType[] = ['db_procedure', 'db_query', 'report', 'email', 'drive_upload', 'data_load', 'bulk_load', 'notification', 's3_upload', 'azure_blob_upload']
 
 function newStep(type: StepType, order: number): PipelineStep {
   return {
@@ -207,6 +207,8 @@ export default function PipelineEdit() {
   const { data: emailCfgs = [] }    = useQuery({ queryKey: ['email-configs'],    queryFn: () => getEmailConfigs() })
   const { data: bulkLoadCfgs = [] } = useQuery({ queryKey: ['bulk-load-configs'],queryFn: getBulkLoadConfigs })
   const { data: allPipelines = [] } = useQuery({ queryKey: ['pipelines'],        queryFn: () => getPipelines() })
+  const { data: stepTypes = STEP_TYPES.map(type => ({ type, plugin: false })) } =
+    useQuery({ queryKey: ['step-types'], queryFn: getStepTypes })
 
   const [name, setName]           = useState('')
   const [desc, setDesc]           = useState('')
@@ -453,11 +455,13 @@ export default function PipelineEdit() {
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-semibold text-[var(--text)]">Steps <span className="font-mono text-[var(--text-muted)] text-[11px]">({steps.length})</span></span>
             <div className="flex gap-1 flex-wrap justify-end">
-              {STEP_TYPES.map(t => (
-                <button key={t} className="btn btn-sm" onClick={() => addNewStep(t)}>
-                  <Plus size={10} /> {t.replace(/_/g, ' ')}
-                </button>
-              ))}
+              {stepTypes
+                .filter(st => (STEP_TYPES as string[]).includes(st.type) || st.plugin)
+                .map(st => (
+                  <button key={st.type} className="btn btn-sm" onClick={() => addNewStep(st.type)} title={st.plugin ? 'Plugin step type' : undefined}>
+                    <Plus size={10} /> {st.type.replace(/_/g, ' ')}{st.plugin ? ' (plugin)' : ''}
+                  </button>
+                ))}
             </div>
           </div>
 

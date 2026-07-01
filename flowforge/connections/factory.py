@@ -61,4 +61,34 @@ def get_connection(connection_id: str) -> BaseConnection:
             connection_string=cfg.get('connection_string', ''),
         )
 
+    if row.db_type == 'redshift':
+        from flowforge.connections.redshift import RedshiftConnection
+        return RedshiftConnection(
+            host=cfg['host'],
+            database=cfg.get('database', ''),
+            user=cfg.get('user') or cfg.get('username', ''),
+            password=cfg['password'],
+            port=int(cfg.get('port', 5439)),
+        )
+
+    if row.db_type == 'snowflake':
+        from flowforge.connections.snowflake import SnowflakeConnection
+        return SnowflakeConnection(
+            account=cfg.get('account', ''),
+            user=cfg.get('user') or cfg.get('username', ''),
+            password=cfg['password'],
+            warehouse=cfg.get('warehouse', ''),
+            database=cfg.get('database', ''),
+            schema=cfg.get('schema', ''),
+            role=cfg.get('role', ''),
+        )
+
+    if row.db_type == 'bigquery':
+        from flowforge.connections.bigquery import BigQueryConnection
+        return BigQueryConnection(
+            project_id=cfg.get('project_id', ''),
+            dataset=cfg.get('dataset', ''),
+            credentials_json=cfg.get('credentials_json', ''),
+        )
+
     raise ValueError(f"Unsupported db_type: {row.db_type}")

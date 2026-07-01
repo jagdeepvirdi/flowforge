@@ -2,14 +2,19 @@ from flask import Blueprint, jsonify, request
 
 from flowforge.api.auth import require_auth
 from flowforge.db.models import Pipeline, PipelineStep, db
+from flowforge.engine.loader import get_step_types, is_plugin_step_type
 
 bp = Blueprint('steps', __name__)
 
-_VALID_TYPES = {
-    'db_procedure', 'db_query', 'report', 'email', 'drive_upload',
-    'onedrive_upload', 'ai_analyze', 'data_load', 'bulk_load', 'sftp_transfer',
-    'ssh_command', 'db_health_check', 'data_report', 'ssh_health_check',
-}
+
+@bp.get('/step-types')
+@require_auth
+def list_step_types():
+    """All registered step types (built-in + plugins loaded from FLOWFORGE_PLUGIN_DIR)."""
+    return jsonify([
+        {'type': t, 'plugin': is_plugin_step_type(t)}
+        for t in get_step_types()
+    ])
 
 
 def _step_dict(s: PipelineStep) -> dict:
@@ -43,8 +48,9 @@ def add_step(pipeline_id):
         return jsonify({'error': 'Pipeline not found'}), 404
 
     data = request.get_json() or {}
-    if data.get('step_type') not in _VALID_TYPES:
-        return jsonify({'error': f'step_type must be one of: {", ".join(sorted(_VALID_TYPES))}'}), 400
+    valid_types = set(get_step_types())
+    if data.get('step_type') not in valid_types:
+        return jsonify({'error': f'step_type must be one of: {", ".join(sorted(valid_types))}'}), 400
     if not data.get('name'):
         return jsonify({'error': 'name is required'}), 400
 
@@ -76,7 +82,7 @@ def update_step(step_id):
         if field in data:
             setattr(step, field, data[field] or None if field == 'parallel_group' else data[field])
     if 'step_type' in data:
-        if data['step_type'] not in _VALID_TYPES:
+        if data['step_type'] not in set(get_step_types()):
             return jsonify({'error': 'Invalid step_type'}), 400
         step.step_type = data['step_type']
 

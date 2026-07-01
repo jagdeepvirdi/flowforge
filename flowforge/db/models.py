@@ -117,7 +117,10 @@ class EmailProvider(db.Model):
 class DbConnection(db.Model):
     __tablename__ = 'ff_db_connections'
     __table_args__ = (
-        CheckConstraint("db_type IN ('postgresql', 'oracle', 'mysql', 'mssql', 'odbc')", name='ck_db_connection_type'),
+        CheckConstraint(
+            "db_type IN ('postgresql', 'oracle', 'mysql', 'mssql', 'odbc', 'redshift', 'snowflake', 'bigquery')",
+            name='ck_db_connection_type',
+        ),
     )
 
     id         = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
@@ -254,8 +257,11 @@ class Pipeline(db.Model):
 class PipelineStep(db.Model):
     __tablename__ = 'ff_pipeline_steps'
     __table_args__ = (
+        # Format check only (not an enum) — plugin step types loaded from FLOWFORGE_PLUGIN_DIR
+        # are not known when this constraint is defined. The set of *valid, registered* step
+        # types is enforced at the application layer via flowforge.engine.loader.get_step_types().
         CheckConstraint(
-            "step_type IN ('db_procedure','db_query','report','email','drive_upload','data_load','bulk_load','onedrive_upload','ai_analyze','sftp_transfer','ssh_command','db_health_check','data_report','ssh_health_check','notification')",
+            "step_type ~ '^[a-z][a-z0-9_]{1,48}$'",
             name='ck_step_type',
         ),
         CheckConstraint("on_error IN ('stop', 'continue')", name='ck_on_error'),

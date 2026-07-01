@@ -15,8 +15,8 @@ import FieldTooltip from '../components/shared/FieldTooltip'
 
 type Tab = 'db' | 'mail'
 
-const DB_COLORS: Record<string, string> = { postgresql: '#3B82F6', oracle: '#EF4444', mysql: '#14B8A6', mssql: '#A855F7', odbc: '#6B7280' }
-const DB_LABELS: Record<string, string>  = { postgresql: 'PostgreSQL', oracle: 'Oracle', mysql: 'MySQL', mssql: 'SQL Server', odbc: 'ODBC' }
+const DB_COLORS: Record<string, string> = { postgresql: '#3B82F6', oracle: '#EF4444', mysql: '#14B8A6', mssql: '#A855F7', odbc: '#6B7280', redshift: '#DC2626', snowflake: '#38BDF8', bigquery: '#4285F4' }
+const DB_LABELS: Record<string, string>  = { postgresql: 'PostgreSQL', oracle: 'Oracle', mysql: 'MySQL', mssql: 'SQL Server', odbc: 'ODBC', redshift: 'Redshift', snowflake: 'Snowflake', bigquery: 'BigQuery' }
 const PROVIDER_LABELS: Record<string, string> = { gmail: 'Gmail', microsoft365: 'Microsoft 365', smtp: 'SMTP', sendgrid: 'SendGrid', ses: 'AWS SES', mailgun: 'Mailgun' }
 
 function StatCol({ label, value }: { label: string; value: string }) {
@@ -31,11 +31,13 @@ function StatCol({ label, value }: { label: string; value: string }) {
 // ── modal state types ────────────────────────────────────────────────────────
 
 type DbForm = {
-  name: string; db_type: 'postgresql' | 'oracle' | 'mysql' | 'mssql' | 'odbc'
+  name: string; db_type: 'postgresql' | 'oracle' | 'mysql' | 'mssql' | 'odbc' | 'redshift' | 'snowflake' | 'bigquery'
   host: string; port: string; database: string; username: string; password: string
   driver: string        // mssql only
   dsn: string           // odbc only
   connection_string: string  // odbc only
+  account: string; warehouse: string; schema_name: string; role: string  // snowflake only
+  project_id: string; dataset: string; credentials_json: string          // bigquery only
   is_default: boolean
 }
 
@@ -60,6 +62,8 @@ const emptyDb = (): DbForm => ({
   name: '', db_type: 'postgresql', host: 'localhost', port: '5432',
   database: '', username: '', password: '',
   driver: 'ODBC Driver 17 for SQL Server', dsn: '', connection_string: '',
+  account: '', warehouse: '', schema_name: '', role: '',
+  project_id: '', dataset: '', credentials_json: '',
   is_default: false,
 })
 
@@ -76,9 +80,10 @@ const emptyMail = (): MailForm => ({
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 function defaultDbPort(dbType: string): string {
-  if (dbType === 'oracle') return '1521'
-  if (dbType === 'mysql')  return '3306'
-  if (dbType === 'mssql')  return '1433'
+  if (dbType === 'oracle')   return '1521'
+  if (dbType === 'mysql')    return '3306'
+  if (dbType === 'mssql')    return '1433'
+  if (dbType === 'redshift') return '5439'
   return '5432'
 }
 
@@ -165,6 +170,15 @@ export default function Connections() {
     if (form.db_type === 'odbc') {
       return { dsn: form.dsn, connection_string: form.connection_string }
     }
+    if (form.db_type === 'snowflake') {
+      return {
+        account: form.account, username: form.username, password: form.password,
+        warehouse: form.warehouse, database: form.database, schema: form.schema_name, role: form.role,
+      }
+    }
+    if (form.db_type === 'bigquery') {
+      return { project_id: form.project_id, dataset: form.dataset, credentials_json: form.credentials_json }
+    }
     const cfg: Record<string, unknown> = {
       host: form.host, port: Number(form.port),
       database: form.database, username: form.username, password: form.password,
@@ -193,6 +207,10 @@ export default function Connections() {
           username: cfg.username ?? '', password: '***',
           driver: cfg.driver ?? 'ODBC Driver 17 for SQL Server',
           dsn: cfg.dsn ?? '', connection_string: cfg.connection_string ?? '',
+          account: cfg.account ?? '', warehouse: cfg.warehouse ?? '',
+          schema_name: cfg.schema ?? '', role: cfg.role ?? '',
+          project_id: cfg.project_id ?? '', dataset: cfg.dataset ?? '',
+          credentials_json: cfg.credentials_json ? '***' : '',
         })
       }).catch(() => setFormError('Failed to load connection details'))
     } else {
@@ -548,6 +566,9 @@ export default function Connections() {
                     <option value="mysql">MySQL / MariaDB</option>
                     <option value="mssql">SQL Server (MSSQL)</option>
                     <option value="odbc">Generic ODBC</option>
+                    <option value="redshift">Amazon Redshift</option>
+                    <option value="snowflake">Snowflake</option>
+                    <option value="bigquery">Google BigQuery</option>
                   </select>
                 </Field>
 
@@ -566,6 +587,53 @@ export default function Connections() {
                       <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
                         DSN takes precedence if both are set.
                       </span>
+                    </Field>
+                  </>
+                ) : dbForm.db_type === 'snowflake' ? (
+                  <>
+                    <Field label="Account Identifier">
+                      <input className="input" value={dbForm.account} onChange={e => setDbForm(f => ({ ...f, account: e.target.value }))}
+                        placeholder="xy12345.us-east-1" required />
+                    </Field>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <Field label="Username">
+                        <input className="input" value={dbForm.username} onChange={e => setDbForm(f => ({ ...f, username: e.target.value }))} required />
+                      </Field>
+                      <Field label="Password">
+                        <input className="input" type="password" value={dbForm.password} onChange={e => setDbForm(f => ({ ...f, password: e.target.value }))} />
+                      </Field>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <Field label="Warehouse">
+                        <input className="input" value={dbForm.warehouse} onChange={e => setDbForm(f => ({ ...f, warehouse: e.target.value }))} placeholder="COMPUTE_WH" />
+                      </Field>
+                      <Field label="Database">
+                        <input className="input" value={dbForm.database} onChange={e => setDbForm(f => ({ ...f, database: e.target.value }))} placeholder="MY_DB" />
+                      </Field>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <Field label="Schema">
+                        <input className="input" value={dbForm.schema_name} onChange={e => setDbForm(f => ({ ...f, schema_name: e.target.value }))} placeholder="PUBLIC" />
+                      </Field>
+                      <Field label="Role (optional)">
+                        <input className="input" value={dbForm.role} onChange={e => setDbForm(f => ({ ...f, role: e.target.value }))} placeholder="SYSADMIN" />
+                      </Field>
+                    </div>
+                  </>
+                ) : dbForm.db_type === 'bigquery' ? (
+                  <>
+                    <Field label="Project ID">
+                      <input className="input" value={dbForm.project_id} onChange={e => setDbForm(f => ({ ...f, project_id: e.target.value }))}
+                        placeholder="my-gcp-project" required />
+                    </Field>
+                    <Field label="Dataset (optional)">
+                      <input className="input" value={dbForm.dataset} onChange={e => setDbForm(f => ({ ...f, dataset: e.target.value }))} placeholder="my_dataset" />
+                    </Field>
+                    <Field label="Service Account Key (JSON)">
+                      <textarea className="input mono-input" rows={5} value={dbForm.credentials_json}
+                        onChange={e => setDbForm(f => ({ ...f, credentials_json: e.target.value }))}
+                        placeholder='{"type": "service_account", ...}  (leave blank to use Application Default Credentials)'
+                        style={{ height: 'auto', resize: 'none' }} />
                     </Field>
                   </>
                 ) : (

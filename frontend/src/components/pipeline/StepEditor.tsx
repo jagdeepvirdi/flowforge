@@ -1,22 +1,31 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronUp, Trash2, GripVertical, Settings2 } from 'lucide-react'
-import type { PipelineStep, StepType } from '../../lib/types'
+import type { PipelineStep } from '../../lib/types'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import FieldTooltip from '../shared/FieldTooltip'
 import { STEP_HINTS } from '../../lib/helpContent'
 
-const STEP_META: Record<StepType, { label: string; cls: string }> = {
-  db_procedure: { label: 'Proc',   cls: 'tbadge-procedure' },
-  db_query:     { label: 'Query',  cls: 'tbadge-query' },
-  report:       { label: 'Report', cls: 'tbadge-report' },
-  email:        { label: 'Email',  cls: 'tbadge-email' },
-  drive_upload: { label: 'Drive',  cls: 'tbadge-drive' },
-  ai_analyze:   { label: 'AI',     cls: 'tbadge-transform' },
-  data_load:    { label: 'Load',   cls: 'tbadge-load' },
-  bulk_load:    { label: 'Bulk',   cls: 'tbadge-bulk' },
-  notification: { label: 'Notify', cls: 'tbadge-email' },
+const STEP_META: Record<string, { label: string; cls: string }> = {
+  db_procedure:      { label: 'Proc',   cls: 'tbadge-procedure' },
+  db_query:          { label: 'Query',  cls: 'tbadge-query' },
+  report:            { label: 'Report', cls: 'tbadge-report' },
+  email:             { label: 'Email',  cls: 'tbadge-email' },
+  drive_upload:      { label: 'Drive',  cls: 'tbadge-drive' },
+  ai_analyze:        { label: 'AI',     cls: 'tbadge-transform' },
+  data_load:         { label: 'Load',   cls: 'tbadge-load' },
+  bulk_load:         { label: 'Bulk',   cls: 'tbadge-bulk' },
+  notification:      { label: 'Notify', cls: 'tbadge-email' },
+  s3_upload:         { label: 'S3',     cls: 'tbadge-drive' },
+  azure_blob_upload: { label: 'Azure',  cls: 'tbadge-drive' },
 }
+
+// Step types with a dedicated config form below. Anything else (plugin types, or
+// built-ins without a form yet) falls back to the generic JSON config editor.
+const STEP_TYPES_WITH_FORM = new Set([
+  'db_procedure', 'db_query', 'report', 'email', 'drive_upload', 'data_load', 'bulk_load', 'notification',
+  's3_upload', 'azure_blob_upload',
+])
 
 type Props = Readonly<{
   step: PipelineStep
@@ -341,6 +350,56 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
               </>
             )}
 
+            {step.step_type === 's3_upload' && (
+              <>
+                <Field label="File path (supports {{ variables }})">
+                  <input className="input mono-input" value={String(cfg.file_path ?? '')} onChange={e => setConfig('file_path', e.target.value)} />
+                </Field>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label="Bucket">
+                    <input className="input" value={String(cfg.bucket ?? '')} onChange={e => setConfig('bucket', e.target.value)} placeholder="my-bucket" />
+                  </Field>
+                  <Field label="Key (optional)">
+                    <input className="input" value={String(cfg.key ?? '')} onChange={e => setConfig('key', e.target.value)} placeholder="reports/report_{{ current_month }}.xlsx" />
+                  </Field>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label="Rename to (optional)">
+                    <input className="input" value={String(cfg.rename_to ?? '')} onChange={e => setConfig('rename_to', e.target.value)} placeholder="report_{{ current_month }}.xlsx" />
+                  </Field>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-3)', marginTop: 18 }}>
+                    <input type="checkbox" checked={Boolean(cfg.presigned_url ?? true)} onChange={e => setConfig('presigned_url', e.target.checked)} />{' '}
+                    Return presigned URL
+                  </label>
+                </div>
+              </>
+            )}
+
+            {step.step_type === 'azure_blob_upload' && (
+              <>
+                <Field label="File path (supports {{ variables }})">
+                  <input className="input mono-input" value={String(cfg.file_path ?? '')} onChange={e => setConfig('file_path', e.target.value)} />
+                </Field>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label="Container">
+                    <input className="input" value={String(cfg.container ?? '')} onChange={e => setConfig('container', e.target.value)} placeholder="mycontainer" />
+                  </Field>
+                  <Field label="Blob name (optional)">
+                    <input className="input" value={String(cfg.blob_name ?? '')} onChange={e => setConfig('blob_name', e.target.value)} placeholder="report_{{ current_month }}.xlsx" />
+                  </Field>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label="Rename to (optional)">
+                    <input className="input" value={String(cfg.rename_to ?? '')} onChange={e => setConfig('rename_to', e.target.value)} placeholder="report_{{ current_month }}.xlsx" />
+                  </Field>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-3)', marginTop: 18 }}>
+                    <input type="checkbox" checked={Boolean(cfg.shareable_url ?? true)} onChange={e => setConfig('shareable_url', e.target.checked)} />{' '}
+                    Return shareable (SAS) URL
+                  </label>
+                </div>
+              </>
+            )}
+
             {step.step_type === 'data_load' && (
               <DataLoadForm
                 cfg={cfg}
@@ -399,6 +458,15 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
                   </span>
                 </Field>
               </>
+            )}
+
+            {!STEP_TYPES_WITH_FORM.has(step.step_type) && (
+              <Field label="Config (JSON)" tooltip="No dedicated form for this step type (a plugin, or a built-in without a form yet) — edit its raw config here.">
+                <textarea className="input mono-input" rows={8} value={JSON.stringify(cfg, null, 2)}
+                  onChange={e => { try { onChange(step.id, { config: JSON.parse(e.target.value) }) } catch {} }}
+                  style={{ height: 'auto', resize: 'vertical' }}
+                />
+              </Field>
             )}
           </div>
         )}

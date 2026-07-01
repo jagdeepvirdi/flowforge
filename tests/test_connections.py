@@ -54,7 +54,7 @@ def test_create_connection_bad_type(client, headers, db_payload):
 
 # ── db_type constraint narrowed to implemented types (NEW-6) ──────────────────
 
-@pytest.mark.parametrize('bad_type', ['snowflake', 'bigquery', 'redshift'])
+@pytest.mark.parametrize('bad_type', ['mongodb', 'cassandra', 'sqlite'])
 def test_create_connection_unsupported_types_rejected(client, headers, db_payload, bad_type):
     """Types not in the allowed set are rejected."""
     bad = {**db_payload, 'db_type': bad_type}
@@ -64,12 +64,12 @@ def test_create_connection_unsupported_types_rejected(client, headers, db_payloa
     assert 'error' in data
 
 
-@pytest.mark.parametrize('good_type', ['postgresql', 'oracle', 'mysql', 'mssql'])
+@pytest.mark.parametrize('good_type', ['postgresql', 'oracle', 'mysql', 'mssql', 'redshift', 'snowflake', 'bigquery'])
 def test_create_connection_valid_types_accepted(client, headers, db_payload, good_type):
-    """postgresql, oracle, and mysql are all valid connection types."""
+    """All implemented connector types are accepted."""
     payload = {**db_payload, 'db_type': good_type}
     resp = client.post('/api/db-connections', json=payload, headers=headers)
-    # Oracle/MySQL will 201 even without a real server — config is just stored
+    # Non-postgres types will 201 even without a real server — config is just stored
     assert resp.status_code == 201
     client.delete(f'/api/db-connections/{resp.get_json()["id"]}', headers=headers)
 

@@ -81,8 +81,8 @@ Report: https://securityscorecards.dev/viewer/?uri=github.com/jagdeepvirdi/flowf
 
 #### Critical — Code-Review (0/10)
 - [x] Enable **branch protection** on `master` *(2026-06-09)*
-- [ ] Self-review all existing un-reviewed merged PRs — Scorecard sees "1/15 approved changesets"; need to approve past PRs retroactively via GitHub PR reviews (go to each PR → Review changes → Approve)
-- [ ] Going forward: never push directly to `master`; always open a PR and self-approve before merging
+- [x] Self-review all existing un-reviewed merged PRs *(2026-07-01)* — approved 25/41 merged PRs retroactively (all Dependabot-authored). GitHub hard-blocks self-approval via API/UI for the 16 PRs where `jagdeepvirdi` is the actual author (#22,23,25-35,38,50,51) — no workaround with a single account.
+- [ ] Going forward: never push directly to `master`; always open a PR. Since self-approval is blocked by GitHub for PRs you author, get approval from a collaborator/second account for those, or prefer bot-authored PRs (e.g. Dependabot) where approval by the maintainer is allowed.
 
 #### Critical — Maintained (0/10 — time-based)
 - [ ] No direct fix: score improves automatically after repo has ≥ 90 days of commit activity (repo created ~2026-04, reaches 90 days ~2026-07)
@@ -250,8 +250,8 @@ Silver gaps remaining:
 *No fixed date. Community-driven. Good candidates for "good first issue" labeling.*
 
 ## New Connectors & Providers
-- [ ] Snowflake / BigQuery / Redshift connectors
-- [ ] AWS S3 / Azure Blob upload step
+- [x] Snowflake / BigQuery / Redshift connectors *(2026-07-01)* — `connections/{snowflake,bigquery,redshift}.py`; Redshift is a thin `PostgreSQLConnection` subclass (wire-compatible, no new dependency); Snowflake via `snowflake-connector-python`; BigQuery via `google-cloud-bigquery` (named `@pN` query parameters instead of positional `%s`, since BigQuery has no DBAPI-style placeholders); `db_type` CHECK constraint relaxed via migration `0027`; Connections page has dedicated Snowflake/BigQuery config forms (service account JSON masked in API responses)
+- [x] AWS S3 / Azure Blob upload step *(2026-07-01)* — `steps/{s3_upload,azure_blob_upload}.py` + `storage/{s3,azure_blob}.py`; credentials via env vars (`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`/`AWS_DEFAULT_REGION`, `AZURE_STORAGE_CONNECTION_STRING` or `AZURE_STORAGE_ACCOUNT_URL`+`KEY`), matching the existing Drive/OneDrive convention; presigned/SAS shareable URLs by default; documented in `docs/step-types.md`
 - [x] MSSQL / SQL Server connection support — `connections/mssql.py` via `pyodbc`; `flowforge-io[mssql]` optional extra *(2026-05-30)*
 - [x] Generic ODBC connection support — `connections/odbc.py` via `pyodbc`; DSN or connection string config *(2026-05-30)*
 - [x] SendGrid API email provider — `email_providers/sendgrid.py`; Web API v3; base64 attachments; `pip install flowforge-io[all]` *(2026-05-30)*
@@ -267,7 +267,7 @@ Silver gaps remaining:
 - [x] Environment promotion workflow — `POST /api/pipelines/{id}/promote` clones to target project (disabled); warns on secret vars + unresolved references; Promote (↗) button on Pipelines page with project picker modal *(2026-05-30)*
 
 ## Platform
-- [ ] Plugin system — community step types loaded from a directory
+- [x] Plugin system — community step types loaded from a directory *(2026-07-01)* — `flowforge/engine/loader.py` scans `FLOWFORGE_PLUGIN_DIR` (default `./plugins`) for `*.py` files defining `BaseStep` subclasses; consolidated the 4 previously-drifted step-type lists (DB CHECK constraint, API validation, 2 frontend arrays — this also fixed a pre-existing bug where `notification` steps couldn't be added via the API) into one registry exposed via `GET /api/step-types`; `ck_step_type` relaxed from an enum CHECK to a format check (migration `0026`) since plugin type names aren't known in advance; StepEditor falls back to a generic JSON config editor for types with no dedicated form; example plugin + authoring guide in `examples/plugins/http_webhook_step.py` / `docs/plugins.md`
 - [ ] `ff_project_members` join table — team-scoped project access (deferred from v2)
 - [x] Password reset flow via email — `ff_password_reset_tokens` table; `POST /auth/password-reset/request|confirm`, `GET /auth/password-reset/validate/<token>`; user `email` column; "Forgot password?" on Login; Users page shows/sets email *(2026-05-30)*
 - [ ] Distributed Redis-backed concurrency lock (replaces per-process semaphore for horizontal scale)

@@ -117,6 +117,7 @@ export const addStep    = (pipelineId: string, data: Partial<import('./types').P
 export const updateStep = (id: string, data: Partial<import('./types').PipelineStep>) =>
   put<import('./types').PipelineStep>(`/pipeline-steps/${id}`, data)
 export const deleteStep = (id: string) => del<{ deleted: string }>(`/pipeline-steps/${id}`)
+export const getStepTypes = () => get<{ type: string; plugin: boolean }[]>('/step-types')
 
 // Bulk load configs
 export const getBulkLoadConfigs   = () => get<import('./types').BulkLoadConfig[]>('/bulk-load-configs')
