@@ -119,7 +119,11 @@ def _release_local() -> None:
 
 def _redis_client():
     import redis
-    return redis.from_url(_redis_url(), socket_connect_timeout=3)
+    # socket_timeout bounds command round-trips (not just the initial connect) —
+    # without it, a Redis that accepts the TCP connection but never responds
+    # (e.g. frozen, overloaded, or blackholed mid-command) hangs try_acquire()
+    # indefinitely, defeating the fail-open guarantee below.
+    return redis.from_url(_redis_url(), socket_connect_timeout=3, socket_timeout=3)
 
 
 def _try_acquire_redis(redis_url: str) -> str | None:

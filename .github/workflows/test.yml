@@ -31,11 +31,21 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     env:
       FLOWFORGE_DB_URL: postgresql://flowforge:testpass@localhost:5432/flowforge_test  # NOSONAR
       FLOWFORGE_SECRET_KEY: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
       FLOWFORGE_JWT_SECRET:  bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+      FLOWFORGE_TEST_REDIS_URL: redis://localhost:6379/15
 
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -57,7 +67,7 @@ jobs:
         run: ruff check .
 
       - name: Run tests
-        run: pytest --tb=short -q --cov=flowforge --cov-branch --cov-report=xml --cov-fail-under=72
+        run: pytest --tb=short -q --cov=flowforge --cov-branch --cov-report=xml --cov-fail-under=88
 
       - name: Fuzz / property-based tests (hypothesis)
         run: pytest tests_fuzz/ -q --hypothesis-seed=0
