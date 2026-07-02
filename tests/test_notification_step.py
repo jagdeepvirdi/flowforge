@@ -1,9 +1,22 @@
-"""Unit tests for NotificationStep — all HTTP calls are mocked via urllib.request.urlopen."""
+"""Unit tests for NotificationStep — all HTTP calls are mocked via urllib.request.urlopen.
+
+assert_public_url is also mocked (autouse) so these tests never perform a real DNS
+lookup — SSRF-guard behavior itself is covered separately below and in test_net_guard.py.
+"""
 import urllib.error
 from io import BytesIO
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+from flowforge.net_guard import UnsafeUrlError
 from flowforge.steps.notification import NotificationStep
+
+
+@pytest.fixture(autouse=True)
+def _mock_ssrf_guard():
+    with patch('flowforge.net_guard.assert_public_url', return_value=None):
+        yield
 
 
 def _step(config):
@@ -206,3 +219,30 @@ class TestNotificationEdgeCases:
             result = step.run({})
         assert result.success is False
         assert 'connection refused' in result.error
+
+
+# ── SSRF guard ─────────────────────────────────────────────────────────────────
+
+class TestSsrfGuard:
+    """The autouse _mock_ssrf_guard fixture is overridden here to exercise the real check."""
+
+    def test_slack_rejects_private_ip_webhook(self):
+        step = _step({'platform': 'slack', 'message': 'Hello', 'webhook_url': 'http://169.254.169.254/latest/meta-data'})
+        with patch('flowforge.net_guard.assert_public_url', side_effect=UnsafeUrlError('blocked')):
+            result = step.run({})
+        assert result.success is False
+        assert 'blocked' in result.error
+
+    def test_teams_rejects_private_ip_webhook(self):
+        step = _step({'platform': 'teams', 'message': 'Hello', 'webhook_url': 'http://10.0.0.5/webhook'})
+        with patch('flowforge.net_guard.assert_public_url', side_effect=UnsafeUrlError('blocked')):
+            result = step.run({})
+        assert result.success is False
+        assert 'blocked' in result.error
+
+    def test_slack_does_not_call_urlopen_when_url_unsafe(self):
+        step = _step({'platform': 'slack', 'message': 'Hello', 'webhook_url': 'http://127.0.0.1/'})
+        with patch('flowforge.net_guard.assert_public_url', side_effect=UnsafeUrlError('blocked')), \
+             patch('urllib.request.urlopen') as mock_urlopen:
+            step.run({})
+        mock_urlopen.assert_not_called()

@@ -94,7 +94,7 @@ class AiAnalyzeStep(BaseStep):
     step_type = 'ai_analyze'
 
     def run(self, context: dict[str, Any]) -> StepResult:
-        from flowforge.engine.context import render
+        from flowforge.engine.context import render_guarded
 
         query_template = self.config.get('query', '').strip()
         if not query_template:
@@ -106,8 +106,11 @@ class AiAnalyzeStep(BaseStep):
         max_rows      = min(int(self.config.get('max_rows', _MAX_ROWS_DEFAULT)), _MAX_ROWS_HARD_CAP)
         connection_id = self.config.get('connection_id', '')
 
-        sql    = render(query_template,  context)
-        prompt = render(prompt_template, context)
+        try:
+            sql    = render_guarded(query_template,  context, sink='ai_analyze query')
+            prompt = render_guarded(prompt_template, context, sink='ai_analyze prompt')
+        except Exception as e:
+            return StepResult(success=False, error=str(e))
 
         rows, columns, err = self._run_query_or_fail(connection_id, sql)
         if err:

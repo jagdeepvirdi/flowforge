@@ -174,6 +174,12 @@ def log_project_change(action: str, name: str, project_id: str) -> None:
     _write_db_audit(f'PROJECT_{action.upper()}', _current_user(), _current_user_id(), '', {'name': name, 'id': project_id})
 
 
+def log_user_change(action: str, username: str, user_id: str) -> None:
+    """action: CREATED | UPDATED | DELETED — user-administration events (distinct from PIPELINE_CFG_*)."""
+    _get_logger().info('USER         %-7s name=%-30r  id=%s  by=%s  user_id=%s', action.upper(), username, user_id, _current_user(), _current_user_id())
+    _write_db_audit(f'USER_{action.upper()}', _current_user(), _current_user_id(), '', {'name': username, 'id': user_id})
+
+
 def log_email_sent(
     pipeline_name: str,
     step_name: str,

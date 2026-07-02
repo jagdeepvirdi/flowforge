@@ -34,7 +34,7 @@ def _handle_attachments(
     The warning is appended to warnings_out (if provided) so callers can surface it in
     Run History step logs.
     """
-    from flowforge.engine.context import render
+    from flowforge.engine.context import render_guarded
 
     max_bytes = max_mb * 1024 * 1024
     direct: list[Path] = []
@@ -88,7 +88,7 @@ def _handle_attachments(
     extra_text = ''
     if drive_links:
         tmpl = drive_message_template or _DEFAULT_DRIVE_MESSAGE
-        extra_text = render(tmpl, {**context, 'drive_links': drive_links})
+        extra_text = render_guarded(tmpl, {**context, 'drive_links': drive_links}, sink='email drive-share message')
 
     return direct, extra_text
 
@@ -99,7 +99,7 @@ class EmailStep(BaseStep):
     step_type = 'email'
 
     def run(self, context: dict[str, Any]) -> StepResult:
-        from flowforge.engine.context import render
+        from flowforge.engine.context import render, render_guarded
 
         # Smart Alerting: suppress routine emails if send_only_on_failure is set and no failure occurred
         if context.get('pipeline_send_only_on_failure') == 'true':
@@ -127,8 +127,8 @@ class EmailStep(BaseStep):
         cc  = email_cfg.get('cc_addresses') or []
         bcc = email_cfg.get('bcc_addresses') or []
 
-        subject = render(email_cfg.get('subject', ''), context)
-        body    = render(email_cfg.get('body_template', ''), context) + extra_body
+        subject = render_guarded(email_cfg.get('subject', ''), context, sink='email subject')
+        body    = render_guarded(email_cfg.get('body_template', ''), context, sink='email body') + extra_body
 
         try:
             result = provider.send(to, cc, bcc, subject, body, direct_attachments)

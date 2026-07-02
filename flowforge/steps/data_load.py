@@ -5,7 +5,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
-from flowforge.steps.base import BaseStep, StepResult
+from flowforge.steps.base import BaseStep, StepResult, validate_identifier
 
 logger = logging.getLogger(__name__)
 
@@ -136,6 +136,10 @@ class DataLoadStep(BaseStep):
             return StepResult(success=False, error='target_connection_id is required')
         if not target_table:
             return StepResult(success=False, error='target_table is required')
+        try:
+            validate_identifier(target_table, 'target_table')
+        except ValueError as e:
+            return StepResult(success=False, error=str(e))
         if mode not in _VALID_MODES:
             return StepResult(success=False, error=f"mode must be one of: {', '.join(sorted(_VALID_MODES))}")
         source_type = source_cfg.get('type', '')
@@ -154,6 +158,12 @@ class DataLoadStep(BaseStep):
 
         if column_map:
             columns = [column_map.get(c, c) for c in columns]
+
+        try:
+            for col in columns:
+                validate_identifier(col, 'column name')
+        except ValueError as e:
+            return StepResult(success=False, error=str(e))
 
         try:
             from flowforge.connections.factory import get_connection
@@ -218,10 +228,12 @@ class DataLoadStep(BaseStep):
 
     def _load_query(self, source_cfg: dict, context: dict, render) -> tuple[list[str], list[tuple]]:
         from flowforge.connections.factory import get_connection
+        from flowforge.engine.context import render_sql
+
         connection_id = source_cfg.get('connection_id', '').strip()
         if not connection_id:
             raise ValueError("source.connection_id is required when source.type is 'query'")
-        sql = render(source_cfg.get('query', ''), context)
+        sql = render_sql(source_cfg.get('query', ''), context)
         if not sql.strip():
             raise ValueError("source.query is required when source.type is 'query'")
         conn = get_connection(connection_id)

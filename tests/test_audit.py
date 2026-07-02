@@ -117,6 +117,48 @@ def test_log_provider_change_deleted(isolated_audit_logger):
     assert 'Old SMTP' in content
 
 
+# ── log_user_change ────────────────────────────────────────────────────────────
+# User-admin events must be filed under their own USER_* action, not miscategorized
+# as PIPELINE_CFG_* (see Phase 11 audit finding).
+
+def test_log_user_change_created(isolated_audit_logger):
+    from flowforge import audit
+    audit.log_user_change('CREATED', 'alice', 'user-uuid-1')
+    content = _read_log(isolated_audit_logger)
+    assert 'USER' in content
+    assert 'CREATED' in content
+    assert 'alice' in content
+    assert 'user-uuid-1' in content
+    assert 'PIPELINE_CFG' not in content
+
+
+def test_log_user_change_updated(isolated_audit_logger):
+    from flowforge import audit
+    audit.log_user_change('UPDATED', 'bob', 'user-uuid-2')
+    content = _read_log(isolated_audit_logger)
+    assert 'UPDATED' in content
+    assert 'bob' in content
+    assert 'PIPELINE_CFG' not in content
+
+
+def test_log_user_change_deleted(isolated_audit_logger):
+    from flowforge import audit
+    audit.log_user_change('DELETED', 'carol', 'user-uuid-3')
+    content = _read_log(isolated_audit_logger)
+    assert 'DELETED' in content
+    assert 'carol' in content
+    assert 'PIPELINE_CFG' not in content
+
+
+def test_log_user_change_db_action_is_user_prefixed():
+    """The DB-persisted action string must be USER_<ACTION>, not PIPELINE_CFG_<ACTION>."""
+    from flowforge import audit
+    with patch.object(audit, '_write_db_audit') as mock_write:
+        audit.log_user_change('CREATED', 'dave', 'user-uuid-4')
+    args, _ = mock_write.call_args
+    assert args[0] == 'USER_CREATED'
+
+
 # ── log_email_sent (NEW-3) ────────────────────────────────────────────────────
 
 def test_log_email_sent_written(isolated_audit_logger):

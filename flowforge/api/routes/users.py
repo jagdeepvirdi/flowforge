@@ -66,7 +66,7 @@ def create_user():
     if role != 'admin':
         _add_default_project_membership(user.id)
     db.session.commit()
-    audit.log_pipeline_change('USER_CREATED', username, user.id)
+    audit.log_user_change('CREATED', username, user.id)
     return jsonify(_user_dict(user)), 201
 
 
@@ -99,7 +99,7 @@ def update_user(user_id):
         user.email = (new_email.strip().lower() or None)
 
     db.session.commit()
-    audit.log_pipeline_change('USER_UPDATED', user.username, user.id)
+    audit.log_user_change('UPDATED', user.username, user.id)
     return jsonify(_user_dict(user))
 
 
@@ -122,7 +122,7 @@ def delete_user(user_id):
 
     db.session.delete(user)
     db.session.commit()
-    audit.log_pipeline_change('USER_DELETED', username, uid)
+    audit.log_user_change('DELETED', username, uid)
     return jsonify({'message': f'User {username!r} deleted', 'purged': purge})
 
 

@@ -25,15 +25,19 @@ class NotificationStep(BaseStep):
     step_type = 'notification'
 
     def run(self, context: dict[str, Any]) -> StepResult:
-        from flowforge.engine.context import render
+        from flowforge.engine.context import render_guarded
 
         platform = str(self.config.get('platform', 'slack')).lower()
         raw_msg  = str(self.config.get('message', ''))
         title    = str(self.config.get('title', ''))
 
-        message  = render(raw_msg, context)
-        if title:
-            title = render(title, context)
+        try:
+            message = render_guarded(raw_msg, context, sink='notification message')
+            if title:
+                title = render_guarded(title, context, sink='notification title')
+        except Exception as e:
+            logger.exception("Notification step failed")
+            return StepResult(success=False, error=str(e))
 
         try:
             if platform == 'slack':
@@ -53,6 +57,12 @@ class NotificationStep(BaseStep):
         webhook_url = str(self.config.get('webhook_url', '')).strip()
         if not webhook_url:
             return StepResult(success=False, error='webhook_url is required for Slack notifications')
+
+        from flowforge.net_guard import UnsafeUrlError, assert_public_url
+        try:
+            assert_public_url(webhook_url)
+        except UnsafeUrlError as e:
+            return StepResult(success=False, error=str(e))
 
         import json
         import urllib.error
@@ -74,6 +84,12 @@ class NotificationStep(BaseStep):
         webhook_url = str(self.config.get('webhook_url', '')).strip()
         if not webhook_url:
             return StepResult(success=False, error='webhook_url is required for Teams notifications')
+
+        from flowforge.net_guard import UnsafeUrlError, assert_public_url
+        try:
+            assert_public_url(webhook_url)
+        except UnsafeUrlError as e:
+            return StepResult(success=False, error=str(e))
 
         import json
         import urllib.error

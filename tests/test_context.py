@@ -2,6 +2,8 @@
 import re
 from datetime import datetime, timedelta
 
+import pytest
+
 
 def test_built_in_current_date():
     from flowforge.engine.context import build
@@ -444,7 +446,7 @@ def test_safe_env_allowlist_credential_explicitly_listed(monkeypatch):
     assert render('{{ env.MY_CUSTOM_KEY }}', ctx) == 'custom-value'
 
 
-# ── render_sql — SEC-3 secret-in-SQL detection ────────────────────────────────
+# ── render_sql / render_guarded — secret-in-SQL hard block ────────────────────
 
 def test_render_sql_works_like_render_for_normal_vars():
     from flowforge.engine.context import build, render_sql
@@ -454,37 +456,30 @@ def test_render_sql_works_like_render_for_normal_vars():
     assert '2026-05' in result
 
 
-def test_render_sql_still_renders_secret_vars(caplog):
-    """Secret vars still render — render_sql is warn-only, not blocking."""
-    from flowforge.engine.context import build, render_sql
+def test_render_sql_blocks_secret_vars():
+    """Secret vars must never render into SQL text — hard block, not warn."""
+    from flowforge.engine.context import SecretLeakError, build, render_sql
     ctx = build('test', pipeline_vars={'MY_SECRET': 'topsecret'})
     ctx['_secret_var_keys'] = {'MY_SECRET'}
-    result = render_sql("SELECT '{{ MY_SECRET }}'", ctx)
-    assert 'topsecret' in result
+    with pytest.raises(SecretLeakError):
+        render_sql("SELECT '{{ MY_SECRET }}'", ctx)
 
 
-def test_render_sql_logs_warning_for_secret_in_sql(caplog):
-    import logging
-
-    from flowforge.engine.context import build, render_sql
+def test_render_sql_error_names_the_secret_key():
+    from flowforge.engine.context import SecretLeakError, build, render_sql
     ctx = build('test', pipeline_vars={'DB_PASS': 's3cr3t'})
     ctx['_secret_var_keys'] = {'DB_PASS'}
-    with caplog.at_level(logging.WARNING, logger='flowforge.engine.context'):
+    with pytest.raises(SecretLeakError) as exc_info:
         render_sql("SELECT * FROM t WHERE pass = '{{ DB_PASS }}'", ctx)
-    assert any('DB_PASS' in r.message for r in caplog.records)
-    assert any('secret' in r.message.lower() for r in caplog.records)
+    assert 'DB_PASS' in str(exc_info.value)
 
 
-def test_render_sql_no_warning_for_non_secret_vars(caplog):
-    import logging
-
+def test_render_sql_does_not_block_non_secret_vars():
     from flowforge.engine.context import build, render_sql
     ctx = build('test', pipeline_vars={'report_month': '2026-05'})
     ctx['_secret_var_keys'] = {'MY_OTHER_SECRET'}  # different key
-    with caplog.at_level(logging.WARNING, logger='flowforge.engine.context'):
-        render_sql('SELECT * FROM t WHERE month = {{ report_month }}', ctx)
-    # No warning about non-secret var
-    assert not any('report_month' in r.message for r in caplog.records)
+    result = render_sql('SELECT * FROM t WHERE month = {{ report_month }}', ctx)
+    assert '2026-05' in result
 
 
 def test_render_sql_no_secret_keys_in_context():
@@ -496,13 +491,27 @@ def test_render_sql_no_secret_keys_in_context():
     assert result == 'SELECT 1'
 
 
-def test_render_sql_warns_for_multiple_secrets(caplog):
-    import logging
-
-    from flowforge.engine.context import build, render_sql
+def test_render_sql_blocks_multiple_secrets():
+    from flowforge.engine.context import SecretLeakError, build, render_sql
     ctx = build('test', pipeline_vars={'KEY1': 'a', 'KEY2': 'b'})
     ctx['_secret_var_keys'] = {'KEY1', 'KEY2'}
-    with caplog.at_level(logging.WARNING, logger='flowforge.engine.context'):
+    with pytest.raises(SecretLeakError) as exc_info:
         render_sql("SELECT '{{ KEY1 }}', '{{ KEY2 }}'", ctx)
-    msgs = ' '.join(r.message for r in caplog.records)
-    assert 'KEY1' in msgs or 'KEY2' in msgs
+    msg = str(exc_info.value)
+    assert 'KEY1' in msg or 'KEY2' in msg
+
+
+def test_render_guarded_blocks_secret_in_email_sink():
+    from flowforge.engine.context import SecretLeakError, build, render_guarded
+    ctx = build('test', pipeline_vars={'API_KEY': 'xyz'})
+    ctx['_secret_var_keys'] = {'API_KEY'}
+    with pytest.raises(SecretLeakError):
+        render_guarded('Your key is {{ API_KEY }}', ctx, sink='email body')
+
+
+def test_render_guarded_allows_non_secret_vars():
+    from flowforge.engine.context import build, render_guarded
+    ctx = build('test', pipeline_vars={'report_month': '2026-05'})
+    ctx['_secret_var_keys'] = set()
+    result = render_guarded('Report for {{ report_month }}', ctx, sink='email body')
+    assert 'Report for 2026-05' == result

@@ -196,34 +196,54 @@ def build(
     return ctx
 
 
+class SecretLeakError(ValueError):
+    """Raised when a template references a secret pipeline variable in a sink where
+    the rendered value could be persisted, displayed, or transmitted outside the
+    pipeline's own trust boundary (SQL text, email bodies, notifications, AI prompts)."""
+
+
+def _referenced_secrets(template_str: str, context: dict[str, Any]) -> set[str]:
+    secret_keys: set[str] = context.get('_secret_var_keys') or set()
+    if not secret_keys or not template_str:
+        return set()
+    try:
+        from jinja2 import meta as _meta
+        ast = _jinja.parse(template_str)
+        referenced = _meta.find_undeclared_variables(ast)
+    except Exception:  # nosec B110 — don't block execution on template-parse errors
+        return set()
+    return referenced & secret_keys
+
+
 def render(template_str: str, context: dict[str, Any]) -> str:
     """Render a Jinja2 template string against the pipeline context."""
     return _jinja.from_string(template_str).render(**context)
 
 
-def render_sql(template_str: str, context: dict[str, Any]) -> str:
-    """Render a SQL template string, warning when secret pipeline variables are referenced.
+def render_guarded(template_str: str, context: dict[str, Any], *, sink: str = 'this field') -> str:
+    """Render a template, hard-blocking if a secret pipeline variable is referenced.
 
-    Secret pipeline variable values will still render (backward-compatible) but
-    a WARNING is logged so operators know secrets are being interpolated into SQL
-    strings rather than passed as bind parameters.  Use db_procedure 'params' for
-    secrets wherever possible — those flow as bind variables and are not embedded
-    in the SQL text.
+    Use for any output that leaves the pipeline's own trust boundary — SQL text
+    (which may be captured to an output table, capture_rows, or run-history logs),
+    email bodies, chat notifications, or AI prompts. Secret pipeline variables must
+    not flow into these sinks; pass secrets via db_procedure 'params' instead —
+    those flow as bind variables and are never embedded in rendered text.
     """
-    secret_keys: set[str] = context.get('_secret_var_keys') or set()
-    if secret_keys and template_str:
-        try:
-            from jinja2 import meta as _meta
-            ast = _jinja.parse(template_str)
-            referenced = _meta.find_undeclared_variables(ast)
-            secrets_in_sql = referenced & secret_keys
-            if secrets_in_sql:
-                logger.warning(
-                    "SQL template references secret pipeline variable(s): %s. "
-                    "The secret value will be interpolated into the SQL string. "
-                    "Pass secrets via procedure 'params' (bind variables) instead.",
-                    ', '.join(sorted(secrets_in_sql)),
-                )
-        except Exception:  # nosec B110 — don't block execution on template-parse errors
-            pass
+    secrets_used = _referenced_secrets(template_str, context)
+    if secrets_used:
+        raise SecretLeakError(
+            f"Refusing to render {sink}: references secret pipeline variable(s) "
+            f"{', '.join(sorted(secrets_used))}. Secret variables cannot be used here — "
+            "the rendered result may be persisted, displayed, or transmitted outside the "
+            "pipeline. Pass secrets via db_procedure 'params' (bind variables) instead."
+        )
     return _jinja.from_string(template_str).render(**context)
+
+
+def render_sql(template_str: str, context: dict[str, Any]) -> str:
+    """Render a SQL template string, hard-blocking if a secret pipeline variable is referenced.
+
+    See render_guarded() — SQL text is a leak vector because query results can be
+    captured to an output table, capture_rows, run-history logs, or an email body.
+    """
+    return render_guarded(template_str, context, sink='SQL query')
