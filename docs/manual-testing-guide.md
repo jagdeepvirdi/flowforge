@@ -1427,6 +1427,436 @@ flowforge worker --concurrency 4
 
 ---
 
+## 27. Snowflake / BigQuery / Redshift Connections
+
+### 27a. Snowflake
+
+*(Requires a Snowflake account and `pip install flowforge[snowflake]`.)*
+
+1. Go to **Connections → Add Connection → Snowflake**
+2. Fill in:
+
+   | Field | Value |
+   |---|---|
+   | Account Identifier | `xy12345.us-east-1` (your account locator) |
+   | Username | Your Snowflake username |
+   | Password | Your Snowflake password |
+   | Warehouse | `COMPUTE_WH` (or your warehouse) |
+   | Database | `MY_DB` |
+   | Schema | `PUBLIC` |
+   | Role (optional) | `SYSADMIN` |
+
+3. Click **Test connection**
+
+- [ ] Test passes (latency shown)
+- [ ] Add a DB Query step pointing at this connection — query executes and returns rows
+
+### 27b. BigQuery
+
+*(Requires a GCP project and `pip install flowforge[bigquery]`.)*
+
+1. Go to **Connections → Add Connection → BigQuery**
+2. Fill in:
+
+   | Field | Value |
+   |---|---|
+   | Project ID | `my-gcp-project` |
+   | Dataset (optional) | `my_dataset` |
+   | Service Account Key (JSON) | Paste a service account key, or leave blank to use Application Default Credentials |
+
+3. Click **Test connection**
+
+- [ ] Test passes with a pasted service account key
+- [ ] Test passes leaving the key blank (if `gcloud auth application-default login` has been run on the host)
+- [ ] A DB Query step using a named `@param` (not positional `%s`) resolves correctly — BigQuery has no positional placeholder support
+
+### 27c. Redshift
+
+*(Uses the same connection form as PostgreSQL/MySQL/Oracle — Redshift is wire-compatible with Postgres, no dedicated form.)*
+
+1. Go to **Connections → Add Connection → Amazon Redshift**
+2. Fill in Host, Port (defaults to `5439`), Database, Username, Password
+3. Click **Test connection**
+
+- [ ] Test passes
+- [ ] DB Query step runs a simple `SELECT 1` successfully
+
+---
+
+## 28. S3 / Azure Blob Upload Steps
+
+### 28a. S3 upload
+
+*(Requires `pip install flowforge[s3]` and either `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`/`AWS_DEFAULT_REGION` set, or a working boto3 default credential chain — e.g. an IAM instance role.)*
+
+1. Create a pipeline: **Report → S3 Upload**
+   - Step 1: Report step (CSV or Excel)
+   - Step 2: S3 Upload step:
+
+     | Field | Value |
+     |---|---|
+     | File path | `{{ steps.step1_name.output_path }}` |
+     | Bucket | Your S3 bucket name |
+     | Key (optional) | `reports/report_{{ current_month }}.xlsx` |
+     | Rename to (optional) | leave blank if Key is set |
+     | Return presigned URL | Ticked (default) |
+
+2. Run the pipeline
+
+- [ ] File appears in the S3 bucket at the given key
+- [ ] Step run log shows a presigned HTTPS URL (not a bare `s3://` URI) when "Return presigned URL" is ticked
+- [ ] Untick "Return presigned URL" and re-run — log shows a plain `s3://bucket/key` URI instead
+- [ ] Presigned URL opens the file directly in a browser without AWS credentials, and expires after ~1 hour
+
+### 28b. Azure Blob upload
+
+*(Requires `pip install flowforge[azure_blob]` and `AZURE_STORAGE_CONNECTION_STRING`, or `AZURE_STORAGE_ACCOUNT_URL` + optionally `AZURE_STORAGE_ACCOUNT_KEY`.)*
+
+1. Create a pipeline: **Report → Azure Blob Upload**
+   - Step 1: Report step
+   - Step 2: Azure Blob Upload step:
+
+     | Field | Value |
+     |---|---|
+     | File path | `{{ steps.step1_name.output_path }}` |
+     | Container | Your Azure container name |
+     | Blob name (optional) | `report_{{ current_month }}.xlsx` |
+     | Return shareable (SAS) URL | Ticked (default) |
+
+2. Run the pipeline
+
+- [ ] File appears in the Azure container
+- [ ] With `AZURE_STORAGE_ACCOUNT_KEY` set: step log shows a SAS URL (24h expiry) that opens the file without further auth
+- [ ] With only `AZURE_STORAGE_CONNECTION_STRING`/`AZURE_STORAGE_ACCOUNT_URL` and no account key: log shows a plain blob URL instead (SAS generation requires the account key) — not an error
+
+---
+
+## 29. MFA (TOTP)
+
+*(Requires `pip install pyotp`.)*
+
+### 29a. Enroll
+
+1. Log in as any user → **Settings**
+2. Find the **Two-Factor Authentication (MFA)** card (status badge shows "Disabled")
+3. Click **Enable MFA**
+4. Scan the displayed QR code with an authenticator app (Google Authenticator, Authy, etc.), or use "Copy" on the manual entry secret
+5. Enter the 6-digit code from the app into **Verification code**
+6. Click **Activate MFA**
+
+- [ ] QR code renders and scans successfully in an authenticator app
+- [ ] Wrong code is rejected with a clear error
+- [ ] Correct code activates MFA — a "backup codes" banner appears with 10 one-time codes
+- [ ] Click **Done — I've saved my backup codes** — MFA card now shows "Active"
+
+### 29b. Login with MFA enabled
+
+1. Log out
+2. Log in with username/password as usual
+
+- [ ] Login does not complete immediately — an **Authenticator code** prompt appears instead
+3. Enter a valid TOTP code from the authenticator app
+
+- [ ] Login succeeds and issues a normal session token
+
+### 29c. Login with a backup code
+
+1. Log out, log in with username/password again
+2. At the authenticator-code prompt, use the backup-code fallback link
+3. Enter one of the 10 saved backup codes
+
+- [ ] Login succeeds via backup code
+- [ ] The same backup code is rejected if used a second time (one-time use)
+- [ ] Response after backup-code login shows how many backup codes remain
+
+### 29d. Disable MFA
+
+1. Settings → MFA card → **Disable MFA**
+2. Confirm current password
+
+- [ ] MFA disabled — card returns to "Disabled" state
+- [ ] Next login does not prompt for a TOTP/backup code
+
+---
+
+## 30. SSO (Google / Microsoft) and SAML
+
+### 30a. Google SSO
+
+*(Requires `GOOGLE_SSO_CLIENT_ID`/`GOOGLE_SSO_CLIENT_SECRET` set, `pip install google-auth-oauthlib`, and a matching OAuth redirect URI `{FLOWFORGE_APP_URL}/api/auth/sso/google/callback` registered in Google Cloud Console.)*
+
+1. On the Login page, confirm a **"Sign in with Google"** button appears (only shown when configured)
+2. Click it → complete Google's consent screen
+
+- [ ] Redirects back to FlowForge and logs in successfully
+- [ ] With `FLOWFORGE_SSO_AUTO_CREATE=false` (default) and no matching existing username: login is rejected with "Account not found. Contact your administrator."
+- [ ] With `FLOWFORGE_SSO_AUTO_CREATE=true`: a new user is auto-created on first SSO login
+
+### 30b. Microsoft SSO
+
+*(Requires `MICROSOFT_SSO_TENANT_ID`/`MICROSOFT_SSO_CLIENT_ID`/`MICROSOFT_SSO_CLIENT_SECRET`, `pip install msal`, and a matching Azure AD app registration.)*
+
+1. Confirm the Microsoft SSO button appears on Login when configured
+2. Complete the Microsoft consent flow
+
+- [ ] Redirects back and logs in successfully
+- [ ] Auto-create behavior matches the Google case (`FLOWFORGE_SSO_AUTO_CREATE`)
+
+### 30c. SAML
+
+*(Requires `SAML_SP_ENTITY_ID`, `SAML_IDP_ENTITY_ID`, `SAML_IDP_SSO_URL`, `SAML_IDP_X509_CERT`, and `pip install python3-saml`.)*
+
+1. Fetch `GET /auth/sso/saml/metadata` and register it (or the individual fields) with your IdP (Okta, Azure AD, PingFederate)
+2. Confirm a **"Sign in with SSO"** button appears on Login
+3. Click it → complete the IdP login
+
+- [ ] Redirects to the IdP, then back to FlowForge via the ACS endpoint, and logs in successfully
+- [ ] `GET /auth/sso/providers` correctly reflects which of `google`/`microsoft`/`saml` are configured (used to decide which buttons render)
+
+---
+
+## 31. GDPR Export / Deletion
+
+*(Admin only — Settings → Users.)*
+
+### 31a. Data export
+
+1. Go to **Settings → Users**
+2. Click the download icon next to a non-current-user account ("GDPR export — download all personal data as JSON")
+
+- [ ] JSON file downloads as `flowforge-gdpr-export-<username>.json`
+- [ ] File contains `user`, `audit_log` (up to 1000 entries), and `pipeline_runs` (up to 500 entries)
+- [ ] Data matches what's visible elsewhere in the UI for that user
+
+### 31b. GDPR purge
+
+1. Click the **GDPR** button next to a non-current-user account
+2. Confirm the dialog: "GDPR purge: delete '<user>' and anonymise all their audit log entries?"
+
+- [ ] User is deleted from the Users list
+- [ ] Audit Log entries previously attributed to that user now show `username = [deleted:<uid8>]` with `ip_address` cleared, instead of disappearing entirely
+- [ ] Attempting to purge your own currently-logged-in account: the delete/GDPR buttons are not shown at all
+
+### 31c. Plain delete (no purge)
+
+1. Click the trash icon next to a user (not the GDPR button)
+2. Confirm "Delete user '<user>'? This cannot be undone."
+
+- [ ] User is deleted, but their audit log entries retain the original username (no anonymisation) — confirms plain delete and GDPR purge are genuinely different operations
+
+---
+
+## 32. Plugin System
+
+*(Reference: `docs/plugins.md`, example at `examples/plugins/http_webhook_step.py`.)*
+
+### 32a. Load a plugin step type
+
+1. Set `FLOWFORGE_PLUGIN_DIR=./plugins` in `.env` (this is also the default if unset)
+2. Copy `examples/plugins/http_webhook_step.py` into that directory
+3. Restart FlowForge (`flowforge web`)
+
+- [ ] `GET /api/step-types` now includes an entry with `"plugin": true` for the new type, alongside the built-ins (`"plugin": false`)
+- [ ] In Pipeline Builder, the new step type appears in the **Steps** add-button row, labelled `(plugin)`
+
+### 32b. Configure and run a plugin step
+
+1. Add the plugin step to a pipeline
+
+- [ ] Since there's no dedicated form, the step falls back to a raw JSON config textarea — confirm it's editable and saves correctly
+2. Fill in valid JSON config for the plugin and run the pipeline
+
+- [ ] Step executes using the same retry / `on_error` / `parallel_group` machinery as built-in steps
+- [ ] Step failure (e.g. malformed config) is reported in Run History like any other step failure
+
+### 32c. Conflicting or broken plugin
+
+1. Add a second plugin file whose `step_type` string duplicates an existing built-in (e.g. `email`)
+2. Restart FlowForge
+
+- [ ] Server starts normally (no crash) — a warning is logged and the conflicting plugin is skipped; the built-in `email` type is unaffected
+3. Add a plugin file with a Python syntax error, restart
+
+- [ ] Server still starts — the broken plugin is skipped with a logged error, other plugins/built-ins still load
+
+---
+
+## 33. Team-Scoped Project Members
+
+### 33a. Add and remove members
+
+1. Log in as `admin` → **Projects**
+2. Click the members icon ("Manage members") on a project card
+
+- [ ] **Members — <project name>** modal opens, listing current members with role badges
+3. Select a non-admin user from the **"Select a user…"** dropdown, click **Add**
+
+- [ ] User appears in the member list immediately
+- [ ] Adding the same user again is not offered (already filtered out of the dropdown)
+4. Click the remove icon next to a member
+
+- [ ] Member is removed from the list
+
+### 33b. Non-member access is blocked
+
+1. Create `member_test` (editor role), add them to Project A only (not Project B)
+2. Log in as `member_test`
+
+- [ ] Pipelines/Reports/Emails/Recipients belonging to Project B are not visible or editable
+- [ ] Attempting to access a Project B resource directly (e.g. via its URL/API) returns `403 Access denied to this project`
+- [ ] Project A resources remain fully visible and editable per the user's role (editor)
+
+### 33c. Admin bypass
+
+1. Log in as `admin` (not added to Project B as a member)
+
+- [ ] Admin can see and edit Project B's resources anyway — admins bypass project membership entirely
+
+---
+
+## 34. Pipeline Dependencies (Fan-Out) and Parallel Step Execution
+
+### 34a. Upstream dependency triggers downstream automatically
+
+1. Create Pipeline A (`Upstream Test`) and Pipeline B (`Downstream Test`), both enabled
+2. Open Pipeline B → **Upstream Dependencies** card → **"+ Add upstream dependency…"** → select Pipeline A
+3. Save Pipeline B
+4. Run Pipeline A manually via **Run Now**
+
+- [ ] Once Pipeline A finishes with status `success`, Pipeline B automatically starts
+- [ ] Pipeline B's Run History shows the triggered run with `triggered_by = dependency`
+- [ ] If Pipeline A fails instead, Pipeline B does **not** auto-trigger
+
+### 34b. Parallel step execution
+
+1. In a pipeline, add two independent steps (e.g. two DB Query steps against different tables)
+2. On both steps, set the **"∥ Group"** field to the same value, e.g. `group1`
+
+- [ ] Both step cards show a purple left border and a `∥ group1` badge
+3. Run the pipeline
+
+- [ ] Both steps' start times overlap in Run History (visible via step timestamps/durations) rather than running strictly sequentially
+- [ ] If one step in the group fails and has `on_error: stop`, the pipeline halts only after the whole wave completes (not mid-wave)
+
+---
+
+## 35. Pipeline Run Diff View
+
+1. Run a pipeline successfully at least twice, changing the underlying data slightly between runs (e.g. insert a few more rows)
+2. Go to **Run History** → open the most recent run's **Run Detail**
+3. Find the **"Diff vs previous run"** panel
+
+- [ ] Panel shows, per step: row count vs previous run (with the delta), duration vs previous run (% change), and file size vs previous run (for steps producing an output file that still exists on disk)
+- [ ] A step that's new in this run (didn't exist in the previous run) is marked as new, not shown with a misleading delta
+- [ ] On the very first successful run of a pipeline (no prior run to diff against), the panel explains there's nothing to compare instead of erroring
+
+---
+
+## 36. Report Column Formatting
+
+1. Go to **Reports** → open or create a report with at least one numeric and one date column
+2. Find the **Column Formatting** card → click **Add rule**
+3. Set:
+
+   | Field | Value |
+   |---|---|
+   | Column name | exact name of a numeric column, e.g. `mrr` |
+   | Number format | `Currency $` preset |
+   | Width | `15` |
+
+4. Click **Add condition** under that rule:
+
+   | Field | Value |
+   |---|---|
+   | if value | `>` `500` |
+   | bg | pick a highlight color |
+   | text | pick a contrasting color |
+
+5. Add to a pipeline as a Report step (Excel format) and run
+
+- [ ] Generated Excel file: the target column is formatted as currency (`$#,##0.00`)
+- [ ] Column width matches the configured width (not auto-fit)
+- [ ] Rows where the value exceeds 500 have the configured background/text color; rows at or below do not
+- [ ] Header row renders with the default grey fill + bold font regardless of custom rules
+- [ ] Add a second, conflicting condition on the same column — confirm the **first** matching condition wins (not the last)
+- [ ] A custom raw number-format string (not one of the presets) is also accepted and applied correctly
+
+---
+
+## 37. Environment Promotion Workflow
+
+*(Requires at least two Projects to exist.)*
+
+1. Go to **Pipelines** → find a pipeline with at least one secret pipeline variable and one step referencing a connection/report/email config (e.g. a DB Query or Email step)
+2. Click **"Promote to another project"**
+3. In the **Promote Pipeline** modal, select a different target project → click **Promote**
+
+- [ ] If secret variables or cross-project resource references exist, a warnings list is shown instead of silently succeeding — e.g. `"Secret variable 'X' was not copied — set it manually in the target project."` and `"Step 'Y': connection_id references an ID from the source project — update it..."`
+- [ ] The new pipeline appears in the target project, named `"<original> (<target project>)"` (or with your custom suffix)
+- [ ] The promoted copy is **disabled** by default, even if the source pipeline was enabled
+- [ ] Non-secret pipeline variables and all steps (including `parallel_group`) are copied correctly
+- [ ] Editing the promoted copy does not affect the original pipeline
+- [ ] Attempting to promote to the *same* project the pipeline is already in is rejected with a clear error
+
+---
+
+## 38. Prometheus Metrics + Flower Dashboard
+
+### 38a. Metrics endpoint
+
+1. Log in via the API to obtain a JWT (`POST /api/auth/login`)
+2. Call `GET /api/metrics` with `Authorization: Bearer <token>`
+
+- [ ] Response is `text/plain` Prometheus exposition format (not JSON)
+- [ ] Contains `flowforge_runs_total{status="success"}` / `{status="failed"}` / `{status="cancelled"}` counters
+- [ ] Contains `flowforge_runs_active` gauge — trigger a long-running pipeline and confirm this increments while it's running, then drops back down after it finishes
+- [ ] Contains `flowforge_queue_depth` — with `FLOWFORGE_REDIS_URL` unset, this reads `0` rather than erroring
+- [ ] Calling `/api/metrics` with no `Authorization` header (or an invalid token) returns `401`, same as any other `/api` endpoint
+
+### 38b. Flower dashboard
+
+*(Requires Celery/Redis configured — see §26.)*
+
+1. Start the stack with the monitoring profile: `docker compose --profile monitoring up`
+2. Browse to `http://localhost:5555` (or your configured `FLOWER_PORT`)
+
+- [ ] Basic-auth prompt appears; default credentials `admin:changeme` (or your `FLOWER_BASIC_AUTH` override) work
+- [ ] Dashboard shows active Celery workers and task history
+- [ ] Trigger a pipeline run — the corresponding `flowforge.run_pipeline_task` appears in Flower's task list
+- [ ] Without `--profile monitoring`, `docker compose up` does **not** start the Flower container (opt-in only)
+
+---
+
+## 39. IP Allowlisting
+
+*(Off by default — only active when `FLOWFORGE_ALLOWED_IPS` is set. If testing locally, note that requests from `127.0.0.1`/`::1` may not match a CIDR you'd expect; adjust the allowlist to include your actual test client IP.)*
+
+### 39a. Allowed IP passes through
+
+1. Set `FLOWFORGE_ALLOWED_IPS=127.0.0.1/32` (or your actual client IP) and restart
+2. Use the app normally from that IP
+
+- [ ] All `/api/*` requests succeed as before
+- [ ] Non-API routes (frontend static assets, the SPA shell) are unaffected regardless of IP — the filter only applies to `/api/*`
+
+### 39b. Disallowed IP is blocked
+
+1. Set `FLOWFORGE_ALLOWED_IPS` to a CIDR that does **not** include your test client (e.g. `10.99.99.0/24`) and restart
+2. Attempt any `/api/*` call
+
+- [ ] Response is `403 {"error": "Access denied: your IP is not allowed"}`
+
+### 39c. Invalid CIDR handling
+
+1. Set `FLOWFORGE_ALLOWED_IPS=not-a-real-cidr,10.0.0.0/8` and restart
+
+- [ ] Server starts normally (doesn't crash on the malformed entry) — a warning is logged, and the valid CIDR (`10.0.0.0/8`) still takes effect
+2. Set `FLOWFORGE_ALLOWED_IPS=` (empty) or unset it entirely, restart
+
+- [ ] No IP filtering applied — behavior identical to before this feature existed
+
+---
+
 ## Notes
 
 | Date | Tester | Section | Result | Notes |
