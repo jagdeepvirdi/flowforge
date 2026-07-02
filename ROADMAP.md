@@ -1,44 +1,57 @@
 # FlowForge Roadmap
 
-## Current Release: v1.0 (Stabilisation)
+> **Source of truth:** [`docs/TASKS.md`](docs/TASKS.md) is the authoritative, continuously-updated
+> tracker of what's actually shipped (verified against the code, with dates). This file is a
+> high-level summary derived from it for newcomers — if the two ever disagree, trust TASKS.md
+> and treat this file as stale until updated. Last reconciled: 2026-07-02.
 
-**Goal:** Public GitHub release — stable, tested, `docker compose up` works, badges and docs polished.
+## Shipped
+
+Delivered and verified in the codebase (dates below are when each landed; see TASKS.md
+for exact commits/detail).
 
 | Area | Status |
 |---|---|
-| Core pipeline engine (DB procedures, queries, reports, email, Drive) | ✅ Complete |
-| Email providers: Gmail, Microsoft 365, SMTP, SendGrid, AWS SES, Mailgun | ✅ Complete |
-| Notification steps: Slack, Teams, Telegram | ✅ Complete |
-| Database connections: PostgreSQL, Oracle, MySQL, MSSQL, ODBC | ✅ Complete |
-| SSH command + DB health check steps | ✅ Complete |
-| MFA (TOTP), SSO (Google/Microsoft), IP allowlisting | ✅ Complete |
-| GDPR data export and deletion | ✅ Complete |
-| Audit log with retention policy | ✅ Complete |
-| Report column formatting, parallel steps, pipeline dependencies | ✅ Complete |
-| Environment promotion workflow | ✅ Complete |
-| OpenSSF Scorecard ≥ 8.0 | 🔄 In progress |
-| PyPI package publication | 🔄 In progress |
+| Core pipeline engine (DB procedures, queries, reports, email, Drive) | ✅ |
+| Email providers: Gmail, Microsoft 365, SMTP, SendGrid, AWS SES, Mailgun | ✅ |
+| Notification steps: Slack, Teams, Telegram | ✅ *(2026-05-30)* |
+| Database connections: PostgreSQL, Oracle, MySQL, MSSQL, ODBC, Snowflake, BigQuery, Redshift | ✅ *(2026-05-30 / 2026-07-01)* |
+| AWS S3 / Azure Blob / OneDrive upload steps | ✅ *(2026-07-01)* |
+| SSH command + DB health check steps | ✅ |
+| Multi-user auth with role-based access control | ✅ |
+| Team-scoped project membership (`ff_project_members`) | ✅ *(2026-07-01)* |
+| Distributed Redis-backed concurrency lock (horizontal scale) | ✅ *(2026-07-01)* |
+| Plugin system for community step types | ✅ *(2026-07-01)* |
+| MFA (TOTP), SSO (Google/Microsoft), SAML, IP allowlisting | ✅ |
+| GDPR data export and deletion | ✅ |
+| Audit log with retention policy | ✅ |
+| Report column formatting, parallel steps, pipeline dependencies | ✅ |
+| Environment promotion workflow | ✅ |
+| Gunicorn + Nginx deployment guide (docs) | ✅ |
+| Prometheus metrics endpoint (`/api/metrics`) | ✅ |
+| Celery Flower monitoring dashboard | ✅ |
 
-## v2.0 — Production Hardening
+This is well past what the original "v1.0 / v2.0 / v3.0" gating implied — v2.0 and v3.0
+backlog items shipped ahead of the v1.0 GTM checklist being finished. Version-numbered
+milestones below are kept as loose, informal buckets, not release gates.
 
-**Goal:** Production-ready for teams. Starts after v1.0 ships.
+## In progress
 
-- Multi-user authentication with role-based access control
-- Distributed Redis-backed concurrency lock (horizontal scale)
-- Team-scoped project membership (`ff_project_members`)
-- Gunicorn + Nginx deployment guide (docs)
-- Prometheus metrics endpoint (`/api/metrics`)
-- Celery Flower monitoring dashboard
+- OpenSSF Scorecard ≥ 8.0 — currently 6.5/10; see TASKS.md Phase 10 for the specific
+  checks still open (several are structurally hard for a solo maintainer — e.g. Code-Review
+  requires a second approver, which GitHub blocks for self-authored PRs)
+- PyPI package publication — `publish.yml` workflow exists; publication status itself isn't
+  tracked anywhere else, so treat as unverified until confirmed
+- Go-to-market checklist (demo assets, ProductHunt, Reddit, awesome-lists, LinkedIn) — see
+  TASKS.md Phase 10
 
-## v3.0 — Ecosystem Expansion
+## Not yet built
 
-**Goal:** Community-driven connectors and pipeline DAGs. No fixed date.
-
-- Snowflake, BigQuery, Redshift connectors
-- AWS S3 / Azure Blob upload step
-- Visual pipeline canvas (drag-and-drop DAG editor)
-- Plugin system for community step types
-- SAML support (Okta, Azure AD, Ping)
+- **Visual pipeline canvas (drag-and-drop DAG editor)** — was an original goal for this
+  milestone; never delivered. Flagged in TASKS.md Phase 11 as the #1 competitive gap vs.
+  Airflow/n8n/Dagster. No other item on this list currently blocks it.
+- Fuzzing registered with OSS-Fuzz (Hypothesis tests exist but aren't recognized by Scorecard)
+- Cosign-signed releases
 
 ## Contributing
 

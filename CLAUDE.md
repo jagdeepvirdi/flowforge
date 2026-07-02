@@ -520,10 +520,9 @@ Available in all config values rendered via Jinja2:
 - Encryption key from `FLOWFORGE_SECRET_KEY` env var (never stored in DB)
 - `is_secret` pipeline variables masked in UI
 
-### Authentication (v1)
-- Single user: username + password, bcrypt hashed
-- JWT session tokens
-- v2: multi-user with roles
+### Authentication
+- Multi-user, role-based (`admin`/`editor`/`viewer`), username + password bcrypt-hashed
+- JWT session tokens; MFA (TOTP), SSO (Google/Microsoft/SAML) also supported — see `docs/TASKS.md` Phase 8
 
 ---
 
@@ -690,10 +689,11 @@ See Claude Design handoff. Key tokens:
 
 ---
 
-## Non-Goals (v1)
-- No drag-and-drop visual pipeline canvas (v3)
-- No multi-user auth (v2)
-- No Slack/Teams notifications (v2)
-- No AWS S3 / Azure Blob upload (v2)
+## Non-Goals
+> Multi-user auth, Slack/Teams notifications, and S3/Azure Blob upload — originally
+> listed here as deferred to v2 — have since shipped; see [ROADMAP.md](ROADMAP.md) and
+> [docs/TASKS.md](docs/TASKS.md) for current status, which is authoritative over this file.
+
+- No drag-and-drop visual pipeline canvas — not yet built, tracked in ROADMAP.md
 - No Airflow DAG import
 - No cloud SaaS version
