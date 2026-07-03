@@ -52,31 +52,47 @@ load_env() {
     return 1
 }
 
-check_db_connection() {
-    if [ -z "${FLOWFORGE_DB_URL:-}" ]; then
-        echo "[db] FLOWFORGE_DB_URL is not set - skipping database check." >&2
-        return 0
-    fi
-
-    echo "[db] Checking database connection..."
-    if ! python - <<'PYEOF'
+# Mirrors the default fallback in flowforge/api/app.py so the check reflects
+# what the app will actually try to connect to when FLOWFORGE_DB_URL is unset.
+_db_probe() {
+    python - <<'PYEOF' 2>&1
 import os, sys
 from sqlalchemy import create_engine, text
 
-url = os.environ.get("FLOWFORGE_DB_URL")
+url = os.environ.get("FLOWFORGE_DB_URL", "postgresql://flowforge:flowforge@localhost:5432/flowforge")
 connect_args = {"connect_timeout": 5} if url.startswith("postgresql") else {}
 try:
     engine = create_engine(url, connect_args=connect_args)
     with engine.connect() as conn:
         conn.execute(text("SELECT 1"))
 except Exception as e:
-    print(f"[db] {e}", file=sys.stderr)
+    print(str(e).strip().splitlines()[0], file=sys.stderr)
     sys.exit(1)
 PYEOF
-    then
+}
+
+_redis_probe() {
+    python - <<'PYEOF' 2>&1
+import os, sys
+import redis
+
+url = os.environ.get("FLOWFORGE_REDIS_URL")
+try:
+    client = redis.from_url(url, socket_connect_timeout=3, socket_timeout=3)
+    client.ping()
+except Exception as e:
+    print(str(e).strip().splitlines()[0], file=sys.stderr)
+    sys.exit(1)
+PYEOF
+}
+
+check_db_connection() {
+    echo "[db] Checking database connection..."
+    local output
+    if ! output=$(_db_probe); then
         echo ""
-        echo "[db] Could not connect to the database (see FLOWFORGE_DB_URL in .env)." >&2
-        echo "     Check that PostgreSQL is running and reachable, and the credentials are correct." >&2
+        echo "[db] Could not connect to the database: $output" >&2
+        echo "     Check that PostgreSQL is running and reachable, and the credentials in .env are correct." >&2
         echo ""
         return 1
     fi
@@ -85,14 +101,63 @@ PYEOF
     return 0
 }
 
+status_db() {
+    local output
+    if output=$(_db_probe); then
+        printf "  %-14s OK (connected)\n" "Database"
+        return 0
+    fi
+    printf "  %-14s UNREACHABLE - %s\n" "Database" "$output"
+    return 1
+}
+
+status_redis() {
+    if [ -z "${FLOWFORGE_REDIS_URL:-}" ]; then
+        printf "  %-14s not configured — using in-process concurrency limiter\n" "Redis"
+        return 0
+    fi
+    local output
+    if output=$(_redis_probe); then
+        printf "  %-14s OK\n" "Redis"
+        return 0
+    fi
+    printf "  %-14s UNREACHABLE - %s (fails open: concurrency limit not enforced while down)\n" "Redis" "$output"
+    return 1
+}
+
+# A port can be squatted by something unrelated to FlowForge. Only treat a listener
+# as "ours" if its process name matches what FlowForge actually launches on that port.
+# $expected is a "|"-separated list of substrings (e.g. "python|gunicorn"); empty means "any".
+_pids_on_port_matching() {
+    local port="$1"
+    local expected="$2"
+    local pid
+    for pid in $(lsof -ti tcp:"$port" 2>/dev/null || true); do
+        if [ -z "$expected" ]; then
+            echo "$pid"
+            continue
+        fi
+        local comm
+        comm=$(ps -p "$pid" -o comm= 2>/dev/null || true)
+        local pattern
+        local IFS='|'
+        for pattern in $expected; do
+            case "$comm" in
+                *"$pattern"*) echo "$pid"; break ;;
+            esac
+        done
+    done
+}
+
 stop_port() {
     local port="$1"
     local label="$2"
-    local pid
-    pid=$(lsof -ti tcp:"$port" 2>/dev/null || true)
-    if [ -n "$pid" ]; then
-        kill -TERM "$pid" 2>/dev/null || true
-        echo "  Stopped $label (PID $pid, port $port)"
+    local expected="${3:-}"
+    local pids
+    pids=$(_pids_on_port_matching "$port" "$expected")
+    if [ -n "$pids" ]; then
+        echo "$pids" | xargs kill -TERM 2>/dev/null || true
+        echo "  Stopped $label (PID(s) $(echo "$pids" | tr '\n' ' '), port $port)"
     else
         echo "  $label not running on port $port"
     fi
@@ -114,10 +179,17 @@ stop_pattern() {
 status_port() {
     local port="$1"
     local label="$2"
-    local pid
-    pid=$(lsof -ti tcp:"$port" 2>/dev/null || true)
-    if [ -n "$pid" ]; then
-        printf "  %-14s RUNNING (PID %s, port %s)\n" "$label" "$pid" "$port"
+    local expected="${3:-}"
+    local pids
+    pids=$(_pids_on_port_matching "$port" "$expected")
+    if [ -n "$pids" ]; then
+        printf "  %-14s RUNNING (PID %s, port %s)\n" "$label" "$(echo "$pids" | tr '\n' ' ')" "$port"
+        return
+    fi
+    local anypid
+    anypid=$(lsof -ti tcp:"$port" 2>/dev/null || true)
+    if [ -n "$anypid" ] && [ -n "$expected" ]; then
+        printf "  %-14s stopped (port %s is in use by another process)\n" "$label" "$port"
     else
         printf "  %-14s stopped\n" "$label"
     fi
@@ -140,8 +212,8 @@ do_stop() {
     local port="${FLOWFORGE_PORT:-5000}"
     echo ""
     echo "Stopping FlowForge..."
-    stop_port    "$port" "Flask API"
-    stop_port    "5173"  "Vite UI"
+    stop_port    "$port" "Flask API" "python|gunicorn"
+    stop_port    "5173"  "Vite UI"   "node"
     stop_pattern "flowforge.cli schedule" "Scheduler"
     stop_pattern "flowforge.cli worker"   "Celery worker"
     echo ""
@@ -152,12 +224,33 @@ do_stop() {
 do_status() {
     load_env || true
     local port="${FLOWFORGE_PORT:-5000}"
+
+    if [ -z "${VIRTUAL_ENV:-}" ] && [ -f "$ROOT/.venv/bin/activate" ]; then
+        # shellcheck disable=SC1091
+        source "$ROOT/.venv/bin/activate"
+    fi
+
     echo ""
     echo "FlowForge status:"
-    status_port    "$port" "Flask API"
-    status_port    "5173"  "Vite UI"
+    echo ""
+    echo "Processes:"
+    status_port    "$port" "Flask API" "python|gunicorn"
+    status_port    "5173"  "Vite UI"   "node"
     status_pattern "flowforge.cli schedule" "Scheduler"
     status_pattern "flowforge.cli worker"   "Celery worker"
+
+    echo ""
+    echo "Dependencies:"
+    local issues=0
+    status_db    || issues=$((issues + 1))
+    status_redis || issues=$((issues + 1))
+
+    echo ""
+    if [ "$issues" -eq 0 ]; then
+        echo "All systems OK."
+    else
+        echo "$issues issue(s) detected - see above." >&2
+    fi
     echo ""
 }
 

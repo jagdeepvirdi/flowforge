@@ -60,7 +60,7 @@ These are required by almost every test below. Set them up first.
 4. Run: `flowforge setup microsoft365` to complete device-code auth
 5. Save and test
 
-- [ ] M365 provider saved
+- [X] M365 provider saved
 - [ ] Test send succeeds (check inbox at `jagdeep.singh.virdi@gmail.com`)
 
 ### 1d. SMTP provider (optional — covers Outlook, Yahoo, custom)

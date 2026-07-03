@@ -43,42 +43,70 @@ function Import-DotEnv {
     return $false
 }
 
-function Test-DatabaseConnection {
+function Get-DbCheckResult {
     param([string]$Python)
 
-    if (-not $env:FLOWFORGE_DB_URL) {
-        Write-Warning '[db] FLOWFORGE_DB_URL is not set - skipping database check.'
-        return $true
-    }
-
-    Write-Host '[db] Checking database connection...' -ForegroundColor Cyan
+    # Mirrors the default fallback in flowforge/api/app.py so the check reflects
+    # what the app will actually try to connect to when FLOWFORGE_DB_URL is unset.
     $checkScript = @'
 import os, sys
 from sqlalchemy import create_engine, text
 
-url = os.environ.get("FLOWFORGE_DB_URL")
+url = os.environ.get("FLOWFORGE_DB_URL", "postgresql://flowforge:flowforge@localhost:5432/flowforge")
 connect_args = {"connect_timeout": 5} if url.startswith("postgresql") else {}
 try:
     engine = create_engine(url, connect_args=connect_args)
     with engine.connect() as conn:
         conn.execute(text("SELECT 1"))
 except Exception as e:
-    print(f"[db] {e}", file=sys.stderr)
+    print(str(e).strip().splitlines()[0], file=sys.stderr)
     sys.exit(1)
 '@
 
-    $ok = $true
-    try {
-        & $Python -c $checkScript
-        if ($LASTEXITCODE -ne 0) { $ok = $false }
-    } catch {
-        $ok = $false
+    $output = & $Python -c $checkScript 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        return [pscustomobject]@{ Ok = $false; Message = (($output | Select-Object -Last 1) -join ' ') }
+    }
+    return [pscustomobject]@{ Ok = $true; Message = 'connected' }
+}
+
+function Get-RedisCheckResult {
+    param([string]$Python)
+
+    if (-not $env:FLOWFORGE_REDIS_URL) {
+        return [pscustomobject]@{ Ok = $null; Message = 'not configured — using in-process concurrency limiter' }
     }
 
-    if (-not $ok) {
+    $checkScript = @'
+import os, sys
+import redis
+
+url = os.environ.get("FLOWFORGE_REDIS_URL")
+try:
+    client = redis.from_url(url, socket_connect_timeout=3, socket_timeout=3)
+    client.ping()
+except Exception as e:
+    print(str(e).strip().splitlines()[0], file=sys.stderr)
+    sys.exit(1)
+'@
+
+    $output = & $Python -c $checkScript 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        return [pscustomobject]@{ Ok = $false; Message = (($output | Select-Object -Last 1) -join ' ') }
+    }
+    return [pscustomobject]@{ Ok = $true; Message = 'connected' }
+}
+
+function Test-DatabaseConnection {
+    param([string]$Python)
+
+    Write-Host '[db] Checking database connection...' -ForegroundColor Cyan
+    $result = Get-DbCheckResult -Python $Python
+
+    if (-not $result.Ok) {
         Write-Host ''
-        Write-Host '[db] Could not connect to the database (see FLOWFORGE_DB_URL in .env).' -ForegroundColor Red
-        Write-Host '     Check that PostgreSQL is running and reachable, and the credentials are correct.' -ForegroundColor Red
+        Write-Host "[db] Could not connect to the database: $($result.Message)" -ForegroundColor Red
+        Write-Host '     Check that PostgreSQL is running and reachable, and the credentials in .env are correct.' -ForegroundColor Red
         Write-Host ''
         return $false
     }
@@ -87,15 +115,31 @@ except Exception as e:
     return $true
 }
 
+function Get-MatchingPortProcesses {
+    # A port can be squatted by something unrelated to FlowForge (e.g. Docker Desktop's
+    # backend / WSL relay commonly grab 5000 on Windows). Only treat a listener as "ours"
+    # if its process name matches what FlowForge actually launches on that port.
+    param([int]$Port, [string]$ExpectedProcessName)
+    $conns = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+    if (-not $conns) { return @() }
+    $ownerPids = $conns | Select-Object -ExpandProperty OwningProcess -Unique
+    $matches = @()
+    foreach ($opid in $ownerPids) {
+        $proc = Get-Process -Id $opid -ErrorAction SilentlyContinue
+        if ($proc -and $proc.ProcessName -like $ExpectedProcessName) {
+            $matches += $proc
+        }
+    }
+    return $matches
+}
+
 function Stop-ByPort {
-    param([int]$Port, [string]$Label)
-    $conn = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
-    if ($conn) {
-        $procId = $conn.OwningProcess
-        $proc = Get-Process -Id $procId -ErrorAction SilentlyContinue
-        if ($proc) {
-            Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
-            Write-Host "  Stopped $Label (PID $procId, port $Port)" -ForegroundColor Green
+    param([int]$Port, [string]$Label, [string]$ExpectedProcessName)
+    $matches = Get-MatchingPortProcesses -Port $Port -ExpectedProcessName $ExpectedProcessName
+    if ($matches.Count -gt 0) {
+        foreach ($proc in $matches) {
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+            Write-Host "  Stopped $Label (PID $($proc.Id), port $Port)" -ForegroundColor Green
         }
     } else {
         Write-Host "  $Label not running on port $Port" -ForegroundColor Gray
@@ -117,10 +161,16 @@ function Stop-ByPattern {
 }
 
 function Test-RunningByPort {
-    param([int]$Port, [string]$Label)
-    $conn = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
-    if ($conn) {
-        Write-Host ("  {0,-14} RUNNING (PID {1}, port {2})" -f $Label, $conn.OwningProcess, $Port) -ForegroundColor Green
+    param([int]$Port, [string]$Label, [string]$ExpectedProcessName)
+    $matches = Get-MatchingPortProcesses -Port $Port -ExpectedProcessName $ExpectedProcessName
+    if ($matches.Count -gt 0) {
+        $pidList = ($matches | ForEach-Object { $_.Id }) -join ', '
+        Write-Host ("  {0,-14} RUNNING (PID {1}, port {2})" -f $Label, $pidList, $Port) -ForegroundColor Green
+        return
+    }
+    $anyConn = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+    if ($anyConn) {
+        Write-Host ("  {0,-14} stopped (port {1} is in use by another process)" -f $Label, $Port) -ForegroundColor Gray
     } else {
         Write-Host ("  {0,-14} stopped" -f $Label) -ForegroundColor Gray
     }
@@ -145,8 +195,8 @@ function Invoke-FlowForgeStop {
     Write-Host ''
     Write-Host 'Stopping FlowForge...' -ForegroundColor Yellow
 
-    Stop-ByPort    -Port $ffPort -Label 'Flask API'
-    Stop-ByPort    -Port 5173    -Label 'Vite UI'
+    Stop-ByPort    -Port $ffPort -Label 'Flask API' -ExpectedProcessName 'python*'
+    Stop-ByPort    -Port 5173    -Label 'Vite UI'    -ExpectedProcessName 'node*'
     Stop-ByPattern -Pattern '*flowforge*schedule*' -Label 'Scheduler'
     Stop-ByPattern -Pattern '*flowforge*worker*'   -Label 'Celery worker'
 
@@ -164,12 +214,47 @@ function Invoke-FlowForgeStatus {
     Import-DotEnv | Out-Null
     $ffPort = if ($env:FLOWFORGE_PORT) { [int]$env:FLOWFORGE_PORT } else { 5000 }
 
+    $venvPython = Join-Path $root '.venv\Scripts\python.exe'
+    $python = if (Test-Path $venvPython) { $venvPython } else { 'python' }
+
     Write-Host ''
     Write-Host 'FlowForge status:' -ForegroundColor Yellow
-    Test-RunningByPort    -Port $ffPort -Label 'Flask API'
-    Test-RunningByPort    -Port 5173    -Label 'Vite UI'
+    Write-Host ''
+    Write-Host 'Processes:' -ForegroundColor Cyan
+    Test-RunningByPort    -Port $ffPort -Label 'Flask API' -ExpectedProcessName 'python*'
+    Test-RunningByPort    -Port 5173    -Label 'Vite UI'    -ExpectedProcessName 'node*'
     Test-RunningByPattern -Pattern '*flowforge*schedule*' -Label 'Scheduler'
     Test-RunningByPattern -Pattern '*flowforge*worker*'   -Label 'Celery worker'
+
+    Write-Host ''
+    Write-Host 'Dependencies:' -ForegroundColor Cyan
+
+    $issues = 0
+
+    $db = Get-DbCheckResult -Python $python
+    if ($db.Ok) {
+        Write-Host ("  {0,-14} OK ({1})" -f 'Database', $db.Message) -ForegroundColor Green
+    } else {
+        Write-Host ("  {0,-14} UNREACHABLE - {1}" -f 'Database', $db.Message) -ForegroundColor Red
+        $issues++
+    }
+
+    $redisResult = Get-RedisCheckResult -Python $python
+    if ($null -eq $redisResult.Ok) {
+        Write-Host ("  {0,-14} {1}" -f 'Redis', $redisResult.Message) -ForegroundColor Gray
+    } elseif ($redisResult.Ok) {
+        Write-Host ("  {0,-14} OK" -f 'Redis') -ForegroundColor Green
+    } else {
+        Write-Host ("  {0,-14} UNREACHABLE - {1} (fails open: concurrency limit not enforced while down)" -f 'Redis', $redisResult.Message) -ForegroundColor Red
+        $issues++
+    }
+
+    Write-Host ''
+    if ($issues -eq 0) {
+        Write-Host 'All systems OK.' -ForegroundColor Green
+    } else {
+        Write-Host "$issues issue(s) detected - see above." -ForegroundColor Red
+    }
     Write-Host ''
 }
 
