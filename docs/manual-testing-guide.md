@@ -39,7 +39,7 @@ These are required by almost every test below. Set them up first.
 3. Click **Test connection** — expect green / latency shown
 4. Save
 
-- [ ] Connection saved and test passes
+- [X] Connection saved and test passes
 
 ### 1b. Gmail provider
 
@@ -49,7 +49,7 @@ These are required by almost every test below. Set them up first.
 4. Fill in Client ID, Client Secret, Refresh Token, Sender email
 5. Save and test
 
-- [ ] Gmail provider saved
+- [X] Gmail provider saved
 
 ### 1c. Microsoft 365 provider
 
