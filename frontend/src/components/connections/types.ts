@@ -18,6 +18,7 @@ export type MailForm = {
   // smtp
   host: string; port: string; username: string; password: string
   use_tls: boolean
+  use_ssl: boolean
   // gmail/m365
   client_id: string; client_secret: string; refresh_token: string; sender: string
   tenant_id: string
@@ -41,7 +42,7 @@ export const emptyDb = (): DbForm => ({
 
 export const emptyMail = (): MailForm => ({
   name: '', provider_type: 'smtp', host: '', port: '587',
-  username: '', password: '', use_tls: true,
+  username: '', password: '', use_tls: true, use_ssl: false,
   client_id: '', client_secret: '', refresh_token: '', sender: '', tenant_id: '',
   api_key: '', from_email: '', from_name: '',
   aws_access_key_id: '', aws_secret_access_key: '', aws_region: 'us-east-1',
@@ -80,7 +81,7 @@ export function buildDbConfig(form: DbForm): Record<string, unknown> {
 
 export function buildMailProviderConfig(form: MailForm): Record<string, unknown> {
   if (form.provider_type === 'smtp') {
-    return { host: form.host, port: Number(form.port), username: form.username, password: form.password, use_tls: form.use_tls, sender: form.sender }
+    return { host: form.host, port: Number(form.port), username: form.username, password: form.password, use_tls: form.use_tls, use_ssl: form.use_ssl, sender: form.sender }
   }
   if (form.provider_type === 'gmail') {
     return { client_id: form.client_id, client_secret: form.client_secret, refresh_token: form.refresh_token, sender: form.sender }

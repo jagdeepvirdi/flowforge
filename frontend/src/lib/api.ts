@@ -17,9 +17,8 @@ async function request<T>(
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
 
-  const data = await res.json().catch(() => ({}))
-
   if (res.status === 401) {
+    const data = await res.json().catch(() => ({}))
     useAuth.getState().clearToken()
     // Don't redirect if already on /login — just surface the error message so the
     // login form can display it (a full reload would wipe React state before render).
@@ -29,8 +28,17 @@ async function request<T>(
     throw new Error(data.error ?? 'Unauthorized')
   }
 
-  if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
-  return data as T
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error ?? `HTTP ${res.status}`)
+  }
+
+  // Do NOT swallow parse failures on a successful (2xx) response — a truncated/empty
+  // body (e.g. the Flask dev server restarting mid-request) must surface as a real
+  // error, not silently become `{}` and get cast to T. Callers assume the full typed
+  // shape is present whenever the promise resolves; a fake empty object breaks that
+  // and crashes downstream code that dereferences nested fields unguarded.
+  return res.json() as Promise<T>
 }
 
 const get  = <T>(path: string)             => request<T>('GET',    path)

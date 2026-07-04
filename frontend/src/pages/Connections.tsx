@@ -111,7 +111,7 @@ export default function Connections() {
           name: data.name, provider_type: data.provider_type as MailForm['provider_type'],
           is_default: data.is_default, sender: str(cfg.sender),
           host: str(cfg.host), port: str(cfg.port, '587'),
-          username: str(cfg.username), password: '***', use_tls: Boolean(cfg.use_tls ?? true),
+          username: str(cfg.username), password: '***', use_tls: Boolean(cfg.use_tls ?? true), use_ssl: Boolean(cfg.use_ssl ?? false),
           client_id: str(cfg.client_id), client_secret: '***',
           refresh_token: cfg.refresh_token ? '***' : '', tenant_id: str(cfg.tenant_id),
           api_key: cfg.api_key ? '***' : '', from_email: str(cfg.from_email),

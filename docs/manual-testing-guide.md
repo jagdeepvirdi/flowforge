@@ -70,7 +70,7 @@ These are required by almost every test below. Set them up first.
 3. Fill in host, port, credentials
 4. Save and test
 
-- [ ] SMTP provider saved
+- [X] SMTP provider saved
 
 ---
 
@@ -116,7 +116,7 @@ Go to **Bulk Loads → New Bulk Load** and fill in:
 
 Save the config.
 
-- [ ] Bulk Load config saved
+- [X] Bulk Load config saved
 
 ### 2c. Add to a pipeline and run
 
