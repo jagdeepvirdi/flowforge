@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from './helpers'
 import Settings from '../pages/Settings'
 
@@ -36,28 +37,36 @@ describe('Settings', () => {
   })
 
   it('shows Google OAuth2 section', async () => {
+    const user = userEvent.setup()
     renderWithProviders(<Settings />)
+    await user.click(await screen.findByRole('button', { name: 'Email & AI' }))
     await waitFor(() => {
       expect(screen.getByText('Google OAuth2 (Gmail + Drive)')).toBeInTheDocument()
     })
   })
 
   it('shows Microsoft 365 section', async () => {
+    const user = userEvent.setup()
     renderWithProviders(<Settings />)
+    await user.click(await screen.findByRole('button', { name: 'Email & AI' }))
     await waitFor(() => {
       expect(screen.getByText('Microsoft 365 OAuth2')).toBeInTheDocument()
     })
   })
 
   it('shows AI section title', async () => {
+    const user = userEvent.setup()
     renderWithProviders(<Settings />)
+    await user.click(await screen.findByRole('button', { name: 'Email & AI' }))
     await waitFor(() => {
       expect(screen.getByText('AI Features (Ollama)')).toBeInTheDocument()
     })
   })
 
   it('shows retention policy section title', async () => {
+    const user = userEvent.setup()
     renderWithProviders(<Settings />)
+    await user.click(await screen.findByRole('button', { name: 'System' }))
     await waitFor(() => {
       expect(screen.getByText('Data Retention Policies')).toBeInTheDocument()
     })

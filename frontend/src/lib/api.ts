@@ -132,6 +132,19 @@ export const createBulkLoadConfig = (data: Partial<import('./types').BulkLoadCon
 export const updateBulkLoadConfig = (id: string, data: Partial<import('./types').BulkLoadConfig>) => put<import('./types').BulkLoadConfig>(`/bulk-load-configs/${id}`, data)
 export const deleteBulkLoadConfig = (id: string) => del<{ deleted: string }>(`/bulk-load-configs/${id}`)
 
+export interface BulkLoadPreview {
+  file_name: string
+  files_matched: number
+  columns: string[]
+  sample_rows: unknown[][]
+  row_count_sampled: number
+  warnings: string[]
+}
+export const validateBulkLoadConfig = (id: string) =>
+  post<BulkLoadPreview>(`/bulk-load-configs/${id}/validate`)
+export const validateBulkLoadConfigRaw = (data: Partial<import('./types').BulkLoadConfig>) =>
+  post<BulkLoadPreview>('/bulk-load-configs/validate-raw', data)
+
 // Report configs
 export const getReportConfigs   = (params?: { project_id?: string }) => {
   const qs = params?.project_id ? `?project_id=${params.project_id}` : ''
