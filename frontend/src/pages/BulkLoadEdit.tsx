@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react'
-import { useNavigate, useParams, Link } from 'react-router-dom'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useNavigate, useParams, Link, type NavigateFunction } from 'react-router-dom'
+import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Save, FlaskConical, TriangleAlert } from 'lucide-react'
 import {
   getBulkLoadConfig, createBulkLoadConfig, updateBulkLoadConfig,
   getDbConnections, validateBulkLoadConfigRaw, type BulkLoadPreview,
 } from '../lib/api'
+import type { BulkLoadConfig, DbConnection } from '../lib/types'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 
@@ -24,22 +25,55 @@ export default function BulkLoadEdit() {
   })
   const { data: dbConns = [] } = useQuery({ queryKey: ['db-connections'], queryFn: getDbConnections })
 
-  const [name, setName]                     = useState('')
-  const [desc, setDesc]                     = useState('')
-  const [connId, setConnId]                 = useState('')
-  const [sourceDir, setSourceDir]           = useState('')
-  const [filePrefix, setFilePrefix]         = useState('')
-  const [filePrefixExclude, setFilePrefixExclude] = useState('')
-  const [fileType, setFileType]             = useState('csv')
-  const [delimiter, setDelimiter]           = useState(',')
-  const [headerRows, setHeaderRows]         = useState(1)
-  const [footerRows, setFooterRows]         = useState(0)
-  const [targetTable, setTargetTable]       = useState('')
-  const [loadMode, setLoadMode]             = useState('append')
-  const [useSqlLoader, setUseSqlLoader]     = useState(false)
-  const [archiveDir, setArchiveDir]         = useState('')
-  const [onNoFiles, setOnNoFiles]           = useState('skip')
-  const [colMapRaw, setColMapRaw]           = useState('[]')
+  const crumbs = isNew
+    ? ['Workspace', 'Bulk Loads', 'New Bulk Load']
+    : ['Workspace', 'Bulk Loads', 'Edit Bulk Load']
+
+  if (!isNew && isLoading) return (
+    <><TopBar crumbs={crumbs} />
+    <div className="scroll" style={{ display: 'flex', justifyContent: 'center' }}><Spinner /></div></>
+  )
+
+  // Keyed by id so navigating between two different configs' edit pages (or
+  // between /new and an edit page) always mounts a fresh form instance —
+  // local state is seeded once from `existing` below, not synced via effect.
+  return (
+    <BulkLoadForm
+      key={id ?? 'new'}
+      id={id}
+      isNew={isNew}
+      existing={existing}
+      dbConns={dbConns}
+      navigate={navigate}
+      qc={qc}
+    />
+  )
+}
+
+function BulkLoadForm({ id, isNew, existing, dbConns, navigate, qc }: {
+  id?: string
+  isNew: boolean
+  existing?: BulkLoadConfig
+  dbConns: DbConnection[]
+  navigate: NavigateFunction
+  qc: QueryClient
+}) {
+  const [name, setName]                     = useState(existing?.name ?? '')
+  const [desc, setDesc]                     = useState(existing?.description ?? '')
+  const [connId, setConnId]                 = useState(existing?.connection_id ?? '')
+  const [sourceDir, setSourceDir]           = useState(existing?.source_directory ?? '')
+  const [filePrefix, setFilePrefix]         = useState(existing?.file_prefix ?? '')
+  const [filePrefixExclude, setFilePrefixExclude] = useState(existing?.file_prefix_exclude ?? '')
+  const [fileType, setFileType]             = useState(existing?.file_type ?? 'csv')
+  const [delimiter, setDelimiter]           = useState(existing?.delimiter ?? ',')
+  const [headerRows, setHeaderRows]         = useState(existing?.header_rows ?? 1)
+  const [footerRows, setFooterRows]         = useState(existing?.footer_rows ?? 0)
+  const [targetTable, setTargetTable]       = useState(existing?.target_table ?? '')
+  const [loadMode, setLoadMode]             = useState(existing?.load_mode ?? 'append')
+  const [useSqlLoader, setUseSqlLoader]     = useState(existing?.use_sqlloader ?? false)
+  const [archiveDir, setArchiveDir]         = useState(existing?.archive_directory ?? '')
+  const [onNoFiles, setOnNoFiles]           = useState(existing?.on_no_files ?? 'skip')
+  const [colMapRaw, setColMapRaw]           = useState(JSON.stringify(existing?.column_mapping ?? [], null, 2))
   const [saving, setSaving]                 = useState(false)
   const [error, setError]                   = useState('')
   const [fieldErrors, setFieldErrors]       = useState<Record<string, string>>({})
@@ -47,26 +81,6 @@ export default function BulkLoadEdit() {
   const [testing, setTesting]               = useState(false)
   const [testError, setTestError]           = useState('')
   const [preview, setPreview]               = useState<BulkLoadPreview | null>(null)
-
-  useEffect(() => {
-    if (!existing) return
-    setName(existing.name)
-    setDesc(existing.description ?? '')
-    setConnId(existing.connection_id ?? '')
-    setSourceDir(existing.source_directory)
-    setFilePrefix(existing.file_prefix ?? '')
-    setFilePrefixExclude(existing.file_prefix_exclude ?? '')
-    setFileType(existing.file_type ?? 'csv')
-    setDelimiter(existing.delimiter ?? ',')
-    setHeaderRows(existing.header_rows ?? 1)
-    setFooterRows(existing.footer_rows ?? 0)
-    setTargetTable(existing.target_table)
-    setLoadMode(existing.load_mode ?? 'append')
-    setUseSqlLoader(existing.use_sqlloader ?? false)
-    setArchiveDir(existing.archive_directory ?? '')
-    setOnNoFiles(existing.on_no_files ?? 'skip')
-    setColMapRaw(JSON.stringify(existing.column_mapping ?? [], null, 2))
-  }, [existing])
 
   const buildPayload = () => {
     let columnMapping: { source: string; target: string }[] = []
@@ -129,11 +143,6 @@ export default function BulkLoadEdit() {
   const crumbs = isNew
     ? ['Workspace', 'Bulk Loads', 'New Bulk Load']
     : ['Workspace', 'Bulk Loads', name || 'Edit Bulk Load']
-
-  if (!isNew && isLoading) return (
-    <><TopBar crumbs={crumbs} />
-    <div className="scroll" style={{ display: 'flex', justifyContent: 'center' }}><Spinner /></div></>
-  )
 
   return (
     <>

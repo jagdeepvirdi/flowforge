@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useNavigate, useParams, type NavigateFunction } from 'react-router-dom'
+import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -16,7 +16,10 @@ import {
   getPipelines,
   addPipelineDep, removePipelineDep,
 } from '../lib/api'
-import type { Pipeline, PipelineDep, PipelineStep, StepType } from '../lib/types'
+import type {
+  Pipeline, PipelineDep, PipelineStep, StepType,
+  DbConnection, ReportConfig, EmailConfig, BulkLoadConfig,
+} from '../lib/types'
 import { useProjectStore } from '../lib/store'
 import StepEditor from '../components/pipeline/StepEditor'
 import PipelineVariablesCard, { type PipelineVar } from '../components/pipeline/PipelineVariablesCard'
@@ -50,7 +53,6 @@ export default function PipelineEdit() {
   const isNew = !id
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const { activeProjectId } = useProjectStore()
 
   const { data: existing, isLoading } = useQuery({
     queryKey: ['pipeline', id],
@@ -65,36 +67,109 @@ export default function PipelineEdit() {
   const { data: stepTypes = STEP_TYPES.map(type => ({ type, plugin: false })) } =
     useQuery({ queryKey: ['step-types'], queryFn: getStepTypes })
 
-  const [name, setName]           = useState('')
-  const [desc, setDesc]           = useState('')
-  const [schedule, setSchedule]   = useState('')
-  const [enabled, setEnabled]     = useState(true)
-  const [timeout, setTimeout_]    = useState(60)
-  const [webhookUrl, setWebhookUrl] = useState('')
-  const [steps, setSteps]         = useState<PipelineStep[]>([])
-  const [vars, setVars]           = useState<PipelineVar[]>([])
-  const [upstreamDeps, setUpstreamDeps] = useState<PipelineDep[]>([])
+  const crumbs = isNew ? ['Workspace', 'Pipelines', 'New Pipeline'] : ['Workspace', 'Pipelines', 'Edit Pipeline']
+
+  if (!isNew && isLoading) return (
+    <>
+      <TopBar crumbs={crumbs} actions={
+        <div className="flex gap-2">
+          <Sk h={28} r={6} className="w-[68px]" />
+          <Sk h={28} r={6} className="w-[68px]" />
+        </div>
+      } />
+      <div className="scroll">
+        <div className="card mb-4 flex flex-col gap-3">
+          <Sk h={13} className="w-[55px]" />
+          <div className="grid grid-cols-2 gap-3">
+            {[0,1,2,3].map(i => (
+              <div key={i} className="field">
+                <Sk h={12} className="w-[70px] mb-1.5" />
+                <Sk h={34} r={6} />
+              </div>
+            ))}
+          </div>
+          <div className="field">
+            <Sk h={12} className="w-[80px] mb-1.5" />
+            <Sk h={64} r={6} />
+          </div>
+        </div>
+        <div className="card mb-4 flex flex-col gap-3">
+          <Sk h={13} className="w-[100px]" />
+          {[0,1].map(i => (
+            <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2.5 items-center">
+              <Sk h={34} r={6} />
+              <Sk h={34} r={6} />
+              <Sk h={28} r={6} className="w-7" />
+            </div>
+          ))}
+        </div>
+        <div className="card flex flex-col gap-3">
+          <Sk h={13} className="w-20" />
+          <Sk h={64} r={6} />
+          <Sk h={64} r={6} />
+        </div>
+      </div>
+    </>
+  )
+
+  // Keyed by id so navigating between two different pipelines' edit pages (or
+  // between /new and an edit page) always mounts a fresh form instance —
+  // local state is seeded once from `existing` below, not synced via effect.
+  return (
+    <PipelineForm
+      key={id ?? 'new'}
+      id={id}
+      isNew={isNew}
+      existing={existing}
+      dbConns={dbConns}
+      reportCfgs={reportCfgs}
+      emailCfgs={emailCfgs}
+      bulkLoadCfgs={bulkLoadCfgs}
+      allPipelines={allPipelines}
+      stepTypes={stepTypes}
+      navigate={navigate}
+      qc={qc}
+    />
+  )
+}
+
+function PipelineForm({
+  id, isNew, existing, dbConns, reportCfgs, emailCfgs, bulkLoadCfgs, allPipelines, stepTypes, navigate, qc,
+}: {
+  id?: string
+  isNew: boolean
+  existing?: Pipeline
+  dbConns: DbConnection[]
+  reportCfgs: ReportConfig[]
+  emailCfgs: EmailConfig[]
+  bulkLoadCfgs: BulkLoadConfig[]
+  allPipelines: Pipeline[]
+  stepTypes: { type: string; plugin: boolean }[]
+  navigate: NavigateFunction
+  qc: QueryClient
+}) {
+  const { activeProjectId } = useProjectStore()
+
+  const [name, setName]           = useState(existing?.name ?? '')
+  const [desc, setDesc]           = useState(existing?.description ?? '')
+  const [schedule, setSchedule]   = useState(existing?.schedule ?? '')
+  const [enabled, setEnabled]     = useState(existing?.enabled ?? true)
+  const [timeout, setTimeout_]    = useState(existing?.timeout_minutes ?? 60)
+  const [webhookUrl, setWebhookUrl] = useState(existing?.on_failure_webhook_url ?? '')
+  const [steps, setSteps]         = useState<PipelineStep[]>(
+    existing ? [...existing.steps].sort((a, b) => a.step_order - b.step_order) : [],
+  )
+  const [vars, setVars]           = useState<PipelineVar[]>(
+    (existing?.variables ?? []).map(v => ({
+      key: v.var_key,
+      value: v.is_secret ? '' : v.var_value,
+      is_secret: v.is_secret,
+    })),
+  )
+  const [upstreamDeps, setUpstreamDeps] = useState<PipelineDep[]>(existing?.upstream_deps ?? [])
   const [saving, setSaving]       = useState(false)
   const [error, setError]         = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-
-  useEffect(() => {
-    if (existing) {
-      setName(existing.name)
-      setDesc(existing.description ?? '')
-      setSchedule(existing.schedule ?? '')
-      setEnabled(existing.enabled)
-      setTimeout_(existing.timeout_minutes)
-      setWebhookUrl(existing.on_failure_webhook_url ?? '')
-      setSteps([...existing.steps].sort((a, b) => a.step_order - b.step_order))
-      setUpstreamDeps(existing.upstream_deps ?? [])
-      setVars((existing.variables ?? []).map(v => ({
-        key: v.var_key,
-        value: v.is_secret ? '' : v.var_value,
-        is_secret: v.is_secret,
-      })))
-    }
-  }, [existing])
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
@@ -188,49 +263,6 @@ export default function PipelineEdit() {
   }
 
   const crumbs = isNew ? ['Workspace', 'Pipelines', 'New Pipeline'] : ['Workspace', 'Pipelines', name || 'Edit Pipeline']
-
-  if (!isNew && isLoading) return (
-    <>
-      <TopBar crumbs={crumbs} actions={
-        <div className="flex gap-2">
-          <Sk h={28} r={6} className="w-[68px]" />
-          <Sk h={28} r={6} className="w-[68px]" />
-        </div>
-      } />
-      <div className="scroll">
-        <div className="card mb-4 flex flex-col gap-3">
-          <Sk h={13} className="w-[55px]" />
-          <div className="grid grid-cols-2 gap-3">
-            {[0,1,2,3].map(i => (
-              <div key={i} className="field">
-                <Sk h={12} className="w-[70px] mb-1.5" />
-                <Sk h={34} r={6} />
-              </div>
-            ))}
-          </div>
-          <div className="field">
-            <Sk h={12} className="w-[80px] mb-1.5" />
-            <Sk h={64} r={6} />
-          </div>
-        </div>
-        <div className="card mb-4 flex flex-col gap-3">
-          <Sk h={13} className="w-[100px]" />
-          {[0,1].map(i => (
-            <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2.5 items-center">
-              <Sk h={34} r={6} />
-              <Sk h={34} r={6} />
-              <Sk h={28} r={6} className="w-7" />
-            </div>
-          ))}
-        </div>
-        <div className="card flex flex-col gap-3">
-          <Sk h={13} className="w-20" />
-          <Sk h={64} r={6} />
-          <Sk h={64} r={6} />
-        </div>
-      </div>
-    </>
-  )
 
   return (
     <>

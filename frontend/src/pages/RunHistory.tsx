@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Search, ChevronRight, Clock, User, Download } from 'lucide-react'
@@ -30,7 +30,15 @@ export default function RunHistory() {
   const { activeProjectId } = useProjectStore()
   const { token } = useAuth()
 
-  useEffect(() => { setLimit(PAGE_SIZE) }, [filterPipeline, filterStatus, activeProjectId])
+  // Reset pagination whenever a filter changes — adjusted during render
+  // (React's documented pattern for this) rather than in an effect, since
+  // activeProjectId comes from an external store this component doesn't
+  // control locally, so there's no single onChange handler to hook into.
+  const [prevFilters, setPrevFilters] = useState([filterPipeline, filterStatus, activeProjectId])
+  if (prevFilters[0] !== filterPipeline || prevFilters[1] !== filterStatus || prevFilters[2] !== activeProjectId) {
+    setPrevFilters([filterPipeline, filterStatus, activeProjectId])
+    setLimit(PAGE_SIZE)
+  }
 
   const { data: runs = [], isLoading, isFetching } = useQuery({
     queryKey: ['runs', filterPipeline, filterStatus, limit, activeProjectId],
