@@ -519,7 +519,150 @@ def _load_sqlloader(
         shutil.rmtree(tmpdir, ignore_errors=True)
 
 
-# ─── Preview / validate (no data touched) ──────────────────────────────────────
+# ─── Preview / validate (no data touched unless dry_run=True, always rolled back) ──
+
+_PG_SQLSTATE_TYPES = {
+    '23502': 'not_null_violation',
+    '23505': 'unique_violation',
+    '23503': 'foreign_key_violation',
+    '23514': 'check_violation',
+    '22001': 'value_too_long',
+}
+
+_ORA_CODE_TYPES = {
+    '01400': 'not_null_violation',
+    '00001': 'unique_violation',
+    '02291': 'foreign_key_violation',
+    '12899': 'value_too_long',
+    '01722': 'invalid_type',
+    '01858': 'invalid_type',
+}
+
+
+def _classify_insert_error(exc: Exception) -> tuple[str, str | None]:
+    """Best-effort (error_type, column_name) from a driver exception.
+
+    Prefers psycopg2's structured `.diag` fields (exact SQLSTATE + column
+    name) when available, and falls back to substring/ORA-code matching on
+    the message for Oracle and any other driver.
+    """
+    diag = getattr(exc, 'diag', None)
+    if diag is not None:
+        sqlstate = getattr(diag, 'sqlstate', None)
+        column = getattr(diag, 'column_name', None)
+        if sqlstate in _PG_SQLSTATE_TYPES:
+            return _PG_SQLSTATE_TYPES[sqlstate], column
+        if sqlstate and sqlstate.startswith('22'):
+            return 'invalid_type', column
+        if sqlstate and sqlstate.startswith('23'):
+            return 'constraint_violation', column
+        return 'db_error', column
+
+    msg = str(exc)
+    for code, err_type in _ORA_CODE_TYPES.items():
+        if f'ORA-{code}' in msg:
+            return err_type, None
+
+    low = msg.lower()
+    if 'not-null' in low or 'not null' in low or 'null value' in low:
+        return 'not_null_violation', None
+    if 'unique' in low or 'duplicate key' in low:
+        return 'unique_violation', None
+    if 'too long' in low or 'value too large' in low:
+        return 'value_too_long', None
+    if 'invalid input syntax' in low or 'invalid number' in low or 'invalid literal' in low:
+        return 'invalid_type', None
+    return 'db_error', None
+
+
+def _dry_run_insert_rows(
+    conn_cfg: dict,
+    target_table: str,
+    columns: list[str],
+    sample_rows: list[list[str]],
+) -> list[dict]:
+    """Attempt each sample row as a real INSERT against the real target table,
+    one row per SAVEPOINT, then roll the whole transaction back — nothing is
+    ever committed.
+
+    Reuses the exact INSERT statement `_load_python_fallback` builds for a
+    real load, so a NOT NULL / unique / length / type error surfaced here is
+    the same error a real run would hit, not a heuristic re-implementation.
+
+    Rows are tried individually (unlike the real load's executemany/COPY
+    batching) so a systemic failure on one row doesn't abort the whole batch
+    before an unrelated failure on another row can be found — batched
+    execution stops at the first bad row.
+
+    Returns a list of per-row failures: [{row_index, column, error_type,
+    message}, ...] for only the rows that failed.
+    """
+    if not columns or not sample_rows:
+        return []
+
+    placeholders = ', '.join(['%s'] * len(columns))
+    col_names = ', '.join(columns)
+    sql = f'INSERT INTO {target_table} ({col_names}) VALUES ({placeholders})'  # nosec B608
+
+    db_conn = _open_raw_connection(conn_cfg)
+    row_errors: list[dict] = []
+    try:
+        cur = db_conn.cursor()
+        for idx, row in enumerate(sample_rows):
+            cur.execute('SAVEPOINT ff_dry_run_row')
+            try:
+                cur.execute(sql, row)
+            except Exception as e:
+                cur.execute('ROLLBACK TO SAVEPOINT ff_dry_run_row')
+                error_type, column = _classify_insert_error(e)
+                row_errors.append({
+                    'row_index': idx,
+                    'column': column,
+                    'error_type': error_type,
+                    'message': str(e).strip(),
+                })
+            else:
+                cur.execute('RELEASE SAVEPOINT ff_dry_run_row')
+        cur.close()
+    finally:
+        db_conn.rollback()
+        db_conn.close()
+    return row_errors
+
+
+def _group_insert_errors(row_errors: list[dict]) -> list[dict]:
+    """Group per-row failures by (column, error_type) signature so a systemic
+    issue (e.g. a batch of blanks hitting one NOT NULL column) reports as one
+    entry with a row count, instead of a dozen near-duplicate messages."""
+    groups: dict[tuple[str | None, str], dict] = {}
+    order: list[tuple[str | None, str]] = []
+    for err in row_errors:
+        key = (err['column'], err['error_type'])
+        if key not in groups:
+            groups[key] = {
+                'column':      err['column'],
+                'error_type':  err['error_type'],
+                'message':     err['message'],
+                'row_indices': [],
+            }
+            order.append(key)
+        groups[key]['row_indices'].append(err['row_index'])
+
+    result = [groups[k] for k in order]
+    for g in result:
+        g['count'] = len(g['row_indices'])
+    result.sort(key=lambda g: -g['count'])
+    return result
+
+
+def _insert_error_summary(row_errors: list[dict], total_sampled: int) -> str:
+    if not row_errors:
+        return ''
+    n_types = len({(e['column'], e['error_type']) for e in row_errors})
+    n_rows = len({e['row_index'] for e in row_errors})
+    type_word = 'error type' if n_types == 1 else 'error types'
+    return f'{n_types} {type_word} across {n_rows} of {total_sampled} sampled rows'
+
 
 def _fetch_table_columns(connection_id: str, target_table: str) -> set[str] | None:
     """Return lower-cased column names for target_table, or None if it doesn't exist."""
@@ -553,10 +696,18 @@ def _fetch_table_columns(connection_id: str, target_table: str) -> set[str] | No
     return {str(r[0]).lower() for r in rows}
 
 
-def preview_bulk_load(cfg: dict, context: dict | None = None) -> dict:
+def preview_bulk_load(cfg: dict, context: dict | None = None, dry_run: bool = False) -> dict:
     """Preview the first matching file for a bulk-load config without loading any data.
 
-    Returns {file_name, files_matched, columns, sample_rows, row_count_sampled, warnings}.
+    When dry_run=True and the target table exists with matching columns, also
+    attempts a real (rolled-back) INSERT of each sampled row to catch
+    type-coercion and constraint errors (NOT NULL, unique/PK, length
+    overflow) that untyped CSV text can't reveal on its own — see
+    _dry_run_insert_rows(). Not available for the Oracle SQL*Loader path
+    (sqlldr manages its own commits); file/header/column checks still run.
+
+    Returns {file_name, files_matched, columns, sample_rows, row_count_sampled,
+    warnings, error_groups, insert_error_summary}.
     Raises ValueError on hard-stop conditions (bad directory, no matching files, bad delimiter).
     """
     from flowforge.engine.context import build, render
@@ -640,6 +791,7 @@ def preview_bulk_load(cfg: dict, context: dict | None = None) -> dict:
         )
 
     connection_id = cfg.get('connection_id') or ''
+    row_errors: list[dict] = []
     if not target_table:
         warnings.append('target_table not set — skipping target-table column check.')
     elif not connection_id:
@@ -660,16 +812,35 @@ def preview_bulk_load(cfg: dict, context: dict | None = None) -> dict:
                     missing = [c for c in columns if c.lower() not in target_cols]
                     if missing:
                         warnings.append(f"Column(s) not found in {target_table_tpl}: {', '.join(missing)}")
+                    elif dry_run:
+                        try:
+                            conn_cfg = _resolve_connection(connection_id)
+                        except Exception as e:
+                            warnings.append(f'Could not open connection for dry-run insert test: {type(e).__name__}: {e}')
+                        else:
+                            db_type = conn_cfg.get('_db_type', 'postgresql')
+                            if db_type == 'oracle' and bool(cfg.get('use_sqlloader', False)):
+                                warnings.append(
+                                    'Dry-run insert testing is not available for the SQL*Loader path '
+                                    '(sqlldr manages its own commits) — only file, header, and column checks were run.'
+                                )
+                            else:
+                                try:
+                                    row_errors = _dry_run_insert_rows(conn_cfg, target_table, columns, sample_rows)
+                                except Exception as e:
+                                    warnings.append(f'Could not run dry-run insert test: {type(e).__name__}: {e}')
             except Exception as e:
                 warnings.append(f'Could not verify target table columns: {type(e).__name__}: {e}')
 
     return {
-        'file_name':         file_path.name,
-        'files_matched':     len(files),
-        'columns':           columns,
-        'sample_rows':       sample_rows,
-        'row_count_sampled': len(sample_rows),
-        'warnings':          warnings,
+        'file_name':            file_path.name,
+        'files_matched':        len(files),
+        'columns':              columns,
+        'sample_rows':          sample_rows,
+        'row_count_sampled':    len(sample_rows),
+        'warnings':             warnings,
+        'error_groups':         _group_insert_errors(row_errors),
+        'insert_error_summary': _insert_error_summary(row_errors, len(sample_rows)),
     }
 
 

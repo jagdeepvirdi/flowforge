@@ -11,6 +11,8 @@ PREVIEW_RESULT = {
     'sample_rows': [['1', 'alice']],
     'row_count_sampled': 1,
     'warnings': [],
+    'error_groups': [],
+    'insert_error_summary': '',
 }
 
 
@@ -30,10 +32,18 @@ def blc_id(client, headers):
 # ── /bulk-load-configs/<id>/validate ────────────────────────────────────────
 
 def test_validate_saved_config_success(client, headers, blc_id):
-    with patch('flowforge.api.routes.bulk_loads.preview_bulk_load', return_value=PREVIEW_RESULT):
+    with patch('flowforge.api.routes.bulk_loads.preview_bulk_load', return_value=PREVIEW_RESULT) as mock_preview:
         resp = client.post(f'/api/bulk-load-configs/{blc_id}/validate', headers=headers)
     assert resp.status_code == 200
     assert resp.get_json() == PREVIEW_RESULT
+    assert mock_preview.call_args.kwargs == {'dry_run': False}
+
+
+def test_validate_saved_config_dry_run_passthrough(client, headers, blc_id):
+    with patch('flowforge.api.routes.bulk_loads.preview_bulk_load', return_value=PREVIEW_RESULT) as mock_preview:
+        resp = client.post(f'/api/bulk-load-configs/{blc_id}/validate', json={'dry_run': True}, headers=headers)
+    assert resp.status_code == 200
+    assert mock_preview.call_args.kwargs == {'dry_run': True}
 
 
 def test_validate_saved_config_value_error_returns_400(client, headers, blc_id):
@@ -66,7 +76,17 @@ def test_validate_raw_config_success(client, headers):
         resp = client.post('/api/bulk-load-configs/validate-raw', json=payload, headers=headers)
     assert resp.status_code == 200
     assert resp.get_json() == PREVIEW_RESULT
-    mock_preview.assert_called_once_with(payload)
+    mock_preview.assert_called_once_with(payload, dry_run=False)
+
+
+def test_validate_raw_config_dry_run_passthrough(client, headers):
+    payload = {'source_directory': '/data/in', 'target_table': 'staging.t', 'dry_run': True}
+    with patch('flowforge.api.routes.bulk_loads.preview_bulk_load', return_value=PREVIEW_RESULT) as mock_preview:
+        resp = client.post('/api/bulk-load-configs/validate-raw', json=payload, headers=headers)
+    assert resp.status_code == 200
+    mock_preview.assert_called_once_with(
+        {'source_directory': '/data/in', 'target_table': 'staging.t'}, dry_run=True,
+    )
 
 
 def test_validate_raw_config_value_error_returns_400(client, headers):
@@ -82,7 +102,7 @@ def test_validate_raw_config_empty_body_defaults_empty_dict(client, headers):
                side_effect=ValueError('source_directory is required')) as mock_preview:
         resp = client.post('/api/bulk-load-configs/validate-raw', json={}, headers=headers)
     assert resp.status_code == 400
-    mock_preview.assert_called_once_with({})
+    mock_preview.assert_called_once_with({}, dry_run=False)
 
 
 def test_validate_raw_config_requires_auth(client):

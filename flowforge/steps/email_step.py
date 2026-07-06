@@ -141,6 +141,7 @@ class EmailStep(BaseStep):
                     subject=subject,
                     recipients=result.recipients,
                     attachment_names=[p.name for p in direct_attachments],
+                    run_id=context.get('run_id', ''),
                 )
                 step_logs = '\n'.join(upload_warnings) if upload_warnings else ''
                 return StepResult(success=True, extra={'email_sent_to': result.recipients}, logs=step_logs)

@@ -177,6 +177,24 @@ export interface RunDiff {
   steps: StepDiff[]
 }
 
+export interface StepTrendPoint {
+  date: string
+  run_count: number
+  success_count: number
+  failure_count: number
+  avg_duration_ms: number | null
+  p95_duration_ms: number | null
+  avg_rows_affected: number | null
+}
+
+export interface StepTrends {
+  window_days: number
+  step_type: string | null
+  pipeline_id: string | null
+  available_step_types: string[]
+  series: StepTrendPoint[]
+}
+
 export interface EmailConfig {
   id: string
   name: string

@@ -10,6 +10,7 @@ import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 import Sk from '../components/shared/Skeleton'
 import PageIntro from '../components/shared/PageIntro'
+import StepTrendsPanel from '../components/runs/StepTrendsPanel'
 
 function fmtDur(ms: number | null) {
   if (!ms) return '—'
@@ -190,6 +191,8 @@ export default function RunHistory() {
             </div>
           ))}
         </div>
+
+        <StepTrendsPanel pipelineId={(filterPipeline && filterPipeline !== '__deleted__') ? filterPipeline : undefined} />
 
         {/* Filters */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>

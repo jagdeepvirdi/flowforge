@@ -186,11 +186,12 @@ def log_email_sent(
     subject: str,
     recipients: list[str],
     attachment_names: list[str],
+    run_id: str = '',
 ) -> None:
     attachments = ', '.join(attachment_names) if attachment_names else 'none'
     _get_logger().info(
-        'EMAIL_SENT  pipeline=%-20r  step=%-20r  subject=%-40r  recipients=%d  attachments=%s',
-        pipeline_name, step_name, subject, len(recipients), attachments,
+        'EMAIL_SENT  pipeline=%-20r  step=%-20r  subject=%-40r  recipients=%d  attachments=%s  run_id=%s',
+        pipeline_name, step_name, subject, len(recipients), attachments, run_id or 'unknown',
     )
     _write_db_audit('EMAIL_SENT', _current_user(), _current_user_id(), '', {
         'pipeline_name': pipeline_name,
@@ -198,6 +199,7 @@ def log_email_sent(
         'subject': subject,
         'recipients_count': len(recipients),
         'attachments': attachments,
+        'run_id': run_id,
     })
 
 
@@ -218,10 +220,11 @@ def log_report_exported(
     output_filename: str,
     row_count: int,
     fmt: str,
+    run_id: str = '',
 ) -> None:
     _get_logger().info(
-        'REPORT_EXPORTED  pipeline=%-20r  step=%-20r  file=%-40s  rows=%d  format=%s',
-        pipeline_name, step_name, output_filename, row_count, fmt,
+        'REPORT_EXPORTED  pipeline=%-20r  step=%-20r  file=%-40s  rows=%d  format=%s  run_id=%s',
+        pipeline_name, step_name, output_filename, row_count, fmt, run_id or 'unknown',
     )
     _write_db_audit('REPORT_EXPORTED', _current_user(), _current_user_id(), '', {
         'pipeline_name': pipeline_name,
@@ -229,5 +232,6 @@ def log_report_exported(
         'output_filename': output_filename,
         'row_count': row_count,
         'format': fmt,
+        'run_id': run_id,
     })
 

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Bulk load dry-run V2** — "Attempt insert (rolled back)" checkbox in the Bulk Load editor's Test File action. Inserts each sampled row individually against the real target table inside a transaction (rolled back, never committed), catching NOT NULL/unique/length/type errors that untyped CSV text can't reveal on its own. Failures are grouped by column + error type with affected rows/cells highlighted in the preview table. Not available for the Oracle SQL\*Loader path. ([`flowforge/steps/bulk_load.py`](flowforge/steps/bulk_load.py), [`frontend/src/pages/BulkLoadEdit.tsx`](frontend/src/pages/BulkLoadEdit.tsx))
+- **Step performance trends** — new `GET /api/step-runs/trends` endpoint aggregates existing `step_runs` data (avg/p95 duration, row counts, failures) into daily buckets over a rolling window. Collapsible "Performance Trends" panel on the Run History page with a step-type/window picker and a Recharts duration chart. ([`flowforge/api/routes/runs.py`](flowforge/api/routes/runs.py), [`frontend/src/components/runs/StepTrendsPanel.tsx`](frontend/src/components/runs/StepTrendsPanel.tsx))
+- **Audit log `run_id` cross-referencing** — `EMAIL_SENT`/`REPORT_EXPORTED` audit entries now carry `run_id`, so they can be joined directly to `pipeline_runs`/`step_runs` instead of fuzzy-matching on name and timestamp. ([`flowforge/audit.py`](flowforge/audit.py))
+
 ## [1.0.0] — 2026-05-25 *(Initial Public Release)*
 
 This is the first public release of FlowForge. It incorporates all the

@@ -1,10 +1,11 @@
 import csv
 import io
+import math
 import mimetypes
 import os
 import statistics
 from collections import defaultdict
-from datetime import UTC
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from flask import Blueprint, Response, jsonify, request, send_file
@@ -353,6 +354,108 @@ def get_run_diff(run_id):
     return jsonify({'prev_run_id': prev_run.id, 'steps': result})
 
 
+_TRENDS_DEFAULT_WINDOW_DAYS = 30
+_TRENDS_MAX_WINDOW_DAYS     = 180
+
+
+def _percentile(values: list, pct: float) -> float:
+    """Nearest-rank percentile (0-100) over an unsorted list of numbers."""
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    idx = max(0, min(len(ordered) - 1, math.ceil(pct / 100 * len(ordered)) - 1))
+    return ordered[idx]
+
+
+@bp.get('/step-runs/trends')
+@require_auth
+def get_step_run_trends():
+    """Aggregate per-day duration/rows/failure trends over a rolling window, to
+    surface gradual slowdowns before they cause timeouts (Observability 7.5).
+
+    step_runs already records duration_ms/rows_affected/status generically for
+    every step type, so this only aggregates existing data — no new collection.
+    Bucketed and aggregated in Python (statistics.mean + nearest-rank
+    percentile) rather than DB-side percentile functions, matching
+    _check_anomaly's approach elsewhere in this file.
+    """
+    project_id = request.args.get('project_id')
+    if project_id and not can_access_project(project_id):
+        return jsonify({'error': 'Access denied to this project'}), 403
+
+    pipeline_id = request.args.get('pipeline_id')
+    step_type   = request.args.get('step_type') or None
+
+    try:
+        days = int(request.args.get('days', _TRENDS_DEFAULT_WINDOW_DAYS))
+    except ValueError:
+        return jsonify({'error': 'days must be an integer'}), 400
+    days = max(1, min(days, _TRENDS_MAX_WINDOW_DAYS))
+    since = datetime.now(UTC) - timedelta(days=days)
+
+    base_query = (
+        db.session.query(StepRun)
+        .join(PipelineRun, StepRun.pipeline_run_id == PipelineRun.id)
+        .filter(StepRun.started_at >= since)
+        .filter(StepRun.status != 'running')
+    )
+    if pipeline_id:
+        base_query = base_query.filter(PipelineRun.pipeline_id == pipeline_id)
+    if project_id:
+        base_query = base_query.join(Pipeline, PipelineRun.pipeline_id == Pipeline.id).filter(Pipeline.project_id == project_id)
+    else:
+        ids = accessible_project_ids()
+        if ids is not None:
+            base_query = base_query.join(Pipeline, PipelineRun.pipeline_id == Pipeline.id).filter(Pipeline.project_id.in_(ids))
+
+    available_step_types = sorted({
+        row[0] for row in base_query.with_entities(StepRun.step_type).distinct().all()
+    })
+
+    if step_type:
+        base_query = base_query.filter(StepRun.step_type == step_type)
+
+    rows = base_query.with_entities(
+        StepRun.started_at, StepRun.duration_ms, StepRun.rows_affected, StepRun.status,
+    ).all()
+
+    buckets: dict[str, dict] = defaultdict(lambda: {'durations': [], 'rows': [], 'total': 0, 'success': 0, 'failure': 0})
+    for started_at, duration_ms, rows_affected, status in rows:
+        if not started_at:
+            continue
+        b = buckets[started_at.date().isoformat()]
+        b['total'] += 1
+        if duration_ms is not None:
+            b['durations'].append(duration_ms)
+        if rows_affected is not None:
+            b['rows'].append(rows_affected)
+        if status == 'success':
+            b['success'] += 1
+        elif status == 'failed':
+            b['failure'] += 1
+
+    series = [
+        {
+            'date':              date_str,
+            'run_count':         b['total'],
+            'success_count':     b['success'],
+            'failure_count':     b['failure'],
+            'avg_duration_ms':   round(statistics.mean(b['durations']), 1) if b['durations'] else None,
+            'p95_duration_ms':   round(_percentile(b['durations'], 95), 1) if b['durations'] else None,
+            'avg_rows_affected': round(statistics.mean(b['rows']), 1) if b['rows'] else None,
+        }
+        for date_str, b in sorted(buckets.items())
+    ]
+
+    return jsonify({
+        'window_days':          days,
+        'step_type':            step_type,
+        'pipeline_id':          pipeline_id,
+        'available_step_types': available_step_types,
+        'series':               series,
+    })
+
+
 @bp.get('/step-runs/<uuid:step_run_id>/download')
 @require_auth
 def download_step_output(step_run_id):
@@ -397,7 +500,6 @@ def download_step_output(step_run_id):
 @bp.post('/runs/<uuid:run_id>/cancel')
 @require_role(['admin', 'editor'])
 def cancel_run(run_id):
-    from datetime import datetime
     run = db.session.get(PipelineRun, str(run_id))
     if not run:
         return jsonify({'error': _NOT_FOUND}), 404

@@ -140,6 +140,13 @@ export const createBulkLoadConfig = (data: Partial<import('./types').BulkLoadCon
 export const updateBulkLoadConfig = (id: string, data: Partial<import('./types').BulkLoadConfig>) => put<import('./types').BulkLoadConfig>(`/bulk-load-configs/${id}`, data)
 export const deleteBulkLoadConfig = (id: string) => del<{ deleted: string }>(`/bulk-load-configs/${id}`)
 
+export interface BulkLoadErrorGroup {
+  row_indices: number[]
+  column: string | null
+  error_type: string
+  message: string
+  count: number
+}
 export interface BulkLoadPreview {
   file_name: string
   files_matched: number
@@ -147,11 +154,13 @@ export interface BulkLoadPreview {
   sample_rows: unknown[][]
   row_count_sampled: number
   warnings: string[]
+  error_groups: BulkLoadErrorGroup[]
+  insert_error_summary: string
 }
-export const validateBulkLoadConfig = (id: string) =>
-  post<BulkLoadPreview>(`/bulk-load-configs/${id}/validate`)
-export const validateBulkLoadConfigRaw = (data: Partial<import('./types').BulkLoadConfig>) =>
-  post<BulkLoadPreview>('/bulk-load-configs/validate-raw', data)
+export const validateBulkLoadConfig = (id: string, dryRun = false) =>
+  post<BulkLoadPreview>(`/bulk-load-configs/${id}/validate`, dryRun ? { dry_run: true } : undefined)
+export const validateBulkLoadConfigRaw = (data: Partial<import('./types').BulkLoadConfig>, dryRun = false) =>
+  post<BulkLoadPreview>('/bulk-load-configs/validate-raw', dryRun ? { ...data, dry_run: true } : data)
 
 // Report configs
 export const getReportConfigs   = (params?: { project_id?: string }) => {
@@ -226,6 +235,15 @@ export const getRuns = (params?: { pipeline_id?: string; project_id?: string; st
 export const getRun          = (id: string) => get<import('./types').PipelineRun>(`/runs/${id}`)
 export const getRunAnomalies = (id: string) => get<import('./types').StepAnomaly[]>(`/runs/${id}/anomalies`)
 export const getRunDiff      = (id: string) => get<import('./types').RunDiff>(`/runs/${id}/diff`)
+export const getStepRunTrends = (params?: { step_type?: string; pipeline_id?: string; project_id?: string; days?: number }) => {
+  const qs = new URLSearchParams()
+  if (params?.step_type)   qs.set('step_type',   params.step_type)
+  if (params?.pipeline_id) qs.set('pipeline_id', params.pipeline_id)
+  if (params?.project_id)  qs.set('project_id',  params.project_id)
+  if (params?.days)        qs.set('days', String(params.days))
+  const q = qs.toString()
+  return get<import('./types').StepTrends>(`/step-runs/trends${q ? `?${q}` : ''}`)
+}
 export const getAnomalyNarrative = (payload: {
   step_name: string; metric: 'rows' | 'duration'
   value: number; mean: number; pct_diff: number

@@ -81,6 +81,7 @@ function BulkLoadForm({ id, isNew, existing, dbConns, navigate, qc }: {
   const [testing, setTesting]               = useState(false)
   const [testError, setTestError]           = useState('')
   const [preview, setPreview]               = useState<BulkLoadPreview | null>(null)
+  const [dryRun, setDryRun]                 = useState(false)
 
   const buildPayload = () => {
     let columnMapping: { source: string; target: string }[] = []
@@ -131,7 +132,7 @@ function BulkLoadForm({ id, isNew, existing, dbConns, navigate, qc }: {
     if (!sourceDir.trim()) { setTestError('Source directory is required to run a test'); return }
     setTesting(true); setTestError(''); setPreview(null)
     try {
-      const result = await validateBulkLoadConfigRaw(buildPayload())
+      const result = await validateBulkLoadConfigRaw(buildPayload(), dryRun)
       setPreview(result)
     } catch (err) {
       setTestError(err instanceof Error ? err.message : 'Test failed')
@@ -139,6 +140,22 @@ function BulkLoadForm({ id, isNew, existing, dbConns, navigate, qc }: {
       setTesting(false)
     }
   }
+
+  /** "Row 2, 5, 9 and 9 more" — caps the numbers shown so one systemic issue
+   * can't crowd out other findings; the table highlight below still marks
+   * every affected row, not just the capped ones. */
+  const formatRowNumbers = (indices: number[], cap = 3): string => {
+    const shown = indices.slice(0, cap).map(i => i + 1)
+    const extra = indices.length - shown.length
+    const label = shown.length === 1 && extra === 0 ? 'Row' : 'Rows'
+    return extra > 0 ? `${label} ${shown.join(', ')} and ${extra} more` : `${label} ${shown.join(', ')}`
+  }
+
+  const errorGroups = preview?.error_groups ?? []
+  const errorRowIndices = new Set(errorGroups.flatMap(g => g.row_indices))
+  const errorCellKeys = new Set(
+    errorGroups.flatMap(g => g.column ? g.row_indices.map(i => `${i}:${g.column}`) : []),
+  )
 
   const crumbs = isNew
     ? ['Workspace', 'Bulk Loads', 'New Bulk Load']
@@ -149,14 +166,20 @@ function BulkLoadForm({ id, isNew, existing, dbConns, navigate, qc }: {
       <TopBar
         crumbs={crumbs}
         actions={
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Link to="/bulk-loads" className="btn btn-sm"><ArrowLeft size={12} />{' '}Back</Link>
-            <button className="btn btn-sm" onClick={handleTest} disabled={testing}>
-              {testing ? <Spinner size={12} /> : <FlaskConical size={12} />}{' '}Test File
-            </button>
-            <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
-              {saving ? <Spinner size={12} /> : <Save size={12} />}{' '}Save
-            </button>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--text-muted)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={dryRun} onChange={e => setDryRun(e.target.checked)} />
+              Attempt insert (rolled back)
+            </label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Link to="/bulk-loads" className="btn btn-sm"><ArrowLeft size={12} />{' '}Back</Link>
+              <button className="btn btn-sm" onClick={handleTest} disabled={testing}>
+                {testing ? <Spinner size={12} /> : <FlaskConical size={12} />}{' '}Test File
+              </button>
+              <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
+                {saving ? <Spinner size={12} /> : <Save size={12} />}{' '}Save
+              </button>
+            </div>
           </div>
         }
       />
@@ -220,6 +243,8 @@ function BulkLoadForm({ id, isNew, existing, dbConns, navigate, qc }: {
               </label>
               <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
                 Direct-path load via sqlldr subprocess. Fastest for Oracle bulk inserts.
+                Known gap: "Attempt insert" dry-run testing isn't available on this path (sqlldr manages
+                its own commits) — Test File still checks the file, header, and target columns.
               </span>
             </div>
           </div>
@@ -315,6 +340,22 @@ function BulkLoadForm({ id, isNew, existing, dbConns, navigate, qc }: {
                 </div>
               )}
 
+              {preview.insert_error_summary && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 14px', background: 'rgba(239,68,68,0.06)', borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7, fontSize: 12, fontWeight: 600, color: 'var(--failure-text)' }}>
+                    <TriangleAlert size={13} style={{ color: 'var(--failure)', marginTop: 1, flexShrink: 0 }} />
+                    {preview.insert_error_summary} on insert
+                  </div>
+                  {errorGroups.map((g, i) => (
+                    <div key={i} style={{ fontSize: 11.5, color: 'var(--text-2)', paddingLeft: 20 }}>
+                      <span className="mono" style={{ color: 'var(--failure-text)' }}>{g.column ?? '(row)'}</span>
+                      {' '}· {g.error_type.replace(/_/g, ' ')} · {formatRowNumbers(g.row_indices)}
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{g.message}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div style={{ overflow: 'auto', maxHeight: 320 }}>
                 <table className="tbl">
                   <thead>
@@ -322,10 +363,18 @@ function BulkLoadForm({ id, isNew, existing, dbConns, navigate, qc }: {
                   </thead>
                   <tbody>
                     {preview.sample_rows.map((row, i) => (
-                      <tr key={i}>
-                        {(row as unknown[]).map((cell, j) => (
-                          <td key={j} className="mono" style={{ fontSize: 12 }}>{String(cell ?? '')}</td>
-                        ))}
+                      <tr key={i} style={errorRowIndices.has(i) ? { background: 'rgba(239,68,68,0.07)' } : undefined}>
+                        {(row as unknown[]).map((cell, j) => {
+                          const isBadCell = errorCellKeys.has(`${i}:${preview.columns[j]}`)
+                          return (
+                            <td key={j} className="mono" style={{
+                              fontSize: 12,
+                              ...(isBadCell ? { background: 'rgba(239,68,68,0.16)', boxShadow: 'inset 0 0 0 1px rgba(239,68,68,0.4)' } : {}),
+                            }}>
+                              {String(cell ?? '')}
+                            </td>
+                          )
+                        })}
                       </tr>
                     ))}
                   </tbody>

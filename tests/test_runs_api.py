@@ -1,7 +1,7 @@
 """Tests for flowforge/api/routes/runs.py — _check_anomaly, project_id filter,
 anomalies endpoint, diff endpoint, cancel, download."""
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -520,3 +520,216 @@ def test_download_step_run_requires_auth(client, app, run_id):
         if s:
             db.session.delete(s)
             db.session.commit()
+
+
+# ── _percentile ──────────────────────────────────────────────────────────────
+
+def test_percentile_empty_returns_zero():
+    from flowforge.api.routes.runs import _percentile
+    assert _percentile([], 95) == 0.0
+
+
+def test_percentile_single_value():
+    from flowforge.api.routes.runs import _percentile
+    assert _percentile([10], 95) == 10
+
+
+def test_percentile_median():
+    from flowforge.api.routes.runs import _percentile
+    assert _percentile([10, 20, 30, 40, 50], 50) == 30
+
+
+def test_percentile_p95_nearest_rank():
+    from flowforge.api.routes.runs import _percentile
+    assert _percentile([10, 20, 30, 40, 50], 95) == 50
+
+
+# ── GET /api/step-runs/trends ─────────────────────────────────────────────────
+
+def _add_run_with_step(app, pipeline_id, step_type, *, status='success',
+                        run_status='success', duration_ms=None, rows_affected=None,
+                        started_at=None):
+    """Create a PipelineRun + single StepRun for trends tests; returns run.id."""
+    started_at = started_at or datetime.now(UTC)
+    with app.app_context():
+        run = PipelineRun(
+            id=str(uuid.uuid4()), pipeline_id=pipeline_id, pipeline_name='__runs_api_ext__',
+            status=run_status, started_at=started_at, triggered_by='test',
+        )
+        db.session.add(run)
+        db.session.commit()
+        db.session.add(StepRun(
+            id=str(uuid.uuid4()), pipeline_run_id=run.id, step_name='load',
+            step_type=step_type, step_order=1, status=status,
+            started_at=started_at, duration_ms=duration_ms, rows_affected=rows_affected,
+        ))
+        db.session.commit()
+        return run.id
+
+
+def _delete_run(app, run_id_local):
+    with app.app_context():
+        r = db.session.get(PipelineRun, run_id_local)
+        if r:
+            db.session.delete(r)
+            db.session.commit()
+
+
+def test_step_run_trends_requires_auth(client):
+    resp = client.get('/api/step-runs/trends')
+    assert resp.status_code == 401
+
+
+def test_step_run_trends_empty_when_no_matching_data(client, headers):
+    resp = client.get('/api/step-runs/trends', query_string={'step_type': '__no_such_step_type__'}, headers=headers)
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data['series'] == []
+    assert data['step_type'] == '__no_such_step_type__'
+
+
+def test_step_run_trends_invalid_days_returns_400(client, headers):
+    resp = client.get('/api/step-runs/trends', query_string={'days': 'abc'}, headers=headers)
+    assert resp.status_code == 400
+
+
+def test_step_run_trends_days_clamped_to_max(client, headers):
+    resp = client.get('/api/step-runs/trends', query_string={'days': 99999}, headers=headers)
+    assert resp.status_code == 200
+    assert resp.get_json()['window_days'] == 180
+
+
+def test_step_run_trends_aggregates_duration_and_rows(client, headers, pipeline_id, app):
+    step_type = '__trends_bulk_load__'
+    now = datetime.now(UTC)
+    run_ids = [
+        _add_run_with_step(app, pipeline_id, step_type, duration_ms=d, rows_affected=r, started_at=now)
+        for d, r in [(100, 10), (200, 20), (300, 30)]
+    ]
+    try:
+        resp = client.get(
+            '/api/step-runs/trends',
+            query_string={'step_type': step_type, 'pipeline_id': pipeline_id},
+            headers=headers,
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert len(data['series']) == 1
+        bucket = data['series'][0]
+        assert bucket['run_count'] == 3
+        assert bucket['success_count'] == 3
+        assert bucket['failure_count'] == 0
+        assert bucket['avg_duration_ms'] == 200.0
+        assert bucket['avg_rows_affected'] == 20.0
+        assert bucket['p95_duration_ms'] == 300.0
+    finally:
+        for rid in run_ids:
+            _delete_run(app, rid)
+
+
+def test_step_run_trends_counts_failures_separately(client, headers, pipeline_id, app):
+    step_type = '__trends_failures__'
+    now = datetime.now(UTC)
+    ok_id = _add_run_with_step(app, pipeline_id, step_type, status='success', run_status='success',
+                                duration_ms=100, started_at=now)
+    fail_id = _add_run_with_step(app, pipeline_id, step_type, status='failed', run_status='failed',
+                                  duration_ms=100, started_at=now)
+    try:
+        resp = client.get('/api/step-runs/trends', query_string={'step_type': step_type}, headers=headers)
+        data = resp.get_json()
+        bucket = data['series'][0]
+        assert bucket['run_count'] == 2
+        assert bucket['success_count'] == 1
+        assert bucket['failure_count'] == 1
+    finally:
+        _delete_run(app, ok_id)
+        _delete_run(app, fail_id)
+
+
+def test_step_run_trends_excludes_running_steps(client, headers, pipeline_id, app):
+    step_type = '__trends_running__'
+    run_id_local = _add_run_with_step(app, pipeline_id, step_type, status='running', run_status='running')
+    try:
+        resp = client.get('/api/step-runs/trends', query_string={'step_type': step_type}, headers=headers)
+        assert resp.status_code == 200
+        assert resp.get_json()['series'] == []
+    finally:
+        _delete_run(app, run_id_local)
+
+
+def test_step_run_trends_available_step_types_lists_distinct_types(client, headers, pipeline_id, app):
+    now = datetime.now(UTC)
+    with app.app_context():
+        run = PipelineRun(
+            id=str(uuid.uuid4()), pipeline_id=pipeline_id, pipeline_name='__runs_api_ext__',
+            status='success', started_at=now, triggered_by='test',
+        )
+        db.session.add(run)
+        db.session.commit()
+        db.session.add(StepRun(
+            id=str(uuid.uuid4()), pipeline_run_id=run.id, step_name='a',
+            step_type='__trends_type_a__', step_order=1, status='success',
+            started_at=now, duration_ms=100,
+        ))
+        db.session.add(StepRun(
+            id=str(uuid.uuid4()), pipeline_run_id=run.id, step_name='b',
+            step_type='__trends_type_b__', step_order=2, status='success',
+            started_at=now, duration_ms=100,
+        ))
+        db.session.commit()
+        run_id_local = run.id
+
+    try:
+        resp = client.get(
+            '/api/step-runs/trends',
+            query_string={'pipeline_id': pipeline_id, 'step_type': '__trends_type_a__'},
+            headers=headers,
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert '__trends_type_a__' in data['available_step_types']
+        assert '__trends_type_b__' in data['available_step_types']
+        # series is scoped to the filtered step_type only
+        assert data['series'][0]['run_count'] == 1
+    finally:
+        _delete_run(app, run_id_local)
+
+
+def test_step_run_trends_days_window_excludes_old_rows(client, headers, pipeline_id, app):
+    step_type = '__trends_old__'
+    old_date = datetime.now(UTC) - timedelta(days=100)
+    run_id_local = _add_run_with_step(app, pipeline_id, step_type, duration_ms=100, rows_affected=10,
+                                       started_at=old_date)
+    try:
+        resp_default = client.get(
+            '/api/step-runs/trends', query_string={'step_type': step_type, 'days': 30}, headers=headers,
+        )
+        assert resp_default.get_json()['series'] == []
+
+        resp_wide = client.get(
+            '/api/step-runs/trends', query_string={'step_type': step_type, 'days': 120}, headers=headers,
+        )
+        assert len(resp_wide.get_json()['series']) == 1
+    finally:
+        _delete_run(app, run_id_local)
+
+
+def test_step_run_trends_filters_by_pipeline_id(client, headers, pipeline_id, pipeline_with_project, app):
+    """Two pipelines with the same step_type — pipeline_id filter isolates one."""
+    other_pipeline_id, _project_id = pipeline_with_project
+    step_type = '__trends_pipeline_filter__'
+    now = datetime.now(UTC)
+    id_a = _add_run_with_step(app, pipeline_id, step_type, duration_ms=100, started_at=now)
+    id_b = _add_run_with_step(app, other_pipeline_id, step_type, duration_ms=999, started_at=now)
+    try:
+        resp = client.get(
+            '/api/step-runs/trends',
+            query_string={'step_type': step_type, 'pipeline_id': pipeline_id},
+            headers=headers,
+        )
+        data = resp.get_json()
+        assert data['series'][0]['run_count'] == 1
+        assert data['series'][0]['avg_duration_ms'] == 100.0
+    finally:
+        _delete_run(app, id_a)
+        _delete_run(app, id_b)

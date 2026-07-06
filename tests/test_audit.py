@@ -199,6 +199,28 @@ def test_log_email_sent_recipient_count(isolated_audit_logger):
     assert 'recipients=3' in content
 
 
+def test_log_email_sent_includes_run_id_in_log_line(isolated_audit_logger):
+    from flowforge import audit
+    audit.log_email_sent('P', 'S', 'Subj', ['x@x.com'], [], run_id='run-abc-123')
+    content = _read_log(isolated_audit_logger)
+    assert 'run_id=run-abc-123' in content
+
+
+def test_log_email_sent_run_id_defaults_to_unknown_in_log_line(isolated_audit_logger):
+    from flowforge import audit
+    audit.log_email_sent('P', 'S', 'Subj', ['x@x.com'], [])
+    content = _read_log(isolated_audit_logger)
+    assert 'run_id=unknown' in content
+
+
+def test_log_email_sent_writes_run_id_to_db_details():
+    from flowforge import audit
+    with patch.object(audit, '_write_db_audit') as mock_write:
+        audit.log_email_sent('P', 'S', 'Subj', ['x@x.com'], [], run_id='run-abc-123')
+    args, _ = mock_write.call_args
+    assert args[4]['run_id'] == 'run-abc-123'
+
+
 # ── log_report_exported (NEW-3) ───────────────────────────────────────────────
 
 def test_log_report_exported_written(isolated_audit_logger):
@@ -224,6 +246,28 @@ def test_log_report_exported_csv_format(isolated_audit_logger):
     content = _read_log(isolated_audit_logger)
     assert 'REPORT_EXPORTED' in content
     assert 'csv' in content
+
+
+def test_log_report_exported_includes_run_id_in_log_line(isolated_audit_logger):
+    from flowforge import audit
+    audit.log_report_exported('P', 'S', 'data.csv', row_count=0, fmt='csv', run_id='run-xyz-789')
+    content = _read_log(isolated_audit_logger)
+    assert 'run_id=run-xyz-789' in content
+
+
+def test_log_report_exported_run_id_defaults_to_unknown_in_log_line(isolated_audit_logger):
+    from flowforge import audit
+    audit.log_report_exported('P', 'S', 'data.csv', row_count=0, fmt='csv')
+    content = _read_log(isolated_audit_logger)
+    assert 'run_id=unknown' in content
+
+
+def test_log_report_exported_writes_run_id_to_db_details():
+    from flowforge import audit
+    with patch.object(audit, '_write_db_audit') as mock_write:
+        audit.log_report_exported('P', 'S', 'data.csv', row_count=0, fmt='csv', run_id='run-xyz-789')
+    args, _ = mock_write.call_args
+    assert args[4]['run_id'] == 'run-xyz-789'
 
 
 # ── Audit called from routes — verified via mock (NEW-3 integration) ──────────

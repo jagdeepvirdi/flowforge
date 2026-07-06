@@ -43,6 +43,28 @@ def _make_conn(rows=None, columns=None):
     return conn
 
 
+def test_report_step_passes_run_id_from_context_to_audit_log(tmp_path):
+    """7.4: EMAIL_SENT/REPORT_EXPORTED audit rows must carry run_id so they can
+    be joined directly to pipeline_runs/step_runs."""
+    step = ReportStep(name='rpt', config={
+        'inline_config': {
+            'query': 'SELECT 1',
+            'format': 'csv',
+            'output_filename': 'out.csv',
+        }
+    })
+    conn = _make_conn([[1]], ['col'])
+
+    with patch('flowforge.connections.postgres.PostgreSQLConnection', return_value=conn), \
+         patch.dict(os.environ, {'FLOWFORGE_OUTPUT_DIR': str(tmp_path)}), \
+         patch('flowforge.audit.log_report_exported') as mock_log:
+        result = step.run({'steps': {}, 'run_id': 'run-555'})
+
+    assert result.success is True
+    mock_log.assert_called_once()
+    assert mock_log.call_args.kwargs['run_id'] == 'run-555'
+
+
 def test_report_step_unknown_format(tmp_path):
     step = ReportStep(name='rpt', config={
         'inline_config': {

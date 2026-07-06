@@ -122,12 +122,18 @@ def delete_bulk_load_config(config_id):
 @bp.post('/bulk-load-configs/<uuid:config_id>/validate')
 @require_auth
 def validate_bulk_load_config(config_id):
-    """Preview the first matching source file without loading any data."""
+    """Preview the first matching source file without loading any data.
+
+    Optional JSON body {"dry_run": true} also attempts a rolled-back INSERT
+    of the sampled rows against the real target table (see preview_bulk_load).
+    """
     cfg = db.session.get(BulkLoadConfig, str(config_id))
     if not cfg:
         return jsonify({'error': _NOT_FOUND}), 404
+    body = request.get_json(silent=True) or {}
+    dry_run = bool(body.get('dry_run', False))
     try:
-        result = preview_bulk_load(_cfg_dict(cfg))
+        result = preview_bulk_load(_cfg_dict(cfg), dry_run=dry_run)
         return jsonify(result)
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
@@ -136,10 +142,15 @@ def validate_bulk_load_config(config_id):
 @bp.post('/bulk-load-configs/validate-raw')
 @require_auth
 def validate_bulk_load_config_raw():
-    """Preview the first matching source file for an unsaved (in-progress) config."""
+    """Preview the first matching source file for an unsaved (in-progress) config.
+
+    Optional `dry_run: true` in the body also attempts a rolled-back INSERT
+    of the sampled rows against the real target table (see preview_bulk_load).
+    """
     data = request.get_json() or {}
+    dry_run = bool(data.pop('dry_run', False))
     try:
-        result = preview_bulk_load(data)
+        result = preview_bulk_load(data, dry_run=dry_run)
         return jsonify(result)
     except ValueError as e:
         return jsonify({'error': str(e)}), 400

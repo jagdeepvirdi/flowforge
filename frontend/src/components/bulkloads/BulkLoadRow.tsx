@@ -40,7 +40,9 @@ export default function BulkLoadRow({ config, testStatus, testError, testResult,
           )}
           {testStatus === 'warn' && testResult && (
             <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
-              {testResult.file_name} · {testResult.warnings.length} warning{testResult.warnings.length === 1 ? '' : 's'}: {testResult.warnings[0]}
+              {testResult.file_name} · {testResult.insert_error_summary
+                ? testResult.insert_error_summary
+                : `${testResult.warnings.length} warning${testResult.warnings.length === 1 ? '' : 's'}: ${testResult.warnings[0]}`}
             </div>
           )}
           {testStatus === 'ok' && testResult && (

@@ -200,6 +200,30 @@ class TestEmailStepRun:
         assert result.success is True
         mock_provider.send.assert_called_once()
 
+    def test_run_passes_run_id_from_context_to_audit_log(self):
+        """7.4: EMAIL_SENT/REPORT_EXPORTED audit rows must carry run_id so they
+        can be joined directly to pipeline_runs/step_runs."""
+        mock_provider = MagicMock()
+        mock_provider.send.return_value = MagicMock(success=True, recipients=['a@b.com'])
+
+        step = self._make_step({
+            'inline_config': {
+                'provider_type': 'smtp',
+                'subject': 'Test',
+                'body_template': 'Hello',
+                'to_addresses': ['a@b.com'],
+            },
+            'attachments': [],
+        })
+
+        with patch('flowforge.steps.email_step._build_inline_provider', return_value=mock_provider), \
+             patch('flowforge.audit.log_email_sent') as mock_log:
+            result = step.run({'steps': {}, 'run_id': 'run-999'})
+
+        assert result.success is True
+        mock_log.assert_called_once()
+        assert mock_log.call_args.kwargs['run_id'] == 'run-999'
+
     def test_run_failure_provider_returns_error(self):
         mock_provider = MagicMock()
         mock_provider.send.return_value = MagicMock(success=False, error='auth failed')

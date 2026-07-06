@@ -64,6 +64,7 @@ class ReportStep(BaseStep):
                 output_filename=output_filename,
                 row_count=len(rows),
                 fmt=fmt,
+                run_id=context.get('run_id', ''),
             )
             return StepResult(success=True, output_path=str(output_path), rows_affected=len(rows))
         except Exception as e:

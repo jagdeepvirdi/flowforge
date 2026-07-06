@@ -243,6 +243,18 @@ config:
 | PostgreSQL | `COPY FROM STDIN` (fast path) |
 | Any other | Chunked `executemany` Python fallback |
 
+**Dry-run insert testing ("Attempt insert" checkbox, Test File in the UI):** the base preview
+only checks file discovery, header parsing, and that the CSV's columns exist on the target
+table — CSV values are untyped text, so it can't catch type-coercion or constraint errors
+(NOT NULL, unique/PK, length overflow) that only surface once a real insert runs. Checking
+"Attempt insert (rolled back)" before clicking Test File additionally inserts each sampled row
+individually (via `SAVEPOINT`) against the real target table and rolls the whole transaction
+back — nothing is ever committed. Failures are grouped by column + error type (e.g. "3 rows
+fail NOT NULL on `email`") instead of listed per row, with the offending sample rows/cells
+highlighted in the preview table. **Known gap:** not available when "Use SQL\*Loader" is
+checked (Oracle sqlldr manages its own commits) — that path still gets the file/header/column
+checks, just not the insert test.
+
 **Outputs:**
 
 | Variable | Example |

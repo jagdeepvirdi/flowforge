@@ -30,7 +30,8 @@ export default function BulkLoads() {
     validateBulkLoadConfig(id)
       .then(result => {
         setTestResults(r => ({ ...r, [id]: result }))
-        setTestStatuses(s => ({ ...s, [id]: result.warnings.length > 0 ? 'warn' : 'ok' }))
+        const hasIssues = result.warnings.length > 0 || (result.error_groups?.length ?? 0) > 0
+        setTestStatuses(s => ({ ...s, [id]: hasIssues ? 'warn' : 'ok' }))
       })
       .catch((err: Error) => {
         console.error('Bulk load test failed:', err.message)
