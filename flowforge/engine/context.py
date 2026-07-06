@@ -74,11 +74,31 @@ _ENV_BLOCKLIST = frozenset({
     'FLOWFORGE_SECRET_KEY',
     'FLOWFORGE_PASSWORD',
     'FLOWFORGE_JWT_SECRET',
+    'FLOWFORGE_DB_URL',
+    'FLOWFORGE_REDIS_URL',
     'GMAIL_CLIENT_SECRET',
     'GMAIL_REFRESH_TOKEN',
     'MICROSOFT_CLIENT_SECRET',
+    'GOOGLE_SSO_CLIENT_SECRET',
+    'MICROSOFT_SSO_CLIENT_SECRET',
     'ANTHROPIC_API_KEY',
+    'AWS_ACCESS_KEY_ID',
+    'AWS_SECRET_ACCESS_KEY',
+    'AZURE_STORAGE_ACCOUNT_KEY',
+    'AZURE_STORAGE_CONNECTION_STRING',
+    'SAML_IDP_X509_CERT',
+    'DB_PASSWORD',
 })
+
+# Defense-in-depth: block anything whose *name* looks like a credential, even
+# if it's missing from the explicit list above. New integrations keep adding
+# new credential env vars (AWS/Azure/SSO keys were all missing from this list
+# until this comment was added) — a name-pattern catches the next one too.
+_SENSITIVE_NAME_KEYWORDS = ('SECRET', 'PASSWORD', 'PASSWD', 'TOKEN', 'KEY', 'CERT', 'CONN', 'DSN', '_URL')
+
+
+def _looks_like_credential_name(name: str) -> bool:
+    return any(kw in name for kw in _SENSITIVE_NAME_KEYWORDS)
 
 
 class _SafeEnv:
@@ -93,7 +113,8 @@ class _SafeEnv:
 
     Blocklist mode (default, backward-compatible):
         When FLOWFORGE_TEMPLATE_ENV_VARS is not set, any env var is accessible
-        EXCEPT those in _ENV_BLOCKLIST (known credential names).
+        EXCEPT those in _ENV_BLOCKLIST (known credential names) or whose name
+        looks like a credential (see _looks_like_credential_name).
         This mode is provided for existing deployments; migrating to allowlist
         mode is strongly recommended.
     """
@@ -108,7 +129,7 @@ class _SafeEnv:
     def _allowed(self, key: str) -> bool:
         if self._allowlist is not None:
             return key in self._allowlist
-        return key not in _ENV_BLOCKLIST
+        return key not in _ENV_BLOCKLIST and not _looks_like_credential_name(key)
 
     def __getitem__(self, key: str) -> str:
         return os.environ.get(key, '') if self._allowed(key) else ''

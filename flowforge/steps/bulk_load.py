@@ -563,13 +563,20 @@ def preview_bulk_load(cfg: dict, context: dict | None = None) -> dict:
 
     ctx = context if context is not None else build('preview')
 
-    source_dir = render(cfg.get('source_directory', ''), ctx)
+    # Keep the original (unrendered) template strings around for user-facing
+    # messages — never echo the *rendered* value back to the caller. A crafted
+    # template (e.g. '{{ env.SOME_CREDENTIAL }}') would otherwise let its
+    # resolved value leak straight into an HTTP error/warning response.
+    source_dir_tpl = cfg.get('source_directory', '')
+    target_table_tpl = cfg.get('target_table', '')
+
+    source_dir = render(source_dir_tpl, ctx)
     if not source_dir:
         raise ValueError('source_directory is required')
 
     src_path = Path(source_dir)
     if not src_path.is_dir():
-        raise ValueError(f'source_directory not found: {source_dir}')
+        raise ValueError(f'source_directory not found: {source_dir_tpl}')
 
     file_type           = (cfg.get('file_type') or 'csv').lower().lstrip('.')
     file_prefix         = cfg.get('file_prefix') or ''
@@ -577,7 +584,7 @@ def preview_bulk_load(cfg: dict, context: dict | None = None) -> dict:
     delimiter           = cfg.get('delimiter') or ','
     header_rows         = int(cfg.get('header_rows', 1))
     footer_rows         = int(cfg.get('footer_rows', 0))
-    target_table        = render(cfg.get('target_table', ''), ctx)
+    target_table        = render(target_table_tpl, ctx)
     col_map             = _col_map_dict(cfg.get('column_mapping') or [])
 
     if len(delimiter) != 1 or not delimiter.isprintable() or delimiter in ("'", '"', '\\'):
@@ -592,7 +599,7 @@ def preview_bulk_load(cfg: dict, context: dict | None = None) -> dict:
         and (not file_prefix_exclude or not f.name.startswith(file_prefix_exclude))
     )
     if not files:
-        raise ValueError(f'no files found in {source_dir} matching prefix={file_prefix!r} ext={ext!r}')
+        raise ValueError(f'no files found in {source_dir_tpl} matching prefix={file_prefix!r} ext={ext!r}')
 
     file_path = files[0]
     warnings: list[str] = []
@@ -640,17 +647,21 @@ def preview_bulk_load(cfg: dict, context: dict | None = None) -> dict:
     else:
         try:
             validate_identifier(target_table, 'target_table')
-            target_cols = _fetch_table_columns(connection_id, target_table)
-            if target_cols is None:
-                warnings.append(f'Target table {target_table!r} does not exist (or is not visible to this connection).')
-            else:
-                missing = [c for c in columns if c.lower() not in target_cols]
-                if missing:
-                    warnings.append(f"Column(s) not found in {target_table}: {', '.join(missing)}")
-        except ValueError as e:
-            warnings.append(str(e))
-        except Exception as e:
-            warnings.append(f'Could not verify target table columns: {type(e).__name__}: {e}')
+        except ValueError:
+            warnings.append(
+                f"Invalid target_table {target_table_tpl!r}: only letters, digits, underscores, and dots allowed"
+            )
+        else:
+            try:
+                target_cols = _fetch_table_columns(connection_id, target_table)
+                if target_cols is None:
+                    warnings.append(f'Target table {target_table_tpl!r} does not exist (or is not visible to this connection).')
+                else:
+                    missing = [c for c in columns if c.lower() not in target_cols]
+                    if missing:
+                        warnings.append(f"Column(s) not found in {target_table_tpl}: {', '.join(missing)}")
+            except Exception as e:
+                warnings.append(f'Could not verify target table columns: {type(e).__name__}: {e}')
 
     return {
         'file_name':         file_path.name,
