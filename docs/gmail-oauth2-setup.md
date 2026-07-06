@@ -112,14 +112,12 @@ Restart the FlowForge server to pick up the new values:
 
 ```powershell
 # Windows
-.\flowforge.ps1 stop
-.\flowforge.ps1 start
+.\flowforge.ps1 dev restart
 ```
 
 ```bash
 # macOS / Linux
-./flowforge.sh stop
-./flowforge.sh start
+./flowforge.sh dev restart
 ```
 
 ---

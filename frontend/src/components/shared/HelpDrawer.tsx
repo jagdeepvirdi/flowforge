@@ -203,7 +203,7 @@ export default function HelpDrawer() {
           height: '100vh', width: 400,
           background: 'var(--surface)',
           border: 'none', borderLeft: '1px solid var(--border)',
-          display: 'flex', flexDirection: 'column',
+          display: open ? 'flex' : 'none', flexDirection: 'column',
           boxShadow: '-8px 0 32px rgba(0,0,0,0.4)',
         }}
       >

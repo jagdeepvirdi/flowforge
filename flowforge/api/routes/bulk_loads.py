@@ -3,6 +3,7 @@ from flask import Blueprint, jsonify, request
 import flowforge.audit as audit
 from flowforge.api.auth import require_auth
 from flowforge.db.models import BulkLoadConfig, db
+from flowforge.steps.bulk_load import preview_bulk_load
 
 bp = Blueprint('bulk_loads', __name__)
 
@@ -116,3 +117,29 @@ def delete_bulk_load_config(config_id):
     db.session.delete(cfg)
     db.session.commit()
     return jsonify({'deleted': str(config_id)})
+
+
+@bp.post('/bulk-load-configs/<uuid:config_id>/validate')
+@require_auth
+def validate_bulk_load_config(config_id):
+    """Preview the first matching source file without loading any data."""
+    cfg = db.session.get(BulkLoadConfig, str(config_id))
+    if not cfg:
+        return jsonify({'error': _NOT_FOUND}), 404
+    try:
+        result = preview_bulk_load(_cfg_dict(cfg))
+        return jsonify(result)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+
+
+@bp.post('/bulk-load-configs/validate-raw')
+@require_auth
+def validate_bulk_load_config_raw():
+    """Preview the first matching source file for an unsaved (in-progress) config."""
+    data = request.get_json() or {}
+    try:
+        result = preview_bulk_load(data)
+        return jsonify(result)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400

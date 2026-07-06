@@ -519,6 +519,149 @@ def _load_sqlloader(
         shutil.rmtree(tmpdir, ignore_errors=True)
 
 
+# ─── Preview / validate (no data touched) ──────────────────────────────────────
+
+def _fetch_table_columns(connection_id: str, target_table: str) -> set[str] | None:
+    """Return lower-cased column names for target_table, or None if it doesn't exist."""
+    from flowforge.connections.factory import get_connection
+
+    clean  = target_table.replace('"', '')
+    parts  = clean.split('.')
+    tname  = parts[-1]
+    schema = parts[0] if len(parts) > 1 else None
+
+    with get_connection(connection_id) as conn:
+        db_type = getattr(conn, 'db_type', 'postgresql')
+        if db_type == 'oracle':
+            if schema:
+                rows = conn.execute_query(
+                    "SELECT column_name FROM all_tab_columns WHERE table_name = UPPER(:1) AND owner = UPPER(:2)",
+                    (tname, schema),
+                )
+            else:
+                rows = conn.execute_query(
+                    "SELECT column_name FROM user_tab_columns WHERE table_name = UPPER(:1)",
+                    (tname,),
+                )
+        else:  # postgresql (and generic fallback)
+            rows = conn.execute_query(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = %s AND table_schema = %s",
+                (tname, schema or 'public'),
+            )
+    if not rows:
+        return None
+    return {str(r[0]).lower() for r in rows}
+
+
+def preview_bulk_load(cfg: dict, context: dict | None = None) -> dict:
+    """Preview the first matching file for a bulk-load config without loading any data.
+
+    Returns {file_name, files_matched, columns, sample_rows, row_count_sampled, warnings}.
+    Raises ValueError on hard-stop conditions (bad directory, no matching files, bad delimiter).
+    """
+    from flowforge.engine.context import build, render
+
+    ctx = context if context is not None else build('preview')
+
+    source_dir = render(cfg.get('source_directory', ''), ctx)
+    if not source_dir:
+        raise ValueError('source_directory is required')
+
+    src_path = Path(source_dir)
+    if not src_path.is_dir():
+        raise ValueError(f'source_directory not found: {source_dir}')
+
+    file_type           = (cfg.get('file_type') or 'csv').lower().lstrip('.')
+    file_prefix         = cfg.get('file_prefix') or ''
+    file_prefix_exclude = cfg.get('file_prefix_exclude') or ''
+    delimiter           = cfg.get('delimiter') or ','
+    header_rows         = int(cfg.get('header_rows', 1))
+    footer_rows         = int(cfg.get('footer_rows', 0))
+    target_table        = render(cfg.get('target_table', ''), ctx)
+    col_map             = _col_map_dict(cfg.get('column_mapping') or [])
+
+    if len(delimiter) != 1 or not delimiter.isprintable() or delimiter in ("'", '"', '\\'):
+        raise ValueError(f"invalid delimiter {delimiter!r} — must be a single printable non-quote character")
+
+    ext = f'.{file_type}'
+    files = sorted(
+        f for f in src_path.iterdir()
+        if f.is_file()
+        and f.suffix.lower() == ext
+        and (not file_prefix or f.name.startswith(file_prefix))
+        and (not file_prefix_exclude or not f.name.startswith(file_prefix_exclude))
+    )
+    if not files:
+        raise ValueError(f'no files found in {source_dir} matching prefix={file_prefix!r} ext={ext!r}')
+
+    file_path = files[0]
+    warnings: list[str] = []
+    if len(files) > 1:
+        warnings.append(
+            f'{len(files)} files match — previewing the first one alphabetically ({file_path.name}); '
+            'the real run will load all of them.'
+        )
+
+    try:
+        with open(file_path, newline='', encoding='utf-8-sig') as fh:
+            all_rows = list(csv.reader(fh, delimiter=delimiter))
+    except UnicodeDecodeError as e:
+        raise ValueError(f'could not read {file_path.name} as UTF-8: {e}') from e
+
+    if len(all_rows) <= header_rows + footer_rows:
+        raise ValueError(
+            f'{file_path.name} has no data rows after stripping {header_rows} header + {footer_rows} footer row(s)'
+        )
+
+    try:
+        columns = _derive_csv_columns(all_rows, header_rows, col_map)
+    except ValueError as e:
+        raise ValueError(f'{file_path.name}: {e}') from e
+
+    data_rows = _extract_data_rows(all_rows, header_rows, footer_rows)
+    if not columns:
+        columns = [f'col{i}' for i in range(len(data_rows[0]))]
+
+    SAMPLE_ROWS = 20
+    sample_rows = data_rows[:SAMPLE_ROWS]
+
+    ragged_lengths = {len(r) for r in data_rows if len(r) != len(columns)}
+    if ragged_lengths:
+        warnings.append(
+            f'{len(columns)} column(s) parsed from the header, but some data rows have a different '
+            f'field count (e.g. {sorted(ragged_lengths)[0]}) — double-check the delimiter.'
+        )
+
+    connection_id = cfg.get('connection_id') or ''
+    if not target_table:
+        warnings.append('target_table not set — skipping target-table column check.')
+    elif not connection_id:
+        warnings.append('No connection selected — skipping target-table column check.')
+    else:
+        try:
+            validate_identifier(target_table, 'target_table')
+            target_cols = _fetch_table_columns(connection_id, target_table)
+            if target_cols is None:
+                warnings.append(f'Target table {target_table!r} does not exist (or is not visible to this connection).')
+            else:
+                missing = [c for c in columns if c.lower() not in target_cols]
+                if missing:
+                    warnings.append(f"Column(s) not found in {target_table}: {', '.join(missing)}")
+        except ValueError as e:
+            warnings.append(str(e))
+        except Exception as e:
+            warnings.append(f'Could not verify target table columns: {type(e).__name__}: {e}')
+
+    return {
+        'file_name':         file_path.name,
+        'files_matched':     len(files),
+        'columns':           columns,
+        'sample_rows':       sample_rows,
+        'row_count_sampled': len(sample_rows),
+        'warnings':          warnings,
+    }
+
+
 # ─── Archive helper ────────────────────────────────────────────────────────────
 
 def _archive_file(file_path: Path, archive_dir: str) -> None:
