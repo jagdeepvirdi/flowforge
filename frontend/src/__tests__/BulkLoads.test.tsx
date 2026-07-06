@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from './helpers'
 import BulkLoads from '../pages/BulkLoads'
 
@@ -72,5 +73,46 @@ describe('BulkLoads', () => {
     await waitFor(() => {
       expect(screen.getByText(/no bulk load/i)).toBeInTheDocument()
     })
+  })
+
+  it('shows a Verified badge when the Test button finds no warnings', async () => {
+    const { validateBulkLoadConfig } = await import('../lib/api')
+    ;(validateBulkLoadConfig as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      file_name: 'SUBS_20260706.csv', files_matched: 1,
+      columns: ['id', 'name'], sample_rows: [['1', 'alice']],
+      row_count_sampled: 1, warnings: [],
+    })
+    const user = userEvent.setup()
+    renderWithProviders(<BulkLoads />)
+    await screen.findByText('Subscriber Daily Load')
+    await user.click(screen.getByRole('button', { name: /Test/i }))
+    expect(await screen.findByText('Verified')).toBeInTheDocument()
+    expect(validateBulkLoadConfig).toHaveBeenCalledWith('bl1')
+  })
+
+  it('shows a warnings badge and the first warning when the Test finds issues', async () => {
+    const { validateBulkLoadConfig } = await import('../lib/api')
+    ;(validateBulkLoadConfig as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      file_name: 'SUBS_20260706.csv', files_matched: 1,
+      columns: ['id', 'email'], sample_rows: [['1', '']],
+      row_count_sampled: 1, warnings: ['Column(s) not found in public.bulk_test_subscribers: email'],
+    })
+    const user = userEvent.setup()
+    renderWithProviders(<BulkLoads />)
+    await screen.findByText('Subscriber Daily Load')
+    await user.click(screen.getByRole('button', { name: /Test/i }))
+    expect(await screen.findByText('Verified · warnings')).toBeInTheDocument()
+    expect(screen.getByText(/Column\(s\) not found in/)).toBeInTheDocument()
+  })
+
+  it('shows a Failed badge and the error message when the Test request rejects', async () => {
+    const { validateBulkLoadConfig } = await import('../lib/api')
+    ;(validateBulkLoadConfig as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('source_directory not found: /data/incoming/'))
+    const user = userEvent.setup()
+    renderWithProviders(<BulkLoads />)
+    await screen.findByText('Subscriber Daily Load')
+    await user.click(screen.getByRole('button', { name: /Test/i }))
+    expect(await screen.findByText('Failed')).toBeInTheDocument()
+    expect(screen.getByText('source_directory not found: /data/incoming/')).toBeInTheDocument()
   })
 })

@@ -79,4 +79,23 @@ describe('Settings', () => {
       expect(screen.getByLabelText('New Password')).toBeInTheDocument()
     })
   })
+
+  it('shows the Documentation links under the Docs tab', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<Settings />)
+    await user.click(await screen.findByRole('button', { name: 'Docs' }))
+    await waitFor(() => {
+      expect(screen.getByText('Documentation')).toBeInTheDocument()
+      expect(screen.getByText('Getting Started')).toBeInTheDocument()
+    })
+  })
+
+  it('does not show Email & AI or System content on the default Account tab', async () => {
+    renderWithProviders(<Settings />)
+    await waitFor(() => {
+      expect(screen.getAllByText('Change Password').length).toBeGreaterThan(0)
+    })
+    expect(screen.queryByText('Google OAuth2 (Gmail + Drive)')).not.toBeInTheDocument()
+    expect(screen.queryByText('Data Retention Policies')).not.toBeInTheDocument()
+  })
 })
