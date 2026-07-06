@@ -6,7 +6,7 @@ import { getRun, downloadStepOutput, aiQuery, getSetupStatus, getRunAnomalies, g
 import type { StepRun, StepAnomaly, AnomalyMetric, StepDiff } from '../lib/types'
 import StatusBadge from '../components/shared/StatusBadge'
 import TopBar from '../components/shared/TopBar'
-import Spinner from '../components/shared/Spinner'
+import Sk from '../components/shared/Skeleton'
 
 function fmtDur(ms: number | null) {
   if (!ms) return '—'
@@ -496,8 +496,38 @@ export default function RunDetail() {
   })
 
   if (isLoading || !run) return (
-    <><TopBar crumbs={['Workspace', 'Run History', '…']} />
-    <div className="scroll" style={{ display: 'flex', justifyContent: 'center' }}><Spinner /></div></>
+    <>
+      <TopBar crumbs={['Workspace', 'Run History', '…']} />
+      <div className="scroll">
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 18 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Sk h={22} r={6} style={{ width: 220 }} />
+              <Sk h={18} r={4} style={{ width: 60 }} />
+            </div>
+            <Sk h={12} style={{ width: 320 }} />
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 18 }}>
+          {[0, 1, 2, 3].map(i => (
+            <div key={i} className="card" style={{ padding: '14px 16px' }}>
+              <Sk h={11} style={{ width: 55, marginBottom: 8 }} />
+              <Sk h={18} style={{ width: 70 }} />
+            </div>
+          ))}
+        </div>
+        <Sk h={6} r={4} style={{ marginBottom: 20 }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {[0, 1, 2].map(i => (
+            <div key={i} className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <Sk h={20} r={4} style={{ width: 60 }} />
+              <Sk h={14} style={{ width: '35%' }} />
+              <Sk h={12} style={{ width: 80, marginLeft: 'auto' }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
   )
 
   const steps = run.step_runs ?? []

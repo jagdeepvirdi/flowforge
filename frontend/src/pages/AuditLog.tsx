@@ -4,6 +4,7 @@ import { Filter, ChevronLeft, ChevronRight, User, Hash, Clock, Server, Download 
 import { getAuditLogs, exportAuditLogs } from '../lib/api'
 import TopBar from '../components/shared/TopBar'
 import PageIntro from '../components/shared/PageIntro'
+import Sk from '../components/shared/Skeleton'
 
 export default function AuditLog() {
   const [page, setPage] = useState(1)
@@ -69,7 +70,28 @@ export default function AuditLog() {
           {error ? (
             <div style={{ padding: 20, color: 'var(--failure)', textAlign: 'center', fontSize: 13 }}>Failed to load audit logs.</div>
           ) : isLoading ? (
-            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Loading logs…</div>
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th style={{ paddingLeft: 20, width: 160 }}><Clock size={11} style={{ display: 'inline', marginRight: 4 }} /> Timestamp</th>
+                  <th style={{ width: 140 }}><Hash size={11} style={{ display: 'inline', marginRight: 4 }} /> Action</th>
+                  <th style={{ width: 120 }}><User size={11} style={{ display: 'inline', marginRight: 4 }} /> User</th>
+                  <th style={{ width: 140 }}><Server size={11} style={{ display: 'inline', marginRight: 4 }} /> IP Address</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 10 }, (_, i) => i).map(n => (
+                  <tr key={'sk-' + n}>
+                    <td style={{ paddingLeft: 20 }}><Sk h={12} style={{ width: 130 }} /></td>
+                    <td><Sk h={18} r={4} style={{ width: 90 }} /></td>
+                    <td><Sk h={12} style={{ width: 80 }} /></td>
+                    <td><Sk h={12} style={{ width: 100 }} /></td>
+                    <td><Sk h={12} style={{ width: '70%' }} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           ) : data?.logs.length === 0 ? (
             <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>No audit events found.</div>
           ) : (

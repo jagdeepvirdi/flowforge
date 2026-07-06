@@ -3,6 +3,7 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { ExternalLink, CheckCircle2, XCircle, BrainCircuit, Shield, ShieldCheck, ShieldOff } from 'lucide-react'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
+import Sk from '../components/shared/Skeleton'
 import PageIntro from '../components/shared/PageIntro'
 import { getSetupStatus, changePassword, getMfaStatus, mfaEnroll, mfaConfirm, mfaDisable, type SetupStatus } from '../lib/api'
 
@@ -115,7 +116,7 @@ function GoogleOAuthCard({ status, isLoading }: { status: SetupStatus | undefine
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Google OAuth2 (Gmail + Drive)</div>
         {isLoading
-          ? <Spinner size={14} />
+          ? <div style={{ display: 'flex', gap: 12 }}><Sk h={13} style={{ width: 110 }} /><Sk h={13} style={{ width: 90 }} /></div>
           : status && (
             <div style={{ display: 'flex', gap: 12 }}>
               <StatusBadge
@@ -148,7 +149,7 @@ function Microsoft365Card({ status, isLoading }: { status: SetupStatus | undefin
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Microsoft 365 OAuth2</div>
         {isLoading
-          ? <Spinner size={14} />
+          ? <Sk h={13} style={{ width: 100 }} />
           : status && (
             <StatusBadge
               ok={status.microsoft365.configured}
@@ -183,7 +184,7 @@ function AiOllamaCard({ status, isLoading }: { status: SetupStatus | undefined; 
           AI Features (Ollama)
         </div>
         {isLoading
-          ? <Spinner size={14} />
+          ? <Sk h={13} style={{ width: 120 }} />
           : status && (
             <StatusBadge
               ok={status.ai.enabled}
@@ -460,7 +461,7 @@ function RetentionCard({ status, isLoading }: { status: SetupStatus | undefined;
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Data Retention Policies</div>
         {isLoading
-          ? <Spinner size={14} />
+          ? <div style={{ display: 'flex', gap: 12 }}><Sk h={13} style={{ width: 100 }} /><Sk h={13} style={{ width: 100 }} /></div>
           : status && (
             <div style={{ display: 'flex', gap: 12 }}>
               <StatusBadge

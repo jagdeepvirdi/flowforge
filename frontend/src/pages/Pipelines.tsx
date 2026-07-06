@@ -7,8 +7,8 @@ import { useProjectStore } from '../lib/store'
 import { useCurrentUser } from '../lib/auth'
 import StatusBadge from '../components/shared/StatusBadge'
 import TopBar from '../components/shared/TopBar'
-import Spinner from '../components/shared/Spinner'
 import PageIntro from '../components/shared/PageIntro'
+import Sk from '../components/shared/Skeleton'
 
 function describeCron(expr: string): string {
   const p = expr.trim().split(/\s+/)
@@ -118,8 +118,41 @@ export default function Pipelines() {
   })
 
   if (isLoading) return (
-    <><TopBar crumbs={['Workspace', 'Pipelines']} />
-    <div className="scroll" style={{ display: 'flex', justifyContent: 'center' }}><Spinner /></div></>
+    <>
+      <TopBar crumbs={['Workspace', 'Pipelines']} />
+      <div className="scroll">
+        <div className="page-h">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <Sk h={28} r={6} style={{ width: 160 }} />
+            <Sk h={14} style={{ width: 90 }} />
+          </div>
+        </div>
+        <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th style={{ width: 110 }}>Status</th>
+                <th style={{ width: 200 }}>Schedule</th>
+                <th style={{ width: 60 }}>Steps</th>
+                <th style={{ width: 120 }} />
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 6 }, (_, i) => i).map(n => (
+                <tr key={'sk-' + n}>
+                  <td><Sk h={14} style={{ width: '60%' }} /></td>
+                  <td><Sk h={18} r={4} style={{ width: 70 }} /></td>
+                  <td><Sk h={12} style={{ width: 120 }} /></td>
+                  <td><Sk h={12} style={{ width: 20 }} /></td>
+                  <td><Sk h={24} r={4} style={{ width: 90, marginLeft: 'auto' }} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
   )
 
   return (

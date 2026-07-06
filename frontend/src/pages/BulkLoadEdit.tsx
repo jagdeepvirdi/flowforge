@@ -9,6 +9,7 @@ import {
 import type { BulkLoadConfig, DbConnection } from '../lib/types'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
+import Sk from '../components/shared/Skeleton'
 
 const VAR_HINTS = ['{{ current_date }}', '{{ current_month }}', '{{ current_year }}', '{{ timestamp }}']
 
@@ -30,8 +31,37 @@ export default function BulkLoadEdit() {
     : ['Workspace', 'Bulk Loads', 'Edit Bulk Load']
 
   if (!isNew && isLoading) return (
-    <><TopBar crumbs={crumbs} />
-    <div className="scroll" style={{ display: 'flex', justifyContent: 'center' }}><Spinner /></div></>
+    <>
+      <TopBar crumbs={crumbs} />
+      <div className="scroll" style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 20, alignItems: 'start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {[['Details', 2], ['Target database', 4]].map(([label, rows]) => (
+            <div key={label as string} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <Sk h={12} style={{ width: 70 }} />
+              {Array.from({ length: rows as number }, (_, i) => i).map(n => (
+                <div key={'sk-' + n} className="field">
+                  <Sk h={11} style={{ width: 80, marginBottom: 6 }} />
+                  <Sk h={34} r={6} />
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {[['Source files', 4], ['Post-load', 2]].map(([label, rows]) => (
+            <div key={label as string} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <Sk h={12} style={{ width: 90 }} />
+              {Array.from({ length: rows as number }, (_, i) => i).map(n => (
+                <div key={'sk-' + n} className="field">
+                  <Sk h={11} style={{ width: 100, marginBottom: 6 }} />
+                  <Sk h={34} r={6} />
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
   )
 
   // Keyed by id so navigating between two different configs' edit pages (or

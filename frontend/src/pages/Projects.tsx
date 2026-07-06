@@ -10,6 +10,7 @@ import { useCurrentUser } from '../lib/auth'
 import type { Project } from '../lib/types'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
+import Sk from '../components/shared/Skeleton'
 
 const PROJECT_COLORS = [
   '#F97316', '#3B82F6', '#22C55E', '#A855F7',
@@ -400,7 +401,32 @@ export default function Projects() {
   if (isLoading) return (
     <>
       <TopBar crumbs={['Workspace', 'Projects']} />
-      <div className="scroll" style={{ display: 'flex', justifyContent: 'center' }}><Spinner /></div>
+      <div className="scroll">
+        <div className="page-h">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <Sk h={28} r={6} style={{ width: 120 }} />
+            <Sk h={14} style={{ width: 260 }} />
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+          {[0, 1, 2].map(i => (
+            <div key={i} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Sk h={10} r={99} style={{ width: 10, flexShrink: 0 }} />
+                <Sk h={14} style={{ width: 130 }} />
+              </div>
+              <div style={{ display: 'flex', gap: 16 }}>
+                {[0, 1, 2, 3].map(j => (
+                  <div key={j} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <Sk h={16} style={{ width: 24 }} />
+                    <Sk h={10} style={{ width: 45 }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </>
   )
 

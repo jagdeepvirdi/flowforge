@@ -8,6 +8,7 @@ import { useCurrentUser } from '../lib/auth'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 import PageIntro from '../components/shared/PageIntro'
+import Sk from '../components/shared/Skeleton'
 
 function ChipInput({ values, onChange, id }: { values: string[]; onChange: (v: string[]) => void; id?: string }) {
   const [input, setInput] = useState('')
@@ -101,8 +102,39 @@ export default function Recipients() {
   })
 
   if (isLoading) return (
-    <><TopBar crumbs={['Workspace', 'Recipients']} />
-    <div className="scroll" style={{ display: 'flex', justifyContent: 'center' }}><Spinner /></div></>
+    <>
+      <TopBar crumbs={['Workspace', 'Recipients']} />
+      <div className="scroll">
+        <div className="page-h">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <Sk h={28} r={6} style={{ width: 180 }} />
+            <Sk h={14} style={{ width: 70 }} />
+          </div>
+        </div>
+        <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Addresses</th>
+                <th style={{ width: 80 }} />
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 6 }, (_, i) => i).map(n => (
+                <tr key={'sk-' + n}>
+                  <td><Sk h={14} style={{ width: '50%' }} /></td>
+                  <td><Sk h={12} style={{ width: '60%' }} /></td>
+                  <td><Sk h={12} style={{ width: '75%' }} /></td>
+                  <td><Sk h={24} r={4} style={{ width: 50, marginLeft: 'auto' }} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
   )
 
   return (
