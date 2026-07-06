@@ -596,9 +596,19 @@ def _dry_run_insert_rows(
 
     Returns a list of per-row failures: [{row_index, column, error_type,
     message}, ...] for only the rows that failed.
+
+    target_table/columns are already validated by the caller (preview_bulk_load
+    validates target_table, and _derive_csv_columns validates each column name)
+    before this is ever reached — re-validated here too since this function
+    executes real, unparameterized-identifier SQL and must never trust its
+    inputs implicitly.
     """
     if not columns or not sample_rows:
         return []
+
+    validate_identifier(target_table, 'target_table')
+    for col in columns:
+        validate_identifier(col, 'column name')
 
     placeholders = ', '.join(['%s'] * len(columns))
     col_names = ', '.join(columns)
