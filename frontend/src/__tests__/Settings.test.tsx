@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from './helpers'
 import Settings from '../pages/Settings'
 
@@ -36,28 +37,36 @@ describe('Settings', () => {
   })
 
   it('shows Google OAuth2 section', async () => {
+    const user = userEvent.setup()
     renderWithProviders(<Settings />)
+    await user.click(await screen.findByRole('button', { name: 'Email & AI' }))
     await waitFor(() => {
       expect(screen.getByText('Google OAuth2 (Gmail + Drive)')).toBeInTheDocument()
     })
   })
 
   it('shows Microsoft 365 section', async () => {
+    const user = userEvent.setup()
     renderWithProviders(<Settings />)
+    await user.click(await screen.findByRole('button', { name: 'Email & AI' }))
     await waitFor(() => {
       expect(screen.getByText('Microsoft 365 OAuth2')).toBeInTheDocument()
     })
   })
 
   it('shows AI section title', async () => {
+    const user = userEvent.setup()
     renderWithProviders(<Settings />)
+    await user.click(await screen.findByRole('button', { name: 'Email & AI' }))
     await waitFor(() => {
       expect(screen.getByText('AI Features (Ollama)')).toBeInTheDocument()
     })
   })
 
   it('shows retention policy section title', async () => {
+    const user = userEvent.setup()
     renderWithProviders(<Settings />)
+    await user.click(await screen.findByRole('button', { name: 'System' }))
     await waitFor(() => {
       expect(screen.getByText('Data Retention Policies')).toBeInTheDocument()
     })
@@ -69,5 +78,24 @@ describe('Settings', () => {
       expect(screen.getByLabelText('Current Password')).toBeInTheDocument()
       expect(screen.getByLabelText('New Password')).toBeInTheDocument()
     })
+  })
+
+  it('shows the Documentation links under the Docs tab', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<Settings />)
+    await user.click(await screen.findByRole('button', { name: 'Docs' }))
+    await waitFor(() => {
+      expect(screen.getByText('Documentation')).toBeInTheDocument()
+      expect(screen.getByText('Getting Started')).toBeInTheDocument()
+    })
+  })
+
+  it('does not show Email & AI or System content on the default Account tab', async () => {
+    renderWithProviders(<Settings />)
+    await waitFor(() => {
+      expect(screen.getAllByText('Change Password').length).toBeGreaterThan(0)
+    })
+    expect(screen.queryByText('Google OAuth2 (Gmail + Drive)')).not.toBeInTheDocument()
+    expect(screen.queryByText('Data Retention Policies')).not.toBeInTheDocument()
   })
 })

@@ -487,7 +487,18 @@ function RetentionCard({ status, isLoading }: { status: SetupStatus | undefined;
   )
 }
 
+type Tab = 'account' | 'email-ai' | 'system' | 'docs'
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'account', label: 'Account' },
+  { id: 'email-ai', label: 'Email & AI' },
+  { id: 'system', label: 'System' },
+  { id: 'docs', label: 'Docs' },
+]
+
 export default function Settings() {
+  const [tab, setTab] = useState<Tab>('account')
+
   const { data: status, isLoading } = useQuery({
     queryKey: ['setup-status'],
     queryFn: getSetupStatus,
@@ -503,31 +514,52 @@ export default function Settings() {
           <h1>Settings</h1>
         </div>
 
+        {/* Tabs */}
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 20 }}>
+          {TABS.map(t => {
+            const active = tab === t.id
+            return (
+              <button key={t.id} onClick={() => setTab(t.id)} style={{
+                background: 'transparent', border: 'none',
+                color: active ? 'var(--accent)' : 'var(--text-3)',
+                padding: '10px 16px', fontSize: 13,
+                fontWeight: active ? 600 : 500,
+                borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
+                marginBottom: -1, cursor: 'pointer',
+              }}>
+                {t.label}
+              </button>
+            )
+          })}
+        </div>
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-          {/* Change Password */}
-          <ChangePasswordCard />
+          {tab === 'account' && (
+            <>
+              <ChangePasswordCard />
+              <MfaCard />
+            </>
+          )}
 
-          {/* MFA */}
-          <MfaCard />
+          {tab === 'email-ai' && (
+            <>
+              <GoogleOAuthCard status={status} isLoading={isLoading} />
+              <Microsoft365Card status={status} isLoading={isLoading} />
+              <AiOllamaCard status={status} isLoading={isLoading} />
+            </>
+          )}
 
-          {/* Gmail + Drive */}
-          <GoogleOAuthCard status={status} isLoading={isLoading} />
+          {tab === 'system' && (
+            <>
+              <RetentionCard status={status} isLoading={isLoading} />
+              <YamlCard />
+            </>
+          )}
 
-          {/* Microsoft 365 */}
-          <Microsoft365Card status={status} isLoading={isLoading} />
-
-          {/* AI Features */}
-          <AiOllamaCard status={status} isLoading={isLoading} />
-
-          {/* Retention Policies */}
-          <RetentionCard status={status} isLoading={isLoading} />
-
-          {/* YAML export/import */}
-          <YamlCard />
-
-          {/* Docs */}
-          <DocsCard />
+          {tab === 'docs' && (
+            <DocsCard />
+          )}
 
         </div>
       </div>

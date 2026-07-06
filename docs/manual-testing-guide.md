@@ -39,7 +39,7 @@ These are required by almost every test below. Set them up first.
 3. Click **Test connection** — expect green / latency shown
 4. Save
 
-- [ ] Connection saved and test passes
+- [X] Connection saved and test passes
 
 ### 1b. Gmail provider
 
@@ -49,7 +49,7 @@ These are required by almost every test below. Set them up first.
 4. Fill in Client ID, Client Secret, Refresh Token, Sender email
 5. Save and test
 
-- [ ] Gmail provider saved
+- [X] Gmail provider saved
 
 ### 1c. Microsoft 365 provider
 
@@ -60,7 +60,7 @@ These are required by almost every test below. Set them up first.
 4. Run: `flowforge setup microsoft365` to complete device-code auth
 5. Save and test
 
-- [ ] M365 provider saved
+- [X] M365 provider saved
 - [ ] Test send succeeds (check inbox at `jagdeep.singh.virdi@gmail.com`)
 
 ### 1d. SMTP provider (optional — covers Outlook, Yahoo, custom)
@@ -70,7 +70,7 @@ These are required by almost every test below. Set them up first.
 3. Fill in host, port, credentials
 4. Save and test
 
-- [ ] SMTP provider saved
+- [X] SMTP provider saved
 
 ---
 
@@ -116,7 +116,7 @@ Go to **Bulk Loads → New Bulk Load** and fill in:
 
 Save the config.
 
-- [ ] Bulk Load config saved
+- [X] Bulk Load config saved
 
 ### 2c. Add to a pipeline and run
 

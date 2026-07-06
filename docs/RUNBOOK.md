@@ -107,16 +107,20 @@ The startup scripts start the API, scheduler, and frontend together:
 
 ```powershell
 # Windows
-.\flowforge.ps1 start             # dev mode
-.\flowforge.ps1 start -Mode prod  # prod mode
-.\flowforge.ps1 stop              # stop all three
+.\flowforge.ps1 dev start     # dev mode
+.\flowforge.ps1 prod start    # prod mode
+.\flowforge.ps1 dev stop      # stop all three
+.\flowforge.ps1 dev restart   # stop then start
+.\flowforge.ps1 dev status    # show what's running
 ```
 
 ```bash
 # macOS / Linux
-./flowforge.sh start              # dev mode
-./flowforge.sh start prod         # prod mode
-./flowforge.sh stop               # stop all three
+./flowforge.sh dev start      # dev mode
+./flowforge.sh prod start     # prod mode
+./flowforge.sh dev stop       # stop all three
+./flowforge.sh dev restart    # stop then start
+./flowforge.sh dev status     # show what's running
 ```
 
 Output is prefixed: `[api]` (Flask), `[sched]` (scheduler), `[ui]` (Vite). Press Ctrl+C to stop all three cleanly.
@@ -164,7 +168,7 @@ flowforge db upgrade
 flowforge db current             # should show: <revision> (head)
 
 # 5. Start everything
-./flowforge.sh start             # or .\flowforge.ps1 start on Windows
+./flowforge.sh dev start         # or .\flowforge.ps1 dev start on Windows
 ```
 
 ---
