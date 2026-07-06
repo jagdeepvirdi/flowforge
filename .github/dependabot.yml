@@ -30,3 +30,17 @@ updates:
     groups:
       actions-minor-patch:
         update-types: [minor, patch]
+
+  # Covers Dockerfile and all docker-compose*.yml files at repo root — all
+  # already pinned to @sha256 digests; Dependabot re-resolves the digest
+  # whenever the tag's underlying image is rebuilt upstream, or opens a PR
+  # for a new tag. Does NOT cover the postgres/redis service containers in
+  # .github/workflows/test.yml (Dependabot's docker ecosystem only scans
+  # Dockerfiles/compose files, not arbitrary `image:` strings in workflow
+  # YAML) — those need re-pinning by hand if they drift.
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    labels: [dependencies, docker]

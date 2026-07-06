@@ -9,7 +9,7 @@ name: flowforge
 
 services:
   oracle:
-    image: gvenzl/oracle-free:23-slim
+    image: gvenzl/oracle-free:23-slim@sha256:fbbd3023d5abc33e36d3814816e6fd740e8efabeaa70cf470ddeab5874a3f6f8
     restart: unless-stopped
     environment:
       ORACLE_PASSWORD: ${ORACLE_PASSWORD:?Set ORACLE_PASSWORD in .env}
