@@ -120,6 +120,39 @@ def pipeline_with_project(client, headers):
 
 
 @pytest.fixture
+def viewer_headers_no_projects(app, client):
+    """A viewer-role user with zero project memberships — for exercising the
+    non-admin accessible_project_ids() branch of the trends endpoint."""
+    import bcrypt
+
+    username = f'trends_viewer_{uuid.uuid4().hex[:8]}'
+    with app.app_context():
+        from flowforge.db.models import User
+
+        user = User(
+            username=username,
+            password_hash=bcrypt.hashpw(b'viewpass123', bcrypt.gensalt(4)).decode(),
+            role='viewer',
+        )
+        db.session.add(user)
+        db.session.commit()
+
+    login = client.post('/api/auth/login', json={'username': username, 'password': 'viewpass123'})
+    assert login.status_code == 200
+    token = login.get_json()['token']
+
+    yield {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+
+    with app.app_context():
+        from flowforge.db.models import User
+
+        u = db.session.query(User).filter_by(username=username).first()
+        if u:
+            db.session.delete(u)
+            db.session.commit()
+
+
+@pytest.fixture
 def run_id(app, pipeline_id):
     with app.app_context():
         run = PipelineRun(
@@ -733,3 +766,61 @@ def test_step_run_trends_filters_by_pipeline_id(client, headers, pipeline_id, pi
     finally:
         _delete_run(app, id_a)
         _delete_run(app, id_b)
+
+
+def test_step_run_trends_project_id_filter_applied(client, headers, pipeline_id, pipeline_with_project, app):
+    """Explicit project_id narrows results to pipelines in that project only —
+    a pipeline with no project (project_id NULL) must be excluded."""
+    proj_pipeline_id, project_id = pipeline_with_project
+    step_type = '__trends_project_filter__'
+    now = datetime.now(UTC)
+    in_project_run = _add_run_with_step(app, proj_pipeline_id, step_type, duration_ms=100, started_at=now)
+    no_project_run = _add_run_with_step(app, pipeline_id, step_type, duration_ms=999, started_at=now)
+    try:
+        resp = client.get(
+            '/api/step-runs/trends',
+            query_string={'step_type': step_type, 'project_id': project_id},
+            headers=headers,
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['series'][0]['run_count'] == 1
+        assert data['series'][0]['avg_duration_ms'] == 100.0
+    finally:
+        _delete_run(app, in_project_run)
+        _delete_run(app, no_project_run)
+
+
+def test_step_run_trends_project_id_access_denied_for_non_member(
+    client, viewer_headers_no_projects, pipeline_with_project,
+):
+    """A non-admin with no membership in the requested project must get 403,
+    not silently-empty results."""
+    _pipeline_id, project_id = pipeline_with_project
+    resp = client.get(
+        '/api/step-runs/trends',
+        query_string={'project_id': project_id},
+        headers=viewer_headers_no_projects,
+    )
+    assert resp.status_code == 403
+
+
+def test_step_run_trends_non_admin_with_no_memberships_sees_nothing(
+    client, viewer_headers_no_projects, pipeline_with_project, app,
+):
+    """A non-admin with zero project memberships must not see step data from
+    a project-scoped pipeline they don't belong to, even without an explicit
+    project_id filter (accessible_project_ids() restricts implicitly)."""
+    proj_pipeline_id, _project_id = pipeline_with_project
+    step_type = '__trends_non_admin_scope__'
+    run_id_local = _add_run_with_step(app, proj_pipeline_id, step_type, duration_ms=100)
+    try:
+        resp = client.get(
+            '/api/step-runs/trends',
+            query_string={'step_type': step_type},
+            headers=viewer_headers_no_projects,
+        )
+        assert resp.status_code == 200
+        assert resp.get_json()['series'] == []
+    finally:
+        _delete_run(app, run_id_local)

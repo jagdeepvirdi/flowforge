@@ -49,10 +49,49 @@ def test_classify_error_generic_22_sqlstate_is_invalid_type():
     assert column == 'age'
 
 
+def test_classify_error_unmapped_23_sqlstate_via_diag_is_constraint_violation():
+    from flowforge.steps.bulk_load import _classify_insert_error
+    exc = Exception('integrity constraint violation')
+    exc.diag = MagicMock(sqlstate='23000', column_name='id')  # generic 23xxx, not in _PG_SQLSTATE_TYPES
+    error_type, column = _classify_insert_error(exc)
+    assert error_type == 'constraint_violation'
+    assert column == 'id'
+
+
+def test_classify_error_unmapped_sqlstate_via_diag_is_db_error():
+    from flowforge.steps.bulk_load import _classify_insert_error
+    exc = Exception('syntax error at or near')
+    exc.diag = MagicMock(sqlstate='42601', column_name=None)  # neither 22xxx nor 23xxx
+    error_type, column = _classify_insert_error(exc)
+    assert error_type == 'db_error'
+    assert column is None
+
+
 def test_classify_error_falls_back_to_message_matching_without_diag():
     from flowforge.steps.bulk_load import _classify_insert_error
     error_type, column = _classify_insert_error(Exception('NULL value not allowed for NOT NULL column'))
     assert error_type == 'not_null_violation'
+    assert column is None
+
+
+def test_classify_error_unique_message_fallback_without_diag():
+    from flowforge.steps.bulk_load import _classify_insert_error
+    error_type, column = _classify_insert_error(Exception('duplicate key value violates unique constraint "t_pkey"'))
+    assert error_type == 'unique_violation'
+    assert column is None
+
+
+def test_classify_error_value_too_long_message_fallback_without_diag():
+    from flowforge.steps.bulk_load import _classify_insert_error
+    error_type, column = _classify_insert_error(Exception('value too long for type character varying(10)'))
+    assert error_type == 'value_too_long'
+    assert column is None
+
+
+def test_classify_error_invalid_type_message_fallback_without_diag():
+    from flowforge.steps.bulk_load import _classify_insert_error
+    error_type, column = _classify_insert_error(Exception('invalid input syntax for type integer: "abc"'))
+    assert error_type == 'invalid_type'
     assert column is None
 
 
@@ -273,6 +312,20 @@ def test_preview_dry_run_connection_open_failure_warns(tmp_path):
          patch('flowforge.steps.bulk_load._resolve_connection', side_effect=RuntimeError('conn refused')):
         result = preview_bulk_load(cfg, dry_run=True)
     assert any('conn refused' in w for w in result['warnings'])
+
+
+def test_preview_dry_run_insert_test_raises_warns(tmp_path):
+    """If _dry_run_insert_rows itself raises (e.g. the connection drops
+    mid-test), the preview must degrade to a warning, not propagate."""
+    from flowforge.steps.bulk_load import preview_bulk_load
+    _write_csv(tmp_path / 'a.csv', [['1', 'alice']], header=['id', 'name'])
+    cfg = _base_cfg(str(tmp_path))
+    with patch('flowforge.steps.bulk_load._fetch_table_columns', return_value={'id', 'name'}), \
+         patch('flowforge.steps.bulk_load._resolve_connection', return_value={'_db_type': 'postgresql'}), \
+         patch('flowforge.steps.bulk_load._dry_run_insert_rows', side_effect=RuntimeError('connection reset')):
+        result = preview_bulk_load(cfg, dry_run=True)
+    assert any('Could not run dry-run insert test' in w and 'connection reset' in w for w in result['warnings'])
+    assert result['error_groups'] == []
 
 
 def test_preview_dry_run_no_errors_yields_empty_groups(tmp_path):
