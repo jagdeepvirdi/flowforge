@@ -18,7 +18,15 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [mfaCode, setMfaCode]   = useState('')
   const [backupCode, setBackupCode] = useState('')
-  const [error, setError]       = useState('')
+  // Seeded once from the URL hash (#sso_error=...) rather than set in the
+  // effect below — it's a one-time read of the initial location, not state
+  // that needs to react to a changing dependency.
+  const [error, setError]       = useState(() => {
+    const hash = globalThis.location.hash
+    if (hash.match(/sso_token=/)) return ''
+    const errMatch = hash.match(/sso_error=([^&]+)/)
+    return errMatch ? `SSO error: ${decodeURIComponent(errMatch[1]).replace(/\+/g, ' ')}` : ''
+  })
   const [loading, setLoading]   = useState(false)
   const [ssoProviders, setSsoProviders] = useState<{ google: boolean; microsoft: boolean; saml: boolean } | null>(null)
 
@@ -40,7 +48,6 @@ export default function Login() {
     }
 
     if (errMatch) {
-      setError(`SSO error: ${decodeURIComponent(errMatch[1]).replace(/\+/g, ' ')}`)
       globalThis.history.replaceState(null, '', globalThis.location.pathname)
     }
 
