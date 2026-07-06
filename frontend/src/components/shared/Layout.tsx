@@ -10,8 +10,8 @@ const NAV_MAIN = [
   { to: '/dashboard',   label: 'Dashboard',       icon: 'dashboard' },
   { to: '/pipelines',   label: 'Pipelines',        icon: 'pipeline' },
   { to: '/reports',     label: 'Reports',          icon: 'report' },
-  { to: '/emails',      label: 'Email Templates',  icon: 'mail' },
   { to: '/bulk-loads',  label: 'Bulk Loads',       icon: 'bulk' },
+  { to: '/emails',      label: 'Email Templates',  icon: 'mail' },
   { to: '/runs',        label: 'Run History',      icon: 'history' },
 ]
 const NAV_SYSTEM = [

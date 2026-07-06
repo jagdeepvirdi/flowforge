@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Save } from 'lucide-react'
+import { ArrowLeft, Save, FlaskConical, TriangleAlert } from 'lucide-react'
 import {
   getBulkLoadConfig, createBulkLoadConfig, updateBulkLoadConfig,
-  getDbConnections,
+  getDbConnections, validateBulkLoadConfigRaw, type BulkLoadPreview,
 } from '../lib/api'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
@@ -44,6 +44,10 @@ export default function BulkLoadEdit() {
   const [error, setError]                   = useState('')
   const [fieldErrors, setFieldErrors]       = useState<Record<string, string>>({})
 
+  const [testing, setTesting]               = useState(false)
+  const [testError, setTestError]           = useState('')
+  const [preview, setPreview]               = useState<BulkLoadPreview | null>(null)
+
   useEffect(() => {
     if (!existing) return
     setName(existing.name)
@@ -64,6 +68,28 @@ export default function BulkLoadEdit() {
     setColMapRaw(JSON.stringify(existing.column_mapping ?? [], null, 2))
   }, [existing])
 
+  const buildPayload = () => {
+    let columnMapping: { source: string; target: string }[] = []
+    try { columnMapping = JSON.parse(colMapRaw) } catch { /* invalid JSON — fall back to empty mapping */ }
+    return {
+      name, description: desc,
+      connection_id: connId || null,
+      source_directory: sourceDir,
+      file_prefix: filePrefix,
+      file_prefix_exclude: filePrefixExclude,
+      file_type: fileType,
+      delimiter,
+      header_rows: headerRows,
+      footer_rows: footerRows,
+      target_table: targetTable,
+      load_mode: loadMode,
+      use_sqlloader: useSqlLoader,
+      archive_directory: archiveDir,
+      on_no_files: onNoFiles,
+      column_mapping: columnMapping,
+    }
+  }
+
   const handleSave = async () => {
     const errs: Record<string, string> = {}
     if (!name.trim()) errs.name = 'Name is required'
@@ -72,28 +98,9 @@ export default function BulkLoadEdit() {
     if (Object.keys(errs).length) { setFieldErrors(errs); return }
     setFieldErrors({})
 
-    let columnMapping: { source: string; target: string }[] = []
-    try { columnMapping = JSON.parse(colMapRaw) } catch { /* invalid JSON — fall back to empty mapping */ }
-
     setSaving(true); setError('')
     try {
-      const payload = {
-        name, description: desc,
-        connection_id: connId || null,
-        source_directory: sourceDir,
-        file_prefix: filePrefix,
-        file_prefix_exclude: filePrefixExclude,
-        file_type: fileType,
-        delimiter,
-        header_rows: headerRows,
-        footer_rows: footerRows,
-        target_table: targetTable,
-        load_mode: loadMode,
-        use_sqlloader: useSqlLoader,
-        archive_directory: archiveDir,
-        on_no_files: onNoFiles,
-        column_mapping: columnMapping,
-      }
+      const payload = buildPayload()
       isNew
         ? await createBulkLoadConfig(payload)
         : await updateBulkLoadConfig(id!, payload)
@@ -103,6 +110,19 @@ export default function BulkLoadEdit() {
       setError(err instanceof Error ? err.message : 'Save failed')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleTest = async () => {
+    if (!sourceDir.trim()) { setTestError('Source directory is required to run a test'); return }
+    setTesting(true); setTestError(''); setPreview(null)
+    try {
+      const result = await validateBulkLoadConfigRaw(buildPayload())
+      setPreview(result)
+    } catch (err) {
+      setTestError(err instanceof Error ? err.message : 'Test failed')
+    } finally {
+      setTesting(false)
     }
   }
 
@@ -122,6 +142,9 @@ export default function BulkLoadEdit() {
         actions={
           <div style={{ display: 'flex', gap: 8 }}>
             <Link to="/bulk-loads" className="btn btn-sm"><ArrowLeft size={12} />{' '}Back</Link>
+            <button className="btn btn-sm" onClick={handleTest} disabled={testing}>
+              {testing ? <Spinner size={12} /> : <FlaskConical size={12} />}{' '}Test File
+            </button>
             <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
               {saving ? <Spinner size={12} /> : <Save size={12} />}{' '}Save
             </button>
@@ -253,6 +276,54 @@ export default function BulkLoadEdit() {
               </div>
             </div>
           </div>
+
+          {/* Test file results */}
+          {testError && (
+            <div style={{ padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 7, fontSize: 12.5, color: 'var(--failure-text)' }}>
+              {testError}
+            </div>
+          )}
+
+          {preview && (
+            <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
+                <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 600 }}>
+                  Preview · <span className="mono">{preview.file_name}</span>
+                </span>
+                <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
+                  {preview.files_matched} file{preview.files_matched === 1 ? '' : 's'} matched · showing {preview.row_count_sampled} row{preview.row_count_sampled === 1 ? '' : 's'}
+                </span>
+              </div>
+
+              {preview.warnings.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '10px 14px', background: 'rgba(234,179,8,0.06)', borderBottom: '1px solid var(--border)' }}>
+                  {preview.warnings.map((w, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 7, fontSize: 12, color: 'var(--text-2)' }}>
+                      <TriangleAlert size={13} style={{ color: '#EAB308', marginTop: 1, flexShrink: 0 }} />
+                      {w}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ overflow: 'auto', maxHeight: 320 }}>
+                <table className="tbl">
+                  <thead>
+                    <tr>{preview.columns.map(c => <th key={c}>{c}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {preview.sample_rows.map((row, i) => (
+                      <tr key={i}>
+                        {(row as unknown[]).map((cell, j) => (
+                          <td key={j} className="mono" style={{ fontSize: 12 }}>{String(cell ?? '')}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* Archive + column mapping */}
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

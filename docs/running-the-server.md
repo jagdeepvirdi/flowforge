@@ -97,19 +97,21 @@ pip install gunicorn
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 
 # Dev mode (Flask debug + Vite HMR)
-.\flowforge.ps1 start
+.\flowforge.ps1 dev start
 
 # Dev mode on a custom port
-.\flowforge.ps1 start -Port 8080
+.\flowforge.ps1 dev start -Port 8080
 
 # Prod mode — builds frontend, serves with Flask built-in server
-.\flowforge.ps1 start -Mode prod
+.\flowforge.ps1 prod start
 
 # Prod mode with waitress (recommended for real traffic)
-.\flowforge.ps1 start -Mode prod -UseWaitress
+.\flowforge.ps1 prod start -UseWaitress
 
-# Stop both servers
-.\flowforge.ps1 stop
+# Stop, restart, or check status
+.\flowforge.ps1 dev stop
+.\flowforge.ps1 dev restart
+.\flowforge.ps1 dev status
 ```
 
 ### macOS / Linux — flowforge.sh
@@ -119,16 +121,18 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 chmod +x flowforge.sh
 
 # Dev mode (Flask debug + Vite HMR)
-./flowforge.sh start
+./flowforge.sh dev start
 
 # Prod mode — builds frontend, serves with Flask built-in server
-./flowforge.sh start prod
+./flowforge.sh prod start
 
 # Prod mode with gunicorn (recommended for real traffic)
-./flowforge.sh start prod --gunicorn
+./flowforge.sh prod start --gunicorn
 
-# Stop both servers
-./flowforge.sh stop
+# Stop, restart, or check status
+./flowforge.sh dev stop
+./flowforge.sh dev restart
+./flowforge.sh dev status
 ```
 
 ---
@@ -157,21 +161,27 @@ Press **Ctrl+C** to stop all three cleanly.
 
 ---
 
-## Stopping the servers
+## Stopping, restarting, and checking status
 
 **Ctrl+C** in the terminal where the script is running stops all three processes (API, scheduler, and UI dev server) cleanly.
 
-To stop from a separate terminal:
+To stop, restart, or check status from a separate terminal:
 
 ```powershell
 # Windows
-.\flowforge.ps1 stop
+.\flowforge.ps1 dev stop
+.\flowforge.ps1 dev restart
+.\flowforge.ps1 dev status
 ```
 
 ```bash
 # macOS/Linux
-./flowforge.sh stop
+./flowforge.sh dev stop
+./flowforge.sh dev restart
+./flowforge.sh dev status
 ```
+
+`restart` is the same as running `stop` then `start` for the given mode. `status` reports whether the API, UI, scheduler, and worker are currently running, without starting or stopping anything.
 
 The stop command:
 1. Reads `FLOWFORGE_PORT` from `.env` and kills the process listening on that port (Flask API)

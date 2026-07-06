@@ -67,17 +67,17 @@ The easiest way to start everything is with the startup script — it launches t
 
 ```powershell
 # Windows
-.\flowforge.ps1 start
+.\flowforge.ps1 dev start
 ```
 
 ```bash
 # macOS / Linux
-./flowforge.sh start
+./flowforge.sh dev start
 ```
 
 Open `http://localhost:5000` in your browser. The scheduler starts automatically alongside the API, so any pipelines with a cron schedule will fire without any additional setup.
 
-To stop all three processes: press **Ctrl+C** in the same terminal, or run `.\flowforge.ps1 stop` / `./flowforge.sh stop` from another terminal.
+To stop all three processes: press **Ctrl+C** in the same terminal, or run `.\flowforge.ps1 dev stop` / `./flowforge.sh dev stop` from another terminal.
 
 **Running components individually (advanced):**
 

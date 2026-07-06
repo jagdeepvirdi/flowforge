@@ -196,21 +196,23 @@ flowforge db seed
 
 **Windows:**
 ```powershell
-.\flowforge.ps1 start
+.\flowforge.ps1 dev start
 ```
 
 **macOS / Linux:**
 ```bash
-./flowforge.sh start
+./flowforge.sh dev start
 ```
 
 Both scripts start the Flask API, APScheduler, and Vite frontend together. Open `http://localhost:5173`.
 
+Other actions: `stop`, `restart`, and `status` (e.g. `.\flowforge.ps1 dev status`).
+
 #### 6. Production mode (serves built frontend from Flask)
 
 ```powershell
-.\flowforge.ps1 start -Mode prod   # Windows
-./flowforge.sh start prod          # macOS/Linux
+.\flowforge.ps1 prod start   # Windows
+./flowforge.sh prod start    # macOS/Linux
 ```
 
 #### 7. With Celery task queue (optional)

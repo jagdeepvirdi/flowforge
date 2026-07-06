@@ -49,6 +49,15 @@ done — stays under the original Phase headings further down.*
 - [ ] Record a 60–90s demo GIF/MP4 (dashboard → create pipeline with report+email step → run it → Run History) and add to the README — blocks every other GTM item below *(Go-To-Market 5.1)*
 - [ ] Capture a high-quality Dashboard screenshot for the README hero / LinkedIn Featured section *(Go-To-Market 5.1)*
 
+## Local environment — email providers broken *(found 2026-07-03, blocks dev testing)*
+
+*Both SMTP and Gmail sending were failing locally. SMTP is now fixed (port/`use_ssl` mismatch + AVG Email Shield). Gmail is still broken — steps below.*
+
+- [ ] **AVG Web Shield is intercepting `oauth2.googleapis.com`** — same class of issue as the SMTP one (AVG Email Shield), but a different shield since this is a plain HTTPS call, not SMTP. Confirmed via `SSLCertVerificationError: unable to get local issuer certificate` when attempting a token refresh. Fix: AVG → Settings → Protection → Web & Email → disable **Web Shield**, or add a domain exception for `googleapis.com`.
+- [ ] **Re-authorize Gmail — refresh token expired** — `RefreshError: invalid_grant: Bad Request`. Root cause: the stored refresh token is 40 days old, and the Google OAuth consent screen is in **Testing** publishing status, where Google hard-expires refresh tokens after 7 days regardless of activity. Fix: re-run Step 5 in `docs/gmail-oauth2-setup.md` to mint a new refresh token, then update the "Personal Gmail" provider in **Connections → Email Providers**.
+- [ ] **Stop this recurring every ~7 days** — publish the OAuth consent screen to "In production" in Google Cloud Console. Caveat: the app currently requests the full `drive` scope, which Google classifies as *restricted* and normally requires a verification review to publish for real use. Two options: go through verification, or narrow the scope to `drive.file` (not restricted, no review needed) if full-Drive access isn't actually required — would need a small code change plus re-consent.
+- [ ] **Doc gap**: `docs/gmail-oauth2-setup.md`'s "Keeping the App in Testing vs Publishing" section (line ~158) says Testing mode is fine "indefinitely" but doesn't mention the 7-day refresh-token expiry — add a warning there so this doesn't surprise the next person.
+
 ## Medium priority
 
 *Meaningful score/visibility gains that take more setup effort.*
@@ -60,6 +69,8 @@ done — stays under the original Phase headings further down.*
 - [ ] Reddit: post in r/selfhosted, r/Python, r/opensource, and cross-post to r/dataengineering *(Go-To-Market 5.3)*
 - [ ] Submit PRs to awesome-selfhosted ("Automation") and awesome-python ("Task Queues"/"Data Pipeline") *(Go-To-Market 5.4)*
 - [ ] LinkedIn: write the launch post, add FlowForge to your Featured section, tag `#OpenSource #Python #LocalAI #DataEngineering #Productivity` *(Go-To-Market 5.5)*
+- [ ] Add `run_id` to `EMAIL_SENT`/`REPORT_EXPORTED` audit entries so they can be joined to `step_runs`/`pipeline_runs` directly *(Observability 7.4)*
+- [ ] Build an aggregated performance-over-time view (duration/rows trends per step type or pipeline) on top of the `step_runs` data already being captured *(Observability 7.5)*
 
 ## Low priority
 
@@ -251,6 +262,16 @@ Silver gaps remaining — see Phase 10.
 ### 7.3 Code Climate Badge (Optional)
 *Consolidated in Phase 10.*
 
+### 7.4 Audit Log — link `run_id` for cross-referencing *(scoped 2026-07-05)*
+*Consolidated in Phase 10.*
+
+`PIPELINE_STARTED`/`PIPELINE_SUCCESS`/`PIPELINE_FAILED` audit entries already carry `run_id` (`runner.py:260,316`), but `log_email_sent()` and `log_report_exported()` (`flowforge/audit.py:183-232`) only store `pipeline_name`/`step_name` — no `run_id`. Add a `run_id` parameter to both functions and thread it through from `email_step.py`/`report.py` (already available in the step context), so any `EMAIL_SENT`/`REPORT_EXPORTED` audit row can be joined directly to its `step_runs`/`pipeline_runs` record instead of fuzzy-matching on name + timestamp.
+
+### 7.5 Step performance trends over time *(scoped 2026-07-05)*
+*Consolidated in Phase 10.*
+
+`step_runs` already records `duration_ms`, `rows_affected`, and `status` for every step type (bulk load, SFTP, db_procedure, report, email, etc.) — `_write_step_run()` in `runner.py:425` is called generically regardless of step type, so the raw data already exists. What's missing is a view aggregating it over time: e.g. average/percentile duration per `step_type` or per pipeline across a rolling window, to surface gradual slowdowns before they cause timeouts. New query/endpoint + a trends chart (Recharts, matching existing dashboard charts) — no new data collection needed.
+
 ---
 
 ## Phase 8 — Compliance Track (P2 — Regulated Environments) ✅ *(COMPLETE 2026-05-30)*
@@ -296,6 +317,8 @@ Silver gaps remaining — see Phase 10.
 - [x] Pipeline run diff view — `GET /api/runs/{id}/diff` compares step rows/duration/file-size vs prev successful run; collapsible DiffPanel with colour-coded delta badges in RunDetail *(2026-05-30)*
 - [x] Report column formatting rules — `column_formatting JSONB` on `ff_report_configs`; Excel generator applies `number_format`, `width`, conditional `PatternFill`/`Font` per rule; ColumnFormattingCard UI in ReportEdit (presets + colour pickers) *(2026-05-30)*
 - [x] Environment promotion workflow — `POST /api/pipelines/{id}/promote` clones to target project (disabled); warns on secret vars + unresolved references; Promote (↗) button on Pipelines page with project picker modal *(2026-05-30)*
+- [ ] **Bulk load dry-run (V2)** *(scoped 2026-07-04, V1 shipped same day; error-grouping requirement added 2026-07-05)* — V1 (`preview_bulk_load()` in `flowforge/steps/bulk_load.py`, "Test File" button in `BulkLoadEdit`/`BulkLoads`) checks file discovery, header parsing, and target-column existence, but CSV values are untyped text — it can't catch type-coercion or constraint errors (NOT NULL, unique/PK, length overflow) that only surface once a real insert runs. V2: extend the preview to actually attempt inserting the already-parsed sample rows inside a transaction, then roll back — reusing the real `_load_postgres_copy`/`_load_python_fallback` code paths (not a heuristic re-implementation) so the signal is exact. Scope to PostgreSQL + the Python-fallback path only; Oracle's `sqlldr` path manages its own commits mid-load, so a true no-commit dry run there would need a shadow/staging table (meaningfully more engineering for a smaller payoff) — leave `sqlldr` on V1-level checks only and note that as a known gap in the UI copy.
+  - **Error reporting must group by error signature, not list per-row.** With `SAMPLE_ROWS = 20`, a systemic issue (e.g. a NOT NULL column with a batch of blanks) could otherwise produce a dozen+ near-duplicate warning strings that are unreviewable. Instead of a flat `warnings: list[str]`, structure each failure as `{row_indices: [...], column, error_type, message}` and group all rows hitting the same constraint/column into one entry with a count (e.g. "3 rows fail NOT NULL on `email`"). Cross-reference `row_indices` against the sample-rows table already rendered in `BulkLoadEdit.tsx` (e.g. highlight offending rows/cells) so the bad data is visible next to the error, not just described in text. Cap the row numbers shown per group (e.g. first 3 + "and 9 more") so one systemic issue can't crowd out other findings. Lead with a summary line (e.g. "3 error types across 14 of 20 sampled rows") before the grouped detail.
 
 ## Platform
 - [x] Plugin system — community step types loaded from a directory *(2026-07-01)* — `flowforge/engine/loader.py` scans `FLOWFORGE_PLUGIN_DIR` (default `./plugins`) for `*.py` files defining `BaseStep` subclasses; consolidated the 4 previously-drifted step-type lists (DB CHECK constraint, API validation, 2 frontend arrays — this also fixed a pre-existing bug where `notification` steps couldn't be added via the API) into one registry exposed via `GET /api/step-types`; `ck_step_type` relaxed from an enum CHECK to a format check (migration `0026`) since plugin type names aren't known in advance; StepEditor falls back to a generic JSON config editor for types with no dedicated form; example plugin + authoring guide in `examples/plugins/http_webhook_step.py` / `docs/plugins.md`
