@@ -300,3 +300,64 @@ def test_fetch_table_columns_strips_quoted_identifier():
     assert cols == {'id'}
     args, _ = fake_conn.execute_query.call_args
     assert args[1] == ('my_table', 'public')
+
+
+# ── Security regression: never reflect a *rendered* template value back to ──
+# the caller. Fixed 2026-07-06 alongside the _SafeEnv blocklist expansion —
+# see docs/TASKS.md Phase 11. Before the fix, a crafted source_directory or
+# target_table like '{{ env.SOME_VAR }}' would render to the real env var
+# value, then get echoed verbatim into the raised/returned message,
+# exfiltrating it into the HTTP response of this preview endpoint. These
+# tests deliberately use a non-credential-shaped env var name (would
+# otherwise be blocked by the _SafeEnv blocklist/pattern check instead) to
+# isolate and prove this second, independent layer of the fix.
+
+def test_source_directory_error_shows_template_not_rendered_value(tmp_path, monkeypatch):
+    from flowforge.steps.bulk_load import preview_bulk_load
+    monkeypatch.setenv('INTERNAL_CONFIG_VALUE', '/should/not/appear/in/error')
+    cfg = _base_cfg(str(tmp_path), target='')
+    cfg['source_directory'] = '{{ env.INTERNAL_CONFIG_VALUE }}'
+    with pytest.raises(ValueError) as exc_info:
+        preview_bulk_load(cfg)
+    message = str(exc_info.value)
+    assert '/should/not/appear/in/error' not in message
+    assert '{{ env.INTERNAL_CONFIG_VALUE }}' in message
+
+
+def test_no_matching_files_error_shows_template_not_rendered_value(tmp_path, monkeypatch):
+    from flowforge.steps.bulk_load import preview_bulk_load
+    # tmp_path (the "leaked" value) exists as a real dir but has no matching
+    # files — assert the raw resolved path never appears in the raised message.
+    monkeypatch.setenv('INTERNAL_CONFIG_VALUE', str(tmp_path))
+    cfg = _base_cfg('{{ env.INTERNAL_CONFIG_VALUE }}', target='')
+    with pytest.raises(ValueError, match='no files found') as exc_info:
+        preview_bulk_load(cfg)
+    assert str(tmp_path) not in str(exc_info.value)
+    assert '{{ env.INTERNAL_CONFIG_VALUE }}' in str(exc_info.value)
+
+
+def test_invalid_target_table_warning_shows_template_not_rendered_value(tmp_path, monkeypatch):
+    from flowforge.steps.bulk_load import preview_bulk_load
+    monkeypatch.setenv('INTERNAL_CONFIG_VALUE', 'aws-secret-value-xyz')
+    _write_csv(tmp_path / 'a.csv', [['1', 'alice']], header=['id', 'name'])
+    cfg = _base_cfg(str(tmp_path))
+    cfg['target_table'] = '{{ env.INTERNAL_CONFIG_VALUE }}'
+    cfg['connection_id'] = 'conn-1'
+    result = preview_bulk_load(cfg)
+    warnings_text = ' '.join(result['warnings'])
+    assert 'aws-secret-value-xyz' not in warnings_text
+    assert '{{ env.INTERNAL_CONFIG_VALUE }}' in warnings_text
+
+
+def test_target_table_does_not_exist_warning_shows_template_not_rendered_value(tmp_path, monkeypatch):
+    from flowforge.steps.bulk_load import preview_bulk_load
+    monkeypatch.setenv('SAFE_TABLE_NAME', 'leaked_value_123')
+    _write_csv(tmp_path / 'a.csv', [['1', 'alice']], header=['id', 'name'])
+    cfg = _base_cfg(str(tmp_path))
+    cfg['target_table'] = '{{ env.SAFE_TABLE_NAME }}'
+    cfg['connection_id'] = 'conn-1'
+    with patch('flowforge.steps.bulk_load._fetch_table_columns', return_value=None):
+        result = preview_bulk_load(cfg)
+    warnings_text = ' '.join(result['warnings'])
+    assert 'leaked_value_123' not in warnings_text
+    assert '{{ env.SAFE_TABLE_NAME }}' in warnings_text

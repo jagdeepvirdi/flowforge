@@ -47,9 +47,9 @@ def test_pipeline_name_in_context():
 
 def test_env_var_resolution(monkeypatch):
     from flowforge.engine.context import build, render
-    monkeypatch.setenv('TEST_SECRET', 'hello123')
+    monkeypatch.setenv('TEST_REGION', 'hello123')
     ctx = build('test')
-    result = render('{{ env.TEST_SECRET }}', ctx)
+    result = render('{{ env.TEST_REGION }}', ctx)
     assert result == 'hello123'
 
 
@@ -312,6 +312,57 @@ def test_safe_env_missing_var_returns_empty(monkeypatch):
     from flowforge.engine.context import build, render
     ctx = build('test')
     assert render('{{ env.TOTALLY_NONEXISTENT_VAR_XYZ }}', ctx) == ''
+
+
+# ── _SafeEnv: newly-added credential vars + name-pattern defense-in-depth ────
+# Regression coverage for the 2026-07-06 fix: PR #94's bulk-load preview
+# endpoint let any authenticated user exfiltrate any env var not in the (then
+# 7-entry) blocklist via a crafted `{{ env.X }}` template, e.g. FLOWFORGE_DB_URL,
+# AWS_SECRET_ACCESS_KEY. The blocklist was expanded and a name-pattern check
+# added so the *next* credential-shaped env var is blocked by default too.
+
+@pytest.mark.parametrize('var_name', [
+    'FLOWFORGE_DB_URL',
+    'FLOWFORGE_REDIS_URL',
+    'AWS_ACCESS_KEY_ID',
+    'AWS_SECRET_ACCESS_KEY',
+    'AZURE_STORAGE_ACCOUNT_KEY',
+    'AZURE_STORAGE_CONNECTION_STRING',
+    'GOOGLE_SSO_CLIENT_SECRET',
+    'MICROSOFT_SSO_CLIENT_SECRET',
+    'SAML_IDP_X509_CERT',
+    'DB_PASSWORD',
+])
+def test_safe_env_blocks_newly_added_credential_vars(monkeypatch, var_name):
+    monkeypatch.setenv(var_name, 'must-not-leak')
+    from flowforge.engine.context import build, render
+    ctx = build('test')
+    assert render(f'{{{{ env.{var_name} }}}}', ctx) == ''
+
+
+@pytest.mark.parametrize('var_name', [
+    'SOME_FUTURE_SECRET',
+    'SOME_FUTURE_PASSWORD',
+    'SOME_FUTURE_TOKEN',
+    'SOME_FUTURE_API_KEY',
+    'SOME_FUTURE_CERT',
+    'SOME_FUTURE_CONNECTION_STRING',
+    'SOME_FUTURE_DSN',
+    'SOME_FUTURE_DB_URL',
+])
+def test_safe_env_blocks_unlisted_credential_shaped_names(monkeypatch, var_name):
+    """A credential-shaped name blocked by the keyword pattern even though it's
+    not (and can never exhaustively be) in the explicit _ENV_BLOCKLIST."""
+    monkeypatch.setenv(var_name, 'must-not-leak')
+    from flowforge.engine.context import build, render
+    ctx = build('test')
+    assert render(f'{{{{ env.{var_name} }}}}', ctx) == ''
+
+
+def test_safe_env_pattern_does_not_block_ordinary_names():
+    from flowforge.engine.context import _looks_like_credential_name
+    for name in ('APP_ENV', 'REPORT_DIR', 'DB_HOST', 'OLLAMA_QUERY_MODEL', 'FLOWFORGE_PORT'):
+        assert not _looks_like_credential_name(name), name
 
 
 # ── Pipeline variable collision warning ───────────────────────────────────────
