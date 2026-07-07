@@ -24,33 +24,21 @@ export default function PageIntro({ page }: Props) {
   if (!card || !visible) return null
 
   return (
-    <div style={{
-      background: 'linear-gradient(135deg, var(--surface-hover) 0%, var(--surface) 100%)',
-      border: '1px solid var(--border)',
-      borderLeft: '3px solid var(--accent)',
-      borderRadius: 8,
-      marginBottom: 16,
-      overflow: 'hidden',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', padding: '10px 14px', gap: 10 }}>
+    <div className="bg-[linear-gradient(135deg,var(--surface-hover)_0%,var(--surface)_100%)] border border-border border-l-[3px] border-l-accent rounded-r mb-4 overflow-hidden">
+      <div className="flex items-center py-2.5 px-3.5 gap-2.5">
         <button
-          style={{
-            display: 'flex', alignItems: 'center', gap: 10, flex: 1,
-            background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left',
-          }}
+          className="flex items-center gap-2.5 flex-1 bg-transparent border-none cursor-pointer text-left"
           aria-expanded={!collapsed}
           onClick={() => setCollapsed(c => !c)}
         >
-          <HelpCircle size={14} style={{ color: 'var(--accent)', flexShrink: 0 }} />
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', flex: 1 }}>{card.title}</span>
-          {collapsed ? <ChevronDown size={13} style={{ color: 'var(--text-muted)' }} /> : <ChevronUp size={13} style={{ color: 'var(--text-muted)' }} />}
+          <HelpCircle size={14} className="text-accent shrink-0" />
+          <span className="text-[13px] font-semibold text-text-primary flex-1">{card.title}</span>
+          {collapsed ? <ChevronDown size={13} className="text-text-muted" /> : <ChevronUp size={13} className="text-text-muted" />}
         </button>
         {collapsed && (
           <button
             onClick={() => setVisible(false)}
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 11, color: 'var(--text-muted)', padding: '2px 6px', flexShrink: 0 }}
-            onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-3)')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+            className="bg-transparent border-none cursor-pointer text-[11px] text-text-muted hover:text-text-3 py-0.5 px-1.5 shrink-0"
           >
             Dismiss
           </button>
@@ -58,13 +46,11 @@ export default function PageIntro({ page }: Props) {
       </div>
 
       {!collapsed && (
-        <div style={{ padding: '0 14px 12px 38px' }}>
-          <p style={{ fontSize: 13, color: 'var(--text-3)', margin: '0 0 10px', lineHeight: 1.6 }}>{card.body}</p>
+        <div className="pt-0 pr-3.5 pb-3 pl-[38px]">
+          <p className="text-[13px] text-text-3 m-0 mb-2.5 leading-[1.6]">{card.body}</p>
           <button
             onClick={() => setVisible(false)}
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 11.5, color: 'var(--text-muted)', padding: 0 }}
-            onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-3)')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+            className="bg-transparent border-none cursor-pointer text-[11.5px] text-text-muted hover:text-text-3 p-0"
           >
             Got it, dismiss
           </button>

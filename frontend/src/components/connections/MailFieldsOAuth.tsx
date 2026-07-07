@@ -23,8 +23,8 @@ export default function MailFieldsOAuth({ form, setForm }: {
         <Field label="Refresh Token">
           <input className="input" type="password" value={form.refresh_token} onChange={e => setForm(f => ({ ...f, refresh_token: e.target.value }))}
             placeholder="Paste refresh token from OAuth2 setup" required />
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
-            Run <code style={{ color: 'var(--text-3)' }}>flowforge setup gmail</code> in the terminal to generate this token.
+          <span className="text-[11px] text-text-muted mt-[3px]">
+            Run <code className="text-text-3">flowforge setup gmail</code> in the terminal to generate this token.
           </span>
         </Field>
       )}

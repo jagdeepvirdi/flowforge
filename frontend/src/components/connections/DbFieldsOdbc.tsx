@@ -17,7 +17,7 @@ export default function DbFieldsOdbc({ form, setForm }: {
         <input className="input" value={form.connection_string}
           onChange={e => setForm(f => ({ ...f, connection_string: e.target.value }))}
           placeholder='Driver={...};Server=...;Database=...;UID=...;PWD=...' />
-        <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
+        <span className="text-[11px] text-text-muted mt-[3px]">
           DSN takes precedence if both are set.
         </span>
       </Field>

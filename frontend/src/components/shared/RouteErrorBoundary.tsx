@@ -33,18 +33,18 @@ export default class RouteErrorBoundary extends Component<Props, State> {
     const { error, showDetail } = this.state
 
     return (
-      <div className="scroll" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
-        <div className="card" style={{ maxWidth: 460, width: '100%', padding: 24, textAlign: 'center' }}>
-          <div style={{ fontSize: 28, marginBottom: 12, color: 'var(--failure)' }}>⚠</div>
-          <h2 style={{ margin: '0 0 8px', fontSize: 16, color: 'var(--text)', fontWeight: 600 }}>
+      <div className="scroll flex justify-center items-center min-h-[300px]">
+        <div className="card max-w-[460px] w-full p-6 text-center">
+          <div className="text-[28px] mb-3 text-failure">⚠</div>
+          <h2 className="m-0 mb-2 text-base text-text-primary font-semibold">
             Something went wrong
           </h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: '0 0 20px', lineHeight: 1.5 }}>
+          <p className="text-text-muted text-[13px] m-0 mb-5 leading-normal">
             {label} encountered an unexpected error.
             {error?.message ? ` ${error.message}` : ''}
           </p>
 
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 16 }}>
+          <div className="flex gap-2 justify-center mb-4">
             <button
               className="btn btn-primary btn-sm"
               onClick={() => globalThis.location.reload()}
@@ -60,26 +60,16 @@ export default class RouteErrorBoundary extends Component<Props, State> {
           </div>
 
           {error?.stack && (
-            <div style={{ textAlign: 'left' }}>
+            <div className="text-left">
               <button
                 type="button"
                 onClick={() => this.setState(s => ({ showDetail: !s.showDetail }))}
-                style={{
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  color: 'var(--text-dim)', fontSize: 11.5, fontFamily: 'inherit',
-                  padding: 0, marginBottom: 6,
-                }}
+                className="bg-transparent border-none cursor-pointer text-text-dim text-[11.5px] font-[inherit] p-0 mb-1.5"
               >
                 {showDetail ? '▾' : '▸'} Error details
               </button>
               {showDetail && (
-                <pre style={{
-                  margin: 0, padding: '10px 12px',
-                  background: 'var(--bg)', border: '1px solid var(--border)',
-                  borderRadius: 6, fontSize: 10.5, color: 'var(--text-3)',
-                  overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                  maxHeight: 200, overflowY: 'auto',
-                }}>
+                <pre className="m-0 py-2.5 px-3 bg-bg border border-border rounded-r-sm text-[10.5px] text-text-3 overflow-x-auto whitespace-pre-wrap break-words max-h-[200px] overflow-y-auto">
                   {error.stack}
                 </pre>
               )}

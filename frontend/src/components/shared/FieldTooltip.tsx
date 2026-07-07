@@ -32,63 +32,26 @@ export default function FieldTooltip({ field }: Props) {
   }
 
   return (
-    <div ref={ref} style={{ position: 'relative', display: 'inline-flex' }}>
+    <div ref={ref} className="relative inline-flex">
       <button
         type="button"
         onClick={handleToggle}
-        style={{
-          background: 'transparent', border: 'none', cursor: 'pointer',
-          color: open ? 'var(--accent)' : 'var(--text-dim)',
-          display: 'flex', alignItems: 'center', padding: 2,
-          transition: 'color 150ms',
-        }}
-        onMouseEnter={e => { if (!open) e.currentTarget.style.color = 'var(--text-3)' }}
-        onMouseLeave={e => { if (!open) e.currentTarget.style.color = 'var(--text-dim)' }}
+        className={`bg-transparent border-none cursor-pointer flex items-center p-0.5 transition-colors duration-150 ${open ? 'text-accent' : 'text-text-dim hover:text-text-3'}`}
         aria-label={`Help for ${field}`}
       >
         <HelpCircle size={13} />
       </button>
 
       {open && (
-        <div style={{
-          position: 'absolute',
-          ...(popDown
-            ? { top: 'calc(100% + 8px)', bottom: undefined }
-            : { bottom: 'calc(100% + 8px)', top: undefined }),
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 300,
-          width: 280,
-          background: 'var(--surface-2)',
-          border: '1px solid var(--border-strong)',
-          borderRadius: 8,
-          padding: '10px 12px',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-        }}>
+        <div className={`absolute left-1/2 -translate-x-1/2 z-[300] w-[280px] bg-surface2 border border-border-strong rounded-r py-2.5 px-3 shadow-[0_8px_24px_rgba(0,0,0,0.5)] ${popDown ? 'top-[calc(100%+8px)]' : 'bottom-[calc(100%+8px)]'}`}>
           {/* Arrow */}
-          <div style={{
-            position: 'absolute',
-            ...(popDown
-              ? { bottom: '100%', borderBottom: '6px solid var(--border-strong)', borderTop: undefined }
-              : { top: '100%', borderTop: '6px solid var(--border-strong)', borderBottom: undefined }),
-            left: '50%', transform: 'translateX(-50%)',
-            width: 0, height: 0,
-            borderLeft: '6px solid transparent',
-            borderRight: '6px solid transparent',
-          }} />
+          <div className={`absolute left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent ${popDown ? 'bottom-full border-b-[6px] border-b-border-strong' : 'top-full border-t-[6px] border-t-border-strong'}`} />
 
-          <p style={{ fontSize: 12.5, color: 'var(--text-3)', margin: tip.example ? '0 0 8px' : 0, lineHeight: 1.55 }}>
+          <p className={`text-[12.5px] text-text-3 leading-[1.55] m-0${tip.example ? ' mb-2' : ''}`}>
             {tip.text}
           </p>
           {tip.example && (
-            <pre style={{
-              fontSize: 11, color: 'var(--text-2)',
-              background: 'var(--bg-code)', borderRadius: 5,
-              padding: '6px 8px', margin: '6px 0 0',
-              overflowX: 'auto', whiteSpace: 'pre-wrap',
-              fontFamily: 'JetBrains Mono, monospace',
-              lineHeight: 1.5,
-            }}>
+            <pre className="text-[11px] text-text-2 bg-bg-code rounded-[5px] py-1.5 px-2 m-0 mt-1.5 overflow-x-auto whitespace-pre-wrap font-mono leading-normal">
               {tip.example}
             </pre>
           )}

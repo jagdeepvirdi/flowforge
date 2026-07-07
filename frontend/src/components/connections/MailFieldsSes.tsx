@@ -13,7 +13,7 @@ export default function MailFieldsSes({ form, setForm }: {
       <Field label="AWS Secret Access Key">
         <input className="input" type="password" value={form.aws_secret_access_key} onChange={e => setForm(f => ({ ...f, aws_secret_access_key: e.target.value }))} required />
       </Field>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div className="grid grid-cols-2 gap-2.5">
         <Field label="AWS Region">
           <input className="input mono-input" value={form.aws_region} onChange={e => setForm(f => ({ ...f, aws_region: e.target.value }))} placeholder="us-east-1" required />
         </Field>

@@ -38,13 +38,13 @@ export default function DependenciesCard({
         <div className="flex flex-col gap-1.5 mb-2.5">
           {upstreamDeps.map(dep => (
             <div key={dep.dep_id} className="flex items-center gap-2">
-              <span style={{ fontSize: 12, color: 'var(--text-2)', flex: 1, padding: '4px 8px', background: 'var(--surface-2)', borderRadius: 5, border: '1px solid var(--border)' }}>
+              <span className="text-xs text-text-2 flex-1 py-1 px-2 bg-surface2 rounded-[5px] border border-border">
                 {dep.pipeline_name}
               </span>
               <button
                 type="button"
                 onClick={() => setUpstreamDeps(prev => prev.filter(d => d.dep_id !== dep.dep_id))}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--failure)', padding: '2px 4px' }}
+                className="bg-transparent border-none cursor-pointer text-failure py-0.5 px-1"
               >
                 <Trash2 size={12} />
               </button>
@@ -55,8 +55,7 @@ export default function DependenciesCard({
 
       {available.length > 0 && (
         <select
-          className="input"
-          style={{ fontSize: 12, maxWidth: 320 }}
+          className="input text-xs max-w-[320px]"
           value=""
           onChange={e => { if (e.target.value) addDep(e.target.value) }}
         >

@@ -6,8 +6,8 @@ export default function Sk({ h = '1rem', r = 4, style, className }: {
 }) {
   return (
     <div
-      className={`animate-pulse${className ? ` ${className}` : ''}`}
-      style={{ height: h, borderRadius: r, background: 'var(--border)', width: '100%', ...style }}
+      className={`animate-pulse w-full bg-border${className ? ` ${className}` : ''}`}
+      style={{ height: h, borderRadius: r, ...style }}
     />
   )
 }

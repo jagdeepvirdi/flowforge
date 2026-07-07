@@ -27,22 +27,13 @@ export default function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnect
   return (
     <>
       {/* Source type toggle */}
-      <div style={{ display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border-strong)', width: 'fit-content' }}>
+      <div className="flex gap-0 rounded-r-sm overflow-hidden border border-border-strong w-fit">
         {(['file', 'query'] as const).map(t => (
           <button
             key={t}
             type="button"
             onClick={() => switchSourceType(t)}
-            style={{
-              padding: '5px 16px',
-              fontSize: 12,
-              fontWeight: 600,
-              border: 'none',
-              cursor: 'pointer',
-              background: sourceType === t ? 'var(--accent)' : 'transparent',
-              color: sourceType === t ? '#fff' : 'var(--text-muted)',
-              transition: 'background 0.15s',
-            }}
+            className={`py-[5px] px-4 text-xs font-semibold border-none cursor-pointer transition-colors duration-150 ${sourceType === t ? 'bg-accent text-white' : 'bg-transparent text-text-muted'}`}
           >
             {t === 'file' ? 'File source' : 'SQL Query source'}
           </button>
@@ -55,7 +46,7 @@ export default function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnect
           <Field label="File path (supports {{ variables }})">
             {/* Quick-attach from preceding report steps */}
             {precedingFileSteps.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+              <div className="flex flex-wrap gap-1.5 mb-2">
                 {precedingFileSteps.map(rs => {
                   const stepRef = rs.name.includes(' ') ? `steps['${rs.name}']` : `steps.${rs.name}`
                   const variable = `{{ ${stepRef}.output_path }}`
@@ -65,17 +56,9 @@ export default function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnect
                       key={rs.id}
                       type="button"
                       onClick={() => { if (!already) setSrc('file_path', variable) }}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 6,
-                        background: already ? '#1a2e1a' : 'var(--surface)',
-                        border: `1px solid ${already ? 'var(--success)' : 'var(--border-strong)'}`,
-                        borderRadius: 6, padding: '4px 10px',
-                        cursor: already ? 'default' : 'pointer',
-                        fontSize: 11,
-                        color: already ? 'var(--success)' : 'var(--text-3)',
-                      }}
+                      className={`flex items-center gap-1.5 rounded-r-sm py-1 px-2.5 text-[11px] border ${already ? 'bg-[#1a2e1a] border-success text-success cursor-default' : 'bg-surface border-border-strong text-text-3 cursor-pointer'}`}
                     >
-                      <span style={{ fontWeight: 600, color: already ? 'var(--success)' : 'var(--accent)' }}>
+                      <span className={`font-semibold ${already ? 'text-success' : 'text-accent'}`}>
                         {already ? '✓' : '+'} {rs.name}
                       </span>
                     </button>
@@ -91,13 +74,12 @@ export default function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnect
             />
           </Field>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="grid grid-cols-2 gap-2.5">
             <Field label="File format">
               <select
                 className="input"
                 value={String(src.file_format ?? '')}
                 onChange={e => setSrc('file_format', e.target.value)}
-                style={{ height: 34 }}
               >
                 <option value="">Auto-detect from extension</option>
                 <option value="csv">CSV</option>
@@ -124,7 +106,6 @@ export default function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnect
               className="input"
               value={String(src.connection_id ?? '')}
               onChange={e => setSrc('connection_id', e.target.value)}
-              style={{ height: 34 }}
             >
               <option value="">Select source connection…</option>
               {dbConnections.map(c => (
@@ -134,25 +115,23 @@ export default function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnect
           </Field>
           <Field label="SQL Query">
             <textarea
-              className="input mono-input"
+              className="input mono-input h-auto resize-none"
               rows={5}
               value={String(src.query ?? '')}
               onChange={e => setSrc('query', e.target.value)}
               placeholder={`SELECT id, name, amount\nFROM orders\nWHERE month = '{{ current_month }}'`}
-              style={{ height: 'auto', resize: 'none' }}
             />
           </Field>
         </>
       )}
 
       {/* ── Target ───────────────────────────────────────────────────────── */}
-      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div className="border-t border-border pt-2.5 flex flex-col gap-2.5">
         <Field label="Target connection">
           <select
             className="input"
             value={String(cfg.target_connection_id ?? '')}
             onChange={e => setConfig('target_connection_id', e.target.value)}
-            style={{ height: 34 }}
           >
             <option value="">Select target connection…</option>
             {dbConnections.map(c => (
@@ -161,7 +140,7 @@ export default function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnect
           </select>
         </Field>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'end' }}>
+        <div className="grid grid-cols-[1fr_auto] gap-2.5 items-end">
           <Field label="Target table (supports {{ variables }})">
             <input
               className="input mono-input"
@@ -172,10 +151,9 @@ export default function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnect
           </Field>
           <Field label="Mode">
             <select
-              className="input"
+              className="input w-[120px]"
               value={String(cfg.mode ?? 'replace')}
               onChange={e => setConfig('mode', e.target.value)}
-              style={{ height: 34, width: 120 }}
             >
               <option value="replace">Replace</option>
               <option value="append">Append</option>
@@ -183,18 +161,18 @@ export default function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnect
           </Field>
         </div>
 
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}>
+        <label className="flex items-center gap-2 cursor-pointer select-none">
           <input
             type="checkbox"
             checked={Boolean(cfg.create_if_missing)}
             onChange={e => setConfig('create_if_missing', e.target.checked)}
           />
-          <span style={{ fontSize: 12.5, color: 'var(--text-2)' }}>
+          <span className="text-[12.5px] text-text-2">
             Create table if it doesn't exist
           </span>
         </label>
         {!!cfg.create_if_missing && (
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 22 }}>
+          <span className="text-[11px] text-text-muted pl-[22px]">
             Column types are inferred from the data (INTEGER, NUMERIC, DATE, TIMESTAMP, TEXT). Samples up to 1,000 rows.
           </span>
         )}
@@ -204,12 +182,7 @@ export default function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnect
       <button
         type="button"
         onClick={() => setShowAdvanced(x => !x)}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-          background: 'transparent', border: 'none',
-          color: 'var(--text-muted)', fontSize: 11.5, cursor: 'pointer',
-          padding: '2px 0', fontWeight: 500,
-        }}
+        className="flex items-center gap-1.5 bg-transparent border-none text-text-muted text-[11.5px] cursor-pointer py-0.5 px-0 font-medium"
       >
         <Settings2 size={12} />
         Advanced options
@@ -217,33 +190,31 @@ export default function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnect
       </button>
 
       {showAdvanced && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingLeft: 12, borderLeft: '2px solid var(--border)' }}>
+        <div className="flex flex-col gap-2.5 pl-3 border-l-2 border-border">
           <Field label="Chunk size (rows per batch)">
             <input
-              className="input"
+              className="input w-[120px]"
               type="number"
               min={1}
               max={10000}
               value={String(cfg.chunk_size ?? 1000)}
               onChange={e => setConfig('chunk_size', Number.parseInt(e.target.value) || 1000)}
-              style={{ width: 120 }}
             />
-            <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
+            <span className="text-[11px] text-text-muted mt-[3px]">
               Rows sent per bulk insert call. Default 1000.
             </span>
           </Field>
           <Field label="Column map (JSON) — optional">
             <textarea
-              className="input mono-input"
+              className="input mono-input h-auto resize-none text-xs"
               rows={4}
               value={columnMapRaw}
               onChange={e => {
                 try { setConfig('column_map', JSON.parse(e.target.value)) } catch { /* invalid JSON while typing — ignore */ }
               }}
               placeholder={'{\n  "SOURCE_COL": "target_col"\n}'}
-              style={{ height: 'auto', resize: 'none', fontSize: 12 }}
             />
-            <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
+            <span className="text-[11px] text-text-muted mt-[3px]">
               Rename source columns to match the target schema. Leave empty to use source names as-is.
             </span>
           </Field>

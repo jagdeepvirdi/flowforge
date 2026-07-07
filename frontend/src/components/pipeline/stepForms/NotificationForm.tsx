@@ -7,7 +7,7 @@ export default function NotificationForm({ cfg, setConfig }: StepFormProps) {
   return (
     <>
       <Field label="Platform">
-        <select className="input" value={platform} onChange={e => setConfig('platform', e.target.value)} style={{ height: 34 }}>
+        <select className="input" value={platform} onChange={e => setConfig('platform', e.target.value)}>
           <option value="slack">Slack</option>
           <option value="teams">Microsoft Teams</option>
           <option value="telegram">Telegram</option>
@@ -36,11 +36,10 @@ export default function NotificationForm({ cfg, setConfig }: StepFormProps) {
       </Field>
 
       <Field label="Message (Jinja2)">
-        <textarea className="input mono-input" rows={3} value={String(cfg.message ?? '')} onChange={e => setConfig('message', e.target.value)}
-          placeholder="Pipeline {{ pipeline_name }} finished at {{ current_date }}."
-          style={{ height: 'auto', resize: 'none' }} />
-        <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
-          Supports all pipeline variables: <code style={{ color: 'var(--text-3)' }}>{'{{ pipeline_name }}'}</code> <code style={{ color: 'var(--text-3)' }}>{'{{ run_id }}'}</code> <code style={{ color: 'var(--text-3)' }}>{'{{ current_date }}'}</code>
+        <textarea className="input mono-input h-auto resize-none" rows={3} value={String(cfg.message ?? '')} onChange={e => setConfig('message', e.target.value)}
+          placeholder="Pipeline {{ pipeline_name }} finished at {{ current_date }}." />
+        <span className="text-[11px] text-text-muted mt-[3px]">
+          Supports all pipeline variables: <code className="text-text-3">{'{{ pipeline_name }}'}</code> <code className="text-text-3">{'{{ run_id }}'}</code> <code className="text-text-3">{'{{ current_date }}'}</code>
         </span>
       </Field>
     </>

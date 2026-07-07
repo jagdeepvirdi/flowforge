@@ -92,10 +92,10 @@ export default function TopBar({ crumbs, actions, helpTopic, queryKeys }: Props)
   return (
     <div className="topbar">
       <ProjectSwitcher compact />
-      <span style={{ width: 1, height: 16, background: 'var(--border)', margin: '0 10px', flexShrink: 0 }} />
+      <span className="w-px h-4 bg-border mx-2.5 shrink-0" />
       <div className="crumb">
         {crumbs.map((c, i) => ({ c, i })).map(({ c, i }) => (
-          <span key={`crumb-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span key={`crumb-${i}`} className="flex items-center gap-1.5">
             {i > 0 && <span className="sep"><ChevronRight size={12} /></span>}
             <span className={i === crumbs.length - 1 ? 'here' : ''}>{c}</span>
           </span>
@@ -104,9 +104,9 @@ export default function TopBar({ crumbs, actions, helpTopic, queryKeys }: Props)
       <div className="tb-grow" />
 
       {/* Search */}
-      <div ref={containerRef} style={{ position: 'relative' }}>
-        <div className="tb-search" style={{ cursor: 'text' }}>
-          <Search size={13} style={{ flexShrink: 0 }} />
+      <div ref={containerRef} className="relative">
+        <div className="tb-search cursor-text">
+          <Search size={13} className="shrink-0" />
           <input
             ref={inputRef}
             value={query}
@@ -124,28 +124,17 @@ export default function TopBar({ crumbs, actions, helpTopic, queryKeys }: Props)
               }
             }}
             placeholder="Search…"
-            style={{
-              background: 'transparent', border: 'none', outline: 'none',
-              color: 'var(--text)', fontSize: 12.5, fontFamily: 'inherit', flex: 1, minWidth: 0,
-            }}
+            className="bg-transparent border-none outline-none text-text-primary text-[12.5px] font-[inherit] flex-1 min-w-0"
           />
           {!query && (
-            <kbd style={{
-              marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 10,
-              background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 4,
-              padding: '1px 5px', color: 'var(--text-muted)', flexShrink: 0,
-            }}>⌘K</kbd>
+            <kbd className="ml-auto font-mono text-[10px] bg-surface2 border border-border rounded py-px px-[5px] text-text-muted shrink-0">⌘K</kbd>
           )}
         </div>
 
         {showDropdown && (
-          <div style={{
-            position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
-            background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.4)', zIndex: 9999, overflow: 'hidden',
-          }}>
+          <div className="absolute top-[calc(100%+6px)] left-0 right-0 bg-surface border border-border rounded-r shadow-[0_8px_24px_rgba(0,0,0,0.4)] z-[9999] overflow-hidden">
             {results.length === 0 ? (
-              <div style={{ padding: '10px 14px', fontSize: 12.5, color: 'var(--text-muted)' }}>
+              <div className="py-2.5 px-3.5 text-[12.5px] text-text-muted">
                 {allCachesEmpty
                   ? 'Visit Pipelines and Reports pages first to populate search'
                   : 'No results'}
@@ -158,18 +147,13 @@ export default function TopBar({ crumbs, actions, helpTopic, queryKeys }: Props)
                 onMouseDown={() => { navigate(r.href); setQuery('') }}
                 onKeyDown={e => { if (e.key === 'Enter') { navigate(r.href); setQuery('') } }}
                 tabIndex={0}
-                style={{
-                  padding: '9px 14px', cursor: 'pointer', display: 'flex',
-                  alignItems: 'center', gap: 10, borderBottom: '1px solid var(--border)',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                className="py-[9px] px-3.5 cursor-pointer flex items-center gap-2.5 border-b border-border hover:bg-surface2"
               >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.label}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{r.sub}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] text-text-primary font-medium overflow-hidden text-ellipsis whitespace-nowrap">{r.label}</div>
+                  <div className="text-[11px] text-text-muted mt-px">{r.sub}</div>
                 </div>
-                <ChevronRight size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                <ChevronRight size={12} className="text-text-muted shrink-0" />
               </div>
             ))}
           </div>
@@ -178,10 +162,9 @@ export default function TopBar({ crumbs, actions, helpTopic, queryKeys }: Props)
       <button className="tb-icon-btn" title="Notifications (coming soon)" onClick={() => {}}><Bell size={16} /></button>
       <button className="tb-icon-btn" title="Refresh" onClick={handleRefresh}><RefreshCw size={15} /></button>
       <button
-        className="tb-icon-btn"
+        className={`tb-icon-btn relative ${open ? 'text-accent' : ''}`}
         title="Help  (?)"
         onClick={handleHelpClick}
-        style={{ position: 'relative', color: open ? 'var(--accent)' : undefined }}
       >
         <HelpCircle size={16} />
         {!helpSeen && <span className="ff-help-dot" />}

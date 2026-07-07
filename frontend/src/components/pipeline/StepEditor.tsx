@@ -47,96 +47,84 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
   const StepForm = STEP_FORMS[step.step_type]
 
   return (
-    <div ref={setNodeRef} style={{ ...style, marginBottom: 6 }}>
-      <div style={{
-        background: expanded ? 'var(--surface)' : 'var(--bg-code)',
-        border: `1px solid ${step.parallel_group ? 'rgba(99,102,241,0.5)' : expanded ? 'var(--border-strong)' : 'var(--border)'}`,
-        borderLeft: step.parallel_group ? '3px solid #6366f1' : undefined,
-        borderRadius: 10,
-        overflow: 'hidden',
-      }}>
+    <div ref={setNodeRef} style={style} className="mb-1.5">
+      <div className={`rounded-[10px] overflow-hidden border ${expanded ? 'bg-surface' : 'bg-bg-code'} ${step.parallel_group ? 'border-indigo-500/50' : expanded ? 'border-border-strong' : 'border-border'} ${step.parallel_group ? 'border-l-[3px] border-l-indigo-500' : ''}`}>
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px' }}>
-          <button {...attributes} {...listeners} style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', cursor: 'grab', padding: '2px', display: 'flex' }}>
+        <div className="flex items-center gap-2.5 py-3 px-3.5">
+          <button {...attributes} {...listeners} className="bg-transparent border-none text-text-dim cursor-grab p-0.5 flex">
             <GripVertical size={14} />
           </button>
 
-          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--text-dim)', fontWeight: 700, width: 20, textAlign: 'center', flexShrink: 0 }}>
+          <span className="font-mono text-[11px] text-text-dim font-bold w-5 text-center shrink-0">
             {step.step_order}
           </span>
 
           <span className={`tbadge ${meta.cls}`}>{meta.label}</span>
           {step.parallel_group && (
-            <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 3, background: 'rgba(99,102,241,0.15)', color: '#818CF8', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
+            <span className="text-[10px] font-semibold py-px px-[5px] rounded-[3px] bg-indigo-500/15 text-indigo-400 font-mono whitespace-nowrap">
               ∥ {step.parallel_group}
             </span>
           )}
 
           <input
-            style={{ background: 'transparent', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 13, fontWeight: 500, flex: 1, fontFamily: 'inherit', cursor: 'text' }}
+            className="bg-transparent border-none outline-none text-text-primary text-[13px] font-medium flex-1 font-[inherit] cursor-text"
             value={step.name}
             onChange={e => onChange(step.id, { name: e.target.value })}
             placeholder="Step name"
           />
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <div className="flex items-center gap-1">
             <select
-              className="btn btn-sm"
+              className="btn btn-sm cursor-pointer text-[11px] h-[26px] py-0 px-2"
               value={step.on_error}
               onChange={e => onChange(step.id, { on_error: e.target.value as 'stop' | 'continue' })}
-              style={{ cursor: 'pointer', fontSize: 11, height: 26, padding: '0 8px' }}
             >
               <option value="stop">Stop on error</option>
               <option value="continue">Continue on error</option>
             </select>
             <FieldTooltip field="on_error" />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Retries</span>
+          <div className="flex items-center gap-1">
+            <span className="text-[11px] text-text-muted whitespace-nowrap">Retries</span>
             <input
               type="number" min={0} max={10}
-              className="input"
+              className="input w-[46px] h-[26px] py-0 px-1.5 text-[11px]"
               value={Number(cfg.retry_count ?? 0)}
               onChange={e => setConfig('retry_count', Math.max(0, Number(e.target.value)))}
-              style={{ width: 46, height: 26, padding: '0 6px', fontSize: 11 }}
             />
-            <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>delay</span>
+            <span className="text-[11px] text-text-muted whitespace-nowrap">delay</span>
             <input
               type="number" min={0} max={3600}
-              className="input"
+              className="input w-[52px] h-[26px] py-0 px-1.5 text-[11px]"
               value={Number(cfg.retry_delay_seconds ?? 30)}
               onChange={e => setConfig('retry_delay_seconds', Math.max(0, Number(e.target.value)))}
-              style={{ width: 52, height: 26, padding: '0 6px', fontSize: 11 }}
             />
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>s</span>
+            <span className="text-[11px] text-text-muted">s</span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} title="Steps sharing the same group name run concurrently">
-            <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>∥ Group</span>
+          <div className="flex items-center gap-1" title="Steps sharing the same group name run concurrently">
+            <span className="text-[11px] text-text-muted whitespace-nowrap">∥ Group</span>
             <input
-              className="input mono-input"
+              className="input mono-input w-[72px] h-[26px] py-0 px-1.5 text-[11px]"
               placeholder="none"
               value={step.parallel_group ?? ''}
               onChange={e => onChange(step.id, { parallel_group: e.target.value.trim() || null })}
-              style={{ width: 72, height: 26, padding: '0 6px', fontSize: 11 }}
             />
           </div>
 
           <button onClick={() => setExpanded(x => !x)} className="btn btn-sm btn-ghost btn-icon">
             {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
           </button>
-          <button onClick={() => onDelete(step.id)} className="btn btn-sm btn-ghost btn-icon" style={{ color: 'var(--text-muted)' }}
-            onMouseEnter={e => (e.currentTarget.style.color = 'var(--failure-text)')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>
+          <button onClick={() => onDelete(step.id)} className="btn btn-sm btn-ghost btn-icon text-text-muted hover:text-failure-text">
             <Trash2 size={13} />
           </button>
         </div>
 
         {expanded && (
-          <div style={{ padding: '0 14px 14px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 12 }}>
+          <div className="pt-3 pr-3.5 pb-3.5 pl-3.5 border-t border-border flex flex-col gap-2.5">
             {/* Contextual hint banner */}
             {STEP_HINTS[step.step_type] && (
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', background: 'var(--bg-code)', borderRadius: 6, padding: '7px 10px', lineHeight: 1.5 }}>
+              <div className="text-xs text-text-muted bg-bg-code rounded-r-sm py-[7px] px-2.5 leading-normal">
                 {STEP_HINTS[step.step_type].summary}
               </div>
             )}
@@ -154,9 +142,8 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
               />
             ) : (
               <Field label="Config (JSON)" tooltip="No dedicated form for this step type (a plugin, or a built-in without a form yet) — edit its raw config here.">
-                <textarea className="input mono-input" rows={8} value={JSON.stringify(cfg, null, 2)}
+                <textarea className="input mono-input h-auto resize-y" rows={8} value={JSON.stringify(cfg, null, 2)}
                   onChange={e => { try { onChange(step.id, { config: JSON.parse(e.target.value) }) } catch { /* invalid JSON while typing — ignore */ } }}
-                  style={{ height: 'auto', resize: 'vertical' }}
                 />
               </Field>
             )}

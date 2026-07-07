@@ -123,11 +123,7 @@ function ChartBody({ config, data }: { config: ChartConfig; data: Record<string,
   )
 }
 
-const selectStyle: React.CSSProperties = {
-  fontSize: 11, padding: '1px 5px', borderRadius: 3,
-  border: '1px solid var(--border)', background: 'var(--surface-2)',
-  color: 'var(--text)', height: 22,
-}
+const selectClass = 'text-[11px] py-px px-[5px] rounded-[3px] border border-border bg-surface2 text-text-primary h-[22px]'
 
 export default function ChartPreview({ columns, rows, config, onConfigChange }: Props) {
   const data = toRecharts(columns, rows)
@@ -135,30 +131,20 @@ export default function ChartPreview({ columns, rows, config, onConfigChange }: 
   const isPie = config.type === 'pie'
 
   return (
-    <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+    <div className="card p-0 overflow-hidden">
       {/* Toolbar */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
-        padding: '9px 14px', borderBottom: '1px solid var(--border)',
-      }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <div className="flex items-center gap-2 flex-wrap py-[9px] px-3.5 border-b border-border">
+        <span className="text-xs font-semibold text-text-primary flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
           {config.title || 'AI Chart'}
         </span>
 
         {/* Chart type pills */}
-        <div style={{ display: 'flex', gap: 3 }}>
+        <div className="flex gap-[3px]">
           {CHART_TYPES.map(t => (
             <button
               key={t}
               onClick={() => set({ type: t })}
-              style={{
-                fontSize: 10.5, padding: '2px 7px', borderRadius: 3,
-                background: config.type === t ? 'rgba(249,115,22,0.12)' : 'transparent',
-                border: `1px solid ${config.type === t ? 'rgba(249,115,22,0.45)' : 'var(--border)'}`,
-                color: config.type === t ? '#F97316' : 'var(--text-3)',
-                cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500,
-                textTransform: 'capitalize',
-              }}
+              className={`text-[10.5px] py-0.5 px-[7px] rounded-[3px] cursor-pointer font-[inherit] font-medium capitalize border ${config.type === t ? 'bg-[rgba(249,115,22,0.12)] border-[rgba(249,115,22,0.45)] text-accent' : 'bg-transparent border-border text-text-3'}`}
             >
               {t}
             </button>
@@ -166,28 +152,28 @@ export default function ChartPreview({ columns, rows, config, onConfigChange }: 
         </div>
 
         {/* X axis */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 500 }}>
+        <div className="flex items-center gap-1">
+          <span className="text-[10.5px] text-text-muted font-medium">
             {isPie ? 'Label' : 'X'}
           </span>
-          <select style={selectStyle} value={config.x} onChange={e => set({ x: e.target.value })}>
+          <select className={selectClass} value={config.x} onChange={e => set({ x: e.target.value })}>
             {columns.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
 
         {/* Y axis */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 500 }}>
+        <div className="flex items-center gap-1">
+          <span className="text-[10.5px] text-text-muted font-medium">
             {isPie ? 'Value' : 'Y'}
           </span>
-          <select style={selectStyle} value={config.y} onChange={e => set({ y: e.target.value })}>
+          <select className={selectClass} value={config.y} onChange={e => set({ y: e.target.value })}>
             {columns.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
       </div>
 
       {/* Chart */}
-      <div style={{ padding: '20px 8px 12px', height: 300 }}>
+      <div className="pt-5 px-2 pb-3 h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
           <ChartBody config={config} data={data} />
         </ResponsiveContainer>

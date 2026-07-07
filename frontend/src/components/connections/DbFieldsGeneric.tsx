@@ -9,7 +9,7 @@ export default function DbFieldsGeneric({ form, setForm }: {
 }) {
   return (
     <>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: 10 }}>
+      <div className="grid grid-cols-[1fr_100px] gap-2.5">
         <Field label="Host" tooltip={<FieldTooltip field={form.db_type === 'oracle' ? 'oracle_connection' : 'db_host_port'} />}>
           <input className="input" value={form.host} onChange={e => setForm(f => ({ ...f, host: e.target.value }))} placeholder="localhost" required />
         </Field>
@@ -28,13 +28,13 @@ export default function DbFieldsGeneric({ form, setForm }: {
           <input className="input" value={form.driver}
             onChange={e => setForm(f => ({ ...f, driver: e.target.value }))}
             placeholder="ODBC Driver 17 for SQL Server" />
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
-            Install: <code style={{ color: 'var(--text-3)' }}>msodbcsql17</code> or <code style={{ color: 'var(--text-3)' }}>msodbcsql18</code>
+          <span className="text-[11px] text-text-muted mt-[3px]">
+            Install: <code className="text-text-3">msodbcsql17</code> or <code className="text-text-3">msodbcsql18</code>
           </span>
         </Field>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div className="grid grid-cols-2 gap-2.5">
         <Field label="Username">
           <input className="input" value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} required />
         </Field>

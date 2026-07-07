@@ -10,12 +10,12 @@ export default function MailFieldsMailgun({ form, setForm }: {
       <Field label="API Key">
         <input className="input" type="password" value={form.api_key} onChange={e => setForm(f => ({ ...f, api_key: e.target.value }))} required />
       </Field>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10 }}>
+      <div className="grid grid-cols-[1fr_auto] gap-2.5">
         <Field label="Domain">
           <input className="input mono-input" value={form.domain} onChange={e => setForm(f => ({ ...f, domain: e.target.value }))} placeholder="mg.yourdomain.com" required />
         </Field>
         <Field label="Region">
-          <select className="input" value={form.region} onChange={e => setForm(f => ({ ...f, region: e.target.value }))} style={{ height: 34 }}>
+          <select className="input" value={form.region} onChange={e => setForm(f => ({ ...f, region: e.target.value }))}>
             <option value="us">US</option>
             <option value="eu">EU</option>
           </select>

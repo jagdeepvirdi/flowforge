@@ -41,11 +41,10 @@ export default function StepTrendsPanel({ pipelineId }: { pipelineId?: string })
   const totalFailures = data?.series.reduce((sum, p) => sum + p.failure_count, 0) ?? 0
 
   return (
-    <div style={{ marginBottom: 16 }}>
+    <div className="mb-4">
       <button
         onClick={() => setOpen(x => !x)}
-        className="btn btn-sm"
-        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}
+        className="btn btn-sm flex items-center gap-1.5 text-xs"
       >
         {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
         <TrendingUp size={12} />
@@ -53,48 +52,37 @@ export default function StepTrendsPanel({ pipelineId }: { pipelineId?: string })
       </button>
 
       {open && (
-        <div className="card" style={{ marginTop: 8, padding: 0, overflow: 'hidden' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Duration over time</span>
+        <div className="card mt-2 p-0 overflow-hidden">
+          <div className="flex items-center gap-2.5 flex-wrap py-2.5 px-3.5 border-b border-border">
+            <span className="text-xs font-semibold text-text-primary">Duration over time</span>
             <select
-              className="btn btn-sm"
+              className="btn btn-sm cursor-pointer ml-auto"
               value={stepType}
               onChange={e => setStepType(e.target.value)}
-              style={{ cursor: 'pointer', marginLeft: 'auto' }}
             >
               <option value="">All step types</option>
               {(data?.available_step_types ?? []).map(t => <option key={t} value={t}>{t}</option>)}
             </select>
-            <div style={{ display: 'flex', gap: 1, background: 'var(--surface-2)', borderRadius: 7, padding: 2, border: '1px solid var(--border)' }}>
+            <div className="flex gap-px bg-surface2 rounded-[7px] p-0.5 border border-border">
               {DAY_WINDOWS.map(d => (
-                <button key={d} onClick={() => setDays(d)} style={{
-                  background: days === d ? 'var(--surface)' : 'transparent',
-                  border: 'none',
-                  color: days === d ? 'var(--text)' : 'var(--text-muted)',
-                  padding: '4px 10px',
-                  borderRadius: 5,
-                  fontSize: 11.5,
-                  fontWeight: days === d ? 600 : 500,
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                }}>{d}d</button>
+                <button key={d} onClick={() => setDays(d)} className={`border-none py-1 px-2.5 rounded-[5px] text-[11.5px] cursor-pointer font-[inherit] ${days === d ? 'bg-surface text-text-primary font-semibold' : 'bg-transparent text-text-muted font-medium'}`}>{d}d</button>
               ))}
             </div>
           </div>
 
           {isLoading && (
-            <div style={{ padding: '14px 16px', color: 'var(--text-muted)', fontSize: 12 }}>Loading trends…</div>
+            <div className="py-3.5 px-4 text-text-muted text-xs">Loading trends…</div>
           )}
 
           {data && data.series.length === 0 && (
-            <div style={{ padding: '14px 16px', color: 'var(--text-muted)', fontSize: 12 }}>
+            <div className="py-3.5 px-4 text-text-muted text-xs">
               No step runs in the last {days} days{stepType ? ` for step type "${stepType}"` : ''}.
             </div>
           )}
 
           {data && data.series.length > 0 && (
             <>
-              <div style={{ padding: '20px 8px 4px', height: 260 }}>
+              <div className="pt-5 px-2 pb-1 h-[260px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={data.series} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
@@ -107,7 +95,7 @@ export default function StepTrendsPanel({ pipelineId }: { pipelineId?: string })
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-              <div style={{ display: 'flex', gap: 16, padding: '8px 14px 12px', fontSize: 11, color: 'var(--text-muted)' }}>
+              <div className="flex gap-4 pt-2 px-3.5 pb-3 text-[11px] text-text-muted">
                 <span>{totalRuns} step run{totalRuns === 1 ? '' : 's'}</span>
                 <span>{totalFailures} failure{totalFailures === 1 ? '' : 's'}</span>
                 <span>Window: last {data.window_days} days</span>

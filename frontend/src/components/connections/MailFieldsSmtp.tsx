@@ -27,7 +27,7 @@ export default function MailFieldsSmtp({ form, setForm }: {
 
   return (
     <>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: 10 }}>
+      <div className="grid grid-cols-[1fr_100px] gap-2.5">
         <Field label="SMTP Host">
           <input className="input" value={form.host} onChange={e => setForm(f => ({ ...f, host: e.target.value }))} placeholder="smtp.gmail.com" required />
         </Field>
@@ -35,7 +35,7 @@ export default function MailFieldsSmtp({ form, setForm }: {
           <input className="input" type="number" value={form.port} onChange={e => setForm(f => ({ ...f, port: e.target.value }))} required />
         </Field>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div className="grid grid-cols-2 gap-2.5">
         <Field label="Username">
           <input className="input" value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} />
         </Field>
@@ -44,16 +44,16 @@ export default function MailFieldsSmtp({ form, setForm }: {
         </Field>
       </div>
       <Field label="Encryption">
-        <div style={{ display: 'flex', gap: 14 }}>
+        <div className="flex gap-3.5">
           {ENCRYPTION_OPTIONS.map(opt => (
-            <label key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text-3)', cursor: 'pointer' }}>
+            <label key={opt.value} className="flex items-center gap-1.5 text-[13px] text-text-3 cursor-pointer">
               <input
                 type="radio"
                 name="smtp-encryption"
                 checked={encryption === opt.value}
                 onChange={() => setEncryption(opt.value)}
               />
-              {opt.label} <span style={{ color: 'var(--text-muted)' }}>({opt.hint})</span>
+              {opt.label} <span className="text-text-muted">({opt.hint})</span>
             </label>
           ))}
         </div>

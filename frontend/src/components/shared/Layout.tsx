@@ -72,9 +72,8 @@ export default function Layout() {
       <aside className={`ff-sidebar ${sidebarOpen ? 'open' : ''}`}>
         {/* Mobile Close Button */}
         <button
-          className="lg:hidden absolute top-4 right-4 text-text-muted hover:text-text"
+          className="hidden absolute top-4 right-4 text-text-muted hover:text-text bg-transparent border-none cursor-pointer"
           onClick={() => setSidebarOpen(false)}
-          style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'none' }}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -205,10 +204,10 @@ export default function Layout() {
       {/* Main content */}
       <main className="ff-main">
         {/* Mobile Hamburger */}
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--border)', background: 'var(--bg)', gap: 12 }} className="lg:hidden">
+        <div className="lg:hidden flex items-center px-4 py-3 border-b border-border bg-bg gap-3">
           <button
             onClick={() => setSidebarOpen(true)}
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)', padding: 0 }}
+            className="bg-transparent border-none cursor-pointer text-text-primary p-0"
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="3" y1="12" x2="21" y2="12"></line>
@@ -216,7 +215,7 @@ export default function Layout() {
               <line x1="3" y1="18" x2="21" y2="18"></line>
             </svg>
           </button>
-          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>FlowForge</span>
+          <span className="text-[14px] font-bold text-text-primary">FlowForge</span>
         </div>
 
         <RouteErrorBoundary>

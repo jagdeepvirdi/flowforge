@@ -15,7 +15,7 @@ export default function EmailForm({ cfg, setConfig, step, allSteps, reportConfig
   return (
     <>
       <Field label="Email config" htmlFor={`step-${step.id}-email-id`}>
-        <select id={`step-${step.id}-email-id`} className="input" value={String(cfg.email_config_id ?? '')} onChange={e => setConfig('email_config_id', e.target.value)} style={{ height: 34 }}>
+        <select id={`step-${step.id}-email-id`} className="input" value={String(cfg.email_config_id ?? '')} onChange={e => setConfig('email_config_id', e.target.value)}>
           <option value="">Select email config…</option>
           {emailConfigs.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
         </select>
@@ -23,7 +23,7 @@ export default function EmailForm({ cfg, setConfig, step, allSteps, reportConfig
       {/* Query data snippets from upstream capturing db_query steps */}
       {capturingSteps.length > 0 && (
         <Field label="Query data — available in email body">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div className="flex flex-col gap-1.5">
             {capturingSteps.map(qs => {
               const ref = qs.name.includes(' ') ? `steps['${qs.name}']` : `steps.${qs.name}`
               const snippets: [string, string][] = [
@@ -32,25 +32,25 @@ export default function EmailForm({ cfg, setConfig, step, allSteps, reportConfig
                 [`{% for row in ${ref}.rows %}{{ row.col }}{% endfor %}`, 'Custom loop'],
               ]
               return (
-                <div key={qs.id} style={{ background: 'var(--bg-code)', borderRadius: 6, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 600 }}>{qs.name}</span>
+                <div key={qs.id} className="bg-bg-code rounded-r-sm py-2 px-2.5 flex flex-col gap-[5px]">
+                  <span className="text-[11px] text-accent font-semibold">{qs.name}</span>
                   {snippets.map(([snippet, label]) => (
-                    <div key={snippet} style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                      <code style={{ fontSize: 10.5, color: 'var(--text-3)', fontFamily: 'JetBrains Mono, monospace', flex: 1, wordBreak: 'break-all' }}>{snippet}</code>
-                      <span style={{ fontSize: 10, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{label}</span>
+                    <div key={snippet} className="flex items-baseline gap-2">
+                      <code className="text-[10.5px] text-text-3 font-mono flex-1 break-all">{snippet}</code>
+                      <span className="text-[10px] text-text-dim whitespace-nowrap">{label}</span>
                     </div>
                   ))}
                 </div>
               )
             })}
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Copy these snippets into your email config body template.</span>
+            <span className="text-[11px] text-text-muted">Copy these snippets into your email config body template.</span>
           </div>
         </Field>
       )}
       <Field label="Attachments">
         {/* Quick-add buttons for preceding report steps */}
         {precedingReports.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+          <div className="flex flex-wrap gap-1.5 mb-2">
             {precedingReports.map(rs => {
               const stepRef = rs.name.includes(' ') ? `steps['${rs.name}']` : `steps.${rs.name}`
               const variable = `{{ ${stepRef}.output_path }}`
@@ -64,18 +64,12 @@ export default function EmailForm({ cfg, setConfig, step, allSteps, reportConfig
                   onClick={() => {
                     if (!already) setConfig('attachments', [...current, variable])
                   }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 6,
-                    background: already ? '#1a2e1a' : 'var(--surface)',
-                    border: `1px solid ${already ? 'var(--success)' : 'var(--border-strong)'}`,
-                    borderRadius: 6, padding: '4px 10px', cursor: already ? 'default' : 'pointer',
-                    fontSize: 11, color: already ? 'var(--success)' : 'var(--text-3)',
-                  }}
+                  className={`flex items-center gap-1.5 rounded-r-sm py-1 px-2.5 text-[11px] border ${already ? 'bg-[#1a2e1a] border-success text-success cursor-default' : 'bg-surface border-border-strong text-text-3 cursor-pointer'}`}
                 >
-                  <span style={{ fontWeight: 600, color: already ? 'var(--success)' : 'var(--accent)' }}>
+                  <span className={`font-semibold ${already ? 'text-success' : 'text-accent'}`}>
                     {already ? '✓' : '+'} {rs.name}
                   </span>
-                  <span style={{ color: 'var(--text-dim)', fontFamily: 'JetBrains Mono, monospace' }}>
+                  <span className="text-text-dim font-mono">
                     {filename}
                   </span>
                 </button>
@@ -83,13 +77,12 @@ export default function EmailForm({ cfg, setConfig, step, allSteps, reportConfig
             })}
           </div>
         )}
-        <textarea className="input mono-input" rows={3}
+        <textarea className="input mono-input h-auto resize-none text-xs" rows={3}
           value={current.join('\n')}
           onChange={e => setConfig('attachments', e.target.value.split('\n').filter(Boolean))}
           placeholder="{{ steps.my_report.output_path }}"
-          style={{ height: 'auto', resize: 'none', fontSize: 12 }}
         />
-        <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
+        <span className="text-[11px] text-text-muted mt-[3px]">
           Click a report above to attach it, or type a path manually. One path per line.
         </span>
       </Field>
