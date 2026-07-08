@@ -29,6 +29,15 @@ import {
 
 type Tab = 'db' | 'mail'
 
+const TEST_CLS: Record<'ok' | 'fail' | 'idle', string> = {
+  ok:   'bg-[rgba(34,197,94,0.08)] border-[rgba(34,197,94,0.3)] text-success-text',
+  fail: 'bg-[rgba(239,68,68,0.08)] border-[rgba(239,68,68,0.2)] text-failure-text',
+  idle: 'bg-surface2 border-border text-text-3',
+}
+const TEST_DOT_CLS: Record<'ok' | 'fail' | 'idle', string> = {
+  ok: 'bg-success-text', fail: 'bg-failure', idle: 'bg-text-muted',
+}
+
 // ── main component ───────────────────────────────────────────────────────────
 
 export default function Connections() {
@@ -172,33 +181,9 @@ export default function Connections() {
 
   const submitting = addingDb || addingMail || savingDb || savingMail
 
-  const TEST_STYLES = {
-    ok: {
-      bg: 'rgba(34,197,94,0.08)',
-      border: 'rgba(34,197,94,0.3)',
-      color: 'var(--success-text)',
-      dot: 'var(--success-text)',
-    },
-    fail: {
-      bg: 'rgba(239,68,68,0.08)',
-      border: 'rgba(239,68,68,0.2)',
-      color: 'var(--failure-text)',
-      dot: 'var(--failure)',
-    },
-    idle: {
-      bg: 'var(--surface-2)',
-      border: 'var(--border)',
-      color: 'var(--text-3)',
-      dot: 'var(--text-muted)',
-    },
-  }
   const testStyleKey = (modalTest.status === 'ok' || modalTest.status === 'fail') ? modalTest.status : 'idle'
-  const testStyles = TEST_STYLES[testStyleKey]
-
-  const testBg     = testStyles.bg
-  const testBorder = testStyles.border
-  const testColor  = testStyles.color
-  const dotBg      = testStyles.dot
+  const testCls = TEST_CLS[testStyleKey]
+  const testDotCls = TEST_DOT_CLS[testStyleKey]
 
   return (
     <>
@@ -218,23 +203,13 @@ export default function Connections() {
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 20 }}>
+        <div className="flex border-b border-border mb-5">
           {TABS.map(t => {
             const active = tab === t.id
             return (
-              <button key={t.id} onClick={() => setTab(t.id)} style={{
-                background: 'transparent', border: 'none',
-                color: active ? 'var(--accent)' : 'var(--text-3)',
-                padding: '10px 16px', fontSize: 13,
-                fontWeight: active ? 600 : 500,
-                cursor: 'pointer',
-                borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
-                marginBottom: -1,
-                display: 'flex', alignItems: 'center', gap: 8,
-                fontFamily: 'inherit',
-              }}>
+              <button key={t.id} onClick={() => setTab(t.id)} className={`bg-transparent border-none py-2.5 px-4 text-[13px] cursor-pointer -mb-px border-b-2 flex items-center gap-2 font-[inherit] ${active ? 'text-accent font-semibold border-b-accent' : 'text-text-3 font-medium border-b-transparent'}`}>
                 {t.label}
-                <span style={{ fontSize: 10.5, color: active ? 'var(--accent-h)' : 'var(--text-muted)', background: active ? 'var(--accent-soft)' : 'var(--surface-2)', padding: '1px 6px', borderRadius: 999, fontFamily: 'var(--font-mono)' }}>
+                <span className={`text-[10.5px] py-px px-1.5 rounded-full font-mono ${active ? 'text-accent-hover bg-accent-soft' : 'text-text-muted bg-surface2'}`}>
                   {t.count}
                 </span>
               </button>
@@ -244,27 +219,27 @@ export default function Connections() {
 
         {/* DB connections */}
         {tab === 'db' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="flex flex-col gap-2.5">
             {dbLoading && [0,1,2].map(i => (
-              <div key={i} className="card" style={{ padding: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div key={i} className="card">
+                <div className="flex items-center gap-3.5">
                   <Sk h={40} r={9} style={{ width: 40, flexShrink: 0 }} />
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <div className="flex-1 flex flex-col gap-1.5">
+                    <div className="flex gap-2.5 items-center">
                       <Sk h={14} style={{ width: 160 }} />
                       <Sk h={14} r={4} style={{ width: 70 }} />
                     </div>
                     <Sk h={11} style={{ width: 130 }} />
                   </div>
-                  <div style={{ display: 'flex', gap: 24, flexShrink: 0 }}>
+                  <div className="flex gap-6 shrink-0">
                     {[55, 30].map(w => (
-                      <div key={w} style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 70 }}>
+                      <div key={w} className="flex flex-col gap-1 min-w-[70px]">
                         <Sk h={10} style={{ width: 40 }} />
                         <Sk h={12} style={{ width: w }} />
                       </div>
                     ))}
                   </div>
-                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                  <div className="flex gap-1.5 shrink-0">
                     <Sk h={28} r={6} style={{ width: 62 }} />
                     <Sk h={28} r={6} style={{ width: 30 }} />
                     <Sk h={28} r={6} style={{ width: 30 }} />
@@ -287,7 +262,7 @@ export default function Connections() {
             {!dbLoading && dbConns.length === 0 && (
               <div className="card ff-empty">
                 <p className="msg">No database connections yet.</p>
-                <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: '0 0 14px' }}>Add a PostgreSQL or Oracle connection. Credentials are encrypted at rest with AES-256.</p>
+                <p className="text-[12.5px] text-text-muted m-0 mb-3.5">Add a PostgreSQL or Oracle connection. Credentials are encrypted at rest with AES-256.</p>
                 {isAdmin && <button className="btn btn-primary btn-sm" onClick={openModal}>Add connection</button>}
               </div>
             )}
@@ -296,27 +271,27 @@ export default function Connections() {
 
         {/* Email providers */}
         {tab === 'mail' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="flex flex-col gap-2.5">
             {mailLoading && [0,1,2].map(i => (
-              <div key={i} className="card" style={{ padding: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div key={i} className="card">
+                <div className="flex items-center gap-3.5">
                   <Sk h={40} r={9} style={{ width: 40, flexShrink: 0 }} />
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <div className="flex-1 flex flex-col gap-1.5">
+                    <div className="flex gap-2.5 items-center">
                       <Sk h={14} style={{ width: 160 }} />
                       <Sk h={14} r={4} style={{ width: 80 }} />
                     </div>
                     <Sk h={11} style={{ width: 130 }} />
                   </div>
-                  <div style={{ display: 'flex', gap: 24, flexShrink: 0 }}>
+                  <div className="flex gap-6 shrink-0">
                     {[70, 30].map(w => (
-                      <div key={w} style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 70 }}>
+                      <div key={w} className="flex flex-col gap-1 min-w-[70px]">
                         <Sk h={10} style={{ width: 40 }} />
                         <Sk h={12} style={{ width: w }} />
                       </div>
                     ))}
                   </div>
-                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                  <div className="flex gap-1.5 shrink-0">
                     <Sk h={28} r={6} style={{ width: 62 }} />
                     <Sk h={28} r={6} style={{ width: 30 }} />
                     <Sk h={28} r={6} style={{ width: 30 }} />
@@ -339,7 +314,7 @@ export default function Connections() {
             {!mailLoading && providers.length === 0 && (
               <div className="card ff-empty">
                 <p className="msg">No email providers configured yet.</p>
-                <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: '0 0 14px' }}>Add a Gmail, Microsoft 365, or SMTP provider. One provider can be shared across many email configs.</p>
+                <p className="text-[12.5px] text-text-muted m-0 mb-3.5">Add a Gmail, Microsoft 365, or SMTP provider. One provider can be shared across many email configs.</p>
                 {isAdmin && <button className="btn btn-primary btn-sm" onClick={openModal}>Add email provider</button>}
               </div>
             )}
@@ -349,26 +324,22 @@ export default function Connections() {
 
       {/* ── Add Connection Modal ─────────────────────────────────────────── */}
       {showModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16 }}
+        <div className="fixed inset-0 bg-[rgba(0,0,0,0.6)] flex items-center justify-center z-[100] p-4"
           role="presentation"
           onClick={e => { if (e.target === e.currentTarget) closeModal() }}
           onKeyDown={e => { if (e.key === 'Escape') closeModal() }}>
-          <div className="card" style={{ width: '100%', maxWidth: 480, maxHeight: '90vh', overflow: 'auto', padding: '24px 24px 20px' }}>
+          <div className="card w-full max-w-[480px] max-h-[90vh] overflow-auto !pt-6 !px-6 !pb-5">
 
             {/* Header + type tabs */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>{editId ? 'Edit Connection' : 'Add Connection'}</h2>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="m-0 text-[15px] font-semibold text-text-primary">{editId ? 'Edit Connection' : 'Add Connection'}</h2>
               <button className="btn btn-ghost btn-icon" onClick={closeModal}><X size={15} /></button>
             </div>
 
             {/* DB / Email toggle */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+            <div className="flex gap-2 mb-5">
               {(['db', 'mail'] as Tab[]).map(t => (
-                <button key={t} onClick={() => setTab(t)} className="btn btn-sm" style={{
-                  background: tab === t ? 'rgba(249,115,22,0.15)' : 'transparent',
-                  color: tab === t ? 'var(--accent)' : 'var(--text-3)',
-                  border: `1px solid ${tab === t ? 'rgba(249,115,22,0.4)' : 'var(--border)'}`,
-                }}>
+                <button key={t} onClick={() => setTab(t)} className={`btn btn-sm ${tab === t ? '!bg-[rgba(249,115,22,0.15)] !text-accent !border-[rgba(249,115,22,0.4)]' : '!bg-transparent !text-text-3'}`}>
                   {t === 'db' ? 'Database' : 'Email Provider'}
                 </button>
               ))}
@@ -376,7 +347,7 @@ export default function Connections() {
 
             {/* DB form */}
             {tab === 'db' && (
-              <form onSubmit={submitDb} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <form onSubmit={submitDb} className="flex flex-col gap-3.5">
                 <Field label="Name">
                   <input className="input" value={dbForm.name} onChange={e => setDbForm(f => ({ ...f, name: e.target.value }))} placeholder="Production DB" required />
                 </Field>
@@ -407,23 +378,23 @@ export default function Connections() {
                   <DbFieldsGeneric form={dbForm} setForm={setDbForm} />
                 )}
 
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-3)', cursor: 'pointer' }}>
+                <label className="flex items-center gap-2 text-[13px] text-text-3 cursor-pointer">
                   <input type="checkbox" checked={dbForm.is_default} onChange={e => setDbForm(f => ({ ...f, is_default: e.target.checked }))} />{' '}
                   Set as default connection
                 </label>
 
-                {formError && <div style={{ fontSize: 12.5, color: 'var(--failure-text)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, padding: '8px 12px' }}>{formError}</div>}
+                {formError && <div className="text-[12.5px] text-failure-text bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.2)] rounded-r-sm py-2 px-3">{formError}</div>}
 
                 {modalTest.status !== 'idle' && (
-                  <div style={{ fontSize: 12, padding: '7px 12px', borderRadius: 6, background: testBg, border: `1px solid ${testBorder}`, color: testColor }}>
+                  <div className={`text-xs py-[7px] px-3 rounded-r-sm border ${testCls}`}>
                     {modalTest.status === 'testing' ? 'Testing connection…' : modalTest.msg}
                   </div>
                 )}
 
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+                <div className="flex gap-2 justify-end mt-1">
                   <button type="button" className="btn btn-sm" onClick={closeModal}>Cancel</button>
                   <button type="button" className="btn btn-sm" onClick={runModalTest} disabled={modalTest.status === 'testing'}>
-                    {modalTest.status === 'testing' ? <Spinner size={11} /> : <span style={{ width: 6, height: 6, borderRadius: '50%', background: dotBg }} />}
+                    {modalTest.status === 'testing' ? <Spinner size={11} /> : <span className={`w-1.5 h-1.5 rounded-full ${testDotCls}`} />}
                     Test
                   </button>
                   <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>
@@ -435,7 +406,7 @@ export default function Connections() {
 
             {/* Email provider form */}
             {tab === 'mail' && (
-              <form onSubmit={submitMail} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <form onSubmit={submitMail} className="flex flex-col gap-3.5">
                 <Field label="Name">
                   <input className="input" value={mailForm.name} onChange={e => setMailForm(f => ({ ...f, name: e.target.value }))} placeholder="Company Gmail" required />
                 </Field>
@@ -461,14 +432,14 @@ export default function Connections() {
                 {mailForm.provider_type === 'ses' && <MailFieldsSes form={mailForm} setForm={setMailForm} />}
                 {mailForm.provider_type === 'mailgun' && <MailFieldsMailgun form={mailForm} setForm={setMailForm} />}
 
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-3)', cursor: 'pointer' }}>
+                <label className="flex items-center gap-2 text-[13px] text-text-3 cursor-pointer">
                   <input type="checkbox" checked={mailForm.is_default} onChange={e => setMailForm(f => ({ ...f, is_default: e.target.checked }))} />{' '}
                   Set as default provider
                 </label>
 
-                {formError && <div style={{ fontSize: 12.5, color: 'var(--failure-text)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, padding: '8px 12px' }}>{formError}</div>}
+                {formError && <div className="text-[12.5px] text-failure-text bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.2)] rounded-r-sm py-2 px-3">{formError}</div>}
 
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+                <div className="flex gap-2 justify-end mt-1">
                   <button type="button" className="btn btn-sm" onClick={closeModal}>Cancel</button>
                   <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>
                     {submitting ? <Spinner size={11} /> : null} {editId ? 'Update Provider' : 'Save Provider'}

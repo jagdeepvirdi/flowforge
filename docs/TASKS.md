@@ -790,9 +790,49 @@ single session has to touch the whole frontend at once.*
 
 ## 12.8 `pages/Connections.tsx` + `pages/EmailEdit.tsx` (55 + 53 = 108 occurrences)
 
-- [ ] `Connections.tsx`: list + add/edit for at least 2 DB types and 2 provider types (their sub-forms
+- [x] `Connections.tsx`: list + add/edit for at least 2 DB types and 2 provider types (their sub-forms
   were converted in 12.3 — don't reconvert). `EmailEdit.tsx`: new + edit, recipient group picker,
   preview modal.
+  **Done 2026-07-08**: converted both files. Notable finds:
+  - `Connections.tsx`'s `TEST_STYLES` object (bg/border/color/dot CSS-var strings keyed by
+    `ok`/`fail`/`idle`) fed inline `style` the same way chunk 12.5's `STATUS_COLOR` did — replaced with
+    `TEST_CLS`/`TEST_DOT_CLS` Tailwind-class lookup tables (same fix, same reasoning: a fixed 3-state
+    enum isn't a genuine per-instance dynamic value). Same treatment for the modal's Database/Email
+    Provider toggle buttons and the page's own Databases/Email Providers tab row.
+  - The `<div className="card" style={{ padding: 16 }}>` skeleton-row wrapper (used twice, once per
+    tab's loading state) turned out to be fully redundant — `.card`'s own CSS already sets
+    `padding: 16px` — so the override was dropped entirely rather than converted, same category as
+    chunk 12.2/12.3's dead `height: 34` finds.
+  - `EmailEdit.tsx`'s `ChipInput` (used for To/CC/BCC addresses) was already written in Tailwind
+    (pre-dating Phase 12) but referenced `className="badge-muted"` for each address pill — a class
+    that is **not defined anywhere in `index.css`**, so every pill rendered completely unstyled (no
+    background, border, or padding — just bare text). Replaced with the existing `.chip` class (same
+    "removable pill" semantics already used elsewhere, e.g. `RunDetail.tsx`'s email-recipient chips)
+    and added the missing `className="x"` to the remove button so it also picks up `.chip .x`'s
+    hover-color treatment. `Recipients.tsx` has an identical copy of `ChipInput` with the same dead
+    class — left as-is for its own chunk (12.11), noted here so it isn't missed.
+  - The body-template and drive-share-message textareas needed care distinguishing real conflicts from
+    false alarms: `mono-input` already sets `font-size: 12.5px` (unlayered), which happens to exactly
+    match the body textarea's intended size — so no `!` was needed there, but the drive-message
+    textarea wanted `11.5px`, a real mismatch, so that one got `!text-[11.5px]`. Neither textarea
+    needed `!` for its `min-h-[...]`/`resize-y` despite `.input` setting a fixed `height`/no explicit
+    `resize` — `.textarea`'s `resize: none` only matches elements with the literal class `textarea`
+    (neither element has it), and `min-height` naturally wins over a smaller `height` per the CSS box
+    model regardless of cascade layer, so both apply correctly without an override marker. Verified via
+    `getComputedStyle`, not just this reasoning: computed height 420px, font-size 12.5px/11.5px,
+    resize: vertical on both.
+  - `PipelineEdit.tsx` (not yet converted, chunk 12.9) already had one line using `accent-[var(--accent)]`
+    for a checkbox — reused that exact convention for `EmailEdit.tsx`'s attachment-size range slider
+    instead of introducing a different pattern.
+  Verified: `tsc --noEmit` clean, `eslint` clean (same pre-existing unrelated `watch()` warning),
+  `npx vitest run` — 97/97 passing, `npm run build` succeeds. Live-verified via the same dev stack
+  (Playwright, headless): Connections' Databases and Email Providers tabs; the Add Connection modal
+  cycled through both Database/Email Provider toggle states, selected Snowflake to check its
+  sub-fields, and ran a real Test that failed (`snowflake-connector-python` not installed) — confirming
+  the red fail-state banner and red status dot render correctly, not just the default idle state. For
+  `EmailEdit.tsx`: the full new-config form (all cards, the attachment-size slider, the now-tall body
+  textarea, the variable-reference chips) and added two real To-address chips to confirm the
+  `badge-muted` → `.chip` fix actually renders visible pills. Zero console/React errors throughout.
 
 ## 12.9 `pages/Projects.tsx` + `pages/RunHistory.tsx` (53 + 51 = 104 occurrences)
 

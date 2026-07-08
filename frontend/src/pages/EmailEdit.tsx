@@ -20,11 +20,11 @@ function ChipInput({ id, values, onChange, placeholder }: { id?: string; values:
     setInput('')
   }
   return (
-    <div className="input flex flex-wrap gap-1 min-h-9 h-auto py-1.5">
+    <div className="input flex flex-wrap gap-1 min-h-9 !h-auto !py-1.5">
       {values.map(v => (
-        <span key={v} className="badge-muted flex items-center gap-1">
+        <span key={v} className="chip">
           {v}
-          <button type="button" onClick={() => onChange(values.filter(x => x !== v))}><X size={10}/></button>
+          <button type="button" className="x" onClick={() => onChange(values.filter(x => x !== v))}><X size={10}/></button>
         </span>
       ))}
       <input
@@ -168,10 +168,10 @@ export default function EmailEdit() {
     <>
       <TopBar crumbs={crumbs} />
       <div className="scroll">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 16, alignItems: 'start' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="grid grid-cols-[1fr_360px] gap-4 items-start">
+          <div className="flex flex-col gap-4">
             {[['Details', 4], ['Recipients', 2], ['Body template', 1]].map(([label, rows]) => (
-              <div key={label as string} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div key={label as string} className="card flex flex-col gap-3">
                 <Sk h={13} style={{ width: 70 }} />
                 {Array.from({ length: rows as number }, (_, i) => i).map(n => (
                   <div key={'sk-row-' + n} className="field">
@@ -182,8 +182,8 @@ export default function EmailEdit() {
               </div>
             ))}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="flex flex-col gap-4">
+            <div className="card flex flex-col gap-3">
               <Sk h={13} style={{ width: 120 }} />
               {[0,1,2].map(i => (
                 <div key={i} className="field">
@@ -203,7 +203,7 @@ export default function EmailEdit() {
       <TopBar
         crumbs={crumbs}
         actions={
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="flex gap-2">
             <Link to="/emails" className="btn btn-sm"><ArrowLeft size={12} /> Back</Link>
             {!isNew && (
               <button className="btn btn-sm" type="button" onClick={handlePreview} disabled={previewing} title="Preview rendered email">
@@ -219,25 +219,25 @@ export default function EmailEdit() {
 
       <div className="scroll">
         {error && (
-          <div style={{ marginBottom: 14, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 7, fontSize: 12.5, color: 'var(--failure-text)' }}>{error}</div>
+          <div className="mb-3.5 py-2 px-3 bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.2)] rounded-[7px] text-[12.5px] text-failure-text">{error}</div>
         )}
         {previewError && (
-          <div style={{ marginBottom: 14, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 7, fontSize: 12.5, color: 'var(--failure-text)' }}>Preview: {previewError}</div>
+          <div className="mb-3.5 py-2 px-3 bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.2)] rounded-[7px] text-[12.5px] text-failure-text">Preview: {previewError}</div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 16, alignItems: 'start' }}>
+        <div className="grid grid-cols-[1fr_360px] gap-4 items-start">
 
           {/* Left: main form */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="flex flex-col gap-4">
 
             {/* Details */}
-            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Details</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="card flex flex-col gap-3">
+              <div className="text-xs font-semibold text-text-primary">Details</div>
+              <div className="grid grid-cols-2 gap-3">
                 <div className="field">
                   <label htmlFor="ec-name">Name *</label>
                   <input id="ec-name" className="input" {...register('name')} />
-                  {errors.name && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{errors.name.message}</span>}
+                  {errors.name && <span className="text-[11.5px] text-failure">{errors.name.message}</span>}
                 </div>
                 <div className="field">
                   <label htmlFor="ec-provider">Provider</label>
@@ -247,7 +247,7 @@ export default function EmailEdit() {
                   </select>
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="grid grid-cols-2 gap-3">
                 <div className="field">
                   <label htmlFor="ec-from-name">From name</label>
                   <input id="ec-from-name" className="input" {...register('fromName')} />
@@ -258,9 +258,9 @@ export default function EmailEdit() {
                 </div>
               </div>
               <div className="field">
-                <label htmlFor="ec-subject" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Subject<FieldTooltip field="variables" /></label>
+                <label htmlFor="ec-subject" className="flex items-center gap-1">Subject<FieldTooltip field="variables" /></label>
                 <input id="ec-subject" className="input" {...register('subject')} placeholder="Monthly Report — {{ current_month }}" />
-                {errors.subject && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{errors.subject.message}</span>}
+                {errors.subject && <span className="text-[11.5px] text-failure">{errors.subject.message}</span>}
               </div>
               <div className="field">
                 <label htmlFor="ec-header-text">Header text</label>
@@ -269,10 +269,10 @@ export default function EmailEdit() {
             </div>
 
             {/* Recipients */}
-            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Recipients</div>
+            <div className="card flex flex-col gap-3">
+              <div className="text-xs font-semibold text-text-primary">Recipients</div>
               <div className="field">
-                <label htmlFor="email-recipient-group">Recipient group <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(overrides To addresses)</span></label>
+                <label htmlFor="email-recipient-group">Recipient group <span className="text-text-muted font-normal">(overrides To addresses)</span></label>
                 <select id="email-recipient-group" className="input" {...register('groupId')}>
                   <option value="">Use direct addresses</option>
                   {groups.map(g => <option key={g.id} value={g.id}>{g.name} ({g.addresses.length} recipients)</option>)}
@@ -280,7 +280,7 @@ export default function EmailEdit() {
               </div>
               {!groupId && (
                 <div className="field">
-                  <label htmlFor="email-to-addresses">To addresses <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(Enter or comma to add)</span></label>
+                  <label htmlFor="email-to-addresses">To addresses <span className="text-text-muted font-normal">(Enter or comma to add)</span></label>
                   <Controller
                     control={control}
                     name="to"
@@ -288,7 +288,7 @@ export default function EmailEdit() {
                       <ChipInput id="email-to-addresses" values={field.value} onChange={field.onChange} placeholder="recipient@example.com" />
                     )}
                   />
-                  {errors.to && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{errors.to.message}</span>}
+                  {errors.to && <span className="text-[11.5px] text-failure">{errors.to.message}</span>}
                 </div>
               )}
               <div className="field">
@@ -310,65 +310,63 @@ export default function EmailEdit() {
             </div>
 
             {/* Body */}
-            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>Body template <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }}>HTML + Jinja2</span><FieldTooltip field="body_template" /></div>
+            <div className="card flex flex-col gap-3">
+              <div className="text-xs font-semibold text-text-primary flex items-center gap-1.5">Body template <span className="text-text-muted font-normal font-mono text-[11px]">HTML + Jinja2</span><FieldTooltip field="body_template" /></div>
               <textarea
-                className="input mono-input"
+                className="input mono-input resize-y text-[12.5px] leading-[1.6] min-h-[420px]"
                 rows={28}
                 {...register('body')}
                 placeholder={"<p>Hi {{ name }},</p>\n<p>Please find the attached report.</p>"}
-                style={{ resize: 'vertical', fontSize: 12.5, lineHeight: 1.6, minHeight: 420 }}
               />
             </div>
           </div>
 
           {/* Right rail */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="flex flex-col gap-4">
 
             {/* Smart attachment */}
-            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Smart Attachments</div>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
+            <div className="card flex flex-col gap-3">
+              <div className="text-xs font-semibold text-text-primary">Smart Attachments</div>
+              <p className="text-xs text-text-muted m-0 leading-[1.5]">
                 Files over the size limit are uploaded to Google Drive and a link is sent instead.
               </p>
               <div className="field">
-                <label style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Max attachment size<FieldTooltip field="attachment_max_mb" /></span>
-                  <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{maxMb} MB</span>
+                <label className="flex justify-between">
+                  <span className="flex items-center gap-1">Max attachment size<FieldTooltip field="attachment_max_mb" /></span>
+                  <span className="font-mono text-accent">{maxMb} MB</span>
                 </label>
                 <input
                   type="range" min={1} max={50}
                   {...register('maxMb', { valueAsNumber: true })}
-                  style={{ width: '100%', accentColor: 'var(--accent)', cursor: 'pointer' }}
+                  className="w-full accent-[var(--accent)] cursor-pointer"
                 />
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-dim)', marginTop: 2 }}>
+                <div className="flex justify-between text-[10px] text-text-dim mt-0.5">
                   <span>1 MB</span><span>50 MB</span>
                 </div>
               </div>
               <div className="field">
-                <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Google Drive folder ID<FieldTooltip field="drive_folder_id" /></label>
+                <label className="flex items-center gap-1">Google Drive folder ID<FieldTooltip field="drive_folder_id" /></label>
                 <input className="input" {...register('folderId')} placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs" />
               </div>
               <div className="field">
                 <label htmlFor="ec-drive-msg">Drive share message template</label>
                 <textarea
                   id="ec-drive-msg"
-                  className="input mono-input"
+                  className="input mono-input resize-y !text-[11.5px]"
                   rows={5}
                   {...register('driveMsg')}
                   placeholder={"{% for link in drive_links %}\n• {{ link.filename }} — {{ link.url }}\n{% endfor %}"}
-                  style={{ resize: 'vertical', fontSize: 11.5 }}
                 />
               </div>
             </div>
 
             {/* Variable reference */}
-            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Available variables</div>
-              <p style={{ fontSize: 11.5, color: 'var(--text-muted)', margin: 0 }}>Use in subject, header text, and body template.</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div className="card flex flex-col gap-2.5">
+              <div className="text-xs font-semibold text-text-primary">Available variables</div>
+              <p className="text-[11.5px] text-text-muted m-0">Use in subject, header text, and body template.</p>
+              <div className="flex flex-col gap-1">
                 {TEMPLATE_VARS.map(v => (
-                  <code key={v} className="mono" style={{ fontSize: 11, color: 'var(--text-3)', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 4, padding: '3px 8px', display: 'block' }}>
+                  <code key={v} className="mono text-[11px] text-text-3 bg-surface2 border border-border rounded py-[3px] px-2 block">
                     {v}
                   </code>
                 ))}
@@ -383,24 +381,24 @@ export default function EmailEdit() {
           role="button"
           tabIndex={0}
           aria-label="Close preview"
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+          className="fixed inset-0 bg-[rgba(0,0,0,0.65)] z-[1000] flex items-center justify-center p-6"
           onClick={e => { if (e.target === e.currentTarget) setPreviewOpen(false) }}
           onKeyDown={e => { if (e.key === 'Escape') setPreviewOpen(false) }}
         >
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, width: '100%', maxWidth: 760, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Email Preview</span>
-                <span style={{ fontSize: 11.5, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>Subject: {previewData.subject}</span>
+          <div className="bg-surface border border-border rounded-[10px] w-full max-w-[760px] max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between py-3 px-4 border-b border-border shrink-0">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs font-semibold text-text-primary">Email Preview</span>
+                <span className="text-[11.5px] text-text-muted font-mono">Subject: {previewData.subject}</span>
               </div>
-              <button className="btn btn-sm" onClick={() => setPreviewOpen(false)} style={{ padding: '4px 8px' }}>
+              <button className="btn btn-sm !py-1 !px-2" onClick={() => setPreviewOpen(false)}>
                 <X size={12} />
               </button>
             </div>
             <iframe
               title="Email preview"
               srcDoc={previewData.html}
-              style={{ flex: 1, border: 'none', background: '#ffffff', minHeight: 400 }}
+              className="flex-1 border-none bg-white min-h-[400px]"
               sandbox="allow-same-origin"
             />
           </div>
