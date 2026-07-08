@@ -11,14 +11,14 @@ export default function DbQueryForm({ cfg, setConfig, step, dbConnections }: Ste
         </select>
       </Field>
       <Field label="SQL Query">
-        <textarea className="input mono-input !h-auto !resize-none" rows={5} value={String(cfg.query ?? '')} onChange={e => setConfig('query', e.target.value)} placeholder="SELECT ..." />
+        <textarea className="input mono-input h-auto resize-none" rows={5} value={String(cfg.query ?? '')} onChange={e => setConfig('query', e.target.value)} placeholder="SELECT ..." />
       </Field>
       <div className="grid grid-cols-[1fr_auto] gap-2.5">
         <Field label="Output table (optional)">
           <input className="input mono-input" value={String(cfg.output_table ?? '')} onChange={e => setConfig('output_table', e.target.value)} placeholder="schema.table_name" />
         </Field>
         <Field label="Mode">
-          <select className="input !w-[140px]" value={String(cfg.mode ?? 'replace')} onChange={e => setConfig('mode', e.target.value)}>
+          <select className="input w-[140px]" value={String(cfg.mode ?? 'replace')} onChange={e => setConfig('mode', e.target.value)}>
             <option value="replace">Replace</option>
             <option value="append">Append</option>
             <option value="truncate_insert">Truncate + Insert</option>
@@ -43,7 +43,7 @@ export default function DbQueryForm({ cfg, setConfig, step, dbConnections }: Ste
         <div className="pl-[22px] flex flex-col gap-1.5">
           <Field label="Row limit">
             <input
-              className="input !w-[120px]"
+              className="input w-[120px]"
               type="number"
               min={1}
               max={1000}

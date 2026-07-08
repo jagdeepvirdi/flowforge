@@ -14,7 +14,7 @@ export default function DbProcedureForm({ cfg, setConfig, dbConnections }: StepF
         <input className="input mono-input" value={String(cfg.procedure ?? '')} onChange={e => setConfig('procedure', e.target.value)} placeholder="pkg.procedure_name" />
       </Field>
       <Field label="Parameters (JSON object)">
-        <textarea className="input mono-input !h-auto !resize-none" rows={3} value={JSON.stringify(cfg.params ?? {}, null, 2)}
+        <textarea className="input mono-input h-auto resize-none" rows={3} value={JSON.stringify(cfg.params ?? {}, null, 2)}
           onChange={e => { try { setConfig('params', JSON.parse(e.target.value)) } catch { /* invalid JSON while typing — ignore */ } }}
         />
       </Field>

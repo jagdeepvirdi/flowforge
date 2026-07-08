@@ -18,7 +18,7 @@ function ChipInput({ values, onChange, id }: { values: string[]; onChange: (v: s
     setInput('')
   }
   return (
-    <div className="input flex flex-wrap gap-1 min-h-9 !h-auto !py-1.5">
+    <div className="input flex flex-wrap gap-1 min-h-9 h-auto py-1.5">
       {values.map(v => (
         <span key={v} className="chip">
           {v}<button className="x" onClick={() => onChange(values.filter(x => x !== v))}><X size={10}/></button>
@@ -45,11 +45,11 @@ function GroupRow({ group, onSaved, onDelete, canEdit }: { group: RecipientGroup
   if (!editing) {
     return (
       <tr>
-        <td className="font-medium !text-text-primary">{group.name}</td>
-        <td className="!text-text-3 text-xs">{group.description}</td>
+        <td className="font-medium text-text-primary">{group.name}</td>
+        <td className="text-text-3 text-xs">{group.description}</td>
         <td>
           <div className="flex flex-wrap gap-1">
-            {group.addresses.map(a => <span key={a} className="chip !h-5 !text-[11px]">{a}</span>)}
+            {group.addresses.map(a => <span key={a} className="chip h-5 text-[11px]">{a}</span>)}
           </div>
         </td>
         {canEdit && (
@@ -66,12 +66,12 @@ function GroupRow({ group, onSaved, onDelete, canEdit }: { group: RecipientGroup
 
   return (
     <tr>
-      <td><input className="input !h-8" value={name} onChange={e => setName(e.target.value)} /></td>
-      <td><input className="input !h-8" value={desc} onChange={e => setDesc(e.target.value)} /></td>
+      <td><input className="input h-8" value={name} onChange={e => setName(e.target.value)} /></td>
+      <td><input className="input h-8" value={desc} onChange={e => setDesc(e.target.value)} /></td>
       <td><ChipInput values={addresses} onChange={setAddresses} /></td>
       <td>
         <div className="flex gap-1 justify-end">
-          <button className="btn btn-sm btn-ghost btn-icon !text-success-text" onClick={() => save()} disabled={isPending}>
+          <button className="btn btn-sm btn-ghost btn-icon text-success-text" onClick={() => save()} disabled={isPending}>
             {isPending ? <Spinner size={12} /> : <Check size={13} />}
           </button>
           <button className="btn btn-sm btn-ghost btn-icon" onClick={() => setEditing(false)}><X size={13} /></button>
@@ -111,7 +111,7 @@ export default function Recipients() {
             <Sk h={14} style={{ width: 70 }} />
           </div>
         </div>
-        <div className="card !p-0 overflow-hidden">
+        <div className="card p-0 overflow-hidden">
           <table className="tbl">
             <thead>
               <tr>
@@ -154,7 +154,7 @@ export default function Recipients() {
         </div>
 
         {showNew && (
-          <div className="card mb-4 flex flex-col gap-3 !border-[rgba(249,115,22,0.3)]">
+          <div className="card mb-4 flex flex-col gap-3 border-[rgba(249,115,22,0.3)]">
             <div className="text-[13px] font-semibold text-text-primary">New Group</div>
             <div className="grid grid-cols-2 gap-3">
               <div className="field"><label htmlFor="rg-name">Name *</label><input id="rg-name" className="input" value={newName} onChange={e => setNewName(e.target.value)} /></div>
@@ -170,7 +170,7 @@ export default function Recipients() {
           </div>
         )}
 
-        <div className="card !p-0 overflow-hidden">
+        <div className="card p-0 overflow-hidden">
           <table className="tbl">
             <thead>
               <tr>
@@ -181,7 +181,7 @@ export default function Recipients() {
               </tr>
             </thead>
             <tbody>
-              {groups.length === 0 && <tr><td colSpan={4} className="text-center !py-10 !px-0 !text-text-muted">No recipient groups yet. Create a named list of addresses — "Finance Team", "Management" — and assign it to an email config.</td></tr>}
+              {groups.length === 0 && <tr><td colSpan={4} className="text-center py-10 px-0 text-text-muted">No recipient groups yet. Create a named list of addresses — "Finance Team", "Management" — and assign it to an email config.</td></tr>}
               {groups.map(g => <GroupRow key={g.id} group={g} canEdit={canEdit} onSaved={() => qc.invalidateQueries({ queryKey: ['recipient-groups'] })} onDelete={() => remove(g.id)} />)}
             </tbody>
           </table>

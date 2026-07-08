@@ -75,7 +75,7 @@ export default function CronBuilder({ defaultValue, onChange }: { defaultValue: 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2 flex-wrap">
-        <select className="input !h-[34px] !w-40" value={freq} onChange={e => setFreq(e.target.value as Freq)}>
+        <select className="input h-[34px] w-40" value={freq} onChange={e => setFreq(e.target.value as Freq)}>
           <option value="none">No schedule</option>
           <option value="minutely">Every N minutes</option>
           <option value="hourly">Hourly</option>
@@ -87,39 +87,39 @@ export default function CronBuilder({ defaultValue, onChange }: { defaultValue: 
 
         {freq === 'minutely' && (<>
           <span className="text-[12.5px] text-[var(--text-3)]">every</span>
-          <input className="input !w-16 !h-[34px]" type="number" min={1} max={59} value={state.n} onChange={e => upd('n', +e.target.value)} />
+          <input className="input w-16 h-[34px]" type="number" min={1} max={59} value={state.n} onChange={e => upd('n', +e.target.value)} />
           <span className="text-[12.5px] text-[var(--text-3)]">minutes</span>
         </>)}
 
         {freq === 'hourly' && (<>
           <span className="text-[12.5px] text-[var(--text-3)]">at</span>
           <span className="text-[12.5px] text-[var(--text-3)] font-mono">:</span>
-          <input className="input !w-16 !h-[34px]" type="number" min={0} max={59} value={state.minute} onChange={e => upd('minute', +e.target.value)} title="Minute past the hour (0–59)" />
+          <input className="input w-16 h-[34px]" type="number" min={0} max={59} value={state.minute} onChange={e => upd('minute', +e.target.value)} title="Minute past the hour (0–59)" />
           <span className="text-[12.5px] text-[var(--text-3)]">each hour</span>
         </>)}
 
         {(freq === 'daily' || freq === 'weekly' || freq === 'monthly') && (<>
           <span className="text-[12.5px] text-[var(--text-3)]">at</span>
-          <select className="input !h-[34px] !w-20" value={state.hour} onChange={e => upd('hour', +e.target.value)}>
+          <select className="input h-[34px] w-20" value={state.hour} onChange={e => upd('hour', +e.target.value)}>
             {Array.from({length: 24}, (_, i) => i).map(h => <option key={h} value={h}>{String(h).padStart(2,'0')}:00</option>)}
           </select>
-          <input className="input !w-14 !h-[34px]" type="number" min={0} max={59} value={state.minute} onChange={e => upd('minute', +e.target.value)} title="Minute (0–59)" />
+          <input className="input w-14 h-[34px]" type="number" min={0} max={59} value={state.minute} onChange={e => upd('minute', +e.target.value)} title="Minute (0–59)" />
         </>)}
 
         {freq === 'weekly' && (<>
           <span className="text-[12.5px] text-[var(--text-3)]">on</span>
-          <select className="input !h-[34px] !w-[110px]" value={state.weekday} onChange={e => upd('weekday', +e.target.value)}>
+          <select className="input h-[34px] w-[110px]" value={state.weekday} onChange={e => upd('weekday', +e.target.value)}>
             {DAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}
           </select>
         </>)}
 
         {freq === 'monthly' && (<>
           <span className="text-[12.5px] text-[var(--text-3)]">on day</span>
-          <input className="input !w-16 !h-[34px]" type="number" min={1} max={31} value={state.monthDay} onChange={e => upd('monthDay', +e.target.value)} />
+          <input className="input w-16 h-[34px]" type="number" min={1} max={31} value={state.monthDay} onChange={e => upd('monthDay', +e.target.value)} />
         </>)}
 
         {freq === 'custom' && (
-          <input className="input mono-input !w-40 !h-[34px]" value={rawCron} onChange={e => setRawCron(e.target.value)} placeholder="0 8 * * 1-5" />
+          <input className="input mono-input w-40 h-[34px]" value={rawCron} onChange={e => setRawCron(e.target.value)} placeholder="0 8 * * 1-5" />
         )}
       </div>
 

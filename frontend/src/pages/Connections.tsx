@@ -328,7 +328,7 @@ export default function Connections() {
           role="presentation"
           onClick={e => { if (e.target === e.currentTarget) closeModal() }}
           onKeyDown={e => { if (e.key === 'Escape') closeModal() }}>
-          <div className="card w-full max-w-[480px] max-h-[90vh] overflow-auto !pt-6 !px-6 !pb-5">
+          <div className="card w-full max-w-[480px] max-h-[90vh] overflow-auto pt-6 px-6 pb-5">
 
             {/* Header + type tabs */}
             <div className="flex items-center justify-between mb-5">
@@ -339,7 +339,7 @@ export default function Connections() {
             {/* DB / Email toggle */}
             <div className="flex gap-2 mb-5">
               {(['db', 'mail'] as Tab[]).map(t => (
-                <button key={t} onClick={() => setTab(t)} className={`btn btn-sm ${tab === t ? '!bg-[rgba(249,115,22,0.15)] !text-accent !border-[rgba(249,115,22,0.4)]' : '!bg-transparent !text-text-3'}`}>
+                <button key={t} onClick={() => setTab(t)} className={`btn btn-sm ${tab === t ? 'bg-[rgba(249,115,22,0.15)] text-accent border-[rgba(249,115,22,0.4)]' : 'bg-transparent text-text-3'}`}>
                   {t === 'db' ? 'Database' : 'Email Provider'}
                 </button>
               ))}

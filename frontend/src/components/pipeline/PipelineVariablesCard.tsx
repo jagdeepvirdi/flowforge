@@ -44,13 +44,13 @@ export default function PipelineVariablesCard({ vars, setVars }: {
           {vars.map((v, i) => ({ v, i })).map(({ v, i }) => (
             <div key={v.key + ':' + i} className="grid grid-cols-[1fr_1fr_auto_auto] gap-2 items-center">
               <input
-                className="input mono-input !text-xs !h-[30px]"
+                className="input mono-input text-xs h-[30px]"
                 placeholder="currency"
                 value={v.key}
                 onChange={e => updateVar(i, { key: e.target.value })}
               />
               <input
-                className="input !text-xs !h-[30px]"
+                className="input text-xs h-[30px]"
                 placeholder={v.is_secret ? '(unchanged)' : 'USD'}
                 value={v.value}
                 type={v.is_secret ? 'password' : 'text'}

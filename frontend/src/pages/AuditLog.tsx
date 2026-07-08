@@ -64,14 +64,14 @@ export default function AuditLog() {
           </div>
         </div>
 
-        <div className="card !p-0 overflow-hidden">
+        <div className="card p-0 overflow-hidden">
           {error ? (
             <div className="p-5 text-failure text-center text-[13px]">Failed to load audit logs.</div>
           ) : isLoading ? (
             <table className="tbl">
               <thead>
                 <tr>
-                  <th className="!pl-5 w-[160px]"><Clock size={11} className="inline mr-1" /> Timestamp</th>
+                  <th className="pl-5 w-[160px]"><Clock size={11} className="inline mr-1" /> Timestamp</th>
                   <th className="w-[140px]"><Hash size={11} className="inline mr-1" /> Action</th>
                   <th className="w-[120px]"><User size={11} className="inline mr-1" /> User</th>
                   <th className="w-[140px]"><Server size={11} className="inline mr-1" /> IP Address</th>
@@ -81,7 +81,7 @@ export default function AuditLog() {
               <tbody>
                 {Array.from({ length: 10 }, (_, i) => i).map(n => (
                   <tr key={'sk-' + n}>
-                    <td className="!pl-5"><Sk h={12} style={{ width: 130 }} /></td>
+                    <td className="pl-5"><Sk h={12} style={{ width: 130 }} /></td>
                     <td><Sk h={18} r={4} style={{ width: 90 }} /></td>
                     <td><Sk h={12} style={{ width: 80 }} /></td>
                     <td><Sk h={12} style={{ width: 100 }} /></td>
@@ -96,7 +96,7 @@ export default function AuditLog() {
             <table className="tbl">
               <thead>
                 <tr>
-                  <th className="!pl-5 w-[160px]"><Clock size={11} className="inline mr-1" /> Timestamp</th>
+                  <th className="pl-5 w-[160px]"><Clock size={11} className="inline mr-1" /> Timestamp</th>
                   <th className="w-[140px]"><Hash size={11} className="inline mr-1" /> Action</th>
                   <th className="w-[120px]"><User size={11} className="inline mr-1" /> User</th>
                   <th className="w-[140px]"><Server size={11} className="inline mr-1" /> IP Address</th>
@@ -108,15 +108,15 @@ export default function AuditLog() {
                   const ts = log.timestamp ? new Date(log.timestamp).toLocaleString() : 'N/A'
                   return (
                     <tr key={log.id}>
-                      <td className="mono !pl-5 text-[11.5px]">{ts}</td>
+                      <td className="mono pl-5 text-[11.5px]">{ts}</td>
                       <td>
                         <span className="mono bg-surface2 py-0.5 px-1.5 rounded text-[10.5px] font-semibold text-text-2">
                           {log.action}
                         </span>
                       </td>
                       <td className="font-medium">{log.username}</td>
-                      <td className="mono text-[11.5px] !text-text-muted">{log.ip_address || '—'}</td>
-                      <td className="mono text-[11px] !text-text-3 break-all">
+                      <td className="mono text-[11.5px] text-text-muted">{log.ip_address || '—'}</td>
+                      <td className="mono text-[11px] text-text-3 break-all">
                         {Object.keys(log.details).length > 0 ? JSON.stringify(log.details) : ''}
                       </td>
                     </tr>

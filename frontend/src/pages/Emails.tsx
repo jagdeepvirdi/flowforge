@@ -35,7 +35,7 @@ export default function Emails() {
             <Sk h={14} style={{ width: 80 }} />
           </div>
         </div>
-        <div className="card !p-0 overflow-hidden">
+        <div className="card p-0 overflow-hidden">
           <table className="tbl">
             <thead>
               <tr>
@@ -89,7 +89,7 @@ export default function Emails() {
             </div>
           </div>
         ) : (
-          <div className="card !p-0 overflow-hidden">
+          <div className="card p-0 overflow-hidden">
             <table className="tbl">
               <thead>
                 <tr>
@@ -105,14 +105,14 @@ export default function Emails() {
                   <tr key={c.id}>
                     <td>
                       <div className="font-medium text-text-primary">
-                        <Link to={`/emails/${c.id}/edit`} className="text-text-primary no-underline hover:!text-accent-text">
+                        <Link to={`/emails/${c.id}/edit`} className="text-text-primary no-underline hover:text-accent-text">
                           {c.name}
                         </Link>
                       </div>
                     </td>
-                    <td className="!text-text-3 text-xs">{providerName(c.provider_id)}</td>
+                    <td className="text-text-3 text-xs">{providerName(c.provider_id)}</td>
                     <td className="mono text-xs max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap">{c.subject}</td>
-                    <td className="!text-text-3 text-xs">{c.attachment_max_mb}MB</td>
+                    <td className="text-text-3 text-xs">{c.attachment_max_mb}MB</td>
                     {canEdit && (
                       <td>
                         <div className="flex gap-1 justify-end">

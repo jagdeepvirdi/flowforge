@@ -115,7 +115,7 @@ export default function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnect
           </Field>
           <Field label="SQL Query">
             <textarea
-              className="input mono-input !h-auto !resize-none"
+              className="input mono-input h-auto resize-none"
               rows={5}
               value={String(src.query ?? '')}
               onChange={e => setSrc('query', e.target.value)}
@@ -151,7 +151,7 @@ export default function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnect
           </Field>
           <Field label="Mode">
             <select
-              className="input !w-[120px]"
+              className="input w-[120px]"
               value={String(cfg.mode ?? 'replace')}
               onChange={e => setConfig('mode', e.target.value)}
             >
@@ -193,7 +193,7 @@ export default function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnect
         <div className="flex flex-col gap-2.5 pl-3 border-l-2 border-border">
           <Field label="Chunk size (rows per batch)">
             <input
-              className="input !w-[120px]"
+              className="input w-[120px]"
               type="number"
               min={1}
               max={10000}
@@ -206,7 +206,7 @@ export default function DataLoadForm({ cfg, setConfig, allSteps, step, dbConnect
           </Field>
           <Field label="Column map (JSON) — optional">
             <textarea
-              className="input mono-input !h-auto !resize-none !text-xs"
+              className="input mono-input h-auto resize-none text-xs"
               rows={4}
               value={columnMapRaw}
               onChange={e => {

@@ -38,7 +38,7 @@ export default function Reports() {
             <Sk h={14} style={{ width: 110 }} />
           </div>
         </div>
-        <div className="card !p-0 overflow-hidden">
+        <div className="card p-0 overflow-hidden">
           <table className="tbl">
             <thead>
               <tr>
@@ -87,7 +87,7 @@ export default function Reports() {
             {canEdit && <Link to="/reports/new" className="btn btn-primary">Create first report config</Link>}
           </div>
         ) : (
-          <div className="card !p-0 overflow-hidden">
+          <div className="card p-0 overflow-hidden">
             <table className="tbl">
               <thead>
                 <tr>
@@ -104,14 +104,14 @@ export default function Reports() {
                     <tr key={c.id}>
                       <td>
                         <div className="font-medium text-text-primary">
-                          <Link to={`/reports/${c.id}/edit`} className="text-text-primary no-underline hover:!text-accent-text">
+                          <Link to={`/reports/${c.id}/edit`} className="text-text-primary no-underline hover:text-accent-text">
                             {c.name}
                           </Link>
                         </div>
                         {c.description && <div className="text-[11.5px] text-text-muted mt-0.5">{c.description}</div>}
                       </td>
                       <td><span className={`tbadge ${m.cls}`}>{c.format.toUpperCase()}</span></td>
-                      <td className="mono text-[11.5px] !text-text-3">{c.output_filename}</td>
+                      <td className="mono text-[11.5px] text-text-3">{c.output_filename}</td>
                       {canEdit && (
                         <td>
                           <div className="flex gap-1 justify-end">

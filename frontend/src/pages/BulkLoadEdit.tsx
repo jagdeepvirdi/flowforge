@@ -318,7 +318,7 @@ function BulkLoadForm({ id, isNew, existing, dbConns, navigate, qc }: {
               </div>
               <div className="field">
                 <label htmlFor="bulk-delimiter">Delimiter</label>
-                <input id="bulk-delimiter" className="input mono-input !w-[70px]" value={delimiter} onChange={e => setDelimiter(e.target.value)} maxLength={3} />
+                <input id="bulk-delimiter" className="input mono-input w-[70px]" value={delimiter} onChange={e => setDelimiter(e.target.value)} maxLength={3} />
               </div>
               <div className="field">
                 <label htmlFor="bulk-on-no-files">On no files</label>
@@ -349,7 +349,7 @@ function BulkLoadForm({ id, isNew, existing, dbConns, navigate, qc }: {
           )}
 
           {preview && (
-            <div className="card overflow-hidden !p-0">
+            <div className="card overflow-hidden p-0">
               <div className="flex items-center justify-between py-2.5 px-3.5 border-b border-border">
                 <span className="text-xs text-text-primary font-semibold">
                   Preview · <span className="mono">{preview.file_name}</span>
@@ -433,7 +433,7 @@ function BulkLoadForm({ id, isNew, existing, dbConns, navigate, qc }: {
               <label htmlFor="bulk-col-mapping">Column mapping (JSON array) — optional</label>
               <textarea
                 id="bulk-col-mapping"
-                className="input mono-input !h-auto !resize-y !text-xs"
+                className="input mono-input h-auto resize-y text-xs"
                 rows={5}
                 value={colMapRaw}
                 onChange={e => setColMapRaw(e.target.value)}
@@ -446,7 +446,7 @@ function BulkLoadForm({ id, isNew, existing, dbConns, navigate, qc }: {
           </div>
 
           {/* Output variable hint card */}
-          <div className="card !bg-[rgba(251,146,60,0.04)] !border-[rgba(251,146,60,0.15)]">
+          <div className="card bg-[rgba(251,146,60,0.04)] border-[rgba(251,146,60,0.15)]">
             <div className="text-xs font-semibold text-accent-text mb-2">Output variables</div>
             <div className="flex flex-col gap-1 text-xs text-text-3 leading-[1.6]">
               <div>After this step runs, downstream steps can reference:</div>

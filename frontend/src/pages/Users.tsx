@@ -105,7 +105,7 @@ export default function Users() {
                 <RoleBadge role={user.role} />
               ) : (
                 <select
-                  className="input !text-xs !py-[3px] !px-2 !w-auto"
+                  className="input text-xs py-[3px] px-2 w-auto"
                   value={user.role}
                   disabled={roleMut.isPending}
                   onChange={e => roleMut.mutate({ id: user.id, role: e.target.value as Role })}
@@ -125,7 +125,7 @@ export default function Users() {
             <td className="py-3 px-4 text-right">
               <div className="flex gap-1 justify-end">
                 <button
-                  className="btn !py-1 !px-2 !text-[11px]"
+                  className="btn py-1 px-2 text-[11px]"
                   onClick={() => handleExport(user)}
                   title="GDPR export — download all personal data as JSON"
                 >
@@ -134,7 +134,7 @@ export default function Users() {
                 {user.id !== me?.id && (
                   <>
                     <button
-                      className="btn !py-1 !px-2 !text-failure-text !text-[11px]"
+                      className="btn py-1 px-2 text-failure-text text-[11px]"
                       disabled={deleteMut.isPending}
                       onClick={() => handleDelete(user)}
                       title="Delete user"
@@ -142,7 +142,7 @@ export default function Users() {
                       <Trash2 size={12} />
                     </button>
                     <button
-                      className="btn !py-1 !px-2 !text-failure-text !text-[10px]"
+                      className="btn py-1 px-2 text-failure-text text-[10px]"
                       onClick={() => handlePurge(user)}
                       title="GDPR purge — delete user and anonymise audit log"
                     >
@@ -206,7 +206,7 @@ export default function Users() {
         {/* Add User modal */}
         {showAdd && (
           <div className="fixed inset-0 z-50 bg-[rgba(0,0,0,0.5)] flex items-center justify-center p-4">
-            <div className="card w-full max-w-[420px] !p-6 relative">
+            <div className="card w-full max-w-[420px] p-6 relative">
               <button
                 onClick={() => { setShowAdd(false); setForm(emptyForm()); setFormError('') }}
                 className="absolute top-4 right-4 bg-transparent border-none cursor-pointer text-text-muted"
@@ -276,7 +276,7 @@ export default function Users() {
         )}
 
         {/* Users table */}
-        <div className="card overflow-hidden !p-0">
+        <div className="card overflow-hidden p-0">
           {usersTableContent}
         </div>
       </div>

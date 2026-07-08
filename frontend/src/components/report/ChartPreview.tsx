@@ -131,7 +131,7 @@ export default function ChartPreview({ columns, rows, config, onConfigChange }: 
   const isPie = config.type === 'pie'
 
   return (
-    <div className="card !p-0 overflow-hidden">
+    <div className="card p-0 overflow-hidden">
       {/* Toolbar */}
       <div className="flex items-center gap-2 flex-wrap py-[9px] px-3.5 border-b border-border">
         <span className="text-xs font-semibold text-text-primary flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">

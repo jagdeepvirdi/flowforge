@@ -106,7 +106,7 @@ function ProjectModal({
             />
           </div>
           <div>
-            <div className="label !mb-2">Color</div>
+            <div className="label mb-2">Color</div>
             <ColorPicker value={form.color} onChange={c => setForm(f => ({ ...f, color: c }))} />
           </div>
         </div>
@@ -293,7 +293,7 @@ function ProjectCard({ project, onEdit, onManageMembers }: { project: Project; o
                 <Pencil size={12} />
               </button>
               <button
-                className="btn btn-sm btn-ghost btn-icon hover:!text-failure-text"
+                className="btn btn-sm btn-ghost btn-icon hover:text-failure-text"
                 onClick={e => {
                   e.stopPropagation()
                   if (total > 0) {

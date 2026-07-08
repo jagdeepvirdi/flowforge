@@ -20,7 +20,7 @@ function ChipInput({ id, values, onChange, placeholder }: { id?: string; values:
     setInput('')
   }
   return (
-    <div className="input flex flex-wrap gap-1 min-h-9 !h-auto !py-1.5">
+    <div className="input flex flex-wrap gap-1 min-h-9 h-auto py-1.5">
       {values.map(v => (
         <span key={v} className="chip">
           {v}
@@ -352,7 +352,7 @@ export default function EmailEdit() {
                 <label htmlFor="ec-drive-msg">Drive share message template</label>
                 <textarea
                   id="ec-drive-msg"
-                  className="input mono-input resize-y !text-[11.5px]"
+                  className="input mono-input resize-y text-[11.5px]"
                   rows={5}
                   {...register('driveMsg')}
                   placeholder={"{% for link in drive_links %}\n• {{ link.filename }} — {{ link.url }}\n{% endfor %}"}
@@ -391,7 +391,7 @@ export default function EmailEdit() {
                 <span className="text-xs font-semibold text-text-primary">Email Preview</span>
                 <span className="text-[11.5px] text-text-muted font-mono">Subject: {previewData.subject}</span>
               </div>
-              <button className="btn btn-sm !py-1 !px-2" onClick={() => setPreviewOpen(false)}>
+              <button className="btn btn-sm py-1 px-2" onClick={() => setPreviewOpen(false)}>
                 <X size={12} />
               </button>
             </div>

@@ -141,7 +141,7 @@ function StepOutputTab({ s }: { s: StepRun }) {
       {s.email_sent_to.length > 0 && (
         <div className="text-text-3 mb-1.5">
           Sent to: {s.email_sent_to.map(addr => (
-            <span key={addr} className="chip ml-1.5 !h-5 !text-[11px]">{addr}</span>
+            <span key={addr} className="chip ml-1.5 h-5 text-[11px]">{addr}</span>
           ))}
         </div>
       )}
@@ -392,7 +392,7 @@ function DiffPanel({ runId, prevRunId }: { runId: string; prevRunId: string | nu
       </button>
 
       {open && (
-        <div className="card mt-2 !p-0 overflow-hidden">
+        <div className="card mt-2 p-0 overflow-hidden">
           {isLoading && (
             <div className="py-3.5 px-4 text-text-muted text-xs">Loading diff…</div>
           )}
@@ -488,7 +488,7 @@ export default function RunDetail() {
         </div>
         <div className="grid grid-cols-4 gap-3 mb-[18px]">
           {[0, 1, 2, 3].map(i => (
-            <div key={i} className="card !py-3.5 !px-4">
+            <div key={i} className="card py-3.5 px-4">
               <Sk h={11} style={{ width: 55, marginBottom: 8 }} />
               <Sk h={18} style={{ width: 70 }} />
             </div>
@@ -497,7 +497,7 @@ export default function RunDetail() {
         <Sk h={6} r={4} style={{ marginBottom: 20 }} />
         <div className="flex flex-col gap-2.5">
           {[0, 1, 2].map(i => (
-            <div key={i} className="card !py-3.5 !px-4 flex items-center gap-3">
+            <div key={i} className="card py-3.5 px-4 flex items-center gap-3">
               <Sk h={20} r={4} style={{ width: 60 }} />
               <Sk h={14} style={{ width: '35%' }} />
               <Sk h={12} style={{ width: 80, marginLeft: 'auto' }} />
@@ -555,7 +555,7 @@ export default function RunDetail() {
             { label: 'Started',   value: new Date(run.started_at).toLocaleTimeString(), mono: true },
             { label: 'Trigger',   value: run.triggered_by,              mono: false },
           ].map(s => (
-            <div key={s.label} className="card !py-3.5 !px-4">
+            <div key={s.label} className="card py-3.5 px-4">
               <div className="text-[11px] text-text-muted uppercase tracking-[0.04em] font-semibold mb-1.5">{s.label}</div>
               <div className={`${s.mono ? 'mono' : ''} text-lg font-semibold text-text-primary ${s.mono ? 'tracking-[-0.02em]' : 'tracking-normal'}`}>{s.value}</div>
             </div>

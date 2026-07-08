@@ -52,7 +52,7 @@ export default function StepTrendsPanel({ pipelineId }: { pipelineId?: string })
       </button>
 
       {open && (
-        <div className="card mt-2 !p-0 overflow-hidden">
+        <div className="card mt-2 p-0 overflow-hidden">
           <div className="flex items-center gap-2.5 flex-wrap py-2.5 px-3.5 border-b border-border">
             <span className="text-xs font-semibold text-text-primary">Duration over time</span>
             <select

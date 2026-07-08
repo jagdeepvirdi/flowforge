@@ -47,7 +47,7 @@ function FilterChip({ label, value, options, onChange }: {
 }) {
   const next = () => onChange(options[(options.indexOf(value) + 1) % options.length])
   return (
-    <button className="btn btn-sm !gap-1" onClick={next}>
+    <button className="btn btn-sm gap-1" onClick={next}>
       <span className="text-text-muted">{label}</span>
       <span>{value}</span>
       <ChevronDown size={11} className="text-text-muted" />
@@ -127,7 +127,7 @@ export default function Pipelines() {
             <Sk h={14} style={{ width: 90 }} />
           </div>
         </div>
-        <div className="card overflow-hidden !p-0">
+        <div className="card overflow-hidden p-0">
           <table className="tbl">
             <thead>
               <tr>
@@ -199,7 +199,7 @@ export default function Pipelines() {
             {!search && canEdit && <Link to="/pipelines/new" className="btn btn-primary">Create your first pipeline</Link>}
           </div>
         ) : (
-          <div className="card overflow-hidden !p-0">
+          <div className="card overflow-hidden p-0">
             <table className="tbl">
               <thead>
                 <tr>
@@ -215,7 +215,7 @@ export default function Pipelines() {
                   <tr key={p.id}>
                     <td>
                       <div className="font-medium text-text-primary">
-                        <Link to={`/pipelines/${p.id}/edit`} className="text-text-primary no-underline hover:!text-accent-text">
+                        <Link to={`/pipelines/${p.id}/edit`} className="text-text-primary no-underline hover:text-accent-text">
                           {p.name}
                         </Link>
                       </div>
@@ -262,7 +262,7 @@ export default function Pipelines() {
                               <Pencil size={12} />
                             </Link>
                             <button
-                              className="btn btn-sm btn-ghost btn-icon hover:!text-failure-text"
+                              className="btn btn-sm btn-ghost btn-icon hover:text-failure-text"
                               onClick={() => globalThis.confirm(`Delete "${p.name}"?`) && remove(p.id)}
                               title="Delete"
                             >
@@ -290,7 +290,7 @@ export default function Pipelines() {
           onClick={e => { if (e.target === e.currentTarget) { setPromoteTarget(null); setPromoteWarnings([]) } }}
           onKeyDown={e => { if (e.key === 'Escape') { setPromoteTarget(null); setPromoteWarnings([]) } }}
         >
-          <div className="card w-full max-w-[440px] !p-6 relative">
+          <div className="card w-full max-w-[440px] p-6 relative">
             <button onClick={() => { setPromoteTarget(null); setPromoteWarnings([]) }}
               className="absolute top-4 right-4 bg-transparent border-none cursor-pointer text-text-muted">
               <X size={15} />

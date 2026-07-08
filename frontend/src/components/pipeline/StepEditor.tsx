@@ -75,7 +75,7 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
 
           <div className="flex items-center gap-1">
             <select
-              className="btn btn-sm cursor-pointer !text-[11px] !h-[26px] !py-0 !px-2"
+              className="btn btn-sm cursor-pointer text-[11px] h-[26px] py-0 px-2"
               value={step.on_error}
               onChange={e => onChange(step.id, { on_error: e.target.value as 'stop' | 'continue' })}
             >
@@ -88,14 +88,14 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
             <span className="text-[11px] text-text-muted whitespace-nowrap">Retries</span>
             <input
               type="number" min={0} max={10}
-              className="input !w-[46px] !h-[26px] !py-0 !px-1.5 !text-[11px]"
+              className="input w-[46px] h-[26px] py-0 px-1.5 text-[11px]"
               value={Number(cfg.retry_count ?? 0)}
               onChange={e => setConfig('retry_count', Math.max(0, Number(e.target.value)))}
             />
             <span className="text-[11px] text-text-muted whitespace-nowrap">delay</span>
             <input
               type="number" min={0} max={3600}
-              className="input !w-[52px] !h-[26px] !py-0 !px-1.5 !text-[11px]"
+              className="input w-[52px] h-[26px] py-0 px-1.5 text-[11px]"
               value={Number(cfg.retry_delay_seconds ?? 30)}
               onChange={e => setConfig('retry_delay_seconds', Math.max(0, Number(e.target.value)))}
             />
@@ -105,7 +105,7 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
           <div className="flex items-center gap-1" title="Steps sharing the same group name run concurrently">
             <span className="text-[11px] text-text-muted whitespace-nowrap">∥ Group</span>
             <input
-              className="input mono-input !w-[72px] !h-[26px] !py-0 !px-1.5 !text-[11px]"
+              className="input mono-input w-[72px] h-[26px] py-0 px-1.5 text-[11px]"
               placeholder="none"
               value={step.parallel_group ?? ''}
               onChange={e => onChange(step.id, { parallel_group: e.target.value.trim() || null })}
@@ -115,7 +115,7 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
           <button onClick={() => setExpanded(x => !x)} className="btn btn-sm btn-ghost btn-icon">
             {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
           </button>
-          <button onClick={() => onDelete(step.id)} className="btn btn-sm btn-ghost btn-icon text-text-muted hover:!text-failure-text">
+          <button onClick={() => onDelete(step.id)} className="btn btn-sm btn-ghost btn-icon text-text-muted hover:text-failure-text">
             <Trash2 size={13} />
           </button>
         </div>
@@ -142,7 +142,7 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
               />
             ) : (
               <Field label="Config (JSON)" tooltip="No dedicated form for this step type (a plugin, or a built-in without a form yet) — edit its raw config here.">
-                <textarea className="input mono-input !h-auto !resize-y" rows={8} value={JSON.stringify(cfg, null, 2)}
+                <textarea className="input mono-input h-auto resize-y" rows={8} value={JSON.stringify(cfg, null, 2)}
                   onChange={e => { try { onChange(step.id, { config: JSON.parse(e.target.value) }) } catch { /* invalid JSON while typing — ignore */ } }}
                 />
               </Field>

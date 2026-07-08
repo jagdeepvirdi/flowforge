@@ -109,14 +109,14 @@ export default function RunHistory() {
         </div>
         <div className="grid grid-cols-3 gap-3 mb-[18px]">
           {[0,1,2].map(i => (
-            <div key={i} className="card !py-3.5 !px-4 flex items-center gap-3">
+            <div key={i} className="card py-3.5 px-4 flex items-center gap-3">
               <div className="w-2 h-2 rounded-[2px] bg-border shrink-0" />
               <Sk h={11} style={{ width: 55 }} />
               <Sk h={20} r={4} style={{ width: 36, marginLeft: 'auto' }} />
             </div>
           ))}
         </div>
-        <div className="card overflow-hidden !p-0">
+        <div className="card overflow-hidden p-0">
           <table className="tbl">
             <thead>
               <tr>
@@ -176,7 +176,7 @@ export default function RunHistory() {
         {/* Mini stats */}
         <div className="grid grid-cols-3 gap-3 mb-[18px]">
           {STATS.map(s => (
-            <div key={s.label} className="card !py-3.5 !px-4 flex items-center gap-3">
+            <div key={s.label} className="card py-3.5 px-4 flex items-center gap-3">
               <span className={`w-2 h-2 rounded-[2px] ${s.dotCls}`} />
               <span className="text-[11px] text-text-muted font-semibold uppercase tracking-[0.04em]">{s.label}</span>
               <span className="mono text-xl font-semibold text-text-primary ml-auto">{s.value}</span>
@@ -227,7 +227,7 @@ export default function RunHistory() {
           </button>
         </div>
 
-        <div className="card overflow-hidden !p-0">
+        <div className="card overflow-hidden p-0">
           <table className="tbl">
             <thead>
               <tr>
@@ -242,27 +242,27 @@ export default function RunHistory() {
             </thead>
             <tbody>
               {filtered.length === 0 && (
-                <tr><td colSpan={7} className="text-center !py-10 !px-0 !text-text-muted">
+                <tr><td colSpan={7} className="text-center py-10 px-0 text-text-muted">
                   {runs.length === 0 ? 'No runs yet. Trigger a pipeline from the Pipelines page.' : 'No runs match your filters.'}
                 </td></tr>
               )}
               {filtered.map(r => (
                 <tr key={r.id}>
                   <td><StatusBadge status={r.status} animate /></td>
-                  <td className="!text-text-primary font-medium">
+                  <td className="text-text-primary font-medium">
                     {r.pipeline_name}
                     {r.pipeline_id === null && (
                       <span className="text-[10.5px] text-text-dim font-normal ml-1.5">(deleted)</span>
                     )}
                   </td>
-                  <td className="mono !text-text-3 text-[11.5px]">{r.id.slice(0, 12)}…</td>
+                  <td className="mono text-text-3 text-[11.5px]">{r.id.slice(0, 12)}…</td>
                   <td>
                     <span className="text-[11.5px] text-text-3 inline-flex items-center gap-[5px]">
                       {r.triggered_by === 'web_ui' || r.triggered_by === 'api' ? <User size={11} /> : <Clock size={11} />}
                       {r.triggered_by}
                     </span>
                   </td>
-                  <td className="mono !text-text-3 text-[11.5px]">{new Date(r.started_at).toLocaleString()}</td>
+                  <td className="mono text-text-3 text-[11.5px]">{new Date(r.started_at).toLocaleString()}</td>
                   <td className="mono text-[11.5px]">{fmtDur(r.duration_ms)}</td>
                   <td>
                     <Link to={`/runs/${r.id}`} className="btn btn-sm btn-ghost btn-icon">

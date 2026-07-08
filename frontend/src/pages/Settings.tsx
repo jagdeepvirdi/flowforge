@@ -345,7 +345,7 @@ function MfaCard() {
                   <code className="mono text-[13px] bg-surface2 border border-border rounded-r-sm py-1.5 px-2.5 flex-1 [overflow-wrap:anywhere]">
                     {secret}
                   </code>
-                  <button className="btn whitespace-nowrap !text-xs" onClick={copySecret}>
+                  <button className="btn whitespace-nowrap text-xs" onClick={copySecret}>
                     {copied ? 'Copied!' : 'Copy'}
                   </button>
                 </div>
@@ -358,7 +358,7 @@ function MfaCard() {
               <label htmlFor="mfa-confirm-code">Verification code</label>
               <input
                 id="mfa-confirm-code"
-                className="input mono tracking-[0.3em] !text-lg text-center max-w-40"
+                className="input mono tracking-[0.3em] text-lg text-center max-w-40"
                 type="text"
                 inputMode="numeric"
                 maxLength={6}
@@ -401,7 +401,7 @@ function MfaCard() {
       {/* ── Disable MFA ── */}
       {enabled && phase === 'idle' && (
         <button
-          className="btn self-start !text-failure-text flex items-center gap-[5px]"
+          className="btn self-start text-failure-text flex items-center gap-[5px]"
           onClick={() => { setPhase('disabling'); setError('') }}
         >
           <ShieldOff size={13} /> Disable MFA
@@ -423,7 +423,7 @@ function MfaCard() {
             />
           </div>
           <div className="flex gap-2">
-            <button type="submit" className="btn !text-failure-text" disabled={disableMut.isPending}>
+            <button type="submit" className="btn text-failure-text" disabled={disableMut.isPending}>
               {disableMut.isPending ? 'Disabling…' : 'Disable MFA'}
             </button>
             <button type="button" className="btn" onClick={() => { setPhase('idle'); setError('') }}>Cancel</button>

@@ -183,7 +183,7 @@ export default function Login() {
           </div>
         </div>
 
-        <div className="card !py-7 !px-6">
+        <div className="card py-7 px-6">
 
           {/* ── Step 1: Credentials ── */}
           {step === 'credentials' && (
@@ -235,17 +235,17 @@ export default function Login() {
                   </div>
                   <div className="flex flex-col gap-2">
                     {ssoProviders.google && (
-                      <a href="/api/auth/sso/google" className="btn w-full !gap-2 no-underline">
+                      <a href="/api/auth/sso/google" className="btn w-full gap-2 no-underline">
                         <GoogleIcon /> Sign in with Google
                       </a>
                     )}
                     {ssoProviders.microsoft && (
-                      <a href="/api/auth/sso/microsoft" className="btn w-full !gap-2 no-underline">
+                      <a href="/api/auth/sso/microsoft" className="btn w-full gap-2 no-underline">
                         <MicrosoftIcon /> Sign in with Microsoft
                       </a>
                     )}
                     {ssoProviders.saml && (
-                      <a href="/api/auth/sso/saml/login" className="btn w-full !gap-2 no-underline">
+                      <a href="/api/auth/sso/saml/login" className="btn w-full gap-2 no-underline">
                         <SamlIcon /> Sign in with SSO
                       </a>
                     )}
@@ -267,7 +267,7 @@ export default function Login() {
                   <label htmlFor="mfa-code">Authenticator code</label>
                   <input
                     id="mfa-code"
-                    className="input mono tracking-[0.3em] !text-lg text-center"
+                    className="input mono tracking-[0.3em] text-lg text-center"
                     type="text"
                     inputMode="numeric"
                     autoComplete="one-time-code"
@@ -286,7 +286,7 @@ export default function Login() {
               </form>
               <button
                 type="button"
-                className="btn w-full mt-2 !text-xs !text-text-muted"
+                className="btn w-full mt-2 text-xs text-text-muted"
                 onClick={() => { setStep('mfa-backup'); setError('') }}
               >
                 Use a backup code instead
