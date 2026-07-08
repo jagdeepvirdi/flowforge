@@ -9,11 +9,7 @@ import { getSetupStatus, changePassword, getMfaStatus, mfaEnroll, mfaConfirm, mf
 
 function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 5,
-      fontSize: 12, fontWeight: 500,
-      color: ok ? 'var(--success)' : 'var(--text-muted)',
-    }}>
+    <span className={`inline-flex items-center gap-[5px] text-xs font-medium ${ok ? 'text-success' : 'text-text-muted'}`}>
       {ok
         ? <CheckCircle2 size={13} />
         : <XCircle size={13} />
@@ -25,11 +21,7 @@ function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
 
 function CodeBlock({ children }: { children: string }) {
   return (
-    <code className="mono" style={{
-      display: 'block', fontSize: 12,
-      background: 'var(--surface-2)', border: '1px solid var(--border)',
-      borderRadius: 7, padding: '10px 12px', color: 'var(--text-2)',
-    }}>
+    <code className="mono block text-xs bg-surface2 border border-border rounded-[7px] py-2.5 px-3 text-text-2">
       {children}
     </code>
   )
@@ -37,7 +29,7 @@ function CodeBlock({ children }: { children: string }) {
 
 function InlineCode({ children }: { children: string }) {
   return (
-    <code className="mono" style={{ fontSize: 11, background: 'var(--surface-2)', padding: '1px 5px', borderRadius: 3 }}>
+    <code className="mono text-[11px] bg-surface2 py-px px-[5px] rounded-[3px]">
       {children}
     </code>
   )
@@ -68,9 +60,9 @@ function ChangePasswordCard() {
   }
 
   return (
-    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Change Password</div>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div className="card flex flex-col gap-3.5">
+      <div className="text-[13px] font-semibold text-text-primary">Change Password</div>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
         <div className="field">
           <label htmlFor="settings-current-password">Current Password</label>
           <input id="settings-current-password" className="input" type="password" value={form.current_password}
@@ -87,12 +79,12 @@ function ChangePasswordCard() {
             onChange={e => setForm(f => ({ ...f, confirm: e.target.value }))} required />
         </div>
         {error && (
-          <div style={{ fontSize: 12.5, color: 'var(--failure-text)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, padding: '8px 12px' }}>
+          <div className="text-[12.5px] text-failure-text bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.2)] rounded-r-sm py-2 px-3">
             {error}
           </div>
         )}
         {success && (
-          <div style={{ fontSize: 12.5, color: 'var(--success-text)', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 6, padding: '8px 12px' }}>
+          <div className="text-[12.5px] text-success-text bg-[rgba(34,197,94,0.08)] border border-[rgba(34,197,94,0.2)] rounded-r-sm py-2 px-3">
             Password changed successfully.
           </div>
         )}
@@ -112,13 +104,13 @@ function GoogleOAuthCard({ status, isLoading }: { status: SetupStatus | undefine
     : 'Drive not configured'
 
   return (
-    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Google OAuth2 (Gmail + Drive)</div>
+    <div className="card flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <div className="text-[13px] font-semibold text-text-primary">Google OAuth2 (Gmail + Drive)</div>
         {isLoading
-          ? <div style={{ display: 'flex', gap: 12 }}><Sk h={13} style={{ width: 110 }} /><Sk h={13} style={{ width: 90 }} /></div>
+          ? <div className="flex gap-3"><Sk h={13} style={{ width: 110 }} /><Sk h={13} style={{ width: 90 }} /></div>
           : status && (
-            <div style={{ display: 'flex', gap: 12 }}>
+            <div className="flex gap-3">
               <StatusBadge
                 ok={status.gmail.configured}
                 label={status.gmail.configured ? `Gmail · ${status.gmail.sender}` : 'Gmail not configured'}
@@ -128,15 +120,13 @@ function GoogleOAuthCard({ status, isLoading }: { status: SetupStatus | undefine
           )
         }
       </div>
-      <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
+      <p className="text-[13px] text-text-muted m-0">
         Requires a Google Cloud project with Gmail API enabled and a Desktop OAuth2 credential.
         Run the CLI wizard to complete the OAuth flow and save your refresh token.
       </p>
       <CodeBlock>flowforge setup gmail</CodeBlock>
       <a href="/api/docs/gmail-oauth2-setup.md" target="_blank" rel="noreferrer"
-        style={{ fontSize: 12, color: 'var(--accent-text)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5 }}
-        onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-        onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}>
+        className="text-xs text-accent-text no-underline inline-flex items-center gap-[5px] hover:underline">
         Step-by-step Gmail setup guide <ExternalLink size={11} />
       </a>
     </div>
@@ -145,9 +135,9 @@ function GoogleOAuthCard({ status, isLoading }: { status: SetupStatus | undefine
 
 function Microsoft365Card({ status, isLoading }: { status: SetupStatus | undefined; isLoading: boolean }) {
   return (
-    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Microsoft 365 OAuth2</div>
+    <div className="card flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <div className="text-[13px] font-semibold text-text-primary">Microsoft 365 OAuth2</div>
         {isLoading
           ? <Sk h={13} style={{ width: 100 }} />
           : status && (
@@ -160,15 +150,13 @@ function Microsoft365Card({ status, isLoading }: { status: SetupStatus | undefin
           )
         }
       </div>
-      <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
+      <p className="text-[13px] text-text-muted m-0">
         Requires an Azure AD app registration with <InlineCode>Mail.Send</InlineCode> application permission
         and admin consent. You will need your Tenant ID, Client ID, and Client Secret from the Azure portal.
       </p>
       <CodeBlock>flowforge setup microsoft365</CodeBlock>
       <a href="/api/docs/email-providers.md" target="_blank" rel="noreferrer"
-        style={{ fontSize: 12, color: 'var(--accent-text)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5 }}
-        onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-        onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}>
+        className="text-xs text-accent-text no-underline inline-flex items-center gap-[5px] hover:underline">
         Step-by-step Microsoft 365 setup guide <ExternalLink size={11} />
       </a>
     </div>
@@ -177,10 +165,10 @@ function Microsoft365Card({ status, isLoading }: { status: SetupStatus | undefin
 
 function AiOllamaCard({ status, isLoading }: { status: SetupStatus | undefined; isLoading: boolean }) {
   return (
-    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
-          <BrainCircuit size={15} style={{ color: 'var(--text-muted)' }} />
+    <div className="card flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-[7px] text-[13px] font-semibold text-text-primary">
+          <BrainCircuit size={15} className="text-text-muted" />
           AI Features (Ollama)
         </div>
         {isLoading
@@ -193,17 +181,17 @@ function AiOllamaCard({ status, isLoading }: { status: SetupStatus | undefined; 
           )
         }
       </div>
-      <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
+      <p className="text-[13px] text-text-muted m-0">
         SQL Explain, SQL Optimize, Data Profiler, Chart Generator, and Pipeline Failure Diagnosis all
         route through a local <InlineCode>Ollama</InlineCode> instance — no data leaves your machine and there is no API cost.
         Set <InlineCode>FLOWFORGE_AI_ENABLED=false</InlineCode> to hide all AI buttons and disable all AI endpoints.
       </p>
       {status && !status.ai.enabled && (
-        <div style={{ padding: '8px 12px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 6, fontSize: 12, color: 'var(--text-2)' }}>
+        <div className="py-2 px-3 bg-[rgba(239,68,68,0.06)] border border-[rgba(239,68,68,0.15)] rounded-r-sm text-xs text-text-2">
           AI is currently disabled. Remove or change the env var below and restart to re-enable.
         </div>
       )}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         <CodeBlock>FLOWFORGE_AI_ENABLED=true   # set to false to disable all AI features</CodeBlock>
         <CodeBlock>OLLAMA_URL=http://localhost:11434</CodeBlock>
         <CodeBlock>OLLAMA_CHART_MODEL=llama3.2:3b   # model for chart & profile tasks</CodeBlock>
@@ -215,9 +203,9 @@ function AiOllamaCard({ status, isLoading }: { status: SetupStatus | undefined; 
 
 function YamlCard() {
   return (
-    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Pipeline YAML Export / Import</div>
-      <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>Export or import pipeline definitions as YAML.</p>
+    <div className="card flex flex-col gap-3">
+      <div className="text-[13px] font-semibold text-text-primary">Pipeline YAML Export / Import</div>
+      <p className="text-[13px] text-text-muted m-0">Export or import pipeline definitions as YAML.</p>
       <CodeBlock>flowforge export "My Pipeline" --output pipeline.yaml</CodeBlock>
       <CodeBlock>flowforge import pipeline.yaml</CodeBlock>
     </div>
@@ -226,8 +214,8 @@ function YamlCard() {
 
 function DocsCard() {
   return (
-    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Documentation</div>
+    <div className="card flex flex-col gap-2.5">
+      <div className="text-[13px] font-semibold text-text-primary">Documentation</div>
       {([
         ['Getting Started',          '/api/docs/getting-started.md'],
         ['Step Types Reference',     '/api/docs/step-types.md'],
@@ -235,9 +223,7 @@ function DocsCard() {
         ['Gmail OAuth2 Setup',       '/api/docs/gmail-oauth2-setup.md'],
       ] as [string, string][]).map(([label, href]) => (
         <a key={href} href={href} target="_blank" rel="noreferrer"
-          style={{ color: 'var(--accent-text)', fontSize: 13, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
-          onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-          onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}>
+          className="text-accent-text text-[13px] no-underline inline-flex items-center gap-1.5 hover:underline">
           {label} <ExternalLink size={12} />
         </a>
       ))}
@@ -312,37 +298,32 @@ function MfaCard() {
   const enabled = mfaStatus?.mfa_enabled ?? false
 
   return (
-    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
-          {enabled ? <ShieldCheck size={15} style={{ color: 'var(--success)' }} /> : <Shield size={15} style={{ color: 'var(--text-muted)' }} />}
+    <div className="card flex flex-col gap-3.5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-[7px] text-[13px] font-semibold text-text-primary">
+          {enabled ? <ShieldCheck size={15} className="text-success" /> : <Shield size={15} className="text-text-muted" />}
           Two-Factor Authentication (MFA)
         </div>
-        <span style={{
-          fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4,
-          background: enabled ? 'rgba(34,197,94,0.12)' : 'rgba(107,114,128,0.12)',
-          color: enabled ? 'var(--success-text)' : 'var(--text-muted)',
-          textTransform: 'uppercase', letterSpacing: '0.06em',
-        }}>
+        <span className={`text-[11px] font-semibold py-0.5 px-2 rounded uppercase tracking-[0.06em] ${enabled ? 'bg-[rgba(34,197,94,0.12)] text-success-text' : 'bg-[rgba(107,114,128,0.12)] text-text-muted'}`}>
           {enabled ? 'Active' : 'Disabled'}
         </span>
       </div>
 
-      <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
+      <p className="text-[13px] text-text-muted m-0">
         {enabled
           ? 'MFA is active on your account. You will be asked for a TOTP code on every login.'
           : 'Add a second factor to your account using any TOTP authenticator app (Google Authenticator, Authy, 1Password, etc.).'}
       </p>
 
       {error && (
-        <div style={{ fontSize: 12.5, color: 'var(--failure-text)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, padding: '8px 12px' }}>
+        <div className="text-[12.5px] text-failure-text bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.2)] rounded-r-sm py-2 px-3">
           {error}
         </div>
       )}
 
       {/* ── Not enrolled → start enrollment ── */}
       {!enabled && phase === 'idle' && (
-        <button className="btn btn-primary" style={{ alignSelf: 'flex-start' }}
+        <button className="btn btn-primary self-start"
           onClick={() => { setError(''); enrollMut.mutate() }}
           disabled={enrollMut.isPending}>
           {enrollMut.isPending ? <Spinner size={13} /> : 'Enable MFA'}
@@ -351,33 +332,33 @@ function MfaCard() {
 
       {/* ── Scan QR / copy secret ── */}
       {phase === 'confirming' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <p style={{ fontSize: 13, color: 'var(--text-2)', margin: 0 }}>
+        <div className="flex flex-col gap-3.5">
+          <p className="text-[13px] text-text-2 m-0">
             Scan the QR code with your authenticator app, then enter the 6-digit code to confirm.
           </p>
           {qrDataUrl
-            ? <img src={qrDataUrl} alt="MFA QR code" width={160} height={160} style={{ borderRadius: 8, border: '1px solid var(--border)', background: '#fff' }} />
+            ? <img src={qrDataUrl} alt="MFA QR code" width={160} height={160} className="rounded-r border border-border bg-white" />
             : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Manual entry secret:</span>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <code className="mono" style={{ fontSize: 13, background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '6px 10px', flex: 1, overflowWrap: 'anywhere' }}>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs text-text-muted">Manual entry secret:</span>
+                <div className="flex gap-2 items-center">
+                  <code className="mono text-[13px] bg-surface2 border border-border rounded-r-sm py-1.5 px-2.5 flex-1 [overflow-wrap:anywhere]">
                     {secret}
                   </code>
-                  <button className="btn" onClick={copySecret} style={{ whiteSpace: 'nowrap', fontSize: 12 }}>
+                  <button className="btn whitespace-nowrap !text-xs" onClick={copySecret}>
                     {copied ? 'Copied!' : 'Copy'}
                   </button>
                 </div>
-                <a href={uri} style={{ fontSize: 12, color: 'var(--accent-text)' }}>Open in authenticator app</a>
+                <a href={uri} className="text-xs text-accent-text">Open in authenticator app</a>
               </div>
             )
           }
-          <form onSubmit={e => { e.preventDefault(); confirmMut.mutate() }} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <form onSubmit={e => { e.preventDefault(); confirmMut.mutate() }} className="flex flex-col gap-2.5">
             <div className="field">
               <label htmlFor="mfa-confirm-code">Verification code</label>
               <input
                 id="mfa-confirm-code"
-                className="input mono"
+                className="input mono tracking-[0.3em] !text-lg text-center max-w-40"
                 type="text"
                 inputMode="numeric"
                 maxLength={6}
@@ -386,10 +367,9 @@ function MfaCard() {
                 onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
                 autoFocus
                 required
-                style={{ letterSpacing: '0.3em', fontSize: 18, textAlign: 'center', maxWidth: 160 }}
               />
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="flex gap-2">
               <button type="submit" className="btn btn-primary" disabled={confirmMut.isPending || code.length !== 6}>
                 {confirmMut.isPending ? 'Activating…' : 'Activate MFA'}
               </button>
@@ -401,18 +381,18 @@ function MfaCard() {
 
       {/* ── Show backup codes once ── */}
       {phase === 'backup-codes' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ padding: '10px 14px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 6, fontSize: 13, color: 'var(--success-text)' }}>
+        <div className="flex flex-col gap-3">
+          <div className="py-2.5 px-3.5 bg-[rgba(34,197,94,0.08)] border border-[rgba(34,197,94,0.2)] rounded-r-sm text-[13px] text-success-text">
             MFA activated! Save these backup codes — they are shown only once.
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+          <div className="grid grid-cols-2 gap-1.5">
             {backupCodes.map(c => (
-              <code key={c} className="mono" style={{ fontSize: 13, background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 4, padding: '5px 10px', textAlign: 'center' }}>
+              <code key={c} className="mono text-[13px] bg-surface2 border border-border rounded py-[5px] px-2.5 text-center">
                 {c}
               </code>
             ))}
           </div>
-          <button className="btn btn-primary" style={{ alignSelf: 'flex-start' }} onClick={() => { setPhase('idle'); setBackupCodes([]) }}>
+          <button className="btn btn-primary self-start" onClick={() => { setPhase('idle'); setBackupCodes([]) }}>
             Done — I've saved my backup codes
           </button>
         </div>
@@ -421,8 +401,7 @@ function MfaCard() {
       {/* ── Disable MFA ── */}
       {enabled && phase === 'idle' && (
         <button
-          className="btn"
-          style={{ alignSelf: 'flex-start', color: 'var(--failure-text)', display: 'flex', alignItems: 'center', gap: 5 }}
+          className="btn self-start !text-failure-text flex items-center gap-[5px]"
           onClick={() => { setPhase('disabling'); setError('') }}
         >
           <ShieldOff size={13} /> Disable MFA
@@ -430,7 +409,7 @@ function MfaCard() {
       )}
 
       {phase === 'disabling' && (
-        <form onSubmit={e => { e.preventDefault(); disableMut.mutate() }} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <form onSubmit={e => { e.preventDefault(); disableMut.mutate() }} className="flex flex-col gap-2.5">
           <div className="field">
             <label htmlFor="mfa-disable-password">Confirm your password to disable MFA</label>
             <input
@@ -443,8 +422,8 @@ function MfaCard() {
               required
             />
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button type="submit" className="btn" style={{ color: 'var(--failure-text)' }} disabled={disableMut.isPending}>
+          <div className="flex gap-2">
+            <button type="submit" className="btn !text-failure-text" disabled={disableMut.isPending}>
               {disableMut.isPending ? 'Disabling…' : 'Disable MFA'}
             </button>
             <button type="button" className="btn" onClick={() => { setPhase('idle'); setError('') }}>Cancel</button>
@@ -457,13 +436,13 @@ function MfaCard() {
 
 function RetentionCard({ status, isLoading }: { status: SetupStatus | undefined; isLoading: boolean }) {
   return (
-    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Data Retention Policies</div>
+    <div className="card flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <div className="text-[13px] font-semibold text-text-primary">Data Retention Policies</div>
         {isLoading
-          ? <div style={{ display: 'flex', gap: 12 }}><Sk h={13} style={{ width: 100 }} /><Sk h={13} style={{ width: 100 }} /></div>
+          ? <div className="flex gap-3"><Sk h={13} style={{ width: 100 }} /><Sk h={13} style={{ width: 100 }} /></div>
           : status && (
-            <div style={{ display: 'flex', gap: 12 }}>
+            <div className="flex gap-3">
               <StatusBadge
                 ok={true}
                 label={`Runs: ${status.retention.run_days} days`}
@@ -476,11 +455,11 @@ function RetentionCard({ status, isLoading }: { status: SetupStatus | undefined;
           )
         }
       </div>
-      <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
+      <p className="text-[13px] text-text-muted m-0">
         Determines how long historical pipeline runs and audit logs are kept before being automatically purged by the nightly background job.
         Configured via environment variables.
       </p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         <CodeBlock>FLOWFORGE_RUN_RETENTION_DAYS=90     # defaults to 90</CodeBlock>
         <CodeBlock>FLOWFORGE_AUDIT_RETENTION_DAYS=365  # defaults to RUN_RETENTION_DAYS</CodeBlock>
       </div>
@@ -509,32 +488,25 @@ export default function Settings() {
   return (
     <>
       <TopBar crumbs={['Workspace', 'Settings']} helpTopic="settings" />
-      <div className="scroll" style={{ maxWidth: 680 }}>
+      <div className="scroll max-w-[680px]">
         <PageIntro page="settings" />
         <div className="page-h">
           <h1>Settings</h1>
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 20 }}>
+        <div className="flex border-b border-border mb-5">
           {TABS.map(t => {
             const active = tab === t.id
             return (
-              <button key={t.id} onClick={() => setTab(t.id)} style={{
-                background: 'transparent', border: 'none',
-                color: active ? 'var(--accent)' : 'var(--text-3)',
-                padding: '10px 16px', fontSize: 13,
-                fontWeight: active ? 600 : 500,
-                borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
-                marginBottom: -1, cursor: 'pointer',
-              }}>
+              <button key={t.id} onClick={() => setTab(t.id)} className={`bg-transparent border-none py-2.5 px-4 text-[13px] cursor-pointer -mb-px border-b-2 ${active ? 'text-accent font-semibold border-b-accent' : 'text-text-3 font-medium border-b-transparent'}`}>
                 {t.label}
               </button>
             )
           })}
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="flex flex-col gap-3.5">
 
           {tab === 'account' && (
             <>

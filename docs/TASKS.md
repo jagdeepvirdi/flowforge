@@ -747,9 +747,46 @@ single session has to touch the whole frontend at once.*
 
 ## 12.7 `pages/Settings.tsx` + `pages/BulkLoadEdit.tsx` (75 + 73 = 148 occurrences)
 
-- [ ] `Settings.tsx`: all 4 tabs (Account, Email & AI, System, Docs), MFA enrollment flow.
+- [x] `Settings.tsx`: all 4 tabs (Account, Email & AI, System, Docs), MFA enrollment flow.
   `BulkLoadEdit.tsx`: new + edit, Test File preview (with and without dry-run insert errors), the
   loading skeleton.
+  **Done 2026-07-08**: converted both files (`Settings.tsx`'s `StatusBadge`/`CodeBlock`/`InlineCode`/
+  `ChangePasswordCard`/`GoogleOAuthCard`/`Microsoft365Card`/`AiOllamaCard`/`YamlCard`/`DocsCard`/
+  `MfaCard`/`RetentionCard` plus the page shell; `BulkLoadEdit.tsx`'s loading skeleton and the full
+  `BulkLoadForm`). This was the chunk where the `!important`-for-unlayered-CSS bug (see Ground rules,
+  and the retroactive-fix notes on 12.2–12.6 above) was actually discovered and fixed — every override
+  written for this chunk used the correct `!` pattern from the start; see the dedicated fix commit for
+  the retroactive repair of 12.2–12.6. Notable finds specific to this chunk:
+  - Three `onMouseEnter`/`onMouseLeave` handlers toggling `e.currentTarget.style.textDecoration`
+    (`GoogleOAuthCard`, `Microsoft365Card`, `DocsCard`'s doc links) replaced with `hover:underline` —
+    same pattern chunk 12.1 established for `TopBar`/`ProjectSwitcher`.
+  - The MFA status pill (`Active`/`Disabled`) and the Settings tab-row buttons are both clean 2-state
+    toggles fed by CSS-var strings in inline `style` — converted to conditional Tailwind class strings
+    (same treatment as chunk 12.5's status-color maps and RunDetail's tab buttons), not a genuine
+    per-instance-value exception.
+  - `BulkLoadEdit.tsx`'s "Output variables" hint card intentionally overrides `.card`'s own background/
+    border with a distinct orange tint (`rgba(251,146,60,0.04)`/`0.15`) — this is exactly the
+    unlayered-CSS conflict from the new Ground rules entry, so it needed `!bg-[...] !border-[...]`
+    from the start; confirmed via `getComputedStyle` that both properties compute to the intended
+    values, not `.card`'s defaults.
+  - `TriangleAlert`'s warning-banner color `#EAB308` is an exact match for Tailwind's built-in
+    `yellow-500` — used `text-yellow-500` instead of an arbitrary value.
+  - Found and fixed two more instances of the same `!`-less bug while auditing this chunk's
+    surroundings: `WebhookCard.tsx`'s dismiss/revoke buttons (`btn btn-sm text-[var(--...)]`, outside
+    any tracked chunk) — see the dedicated fix commit.
+  Verified: `tsc --noEmit` clean, `eslint` clean (same pre-existing unrelated `watch()` warning as
+  12.6, in an unrelated file), `npx vitest run` — 97/97 passing, `npm run build` succeeds.
+  Live-verified via the same dev stack as 12.5/12.6 (Playwright, headless): all 4 Settings tabs
+  screenshotted (Account's Change Password + MFA cards, Email & AI's three provider/AI cards, System's
+  retention + YAML cards, Docs' link list); started real MFA enrollment (real QR code rendered,
+  6-digit code input showing the intended large letter-spaced styling — confirming the `!text-lg`
+  fix). For `BulkLoadEdit.tsx`: the New Bulk Load form's full 2-column layout, client-side field
+  validation errors (Name/Source directory/Target table), the Test File error banner (no source dir),
+  and a real Test File run against a throwaway 3-row CSV + `FlowForge DB` connection with a
+  deliberately-nonexistent target table — confirming the warning banner (yellow), the flush `!p-0`
+  preview card (header/table right up to the card edges, matching the pre-conversion design), and the
+  mono data table. Cleaned up the test CSV/directory afterward (no bulk-load config was ever saved, so
+  no DB cleanup needed). Zero console/React errors throughout.
 
 ## 12.8 `pages/Connections.tsx` + `pages/EmailEdit.tsx` (55 + 53 = 108 occurrences)
 

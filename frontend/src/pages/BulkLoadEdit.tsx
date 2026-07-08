@@ -33,10 +33,10 @@ export default function BulkLoadEdit() {
   if (!isNew && isLoading) return (
     <>
       <TopBar crumbs={crumbs} />
-      <div className="scroll" style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 20, alignItems: 'start' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="scroll grid grid-cols-[300px_1fr] gap-5 items-start">
+        <div className="flex flex-col gap-3.5">
           {[['Details', 2], ['Target database', 4]].map(([label, rows]) => (
-            <div key={label as string} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div key={label as string} className="card flex flex-col gap-3">
               <Sk h={12} style={{ width: 70 }} />
               {Array.from({ length: rows as number }, (_, i) => i).map(n => (
                 <div key={'sk-' + n} className="field">
@@ -47,9 +47,9 @@ export default function BulkLoadEdit() {
             </div>
           ))}
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="flex flex-col gap-3.5">
           {[['Source files', 4], ['Post-load', 2]].map(([label, rows]) => (
-            <div key={label as string} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div key={label as string} className="card flex flex-col gap-3">
               <Sk h={12} style={{ width: 90 }} />
               {Array.from({ length: rows as number }, (_, i) => i).map(n => (
                 <div key={'sk-' + n} className="field">
@@ -196,12 +196,12 @@ function BulkLoadForm({ id, isNew, existing, dbConns, navigate, qc }: {
       <TopBar
         crumbs={crumbs}
         actions={
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <div className="flex gap-3 items-center">
+            <label className="flex items-center gap-1.5 text-[11.5px] text-text-muted cursor-pointer">
               <input type="checkbox" checked={dryRun} onChange={e => setDryRun(e.target.checked)} />
               Attempt insert (rolled back)
             </label>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="flex gap-2">
               <Link to="/bulk-loads" className="btn btn-sm"><ArrowLeft size={12} />{' '}Back</Link>
               <button className="btn btn-sm" onClick={handleTest} disabled={testing}>
                 {testing ? <Spinner size={12} /> : <FlaskConical size={12} />}{' '}Test File
@@ -214,27 +214,27 @@ function BulkLoadForm({ id, isNew, existing, dbConns, navigate, qc }: {
         }
       />
 
-      <div className="scroll" style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 20, alignItems: 'start' }}>
+      <div className="scroll grid grid-cols-[300px_1fr] gap-5 items-start">
         {/* Left: details + source */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="flex flex-col gap-3.5">
           <div>
-            <h1 style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.02em', margin: '0 0 4px', color: 'var(--text)' }}>{name || 'New Bulk Load'}</h1>
-            {desc && <p style={{ color: 'var(--text-muted)', fontSize: 12.5, margin: 0 }}>{desc}</p>}
+            <h1 className="text-xl font-semibold tracking-[-0.02em] m-0 mb-1 text-text-primary">{name || 'New Bulk Load'}</h1>
+            {desc && <p className="text-text-muted text-[12.5px] m-0">{desc}</p>}
           </div>
 
           {error && (
-            <div style={{ padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 7, fontSize: 12.5, color: 'var(--failure-text)' }}>
+            <div className="py-2 px-3 bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.2)] rounded-[7px] text-[12.5px] text-failure-text">
               {error}
             </div>
           )}
 
           {/* Details */}
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>Details</div>
+          <div className="card flex flex-col gap-3">
+            <div className="text-xs font-semibold mb-0.5">Details</div>
             <div className="field">
               <label htmlFor="bulk-name">Name *</label>
               <input id="bulk-name" className="input" value={name} onChange={e => { setName(e.target.value); if (fieldErrors.name) setFieldErrors(f => ({ ...f, name: '' })) }} placeholder="Daily subscriber load" />
-              {fieldErrors.name && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{fieldErrors.name}</span>}
+              {fieldErrors.name && <span className="text-[11.5px] text-failure">{fieldErrors.name}</span>}
             </div>
             <div className="field">
               <label htmlFor="bulk-desc">Description</label>
@@ -243,11 +243,11 @@ function BulkLoadForm({ id, isNew, existing, dbConns, navigate, qc }: {
           </div>
 
           {/* Connection */}
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>Target database</div>
+          <div className="card flex flex-col gap-3">
+            <div className="text-xs font-semibold mb-0.5">Target database</div>
             <div className="field">
               <label htmlFor="bulk-connection">Connection</label>
-              <select id="bulk-connection" className="input" value={connId} onChange={e => setConnId(e.target.value)} style={{ height: 34 }}>
+              <select id="bulk-connection" className="input" value={connId} onChange={e => setConnId(e.target.value)}>
                 <option value="">Select connection…</option>
                 {dbConns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
@@ -257,21 +257,21 @@ function BulkLoadForm({ id, isNew, existing, dbConns, navigate, qc }: {
               <input id="bulk-target-table" className="input mono-input" value={targetTable}
                 onChange={e => { setTargetTable(e.target.value); if (fieldErrors.targetTable) setFieldErrors(f => ({ ...f, targetTable: '' })) }}
                 placeholder="STAGING.SUBSCRIPTIONS" />
-              {fieldErrors.targetTable && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{fieldErrors.targetTable}</span>}
+              {fieldErrors.targetTable && <span className="text-[11.5px] text-failure">{fieldErrors.targetTable}</span>}
             </div>
             <div className="field">
               <label htmlFor="bulk-load-mode">Load mode</label>
-              <select id="bulk-load-mode" className="input" value={loadMode} onChange={e => setLoadMode(e.target.value)} style={{ height: 34 }}>
+              <select id="bulk-load-mode" className="input" value={loadMode} onChange={e => setLoadMode(e.target.value)}>
                 <option value="append">Append — insert rows without touching existing data</option>
                 <option value="replace">Replace — truncate table then insert</option>
               </select>
             </div>
             <div className="field">
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <label className="flex items-center gap-2">
                 <input type="checkbox" checked={useSqlLoader} onChange={e => setUseSqlLoader(e.target.checked)} />{' '}
                 Use SQL*Loader (Oracle only)
               </label>
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
+              <span className="text-[11px] text-text-muted mt-[3px]">
                 Direct-path load via sqlldr subprocess. Fastest for Oracle bulk inserts.
                 Known gap: "Attempt insert" dry-run testing isn't available on this path (sqlldr manages
                 its own commits) — Test File still checks the file, header, and target columns.
@@ -281,36 +281,36 @@ function BulkLoadForm({ id, isNew, existing, dbConns, navigate, qc }: {
         </div>
 
         {/* Right: source config + advanced */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="flex flex-col gap-3.5">
           {/* Source */}
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>Source files</div>
+          <div className="card flex flex-col gap-3">
+            <div className="text-xs font-semibold mb-0.5">Source files</div>
 
             <div className="field">
               <label htmlFor="bulk-source-dir">Source directory *</label>
               <input id="bulk-source-dir" className="input mono-input" value={sourceDir}
                 onChange={e => { setSourceDir(e.target.value); if (fieldErrors.sourceDir) setFieldErrors(f => ({ ...f, sourceDir: '' })) }}
                 placeholder="/data/incoming/" />
-              {fieldErrors.sourceDir && <span style={{ fontSize: 11.5, color: 'var(--failure)' }}>{fieldErrors.sourceDir}</span>}
+              {fieldErrors.sourceDir && <span className="text-[11.5px] text-failure">{fieldErrors.sourceDir}</span>}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="grid grid-cols-2 gap-2.5">
               <div className="field">
                 <label htmlFor="bulk-file-prefix">File prefix (optional)</label>
                 <input id="bulk-file-prefix" className="input mono-input" value={filePrefix} onChange={e => setFilePrefix(e.target.value)} placeholder="SUBS_" />
-                <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>Only load files starting with this.</span>
+                <span className="text-[11px] text-text-muted mt-[3px]">Only load files starting with this.</span>
               </div>
               <div className="field">
                 <label htmlFor="bulk-file-prefix-exclude">Exclude prefix (optional)</label>
                 <input id="bulk-file-prefix-exclude" className="input mono-input" value={filePrefixExclude} onChange={e => setFilePrefixExclude(e.target.value)} placeholder="SUBS_OLD_" />
-                <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>Skip files starting with this.</span>
+                <span className="text-[11px] text-text-muted mt-[3px]">Skip files starting with this.</span>
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+            <div className="grid grid-cols-3 gap-2.5">
               <div className="field">
                 <label htmlFor="bulk-file-type">File type</label>
-                <select id="bulk-file-type" className="input" value={fileType} onChange={e => setFileType(e.target.value)} style={{ height: 34 }}>
+                <select id="bulk-file-type" className="input" value={fileType} onChange={e => setFileType(e.target.value)}>
                   <option value="csv">CSV</option>
                   <option value="xlsx">Excel (.xlsx)</option>
                   <option value="txt">TXT</option>
@@ -318,18 +318,18 @@ function BulkLoadForm({ id, isNew, existing, dbConns, navigate, qc }: {
               </div>
               <div className="field">
                 <label htmlFor="bulk-delimiter">Delimiter</label>
-                <input id="bulk-delimiter" className="input mono-input" value={delimiter} onChange={e => setDelimiter(e.target.value)} maxLength={3} style={{ width: 70 }} />
+                <input id="bulk-delimiter" className="input mono-input !w-[70px]" value={delimiter} onChange={e => setDelimiter(e.target.value)} maxLength={3} />
               </div>
               <div className="field">
                 <label htmlFor="bulk-on-no-files">On no files</label>
-                <select id="bulk-on-no-files" className="input" value={onNoFiles} onChange={e => setOnNoFiles(e.target.value)} style={{ height: 34 }}>
+                <select id="bulk-on-no-files" className="input" value={onNoFiles} onChange={e => setOnNoFiles(e.target.value)}>
                   <option value="skip">Skip (succeed)</option>
                   <option value="fail">Fail</option>
                 </select>
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="grid grid-cols-2 gap-2.5">
               <div className="field">
                 <label htmlFor="bulk-header-rows">Header rows</label>
                 <input id="bulk-header-rows" className="input" type="number" min={0} max={10} value={headerRows} onChange={e => setHeaderRows(Number.parseInt(e.target.value) || 0)} />
@@ -343,27 +343,27 @@ function BulkLoadForm({ id, isNew, existing, dbConns, navigate, qc }: {
 
           {/* Test file results */}
           {testError && (
-            <div style={{ padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 7, fontSize: 12.5, color: 'var(--failure-text)' }}>
+            <div className="py-2 px-3 bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.2)] rounded-[7px] text-[12.5px] text-failure-text">
               {testError}
             </div>
           )}
 
           {preview && (
-            <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
-                <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 600 }}>
+            <div className="card overflow-hidden !p-0">
+              <div className="flex items-center justify-between py-2.5 px-3.5 border-b border-border">
+                <span className="text-xs text-text-primary font-semibold">
                   Preview · <span className="mono">{preview.file_name}</span>
                 </span>
-                <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
+                <span className="text-[10.5px] text-text-muted">
                   {preview.files_matched} file{preview.files_matched === 1 ? '' : 's'} matched · showing {preview.row_count_sampled} row{preview.row_count_sampled === 1 ? '' : 's'}
                 </span>
               </div>
 
               {preview.warnings.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '10px 14px', background: 'rgba(234,179,8,0.06)', borderBottom: '1px solid var(--border)' }}>
+                <div className="flex flex-col gap-1.5 py-2.5 px-3.5 bg-[rgba(234,179,8,0.06)] border-b border-border">
                   {preview.warnings.map((w, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 7, fontSize: 12, color: 'var(--text-2)' }}>
-                      <TriangleAlert size={13} style={{ color: '#EAB308', marginTop: 1, flexShrink: 0 }} />
+                    <div key={i} className="flex items-start gap-[7px] text-xs text-text-2">
+                      <TriangleAlert size={13} className="text-yellow-500 mt-px shrink-0" />
                       {w}
                     </div>
                   ))}
@@ -371,36 +371,33 @@ function BulkLoadForm({ id, isNew, existing, dbConns, navigate, qc }: {
               )}
 
               {preview.insert_error_summary && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 14px', background: 'rgba(239,68,68,0.06)', borderBottom: '1px solid var(--border)' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7, fontSize: 12, fontWeight: 600, color: 'var(--failure-text)' }}>
-                    <TriangleAlert size={13} style={{ color: 'var(--failure)', marginTop: 1, flexShrink: 0 }} />
+                <div className="flex flex-col gap-2 py-2.5 px-3.5 bg-[rgba(239,68,68,0.06)] border-b border-border">
+                  <div className="flex items-start gap-[7px] text-xs font-semibold text-failure-text">
+                    <TriangleAlert size={13} className="text-failure mt-px shrink-0" />
                     {preview.insert_error_summary} on insert
                   </div>
                   {errorGroups.map((g, i) => (
-                    <div key={i} style={{ fontSize: 11.5, color: 'var(--text-2)', paddingLeft: 20 }}>
-                      <span className="mono" style={{ color: 'var(--failure-text)' }}>{g.column ?? '(row)'}</span>
+                    <div key={i} className="text-[11.5px] text-text-2 pl-5">
+                      <span className="mono text-failure-text">{g.column ?? '(row)'}</span>
                       {' '}· {g.error_type.replace(/_/g, ' ')} · {formatRowNumbers(g.row_indices)}
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{g.message}</div>
+                      <div className="text-[11px] text-text-muted mt-px">{g.message}</div>
                     </div>
                   ))}
                 </div>
               )}
 
-              <div style={{ overflow: 'auto', maxHeight: 320 }}>
+              <div className="overflow-auto max-h-80">
                 <table className="tbl">
                   <thead>
                     <tr>{preview.columns.map(c => <th key={c}>{c}</th>)}</tr>
                   </thead>
                   <tbody>
                     {preview.sample_rows.map((row, i) => (
-                      <tr key={i} style={errorRowIndices.has(i) ? { background: 'rgba(239,68,68,0.07)' } : undefined}>
+                      <tr key={i} className={errorRowIndices.has(i) ? 'bg-[rgba(239,68,68,0.07)]' : undefined}>
                         {(row as unknown[]).map((cell, j) => {
                           const isBadCell = errorCellKeys.has(`${i}:${preview.columns[j]}`)
                           return (
-                            <td key={j} className="mono" style={{
-                              fontSize: 12,
-                              ...(isBadCell ? { background: 'rgba(239,68,68,0.16)', boxShadow: 'inset 0 0 0 1px rgba(239,68,68,0.4)' } : {}),
-                            }}>
+                            <td key={j} className={`mono text-xs${isBadCell ? ' bg-[rgba(239,68,68,0.16)] shadow-[inset_0_0_0_1px_rgba(239,68,68,0.4)]' : ''}`}>
                               {String(cell ?? '')}
                             </td>
                           )
@@ -414,53 +411,51 @@ function BulkLoadForm({ id, isNew, existing, dbConns, navigate, qc }: {
           )}
 
           {/* Archive + column mapping */}
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>Post-load</div>
+          <div className="card flex flex-col gap-3">
+            <div className="text-xs font-semibold mb-0.5">Post-load</div>
 
             <div className="field">
               <label htmlFor="bulk-archive-dir">Archive directory (optional, supports variables)</label>
               <input id="bulk-archive-dir" className="input mono-input" value={archiveDir} onChange={e => setArchiveDir(e.target.value)} placeholder="/data/archive/{{ current_date }}/" />
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
-                <span style={{ fontSize: 10.5, color: 'var(--text-dim)' }}>Variables:</span>
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                <span className="text-[10.5px] text-text-dim">Variables:</span>
                 {VAR_HINTS.map(v => (
                   <button key={v} onClick={() => setArchiveDir(d => d + v)}
-                    className="mono"
-                    style={{ fontSize: 10.5, padding: '1px 6px', background: 'rgba(249,115,22,0.08)', color: 'var(--accent-h)', borderRadius: 3, border: '1px solid rgba(249,115,22,0.2)', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>
+                    className="mono text-[10.5px] py-px px-1.5 bg-[rgba(249,115,22,0.08)] text-accent-hover rounded-[3px] border border-[rgba(249,115,22,0.2)] cursor-pointer font-mono">
                     {v}
                   </button>
                 ))}
               </div>
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>Loaded files are moved here. Leave blank to leave files in place.</span>
+              <span className="text-[11px] text-text-muted mt-[3px]">Loaded files are moved here. Leave blank to leave files in place.</span>
             </div>
 
             <div className="field">
               <label htmlFor="bulk-col-mapping">Column mapping (JSON array) — optional</label>
               <textarea
                 id="bulk-col-mapping"
-                className="input mono-input"
+                className="input mono-input !h-auto !resize-y !text-xs"
                 rows={5}
                 value={colMapRaw}
                 onChange={e => setColMapRaw(e.target.value)}
                 placeholder={'[\n  { "source": "SOURCE_COL", "target": "target_col" }\n]'}
-                style={{ height: 'auto', resize: 'vertical', fontSize: 12 }}
               />
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
-                Rename source columns to match the target table schema. Leave as <code style={{ color: 'var(--text-3)' }}>[]</code> to use source column names as-is.
+              <span className="text-[11px] text-text-muted mt-[3px]">
+                Rename source columns to match the target table schema. Leave as <code className="text-text-3">[]</code> to use source column names as-is.
               </span>
             </div>
           </div>
 
           {/* Output variable hint card */}
-          <div className="card" style={{ background: 'rgba(251,146,60,0.04)', border: '1px solid rgba(251,146,60,0.15)' }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent-text)', marginBottom: 8 }}>Output variables</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-3)', lineHeight: 1.6 }}>
+          <div className="card !bg-[rgba(251,146,60,0.04)] !border-[rgba(251,146,60,0.15)]">
+            <div className="text-xs font-semibold text-accent-text mb-2">Output variables</div>
+            <div className="flex flex-col gap-1 text-xs text-text-3 leading-[1.6]">
               <div>After this step runs, downstream steps can reference:</div>
-              <code className="mono" style={{ fontSize: 11, color: 'var(--text-2)' }}>{'{{ steps.step_name.files_found }}'}</code>
-              <code className="mono" style={{ fontSize: 11, color: 'var(--text-2)' }}>{'{{ steps.step_name.files_loaded }}'}</code>
-              <code className="mono" style={{ fontSize: 11, color: 'var(--text-2)' }}>{'{{ steps.step_name.records_loaded }}'}</code>
-              <code className="mono" style={{ fontSize: 11, color: 'var(--text-2)' }}>{'{{ steps.step_name.records_failed }}'}</code>
-              <code className="mono" style={{ fontSize: 11, color: 'var(--text-2)' }}>{'{{ steps.step_name.duration_sec }}'}</code>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Use these in a follow-up email step to send a load summary.</div>
+              <code className="mono text-[11px] text-text-2">{'{{ steps.step_name.files_found }}'}</code>
+              <code className="mono text-[11px] text-text-2">{'{{ steps.step_name.files_loaded }}'}</code>
+              <code className="mono text-[11px] text-text-2">{'{{ steps.step_name.records_loaded }}'}</code>
+              <code className="mono text-[11px] text-text-2">{'{{ steps.step_name.records_failed }}'}</code>
+              <code className="mono text-[11px] text-text-2">{'{{ steps.step_name.duration_sec }}'}</code>
+              <div className="text-[11px] text-text-muted mt-1">Use these in a follow-up email step to send a load summary.</div>
             </div>
           </div>
         </div>
