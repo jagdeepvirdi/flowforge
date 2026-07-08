@@ -604,9 +604,57 @@ single session has to touch the whole frontend at once.*
 
 ## 12.5 `pages/RunDetail.tsx` — standalone (111 occurrences, most complex page)
 
-- [ ] Header, stats grid, progress bar, diff panel, anomaly badges, AI narrative modal, timeline steps
+- [x] Header, stats grid, progress bar, diff panel, anomaly badges, AI narrative modal, timeline steps
   (success/failed/running/skipped), and the loading skeleton added 2026-07-06. Test with a real
   success run, a real failed run if one exists, and the loading state.
+  **Done 2026-07-08**: converted the whole file (all 9 components: `AnomalyRow`, `StepStatusIcon`,
+  `StepLogsTab`, `StepOutputTab`, `StepInfoTab`, `DiagnosisPanel`, `AnomalyPanel`, `TimelineStep`,
+  `DeltaBadge`, `DiffPanel`, plus the page component itself). Notable finds:
+  - The per-status color lookups (`STATUS_COLOR` for the rail icon/border, a local `statusColors` for
+    the duration text) were plain CSS-var strings fed into inline `style`, but each only ever takes one
+    of 3-4 known values — replaced with `STATUS_TEXT_CLS`/`STATUS_BORDER_CLS`/`DURATION_TEXT_CLS`
+    lookup tables of Tailwind classes instead, so the "dynamic" value is a conditional class swap (same
+    pattern already used for tab/step-type styling elsewhere), not a genuine exception. Same treatment
+    for the progress bar's per-step `barBackground` (success/running-gradient/failed/pending) — only
+    the `flex` proportional-to-`duration_ms` value stays inline, since that's a real continuous number.
+  - `StepStatusIcon` took an unused-outside-itself `statusColor` CSS-var prop just to color one 6px
+    "running" dot — dropped the prop entirely and hardcoded `bg-running` on that one span, since it's
+    the only state that ever renders it (simpler than threading a class through).
+  - Extensive `rgba(249,115,22,0.NN)` "AI/anomaly" orange tints throughout (`AnomalyRow`,
+    `DiagnosisPanel`, `AnomalyPanel`) use six different alpha values (0.03/0.06/0.1/0.15/0.2/0.3), none
+    of which match `--accent-soft` (0.14) or `--accent-glow` (0.25) — kept every one as an arbitrary
+    `bg-[rgba(...)]`/`border-[rgba(...)]` value rather than coercing onto a close token, same judgment
+    call as chunks 12.3/12.4. Solid `#F97316` uses (icon/text colors, not tints) converted to `text-accent`
+    since that's an exact match. The diff table's `#818CF8`/`rgba(99,102,241,...)` "new step" indigo
+    badge got the same treatment as chunk 12.2's `StepEditor` indigo accents — `text-indigo-400` for
+    the exact Tailwind-palette match, arbitrary `bg-[rgba(99,102,241,0.15)]` for the non-matching tint.
+  - `borderRadius: 6` and `borderRadius: 8` look interchangeable at a glance but map to two different
+    tokens (`--r-sm` vs `--r`) — checked each of the file's 6 distinct radius values individually rather
+    than assuming; `4` turned out to exactly match Tailwind's own unthemed `DEFAULT` (`rounded`, 4px),
+    so that one needed no custom token or arbitrary value at all.
+  - The component-local `<style>{'@keyframes shimmer {...}'}</style>` (progress-bar running-step
+    shimmer) was the only keyframe defined inside a component in the whole codebase, while an
+    equivalent `ff-pulse` already lives in `index.css` — moved `shimmer` into `index.css` next to it and
+    referenced both via `animate-[name_timing]` arbitrary values, deleting the local `<style>` tag.
+    Zero visual diff, just consistency with how the one other custom keyframe is already handled.
+  - Left every `<Sk .../>` skeleton placeholder's `style={{ width, marginBottom, flexShrink }}` prop
+    completely untouched (matching the already-converted `Dashboard.tsx` precedent for the same
+    component) — these are accepted per this phase's ground rules as one-off content-approximating
+    dimensions, not real design tokens.
+  Verified: `tsc --noEmit` and `eslint` clean, `npx vitest run` — 97/97 passing, `npm run build`
+  succeeds. Live-verified via a real dev Postgres + Flask + Vite stack (Playwright, headless): the
+  one pre-existing real success run (header, stats grid, green progress bar, expanded timeline step,
+  all 3 tabs — Logs/Output/Info — and the "Diff vs previous run" toggle); a genuine failed run created
+  on the fly (a throwaway pipeline with a deliberately-broken `db_query` step, run via the API and
+  deleted again afterward) confirming the FAILED badge, red progress bar, red error banner, red
+  timeline circle/border, and the "Explain this error" → expanded AI Diagnosis panel (fell back to
+  "Could not reach Ollama" text since Ollama isn't running locally — expected, not a regression); and
+  the loading skeleton, captured by delaying the run-detail API response via Playwright route
+  interception. Zero console/React errors in any state (aside from the expected 503 when probing the
+  unavailable local Ollama). Anomaly-panel styling (rows/duration outlier badges) could not be
+  live-triggered — it requires 30 prior runs of real statistical history that don't exist in a fresh
+  dev DB — so it was verified by inspection instead: it reuses the same `AnomalyRow`/arbitrary-rgba
+  classes already exercised and screenshotted in the diagnosis-panel state above.
 
 ## 12.6 `pages/ReportEdit.tsx` — standalone (104 occurrences)
 

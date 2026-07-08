@@ -23,11 +23,23 @@ const TYPE_META: Record<string, { cls: string; label: string }> = {
   drive_upload: { cls: 'tbadge-drive',     label: 'Drive' },
 }
 
-const STATUS_COLOR: Record<string, string> = {
-  success: 'var(--success)',
-  failed:  'var(--failure)',
-  running: 'var(--running)',
-  skipped: 'var(--text-dim)',
+const STATUS_TEXT_CLS: Record<string, string> = {
+  success: 'text-success',
+  failed:  'text-failure',
+  running: 'text-running',
+  skipped: 'text-text-dim',
+}
+
+const STATUS_BORDER_CLS: Record<string, string> = {
+  success: 'border-success',
+  failed:  'border-failure',
+  running: 'border-running',
+  skipped: 'border-text-dim',
+}
+
+const DURATION_TEXT_CLS: Record<string, string> = {
+  success: 'text-success-text',
+  running: 'text-running-text',
 }
 
 function AnomalyRow({ label, metric, a, aiEnabled, narrative, narrating, onNarrate, onDismiss }: {
@@ -41,54 +53,54 @@ function AnomalyRow({ label, metric, a, aiEnabled, narrative, narrating, onNarra
   const valStr  = metric === 'rows' ? `${a.value.toLocaleString()} rows` : fmtDur(a.value)
   const meanStr = metric === 'rows' ? `${Math.round(a.mean).toLocaleString()} rows` : fmtDur(Math.round(a.mean))
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 11, color: 'var(--text-3)', minWidth: 52, fontFamily: 'inherit' }}>{label}</span>
-        <span style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-2)' }}>{valStr}</span>
-        <span style={{ fontSize: 10.5, padding: '1px 6px', borderRadius: 3, background: 'rgba(249,115,22,0.1)', color: '#F97316', fontFamily: 'inherit' }}>
+    <div className="flex flex-col gap-[5px]">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-[11px] text-text-3 min-w-[52px] font-[inherit]">{label}</span>
+        <span className="text-[11px] font-mono text-text-2">{valStr}</span>
+        <span className="text-[10.5px] py-px px-1.5 rounded-[3px] bg-[rgba(249,115,22,0.1)] text-accent font-[inherit]">
           {pctAbs.toFixed(0)}% {dir} avg ({meanStr})
         </span>
         {aiEnabled && narrative === null && (
           <button
             onClick={onNarrate}
             disabled={narrating}
-            style={{ fontSize: 10.5, padding: '2px 7px', border: '1px solid rgba(249,115,22,0.3)', background: 'transparent', color: '#F97316', borderRadius: 3, cursor: narrating ? 'default' : 'pointer', opacity: narrating ? 0.7 : 1, fontFamily: 'inherit' }}
+            className={`text-[10.5px] py-0.5 px-[7px] border border-[rgba(249,115,22,0.3)] bg-transparent text-accent rounded-[3px] font-[inherit] ${narrating ? 'cursor-default opacity-70' : 'cursor-pointer opacity-100'}`}
           >
             {narrating ? '…' : 'Why?'}
           </button>
         )}
       </div>
       {narrative !== null && (
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '6px 10px', background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.15)', borderRadius: 5 }}>
-          <span style={{ fontSize: 11.5, color: 'var(--text-2)', lineHeight: 1.65, flex: 1, fontFamily: 'inherit' }}>{narrative}</span>
-          <button onClick={onDismiss} style={{ display: 'flex', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0, flexShrink: 0 }}><X size={11} /></button>
+        <div className="flex items-start gap-2 py-1.5 px-2.5 bg-[rgba(249,115,22,0.06)] border border-[rgba(249,115,22,0.15)] rounded-[5px]">
+          <span className="text-[11.5px] text-text-2 leading-[1.65] flex-1 font-[inherit]">{narrative}</span>
+          <button onClick={onDismiss} className="flex bg-transparent border-none cursor-pointer text-text-3 p-0 shrink-0"><X size={11} /></button>
         </div>
       )}
     </div>
   )
 }
 
-function StepStatusIcon({ status, stepOrder, statusColor }: { status: string; stepOrder: number; statusColor: string }) {
+function StepStatusIcon({ status, stepOrder }: { status: string; stepOrder: number }) {
   if (status === 'success') return <CheckCircle size={12} />
   if (status === 'failed')  return <XCircle size={12} />
-  if (status === 'running') return <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor, animation: 'ff-pulse 1.4s infinite' }} />
-  return <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700 }}>{stepOrder}</span>
+  if (status === 'running') return <span className="w-1.5 h-1.5 rounded-full bg-running animate-[ff-pulse_1.4s_infinite]" />
+  return <span className="font-mono text-[10px] font-bold">{stepOrder}</span>
 }
 
 function StepLogsTab({ s, diagnosisPanel }: { s: StepRun; diagnosisPanel: React.ReactNode }) {
   return (
     <>
       {s.error_message && (
-        <div style={{ marginBottom: 10 }}>
-          <div style={{ padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, color: 'var(--failure-text)', whiteSpace: 'pre-wrap', marginBottom: 6 }}>
+        <div className="mb-2.5">
+          <div className="py-2 px-3 bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.2)] rounded-r-sm text-failure-text whitespace-pre-wrap mb-1.5">
             {s.error_message}
           </div>
           {diagnosisPanel}
         </div>
       )}
       {s.logs
-        ? <pre style={{ color: 'var(--text-2)', background: 'var(--bg)', margin: 0, whiteSpace: 'pre-wrap', maxHeight: 240, overflow: 'auto' }}>{s.logs}</pre>
-        : !s.error_message && <span style={{ color: 'var(--text-dim)' }}>No logs for this step.</span>}
+        ? <pre className="text-text-2 bg-bg m-0 whitespace-pre-wrap max-h-60 overflow-auto">{s.logs}</pre>
+        : !s.error_message && <span className="text-text-dim">No logs for this step.</span>}
     </>
   )
 }
@@ -109,18 +121,12 @@ function StepOutputTab({ s }: { s: StepRun }) {
   return (
     <>
       {s.output_path && (
-        <div style={{ marginBottom: 10 }}>
-          <div style={{ color: 'var(--text-muted)', fontSize: 11, marginBottom: 6 }}>{s.output_path.split(/[\\/]/).pop()}</div>
+        <div className="mb-2.5">
+          <div className="text-text-muted text-[11px] mb-1.5">{s.output_path.split(/[\\/]/).pop()}</div>
           <button
             onClick={handleDownload}
             disabled={downloading}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '6px 12px', borderRadius: 6, border: '1px solid var(--border-strong)',
-              background: downloading ? 'var(--surface)' : 'var(--surface-2)',
-              color: downloading ? 'var(--text-dim)' : 'var(--text)',
-              fontSize: 12, cursor: downloading ? 'default' : 'pointer', fontFamily: 'inherit',
-            }}
+            className={`inline-flex items-center gap-1.5 py-1.5 px-3 rounded-r-sm border border-border-strong text-xs font-[inherit] ${downloading ? 'bg-surface text-text-dim cursor-default' : 'bg-surface2 text-text-primary cursor-pointer'}`}
           >
             <Download size={12} />
             {downloading ? 'Downloading…' : 'Download file'}
@@ -128,34 +134,34 @@ function StepOutputTab({ s }: { s: StepRun }) {
         </div>
       )}
       {s.drive_url && (
-        <a href={s.drive_url} target="_blank" rel="noreferrer" style={{ color: 'var(--running-text)', display: 'inline-flex', alignItems: 'center', gap: 5, marginBottom: 6, fontSize: 12 }}>
+        <a href={s.drive_url} target="_blank" rel="noreferrer" className="text-running-text inline-flex items-center gap-[5px] mb-1.5 text-xs">
           View in Drive <ExternalLink size={11} />
         </a>
       )}
       {s.email_sent_to.length > 0 && (
-        <div style={{ color: 'var(--text-3)', marginBottom: 6 }}>
+        <div className="text-text-3 mb-1.5">
           Sent to: {s.email_sent_to.map(addr => (
-            <span key={addr} className="chip" style={{ marginLeft: 6, height: 20, fontSize: 11 }}>{addr}</span>
+            <span key={addr} className="chip ml-1.5 h-5 text-[11px]">{addr}</span>
           ))}
         </div>
       )}
       {s.rows_affected != null && (
-        <div style={{ color: 'var(--text-3)' }}>Rows affected: <span style={{ color: 'var(--text-2)' }}>{s.rows_affected.toLocaleString()}</span></div>
+        <div className="text-text-3">Rows affected: <span className="text-text-2">{s.rows_affected.toLocaleString()}</span></div>
       )}
-      {!hasOutput && <span style={{ color: 'var(--text-dim)' }}>No output recorded.</span>}
+      {!hasOutput && <span className="text-text-dim">No output recorded.</span>}
     </>
   )
 }
 
 function StepInfoTab({ s }: { s: StepRun }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, color: 'var(--text-3)' }}>
-      <div>Type: <span style={{ color: 'var(--text-2)' }}>{s.step_type}</span></div>
-      <div>Order: <span style={{ color: 'var(--text-2)' }}>#{s.step_order}</span></div>
-      <div>Status: <span style={{ color: 'var(--text-2)' }}>{s.status}</span></div>
-      <div>Started: <span style={{ color: 'var(--text-2)' }}>{new Date(s.started_at).toLocaleTimeString()}</span></div>
-      {s.finished_at && <div>Finished: <span style={{ color: 'var(--text-2)' }}>{new Date(s.finished_at).toLocaleTimeString()}</span></div>}
-      {s.duration_ms != null && <div>Duration: <span style={{ color: 'var(--text-2)' }}>{s.duration_ms}ms</span></div>}
+    <div className="flex flex-col gap-1.5 text-text-3">
+      <div>Type: <span className="text-text-2">{s.step_type}</span></div>
+      <div>Order: <span className="text-text-2">#{s.step_order}</span></div>
+      <div>Status: <span className="text-text-2">{s.status}</span></div>
+      <div>Started: <span className="text-text-2">{new Date(s.started_at).toLocaleTimeString()}</span></div>
+      {s.finished_at && <div>Finished: <span className="text-text-2">{new Date(s.finished_at).toLocaleTimeString()}</span></div>}
+      {s.duration_ms != null && <div>Duration: <span className="text-text-2">{s.duration_ms}ms</span></div>}
     </div>
   )
 }
@@ -165,19 +171,19 @@ function DiagnosisPanel({ diagnosis, diagnosing, onDiagnose, onDismiss, aiEnable
 }) {
   if (diagnosis !== null) {
     return (
-      <div style={{ padding: '10px 12px', background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: 6 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: '#F97316', display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'inherit' }}>
+      <div className="py-2.5 px-3 bg-[rgba(249,115,22,0.06)] border border-[rgba(249,115,22,0.2)] rounded-r-sm">
+        <div className="flex items-center justify-between mb-[7px]">
+          <span className="text-[11px] font-semibold text-accent flex items-center gap-1 font-[inherit]">
             <Lightbulb size={11} /> AI Diagnosis
           </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'inherit' }}>via Ollama</span>
-            <button onClick={onDismiss} style={{ display: 'flex', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0 }}>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-text-dim font-[inherit]">via Ollama</span>
+            <button onClick={onDismiss} className="flex bg-transparent border-none cursor-pointer text-text-3 p-0">
               <X size={12} />
             </button>
           </div>
         </div>
-        <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+        <div className="text-xs text-text-2 leading-[1.7] whitespace-pre-wrap font-[inherit]">
           {diagnosis}
         </div>
       </div>
@@ -188,7 +194,7 @@ function DiagnosisPanel({ diagnosis, diagnosing, onDiagnose, onDismiss, aiEnable
       <button
         onClick={onDiagnose}
         disabled={diagnosing}
-        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 9px', borderRadius: 4, border: '1px solid rgba(249,115,22,0.3)', background: 'rgba(249,115,22,0.06)', color: '#F97316', cursor: diagnosing ? 'default' : 'pointer', fontFamily: 'inherit', opacity: diagnosing ? 0.7 : 1 }}
+        className={`inline-flex items-center gap-[5px] text-[11px] py-[3px] px-[9px] rounded border border-[rgba(249,115,22,0.3)] bg-[rgba(249,115,22,0.06)] text-accent font-[inherit] ${diagnosing ? 'cursor-default opacity-70' : 'cursor-pointer opacity-100'}`}
       >
         <Lightbulb size={11} />
         {diagnosing ? 'Diagnosing…' : 'Explain this error'}
@@ -206,11 +212,11 @@ function AnomalyPanel({ anomaly, aiEnabled, rowsNarrative, rowsNarrating, durNar
   onDismissNarrative: (metric: 'rows' | 'duration') => void
 }) {
   return (
-    <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', background: 'rgba(249,115,22,0.03)', display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <AlertTriangle size={12} style={{ color: '#F97316' }} />
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#F97316', fontFamily: 'inherit' }}>Anomaly Detected</span>
-        <span style={{ fontSize: 10.5, color: 'var(--text-dim)', fontFamily: 'inherit' }}>— this step result is &gt;2σ outside its 30-run average</span>
+    <div className="py-2.5 px-4 border-b border-border bg-[rgba(249,115,22,0.03)] flex flex-col gap-2.5">
+      <div className="flex items-center gap-1.5">
+        <AlertTriangle size={12} className="text-accent" />
+        <span className="text-[11px] font-semibold text-accent font-[inherit]">Anomaly Detected</span>
+        <span className="text-[10.5px] text-text-dim font-[inherit]">— this step result is &gt;2σ outside its 30-run average</span>
       </div>
       {anomaly.rows_anomaly && (
         <AnomalyRow
@@ -272,12 +278,9 @@ function TimelineStep({ s, last, aiEnabled, anomaly }: { s: StepRun; last: boole
   }
 
   const typeMeta = TYPE_META[s.step_type] ?? { cls: 'tbadge-query', label: s.step_type }
-  const statusColor = STATUS_COLOR[s.status] ?? 'var(--text-dim)'
-  const statusColors: Record<string, string> = {
-    success: 'var(--success-text)',
-    running: 'var(--running-text)',
-  }
-  const durationColor = statusColors[s.status] || 'var(--text-dim)'
+  const statusTextCls = STATUS_TEXT_CLS[s.status] ?? 'text-text-dim'
+  const statusBorderCls = STATUS_BORDER_CLS[s.status] ?? 'border-text-dim'
+  const durationCls = DURATION_TEXT_CLS[s.status] ?? 'text-text-dim'
 
   const diagnosisPanel = (
     <DiagnosisPanel
@@ -290,51 +293,35 @@ function TimelineStep({ s, last, aiEnabled, anomaly }: { s: StepRun; last: boole
   )
 
   return (
-    <div style={{ display: 'flex', gap: 14, position: 'relative' }}>
+    <div className="flex gap-3.5 relative">
       {/* Rail */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, width: 24, paddingTop: 14 }}>
-        <div style={{
-          width: 24, height: 24, borderRadius: '50%',
-          background: 'var(--surface)',
-          border: `2px solid ${statusColor}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: statusColor,
-          position: 'relative',
-          zIndex: 1,
-          boxShadow: s.status === 'running' ? `0 0 0 4px rgba(59,130,246,0.15)` : 'none',
-        }}>
-          <StepStatusIcon status={s.status} stepOrder={s.step_order} statusColor={statusColor} />
+      <div className="flex flex-col items-center shrink-0 w-6 pt-3.5">
+        <div className={`w-6 h-6 rounded-full bg-surface border-2 ${statusBorderCls} flex items-center justify-center ${statusTextCls} relative z-[1] ${s.status === 'running' ? 'shadow-[0_0_0_4px_rgba(59,130,246,0.15)]' : ''}`}>
+          <StepStatusIcon status={s.status} stepOrder={s.step_order} />
         </div>
-        {!last && <div style={{ flex: 1, width: 2, background: 'var(--border)', marginTop: 2 }} />}
+        {!last && <div className="flex-1 w-0.5 bg-border mt-0.5" />}
       </div>
 
       {/* Card */}
-      <div style={{
-        flex: 1, marginBottom: 6,
-        background: open ? 'var(--surface)' : 'var(--bg-code)',
-        border: `1px solid ${open ? 'var(--border-strong)' : 'var(--border)'}`,
-        borderRadius: 10,
-        overflow: 'hidden',
-        opacity: s.status === 'skipped' ? 0.5 : 1,
-      }}>
+      <div className={`flex-1 mb-1.5 rounded-[10px] overflow-hidden border ${open ? 'bg-surface border-border-strong' : 'bg-bg-code border-border'}${s.status === 'skipped' ? ' opacity-50' : ''}`}>
         <button
           onClick={() => setOpen(x => !x)}
-          style={{ width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', textAlign: 'left' }}
+          className="w-full bg-transparent border-none cursor-pointer flex items-center gap-3 py-3 px-4 text-left"
         >
           <span className={`tbadge ${typeMeta.cls}`}>{typeMeta.label}</span>
-          <span className="mono" style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{s.step_name}</span>
-          <span style={{ flex: 1, fontSize: 11.5, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span className="mono text-[13px] font-medium text-text-primary">{s.step_name}</span>
+          <span className="flex-1 text-[11.5px] text-text-muted flex items-center gap-3">
             {s.rows_affected != null && <span>{s.rows_affected.toLocaleString()} rows</span>}
-            {anomaly && <span title="Statistical anomaly detected" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: '#F97316' }}><AlertTriangle size={12} /> anomaly</span>}
+            {anomaly && <span title="Statistical anomaly detected" className="inline-flex items-center gap-[3px] text-accent"><AlertTriangle size={12} /> anomaly</span>}
           </span>
-          <span className="mono" style={{ fontSize: 11.5, color: durationColor, minWidth: 50, textAlign: 'right' }}>
+          <span className={`mono text-[11.5px] ${durationCls} min-w-[50px] text-right`}>
             {fmtDur(s.duration_ms)}
           </span>
-          {open ? <ChevronUp size={14} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />}
+          {open ? <ChevronUp size={14} className="text-text-muted" /> : <ChevronDown size={14} className="text-text-muted" />}
         </button>
 
         {open && (
-          <div style={{ borderTop: '1px solid var(--border)', background: 'var(--bg)' }}>
+          <div className="border-t border-border bg-bg">
             {/* Anomaly panel */}
             {anomaly && (
               <AnomalyPanel
@@ -349,22 +336,14 @@ function TimelineStep({ s, last, aiEnabled, anomaly }: { s: StepRun; last: boole
               />
             )}
             {/* Tabs */}
-            <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--border)', padding: '0 16px' }}>
+            <div className="flex items-center border-b border-border px-4">
               {['Logs', 'Output', 'Info'].map((t, i) => (
-                <button key={t} onClick={() => setActiveTab(i)} style={{
-                  background: 'transparent', border: 'none',
-                  color: activeTab === i ? 'var(--accent)' : 'var(--text-muted)',
-                  padding: '9px 14px', fontSize: 12,
-                  fontWeight: activeTab === i ? 600 : 500,
-                  cursor: 'pointer',
-                  borderBottom: activeTab === i ? '2px solid var(--accent)' : '2px solid transparent',
-                  fontFamily: 'inherit',
-                }}>{t}</button>
+                <button key={t} onClick={() => setActiveTab(i)} className={`bg-transparent border-none py-[9px] px-3.5 text-xs cursor-pointer font-[inherit] border-b-2 ${activeTab === i ? 'text-accent font-semibold border-b-accent' : 'text-text-muted font-medium border-b-transparent'}`}>{t}</button>
               ))}
             </div>
 
             {/* Content */}
-            <div style={{ padding: '12px 16px', fontFamily: 'JetBrains Mono, monospace', fontSize: 11.5, lineHeight: 1.7 }}>
+            <div className="py-3 px-4 font-mono text-[11.5px] leading-[1.7]">
               {activeTab === 0 && <StepLogsTab s={s} diagnosisPanel={diagnosisPanel} />}
               {activeTab === 1 && <StepOutputTab s={s} />}
               {activeTab === 2 && <StepInfoTab s={s} />}
@@ -383,12 +362,12 @@ function fmtBytes(n: number): string {
 }
 
 function DeltaBadge({ delta, unit, pct }: { delta: number | null; unit?: string; pct?: boolean }) {
-  if (delta === null || delta === undefined) return <span style={{ color: 'var(--text-dim)' }}>—</span>
+  if (delta === null || delta === undefined) return <span className="text-text-dim">—</span>
   const up    = delta > 0
   const zero  = delta === 0
-  const color = zero ? 'var(--text-muted)' : up ? 'var(--failure-text)' : 'var(--success-text)'
+  const colorCls = zero ? 'text-text-muted' : up ? 'text-failure-text' : 'text-success-text'
   const label = zero ? '±0' : `${up ? '+' : ''}${pct ? `${delta}%` : `${delta.toLocaleString()}${unit ? ' ' + unit : ''}`}`
-  return <span style={{ color, fontSize: 11, fontFamily: 'JetBrains Mono, monospace' }}>{label}</span>
+  return <span className={`${colorCls} text-[11px] font-mono`}>{label}</span>
 }
 
 function DiffPanel({ runId, prevRunId }: { runId: string; prevRunId: string | null }) {
@@ -403,32 +382,31 @@ function DiffPanel({ runId, prevRunId }: { runId: string; prevRunId: string | nu
   if (prevRunId === null && !isLoading && diff) return null
 
   return (
-    <div style={{ marginBottom: 16 }}>
+    <div className="mb-4">
       <button
         onClick={() => setOpen(x => !x)}
-        className="btn btn-sm"
-        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}
+        className="btn btn-sm flex items-center gap-1.5 text-xs"
       >
         {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
         Diff vs previous run
       </button>
 
       {open && (
-        <div className="card" style={{ marginTop: 8, padding: 0, overflow: 'hidden' }}>
+        <div className="card mt-2 p-0 overflow-hidden">
           {isLoading && (
-            <div style={{ padding: '14px 16px', color: 'var(--text-muted)', fontSize: 12 }}>Loading diff…</div>
+            <div className="py-3.5 px-4 text-text-muted text-xs">Loading diff…</div>
           )}
           {diff && !diff.prev_run_id && (
-            <div style={{ padding: '14px 16px', color: 'var(--text-muted)', fontSize: 12 }}>
+            <div className="py-3.5 px-4 text-text-muted text-xs">
               No previous successful run found — nothing to compare.
             </div>
           )}
           {diff && diff.prev_run_id && diff.steps.length > 0 && (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <table className="w-full border-collapse text-xs">
               <thead>
-                <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                <tr className="border-b border-border">
                   {['Step', 'Rows', 'Δ Rows', 'Duration', 'Δ Duration', 'File size', 'Δ Size'].map(h => (
-                    <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    <th key={h} className="py-2 px-3 text-left text-[11px] font-semibold text-text-muted uppercase tracking-[0.04em]">
                       {h}
                     </th>
                   ))}
@@ -436,27 +414,27 @@ function DiffPanel({ runId, prevRunId }: { runId: string; prevRunId: string | nu
               </thead>
               <tbody>
                 {diff.steps.map((s: StepDiff, i: number) => (
-                  <tr key={s.step_name} style={{ borderBottom: i < diff.steps.length - 1 ? '1px solid var(--border)' : 'none', background: s.is_new_step ? 'rgba(99,102,241,0.04)' : 'transparent' }}>
-                    <td style={{ padding: '8px 12px', color: 'var(--text)', fontWeight: 500 }}>
+                  <tr key={s.step_name} className={`${i < diff.steps.length - 1 ? 'border-b border-border' : ''} ${s.is_new_step ? 'bg-[rgba(99,102,241,0.04)]' : 'bg-transparent'}`}>
+                    <td className="py-2 px-3 text-text-primary font-medium">
                       {s.step_name}
-                      {s.is_new_step && <span style={{ marginLeft: 6, fontSize: 10, padding: '1px 5px', borderRadius: 3, background: 'rgba(99,102,241,0.15)', color: '#818CF8' }}>new</span>}
+                      {s.is_new_step && <span className="ml-1.5 text-[10px] py-px px-[5px] rounded-[3px] bg-[rgba(99,102,241,0.15)] text-indigo-400">new</span>}
                     </td>
-                    <td style={{ padding: '8px 12px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
+                    <td className="py-2 px-3 text-text-muted font-mono">
                       {s.rows_current != null ? s.rows_current.toLocaleString() : '—'}
                     </td>
-                    <td style={{ padding: '8px 12px' }}>
+                    <td className="py-2 px-3">
                       <DeltaBadge delta={s.rows_delta} />
                     </td>
-                    <td style={{ padding: '8px 12px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
+                    <td className="py-2 px-3 text-text-muted font-mono">
                       {s.duration_current != null ? fmtDur(s.duration_current) : '—'}
                     </td>
-                    <td style={{ padding: '8px 12px' }}>
+                    <td className="py-2 px-3">
                       <DeltaBadge delta={s.duration_delta_pct} pct />
                     </td>
-                    <td style={{ padding: '8px 12px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
+                    <td className="py-2 px-3 text-text-muted font-mono">
                       {s.size_current != null ? fmtBytes(s.size_current) : '—'}
                     </td>
-                    <td style={{ padding: '8px 12px' }}>
+                    <td className="py-2 px-3">
                       <DeltaBadge delta={s.size_delta} unit="B" />
                     </td>
                   </tr>
@@ -499,27 +477,27 @@ export default function RunDetail() {
     <>
       <TopBar crumbs={['Workspace', 'Run History', '…']} />
       <div className="scroll">
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 18 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="flex items-start justify-between gap-4 mb-[18px]">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2.5">
               <Sk h={22} r={6} style={{ width: 220 }} />
               <Sk h={18} r={4} style={{ width: 60 }} />
             </div>
             <Sk h={12} style={{ width: 320 }} />
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 18 }}>
+        <div className="grid grid-cols-4 gap-3 mb-[18px]">
           {[0, 1, 2, 3].map(i => (
-            <div key={i} className="card" style={{ padding: '14px 16px' }}>
+            <div key={i} className="card py-3.5 px-4">
               <Sk h={11} style={{ width: 55, marginBottom: 8 }} />
               <Sk h={18} style={{ width: 70 }} />
             </div>
           ))}
         </div>
         <Sk h={6} r={4} style={{ marginBottom: 20 }} />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="flex flex-col gap-2.5">
           {[0, 1, 2].map(i => (
-            <div key={i} className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div key={i} className="card py-3.5 px-4 flex items-center gap-3">
               <Sk h={20} r={4} style={{ width: 60 }} />
               <Sk h={14} style={{ width: '35%' }} />
               <Sk h={12} style={{ width: 80, marginLeft: 'auto' }} />
@@ -537,7 +515,7 @@ export default function RunDetail() {
       <TopBar
         crumbs={['Workspace', 'Run History', run.pipeline_name, run.id.slice(0, 12)]}
         actions={
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="flex gap-2">
             <button className="btn btn-sm" onClick={() => {
               const lines = (run.step_runs ?? []).map(s =>
                 `[${s.step_order}] ${s.step_name} (${s.status})\n${s.logs ?? ''}${s.error_message ? '\nERROR: ' + s.error_message : ''}`
@@ -553,59 +531,57 @@ export default function RunDetail() {
 
       <div className="scroll">
         {/* Run header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 18 }}>
+        <div className="flex items-start justify-between gap-4 mb-[18px]">
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-              <h1 style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.02em', margin: 0, color: 'var(--text)' }}>{run.pipeline_name}</h1>
+            <div className="flex items-center gap-2.5 mb-1.5">
+              <h1 className="text-[22px] font-semibold tracking-[-0.02em] m-0 text-text-primary">{run.pipeline_name}</h1>
               <StatusBadge status={run.status} animate />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 12, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+            <div className="flex items-center gap-3.5 text-xs text-text-muted flex-wrap">
               <span className="mono">{run.id}</span>
               <span>·</span>
-              <span>Started <span style={{ color: 'var(--text-2)' }}>{new Date(run.started_at).toLocaleString()}</span></span>
+              <span>Started <span className="text-text-2">{new Date(run.started_at).toLocaleString()}</span></span>
               <span>·</span>
-              <span>Triggered by <span style={{ color: 'var(--text-2)' }}>{run.triggered_by}</span></span>
+              <span>Triggered by <span className="text-text-2">{run.triggered_by}</span></span>
             </div>
           </div>
         </div>
 
         {/* Stats strip */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 18 }}>
+        <div className="grid grid-cols-4 gap-3 mb-[18px]">
           {[
             { label: 'Duration',  value: fmtDur(run.duration_ms),       mono: true },
             { label: 'Steps',     value: `${steps.filter(s => s.status === 'success').length} / ${steps.length}`, mono: true },
             { label: 'Started',   value: new Date(run.started_at).toLocaleTimeString(), mono: true },
             { label: 'Trigger',   value: run.triggered_by,              mono: false },
           ].map(s => (
-            <div key={s.label} className="card" style={{ padding: '14px 16px' }}>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: 6 }}>{s.label}</div>
-              <div className={s.mono ? 'mono' : ''} style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', letterSpacing: s.mono ? '-0.02em' : 'normal' }}>{s.value}</div>
+            <div key={s.label} className="card py-3.5 px-4">
+              <div className="text-[11px] text-text-muted uppercase tracking-[0.04em] font-semibold mb-1.5">{s.label}</div>
+              <div className={`${s.mono ? 'mono' : ''} text-lg font-semibold text-text-primary ${s.mono ? 'tracking-[-0.02em]' : 'tracking-normal'}`}>{s.value}</div>
             </div>
           ))}
         </div>
 
         {/* Progress bar */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ display: 'flex', gap: 2, height: 6, borderRadius: 4, overflow: 'hidden', background: 'var(--surface-2)' }}>
+        <div className="mb-5">
+          <div className="flex gap-0.5 h-1.5 rounded overflow-hidden bg-surface2">
             {steps.map(s => {
-              const barBackground = s.status === 'success' ? 'var(--success)'
-                : s.status === 'running' ? 'linear-gradient(90deg,var(--running),var(--running-text))'
-                : (s.status === 'failed' ? 'var(--failure)' : 'var(--surface-2)')
+              const barCls = s.status === 'success' ? 'bg-success'
+                : s.status === 'running' ? 'bg-[linear-gradient(90deg,var(--running),var(--running-text))]'
+                : (s.status === 'failed' ? 'bg-failure' : 'bg-surface2')
               return (
-                <div key={s.id} style={{
-                  flex: s.status === 'success' || s.status === 'running' ? (s.duration_ms ?? 1) : 1,
-                  background: barBackground,
-                  position: 'relative',
-                  overflow: 'hidden',
-                }}>
+                <div
+                  key={s.id}
+                  className={`relative overflow-hidden ${barCls}`}
+                  style={{ flex: s.status === 'success' || s.status === 'running' ? (s.duration_ms ?? 1) : 1 }}
+                >
                   {s.status === 'running' && (
-                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent)', animation: 'shimmer 1.6s infinite' }} />
+                    <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent)] animate-[shimmer_1.6s_infinite]" />
                   )}
                 </div>
               )
             })}
           </div>
-          <style>{`@keyframes shimmer { 0% { transform:translateX(-100%); } 100% { transform:translateX(100%); } }`}</style>
         </div>
 
         {/* Diff vs previous run */}
@@ -615,14 +591,14 @@ export default function RunDetail() {
 
         {/* Error banner */}
         {run.error_message && (
-          <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, fontSize: 12.5, color: 'var(--failure-text)' }}>
-            <strong style={{ color: 'var(--failure-text)' }}>Failed at step:</strong> {run.error_step}<br />
+          <div className="mb-4 py-2.5 px-3.5 bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.2)] rounded-r text-[12.5px] text-failure-text">
+            <strong className="text-failure-text">Failed at step:</strong> {run.error_step}<br />
             {run.error_message}
           </div>
         )}
 
         {/* Timeline */}
-        <div style={{ display: 'flex', flexDirection: 'column', paddingBottom: 20 }}>
+        <div className="flex flex-col pb-5">
           {steps.map((s, i) => <TimelineStep key={s.id} s={s} last={i === steps.length - 1} aiEnabled={aiEnabled} anomaly={anomalyMap.get(s.id) ?? null} />)}
         </div>
       </div>
