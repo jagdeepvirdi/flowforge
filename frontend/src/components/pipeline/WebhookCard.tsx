@@ -77,7 +77,7 @@ export default function WebhookCard({ pipelineId }: { pipelineId: string }) {
               <Copy size={11} /> {copied ? 'Copied!' : 'Copy'}
             </button>
             <button
-              className="btn btn-sm text-[var(--text-muted)]"
+              className="btn btn-sm !text-[var(--text-muted)]"
               onClick={() => setJustCreated(null)}
               title="Dismiss"
             >
@@ -101,7 +101,7 @@ export default function WebhookCard({ pipelineId }: { pipelineId: string }) {
                 {t.last_used_at ? `last used ${new Date(t.last_used_at).toLocaleDateString()}` : 'never used'}
               </span>
               <button
-                className="btn btn-sm text-[var(--failure-text)]"
+                className="btn btn-sm !text-[var(--failure-text)]"
                 onClick={() => handleRevoke(t.id)}
                 title="Revoke token"
               >

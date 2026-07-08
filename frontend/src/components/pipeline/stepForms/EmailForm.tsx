@@ -77,7 +77,7 @@ export default function EmailForm({ cfg, setConfig, step, allSteps, reportConfig
             })}
           </div>
         )}
-        <textarea className="input mono-input h-auto resize-none text-xs" rows={3}
+        <textarea className="input mono-input !h-auto !resize-none !text-xs" rows={3}
           value={current.join('\n')}
           onChange={e => setConfig('attachments', e.target.value.split('\n').filter(Boolean))}
           placeholder="{{ steps.my_report.output_path }}"

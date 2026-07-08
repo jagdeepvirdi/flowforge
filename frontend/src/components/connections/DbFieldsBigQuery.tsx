@@ -15,7 +15,7 @@ export default function DbFieldsBigQuery({ form, setForm }: {
         <input className="input" value={form.dataset} onChange={e => setForm(f => ({ ...f, dataset: e.target.value }))} placeholder="my_dataset" />
       </Field>
       <Field label="Service Account Key (JSON)">
-        <textarea className="input mono-input h-auto resize-none" rows={5} value={form.credentials_json}
+        <textarea className="input mono-input !h-auto !resize-none" rows={5} value={form.credentials_json}
           onChange={e => setForm(f => ({ ...f, credentials_json: e.target.value }))}
           placeholder='{"type": "service_account", ...}  (leave blank to use Application Default Credentials)' />
       </Field>

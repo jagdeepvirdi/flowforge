@@ -94,13 +94,13 @@ function ColumnFormattingCard({
           {/* Rule header */}
           <div className="flex items-center gap-2">
             <input
-              className="input flex-1 h-7 text-xs"
+              className="input flex-1 !h-7 !text-xs"
               placeholder="Column name (exact)"
               value={rule.column}
               onChange={e => updateRule(i, { column: e.target.value })}
             />
             <select
-              className="input h-7 text-xs max-w-40"
+              className="input !h-7 !text-xs !max-w-40"
               value={rule.number_format ?? ''}
               onChange={e => updateRule(i, { number_format: e.target.value })}
             >
@@ -108,13 +108,13 @@ function ColumnFormattingCard({
               {NUMBER_FORMAT_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
             </select>
             <input
-              className="input mono-input w-20 h-7 text-xs"
+              className="input mono-input !w-20 !h-7 !text-xs"
               placeholder="custom"
               value={rule.number_format ?? ''}
               onChange={e => updateRule(i, { number_format: e.target.value })}
             />
             <input
-              className="input w-14 h-7 text-xs"
+              className="input !w-14 !h-7 !text-xs"
               type="number"
               placeholder="width"
               value={rule.width ?? ''}
@@ -131,12 +131,12 @@ function ColumnFormattingCard({
           {(rule.conditional ?? []).map((cond, ci) => (
             <div key={ci} className="flex items-center gap-1.5 pl-2 border-l-2 border-border">
               <span className="text-[11px] text-text-muted whitespace-nowrap">if value</span>
-              <select className="input w-[46px] h-[26px] text-xs px-1"
+              <select className="input !w-[46px] !h-[26px] !text-xs !px-1"
                 value={cond.operator}
                 onChange={e => updateCond(i, ci, { operator: e.target.value as ColumnConditionalRule['operator'] })}>
                 {OPERATORS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
-              <input className="input w-16 h-[26px] text-xs" type="number"
+              <input className="input !w-16 !h-[26px] !text-xs" type="number"
                 value={cond.value} onChange={e => updateCond(i, ci, { value: Number(e.target.value) })} />
               <span className="text-[11px] text-text-muted">bg</span>
               <input type="color" value={`#${cond.bg_color}`}
@@ -152,7 +152,7 @@ function ColumnFormattingCard({
               </button>
             </div>
           ))}
-          <button type="button" className="btn btn-sm self-start text-[11px]"
+          <button type="button" className="btn btn-sm self-start !text-[11px]"
             onClick={() => addCond(i)}>
             <Plus size={9} /> Add condition
           </button>
@@ -356,7 +356,7 @@ export default function ReportEdit() {
             </div>
           ))}
         </div>
-        <div className="card p-0 overflow-hidden">
+        <div className="card !p-0 overflow-hidden">
           <div className="py-2.5 px-3.5 border-b border-border bg-bg-code">
             <Sk h={13} style={{ width: 80 }} />
           </div>
@@ -492,7 +492,7 @@ export default function ReportEdit() {
         {/* Right panel: SQL editor + preview */}
         <div className="flex flex-col gap-3.5">
           {/* SQL editor */}
-          <div className="card p-0 overflow-hidden">
+          <div className="card !p-0 overflow-hidden">
             <div className="flex items-center justify-between py-2.5 px-3.5 border-b border-border bg-bg-code">
               <div className="flex items-center gap-2 text-xs text-text-primary font-medium">
                 <span className="mono text-text-3">query.sql</span>
@@ -516,7 +516,7 @@ export default function ReportEdit() {
             </div>
             <div className="bg-bg p-0">
               <textarea
-                className="input mono-input bg-bg border-none rounded-none resize-y h-auto py-3.5 px-4 text-text-2 leading-[1.7] outline-none"
+                className="input mono-input !bg-bg !border-none !rounded-none !resize-y !h-auto !py-3.5 !px-4 !text-text-2 leading-[1.7] !outline-none"
                 rows={12}
                 {...register('query')}
                 placeholder="SELECT ..."
@@ -526,7 +526,7 @@ export default function ReportEdit() {
 
           {/* SQL Optimization diff */}
           {optimization && (
-            <div className="card p-0 overflow-hidden">
+            <div className="card !p-0 overflow-hidden">
               {/* Header */}
               <div className="flex items-center justify-between py-[9px] px-3.5 border-b border-border">
                 <div className="flex items-center gap-1.5">
@@ -571,7 +571,7 @@ export default function ReportEdit() {
 
           {/* SQL Explanation */}
           {explanation !== null && (
-            <div className="card p-0 overflow-hidden">
+            <div className="card !p-0 overflow-hidden">
               <div className="flex items-center justify-between py-[9px] px-3.5 border-b border-border">
                 <div className="flex items-center gap-1.5">
                   <Lightbulb size={13} className="text-accent" />
@@ -592,7 +592,7 @@ export default function ReportEdit() {
 
           {/* Preview table */}
           {preview && (
-            <div className="card overflow-hidden p-0">
+            <div className="card overflow-hidden !p-0">
               <div className="flex items-center justify-between py-2.5 px-3.5 border-b border-border">
                 <span className="text-xs text-text-primary font-semibold">Query preview</span>
                 <span className="text-[10.5px] text-text-muted">· {preview.rows.length} rows</span>
@@ -640,7 +640,7 @@ export default function ReportEdit() {
 
           {/* Data profile result */}
           {profileResult !== null && (
-            <div className="card p-0 overflow-hidden">
+            <div className="card !p-0 overflow-hidden">
               <div className="flex items-center justify-between py-[9px] px-3.5 border-b border-border">
                 <div className="flex items-center gap-1.5">
                   <Activity size={13} className="text-accent" />

@@ -36,7 +36,7 @@ export default function NotificationForm({ cfg, setConfig }: StepFormProps) {
       </Field>
 
       <Field label="Message (Jinja2)">
-        <textarea className="input mono-input h-auto resize-none" rows={3} value={String(cfg.message ?? '')} onChange={e => setConfig('message', e.target.value)}
+        <textarea className="input mono-input !h-auto !resize-none" rows={3} value={String(cfg.message ?? '')} onChange={e => setConfig('message', e.target.value)}
           placeholder="Pipeline {{ pipeline_name }} finished at {{ current_date }}." />
         <span className="text-[11px] text-text-muted mt-[3px]">
           Supports all pipeline variables: <code className="text-text-3">{'{{ pipeline_name }}'}</code> <code className="text-text-3">{'{{ run_id }}'}</code> <code className="text-text-3">{'{{ current_date }}'}</code>

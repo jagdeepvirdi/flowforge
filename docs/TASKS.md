@@ -441,6 +441,27 @@ single session has to touch the whole frontend at once.*
 - **Order matters:** components before pages (chunks 12.1–12.4 before 12.5–12.13), since every page
   renders several of these shared components — converting them first means later page-level chunks
   aren't fighting a moving target.
+- **`!important` is required to override `.card`/`.input`/`.textarea`/`.select`/`.btn`/`.btn-*`/`.chip`/
+  `.tbadge`/`.pill`/`.tbl`/`.field`/`.label` on any property those classes already set.** *(found
+  2026-07-08, during 12.7)* These custom classes live in `index.css` as plain (unlayered) CSS, while
+  every Tailwind utility compiles into `@layer utilities`. Per the CSS Cascade Layers spec, unlayered
+  CSS always wins over layered CSS for normal declarations, regardless of class order or specificity —
+  so a plain utility class (`p-0`, `h-7`, `text-xs`, `bg-bg`, `text-failure-text`, etc.) placed after
+  one of these class names to override one of its properties **silently does nothing**; the custom
+  class's value renders instead. Verified via `getComputedStyle` against the live app, not just
+  theory — e.g. `className="card p-0"` computed to `padding: 16px`, not `0px`. Fix: prefix the
+  overriding utility with `!` (e.g. `!p-0`, `!h-7`, `!text-failure-text`) — Tailwind's `!important`
+  modifier beats any non-important declaration regardless of layer, and `index.css` never uses
+  `!important` itself, so this is always safe. `PipelineVariablesCard.tsx` and one spot in
+  `WebhookCard.tsx` (both pre-Phase-12 conversions, outside any tracked chunk) already used this
+  pattern correctly — but `WebhookCard.tsx` had two more instances that didn't (`btn btn-sm
+  text-[var(--text-muted)]`/`text-[var(--failure-text)]`, silently rendering in `.btn`'s default text
+  color instead); fixed those two in passing since they were trivial once diagnosed. The gap was not
+  applying the pattern consistently, not not knowing about it. **Before marking any chunk done, grep
+  the chunk's files for one of these class names combined with a same-property utility that lacks
+  `!`** — sizing/spacing/color utilities are the highest-risk combination; `flex`/`gap`/`grid`/layout
+  utilities on these classes are safe
+  since none of them set layout properties.
 
 ## 12.0 Foundation — sync Tailwind theme with the full design-token set
 
@@ -537,6 +558,16 @@ single session has to touch the whole frontend at once.*
   options panel expanded), S3UploadForm, AzureBlobUploadForm, NotificationForm (switched to Telegram
   to confirm the conditional Bot token/Chat ID fields) — plus `DependenciesCard` with an actual
   dependency added (chip + delete button). Zero console/API errors throughout.
+  **Retroactive fix 2026-07-08**: every `h-auto resize-none`/`h-auto resize-y` textarea override in
+  this chunk (`StepEditor.tsx`, `DataLoadForm.tsx`, `DbProcedureForm.tsx`, `DbQueryForm.tsx`,
+  `EmailForm.tsx`, `NotificationForm.tsx`) plus `StepEditor.tsx`'s compact retry/delay/parallel-group
+  inputs, its on-error `<select>`, and `DependenciesCard.tsx`'s dependency `<select>` were silently not
+  applying — see the new Ground rules entry above (unlayered `.input`/`.textarea` CSS beats layered
+  Tailwind utilities without `!important`). Re-verified with `getComputedStyle` after adding `!` to
+  each: heights/widths/font-sizes now match intent instead of falling back to `.input`'s 34px/13px
+  defaults. Also caught and fixed the same issue on `StepEditor.tsx`'s delete button
+  (`hover:text-failure-text` → `hover:!text-failure-text`, since `.btn-ghost:hover` is itself an
+  unlayered rule).
 
 ## 12.3 Connections sub-components
 
@@ -567,6 +598,9 @@ single session has to touch the whole frontend at once.*
   Mailgun) via the modal's internal Database/Email Provider toggle, screenshotting every form — plus
   the underlying `DbConnectionRow`/`EmailProviderRow` list views (3 DB connections, 3 email providers)
   visible around the modal. Zero console/API errors throughout.
+  **Retroactive fix 2026-07-08**: `DbFieldsBigQuery.tsx`'s `h-auto resize-none` credentials-JSON
+  textarea had the same silently-ignored-override bug as chunk 12.2 (see Ground rules) — fixed to
+  `!h-auto !resize-none`.
 
 ## 12.4 Misc remaining components
 
@@ -601,6 +635,9 @@ single session has to touch the whole frontend at once.*
   wasn't a regression by `git stash`-ing this chunk's `ChartPreview.tsx` change and reproducing the
   identical blank-canvas behavior against the pre-conversion inline-style code — same result, confirming
   it's a pre-existing headless-browser/Recharts environment quirk unrelated to this styling pass.
+  **Retroactive fix 2026-07-08**: `ChartPreview.tsx`'s and `StepTrendsPanel.tsx`'s `card p-0
+  overflow-hidden` wrapper had the silently-ignored-`p-0` bug (see Ground rules) — fixed to
+  `card !p-0 overflow-hidden`; `getComputedStyle` confirmed padding now computes to `0px`.
 
 ## 12.5 `pages/RunDetail.tsx` — standalone (111 occurrences, most complex page)
 
@@ -655,6 +692,12 @@ single session has to touch the whole frontend at once.*
   live-triggered — it requires 30 prior runs of real statistical history that don't exist in a fresh
   dev DB — so it was verified by inspection instead: it reuses the same `AnomalyRow`/arbitrary-rgba
   classes already exercised and screenshotted in the diagnosis-panel state above.
+  **Retroactive fix 2026-07-08**: found (while starting chunk 12.7) that `.card`/`.chip` are unlayered
+  CSS that Tailwind utilities can't override without `!important` (see new Ground rules entry) — this
+  chunk had 4 silent instances: the diff-panel's `card p-0` (would-be 16px padding instead of flush),
+  the 3 stat cards' `card py-3.5 px-4` (16px vertical padding instead of the intended 14px), and the
+  email-recipient `chip h-5 text-[11px]` (stuck at the default 24px/12px instead of the intended
+  compact size). All fixed with `!`; re-verified via `getComputedStyle`.
 
 ## 12.6 `pages/ReportEdit.tsx` — standalone (104 occurrences)
 
@@ -690,6 +733,17 @@ single session has to touch the whole frontend at once.*
   card's full row layout, and ran a real query preview against Retail-DB (20-row mono table, "Visualize"/
   "Summarise" actions appearing in the TopBar once preview data existed). Zero console/React errors
   throughout.
+  **Retroactive fix 2026-07-08**: this was the chunk where the unlayered-CSS-vs-Tailwind-utility bug
+  (see new Ground rules entry) was actually discovered, while starting 12.7. Every `card p-0
+  overflow-hidden` panel (SQL editor, optimization diff, explanation, preview table, profile result —
+  6 instances), the entire `ColumnFormattingCard`'s compact-sized inputs/selects (6 instances), the SQL
+  editor's flush-styled textarea (`bg-bg`/`border-none`/`rounded-none`/custom padding/`text-text-2`),
+  and one `btn btn-sm text-[11px]` "Add condition" button were all silently not applying — the page
+  visually looked "close enough" in screenshots (e.g. a 16px vs. 0px card padding difference is subtle
+  at screenshot resolution) but every one of these was confirmed broken via `getComputedStyle` and
+  fixed with `!`. Re-verified after the fix: SQL editor textarea now computes to `background:
+  rgb(15,17,23)` (`--bg`, not `--surface`), `padding: 14px 16px`, `border: 0px none`; the column-name
+  input now computes to `height: 28px, font-size: 12px` instead of `.input`'s 34px/13px defaults.
 
 ## 12.7 `pages/Settings.tsx` + `pages/BulkLoadEdit.tsx` (75 + 73 = 148 occurrences)
 

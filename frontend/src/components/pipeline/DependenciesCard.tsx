@@ -55,7 +55,7 @@ export default function DependenciesCard({
 
       {available.length > 0 && (
         <select
-          className="input text-xs max-w-[320px]"
+          className="input !text-xs max-w-[320px]"
           value=""
           onChange={e => { if (e.target.value) addDep(e.target.value) }}
         >
