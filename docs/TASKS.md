@@ -836,8 +836,46 @@ single session has to touch the whole frontend at once.*
 
 ## 12.9 `pages/Projects.tsx` + `pages/RunHistory.tsx` (53 + 51 = 104 occurrences)
 
-- [ ] `Projects.tsx`: project cards grid, create/edit modal, members modal. `RunHistory.tsx`: filters,
+- [x] `Projects.tsx`: project cards grid, create/edit modal, members modal. `RunHistory.tsx`: filters,
   table, the Performance Trends panel (converted in 12.4 — don't reconvert), loading skeleton.
+  **Done 2026-07-08**: converted both files (`ColorPicker`, `ProjectModal`, `MembersModal`,
+  `ProjectCard`, plus both page components). Notable finds:
+  - `ProjectCard`'s active-border color, its color dot, and the "Active filter" badge's color/dot all
+    depend on `project.color` (a genuinely per-project user-chosen hex, the exact case this phase's
+    ground rules already name as an accepted exception) — kept those specific properties inline while
+    converting every static property around them (layout, sizing, cursor) to classes.
+  - `RunHistory.tsx`'s mini-stats array had a `soft: 'rgba(...)'` field on each entry that turned out to
+    be dead — never read anywhere in the render (confirmed by grep before touching it) — dropped while
+    replacing the array's CSS-var `color` strings with Tailwind `dotCls` classes (same conditional-class
+    treatment as chunk 12.5/12.8's status maps).
+  - Caught two self-introduced instances of exactly the bug this phase's new ground rule exists to
+    prevent: two `card py-3.5 px-4` wrappers (the loading-skeleton stat row and the real mini-stat
+    cards) written without the required `!`, so `.card`'s own `padding: 16px` would have silently won
+    over the intended `14px`/`16px` split. Caught by the same grep sweep the ground rule now
+    prescribes, before running any checks — fixed to `!py-3.5 !px-4`.
+    Elsewhere in this chunk, several properties looked like conflicts but weren't after checking each
+    against `.tbl`'s actual rule set: `.tbl td`'s `color: var(--text-2)` conflicts with `!text-text-3`/
+    `!text-text-primary` overrides (needed `!`), but `.tbl` (the table itself) only sets `font-size`,
+    which is inherited into `<td>`s rather than matched by a `.tbl td` rule — so a plain `text-[11.5px]`
+    utility on a `<td>` correctly wins over the inherited size without `!`, and a nested `<span>`'s own
+    color utility correctly wins over color inherited from its parent `<td>`, also without `!` — neither
+    inheritance case needed the marker, only the two direct `color`-on-`<td>` conflicts did.
+  - `MembersModal`'s remove-member button had `style={{ color: 'var(--text-muted)' }}` on a
+    `btn-ghost`-classed element — `.btn-ghost`'s own CSS already sets that exact color, so the override
+    was redundant and dropped entirely rather than converted.
+  - `ProjectCard`'s delete button used `onMouseEnter`/`onMouseLeave` to toggle failure-red on hover —
+    replaced with `hover:!text-failure-text` (needs `!` here specifically because `.btn-ghost:hover` is
+    itself an unlayered rule setting `color: var(--text)`, same reasoning as chunk 12.7's
+    `StepEditor.tsx` fix).
+  Verified: `tsc --noEmit` and `eslint` clean (zero warnings, no pre-existing `watch()` noise in either
+  file), `npx vitest run` — 97/97 passing, `npm run build` succeeds. Live-verified via the same dev
+  stack (Playwright, headless): Projects' card grid (default + non-default project, showing the
+  members-only vs. edit+delete+members icon sets), the New Project modal with its 8-swatch color
+  picker, and the Members modal (existing admin member, add-user select, Add button). For
+  `RunHistory.tsx`: the main list with real success/failed runs (including a `(deleted)`-tagged pipeline
+  from an earlier chunk's throwaway test data), the 24h/7d/30d/All time-tab toggle, a search filter
+  producing the "No runs match your filters" empty state, and the Performance Trends panel expanded
+  with real chart data. Zero console/React errors throughout.
 
 ## 12.10 `pages/Pipelines.tsx` + `pages/Login.tsx` (50 + 46 = 96 occurrences)
 

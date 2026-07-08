@@ -73,11 +73,11 @@ export default function RunHistory() {
     if (filterStatus) params.set('status', filterStatus)
     if (activeProjectId) params.set('project_id', activeProjectId)
     params.set('format', 'csv')
-    
+
     const url = `/api/runs/export?${params.toString()}`
     const headers: HeadersInit = {}
     if (token) headers['Authorization'] = `Bearer ${token}`
-    
+
     fetch(url, { headers })
       .then(res => {
         if (!res.ok) throw new Error(`Export failed: ${res.status}`)
@@ -101,32 +101,32 @@ export default function RunHistory() {
       <TopBar crumbs={['Workspace', 'Run History']} />
       <div className="scroll">
         <div className="page-h">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="flex flex-col gap-2">
             <Sk h={28} r={6} style={{ width: 160 }} />
             <Sk h={14} style={{ width: 80 }} />
           </div>
           <Sk h={32} r={7} style={{ width: 190 }} />
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 18 }}>
+        <div className="grid grid-cols-3 gap-3 mb-[18px]">
           {[0,1,2].map(i => (
-            <div key={i} className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--border)', flexShrink: 0 }} />
+            <div key={i} className="card !py-3.5 !px-4 flex items-center gap-3">
+              <div className="w-2 h-2 rounded-[2px] bg-border shrink-0" />
               <Sk h={11} style={{ width: 55 }} />
               <Sk h={20} r={4} style={{ width: 36, marginLeft: 'auto' }} />
             </div>
           ))}
         </div>
-        <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
+        <div className="card overflow-hidden !p-0">
           <table className="tbl">
             <thead>
               <tr>
-                <th style={{ width: 110 }}>Status</th>
+                <th className="w-[110px]">Status</th>
                 <th>Pipeline</th>
-                <th style={{ width: 150 }}>Run ID</th>
-                <th style={{ width: 130 }}>Trigger</th>
-                <th style={{ width: 170 }}>Started</th>
-                <th style={{ width: 90 }}>Duration</th>
-                <th style={{ width: 40 }} />
+                <th className="w-[150px]">Run ID</th>
+                <th className="w-[130px]">Trigger</th>
+                <th className="w-[170px]">Started</th>
+                <th className="w-[90px]">Duration</th>
+                <th className="w-10" />
               </tr>
             </thead>
             <tbody>
@@ -148,6 +148,12 @@ export default function RunHistory() {
     </>
   )
 
+  const STATS = [
+    { label: 'Success', value: successCount, dotCls: 'bg-success-text' },
+    { label: 'Failed',  value: failedCount,  dotCls: 'bg-failure-text' },
+    { label: 'Running', value: runningCount, dotCls: 'bg-running-text' },
+  ]
+
   return (
     <>
       <TopBar crumbs={['Workspace', 'Run History']} helpTopic="runs" />
@@ -160,34 +166,20 @@ export default function RunHistory() {
             <p>{filtered.length} runs</p>
           </div>
           {/* Time tabs */}
-          <div style={{ display: 'flex', gap: 1, background: 'var(--surface-2)', borderRadius: 7, padding: 2, border: '1px solid var(--border)' }}>
+          <div className="flex gap-px bg-surface2 rounded-[7px] p-0.5 border border-border">
             {TIME_TABS.map(t => (
-              <button key={t} onClick={() => setTimeTab(t)} style={{
-                background: timeTab === t ? 'var(--surface)' : 'transparent',
-                border: 'none',
-                color: timeTab === t ? 'var(--text)' : 'var(--text-muted)',
-                padding: '5px 12px',
-                borderRadius: 5,
-                fontSize: 12,
-                fontWeight: timeTab === t ? 600 : 500,
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}>{t}</button>
+              <button key={t} onClick={() => setTimeTab(t)} className={`border-none py-[5px] px-3 rounded-[5px] text-xs cursor-pointer font-[inherit] ${timeTab === t ? 'bg-surface text-text-primary font-semibold' : 'bg-transparent text-text-muted font-medium'}`}>{t}</button>
             ))}
           </div>
         </div>
 
         {/* Mini stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 18 }}>
-          {[
-            { label: 'Success', value: successCount, color: 'var(--success-text)', soft: 'rgba(34,197,94,0.1)' },
-            { label: 'Failed',  value: failedCount,  color: 'var(--failure-text)', soft: 'rgba(239,68,68,0.1)' },
-            { label: 'Running', value: runningCount, color: 'var(--running-text)', soft: 'rgba(59,130,246,0.1)' },
-          ].map(s => (
-            <div key={s.label} className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ width: 8, height: 8, borderRadius: 2, background: s.color }} />
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{s.label}</span>
-              <span className="mono" style={{ fontSize: 20, fontWeight: 600, color: 'var(--text)', marginLeft: 'auto' }}>{s.value}</span>
+        <div className="grid grid-cols-3 gap-3 mb-[18px]">
+          {STATS.map(s => (
+            <div key={s.label} className="card !py-3.5 !px-4 flex items-center gap-3">
+              <span className={`w-2 h-2 rounded-[2px] ${s.dotCls}`} />
+              <span className="text-[11px] text-text-muted font-semibold uppercase tracking-[0.04em]">{s.label}</span>
+              <span className="mono text-xl font-semibold text-text-primary ml-auto">{s.value}</span>
             </div>
           ))}
         </div>
@@ -195,13 +187,13 @@ export default function RunHistory() {
         <StepTrendsPanel pipelineId={(filterPipeline && filterPipeline !== '__deleted__') ? filterPipeline : undefined} />
 
         {/* Filters */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '0 12px', height: 34, flex: 1, maxWidth: 320 }}>
-            <Search size={14} style={{ color: 'var(--text-muted)' }} />
+        <div className="flex items-center gap-2 mb-3.5">
+          <div className="flex items-center gap-1.5 bg-surface border border-border rounded-r px-3 h-[34px] flex-1 max-w-[320px]">
+            <Search size={14} className="text-text-muted" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              style={{ background: 'transparent', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 13, fontFamily: 'inherit', flex: 1 }}
+              className="bg-transparent border-none outline-none text-text-primary text-[13px] font-[inherit] flex-1"
               placeholder="Search by run ID, pipeline…"
             />
           </div>
@@ -209,7 +201,6 @@ export default function RunHistory() {
             className="btn btn-sm"
             value={filterPipeline}
             onChange={e => setFilterPipeline(e.target.value)}
-            style={{ cursor: 'pointer' }}
           >
             <option value="">All pipelines</option>
             {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -219,7 +210,6 @@ export default function RunHistory() {
             className="btn btn-sm"
             value={filterStatus}
             onChange={e => setFilterStatus(e.target.value)}
-            style={{ cursor: 'pointer' }}
           >
             <option value="">All statuses</option>
             <option value="success">Success</option>
@@ -237,43 +227,43 @@ export default function RunHistory() {
           </button>
         </div>
 
-        <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
+        <div className="card overflow-hidden !p-0">
           <table className="tbl">
             <thead>
               <tr>
-                <th style={{ width: 110 }}>Status</th>
+                <th className="w-[110px]">Status</th>
                 <th>Pipeline</th>
-                <th style={{ width: 150 }}>Run ID</th>
-                <th style={{ width: 130 }}>Trigger</th>
-                <th style={{ width: 170 }}>Started</th>
-                <th style={{ width: 90 }}>Duration</th>
-                <th style={{ width: 40 }} />
+                <th className="w-[150px]">Run ID</th>
+                <th className="w-[130px]">Trigger</th>
+                <th className="w-[170px]">Started</th>
+                <th className="w-[90px]">Duration</th>
+                <th className="w-10" />
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
-                <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
+                <tr><td colSpan={7} className="text-center !py-10 !px-0 !text-text-muted">
                   {runs.length === 0 ? 'No runs yet. Trigger a pipeline from the Pipelines page.' : 'No runs match your filters.'}
                 </td></tr>
               )}
               {filtered.map(r => (
                 <tr key={r.id}>
                   <td><StatusBadge status={r.status} animate /></td>
-                  <td style={{ color: 'var(--text)', fontWeight: 500 }}>
+                  <td className="!text-text-primary font-medium">
                     {r.pipeline_name}
                     {r.pipeline_id === null && (
-                      <span style={{ fontSize: 10.5, color: 'var(--text-dim)', fontWeight: 400, marginLeft: 6 }}>(deleted)</span>
+                      <span className="text-[10.5px] text-text-dim font-normal ml-1.5">(deleted)</span>
                     )}
                   </td>
-                  <td className="mono" style={{ color: 'var(--text-3)', fontSize: 11.5 }}>{r.id.slice(0, 12)}…</td>
+                  <td className="mono !text-text-3 text-[11.5px]">{r.id.slice(0, 12)}…</td>
                   <td>
-                    <span style={{ fontSize: 11.5, color: 'var(--text-3)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                    <span className="text-[11.5px] text-text-3 inline-flex items-center gap-[5px]">
                       {r.triggered_by === 'web_ui' || r.triggered_by === 'api' ? <User size={11} /> : <Clock size={11} />}
                       {r.triggered_by}
                     </span>
                   </td>
-                  <td className="mono" style={{ color: 'var(--text-3)', fontSize: 11.5 }}>{new Date(r.started_at).toLocaleString()}</td>
-                  <td className="mono" style={{ color: 'var(--text-2)', fontSize: 11.5 }}>{fmtDur(r.duration_ms)}</td>
+                  <td className="mono !text-text-3 text-[11.5px]">{new Date(r.started_at).toLocaleString()}</td>
+                  <td className="mono text-[11.5px]">{fmtDur(r.duration_ms)}</td>
                   <td>
                     <Link to={`/runs/${r.id}`} className="btn btn-sm btn-ghost btn-icon">
                       <ChevronRight size={14} />
@@ -284,7 +274,7 @@ export default function RunHistory() {
             </tbody>
           </table>
           {runs.length === limit && (
-            <div style={{ padding: '12px 0', textAlign: 'center', borderTop: '1px solid var(--border)' }}>
+            <div className="py-3 px-0 text-center border-t border-border">
               <button
                 className="btn btn-sm"
                 onClick={() => setLimit(l => l + PAGE_SIZE)}
