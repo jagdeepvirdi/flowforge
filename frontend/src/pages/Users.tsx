@@ -10,21 +10,15 @@ import Sk from '../components/shared/Skeleton'
 
 const ROLES: Role[] = ['admin', 'editor', 'viewer']
 
-const ROLE_STYLE: Record<Role, { bg: string; color: string }> = {
-  admin:  { bg: 'rgba(249,115,22,0.12)', color: 'var(--accent-text)' },
-  editor: { bg: 'rgba(59,130,246,0.12)', color: '#60A5FA' },
-  viewer: { bg: 'rgba(107,114,128,0.12)', color: 'var(--text-muted)' },
+const ROLE_CLS: Record<Role, string> = {
+  admin:  'bg-[rgba(249,115,22,0.12)] text-accent-text',
+  editor: 'bg-[rgba(59,130,246,0.12)] text-blue-400',
+  viewer: 'bg-[rgba(107,114,128,0.12)] text-text-muted',
 }
 
 function RoleBadge({ role }: { role: Role }) {
-  const s = ROLE_STYLE[role]
   return (
-    <span style={{
-      display: 'inline-block', fontSize: 11, fontWeight: 600,
-      padding: '2px 8px', borderRadius: 4,
-      background: s.bg, color: s.color,
-      textTransform: 'uppercase', letterSpacing: '0.06em',
-    }}>
+    <span className={`inline-block text-[11px] font-semibold py-0.5 px-2 rounded uppercase tracking-[0.06em] ${ROLE_CLS[role]}`}>
       {role}
     </span>
   )
@@ -74,19 +68,19 @@ export default function Users() {
   }
 
   const usersTableContent = isLoading ? (
-    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="p-6 flex flex-col gap-3">
       {[1, 2, 3].map(i => <Sk key={i} style={{ height: 36 }} />)}
     </div>
   ) : users.length === 0 ? (
-    <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+    <div className="p-8 text-center text-text-muted text-[13px]">
       No users yet.
     </div>
   ) : (
-    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+    <table className="w-full border-collapse">
       <thead>
-        <tr style={{ borderBottom: '1px solid var(--border)' }}>
+        <tr className="border-b border-border">
           {['Username', 'Email', 'Role', 'Created', 'MFA', ''].map(h => (
-            <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <th key={h} className="py-2.5 px-4 text-left text-[11px] font-semibold text-text-muted uppercase tracking-[0.05em]">
               {h}
             </th>
           ))}
@@ -94,26 +88,25 @@ export default function Users() {
       </thead>
       <tbody>
         {users.map((user, i) => (
-          <tr key={user.id} style={{ borderBottom: i < users.length - 1 ? '1px solid var(--border)' : 'none' }}>
-            <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>
+          <tr key={user.id} className={i < users.length - 1 ? 'border-b border-border' : ''}>
+            <td className="py-3 px-4 text-[13px] text-text-primary font-medium">
               {user.username}
               {user.id === me?.id && (
-                <span style={{ marginLeft: 6, fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 400 }}>(you)</span>
+                <span className="ml-1.5 text-[10.5px] text-text-muted font-normal">(you)</span>
               )}
             </td>
-            <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text-muted)' }}>
+            <td className="py-3 px-4 text-xs text-text-muted">
               {user.email
                 ? <span className="mono">{user.email}</span>
-                : <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>not set</span>}
+                : <span className="text-text-dim italic">not set</span>}
             </td>
-            <td style={{ padding: '12px 16px' }}>
+            <td className="py-3 px-4">
               {user.id === me?.id ? (
                 <RoleBadge role={user.role} />
               ) : (
                 <select
-                  className="input"
+                  className="input !text-xs !py-[3px] !px-2 !w-auto"
                   value={user.role}
-                  style={{ fontSize: 12, padding: '3px 8px', width: 'auto' }}
                   disabled={roleMut.isPending}
                   onChange={e => roleMut.mutate({ id: user.id, role: e.target.value as Role })}
                 >
@@ -121,23 +114,18 @@ export default function Users() {
                 </select>
               )}
             </td>
-            <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+            <td className="py-3 px-4 text-xs text-text-muted font-mono">
               {user.created_at ? new Date(user.created_at).toLocaleDateString() : '—'}
             </td>
-            <td style={{ padding: '12px 16px' }}>
-              <span style={{
-                fontSize: 10.5, fontWeight: 600, padding: '2px 6px', borderRadius: 3,
-                background: user.mfa_enabled ? 'rgba(34,197,94,0.12)' : 'rgba(107,114,128,0.1)',
-                color: user.mfa_enabled ? 'var(--success-text)' : 'var(--text-dim)',
-              }}>
+            <td className="py-3 px-4">
+              <span className={`text-[10.5px] font-semibold py-0.5 px-1.5 rounded-[3px] ${user.mfa_enabled ? 'bg-[rgba(34,197,94,0.12)] text-success-text' : 'bg-[rgba(107,114,128,0.1)] text-text-dim'}`}>
                 {user.mfa_enabled ? 'ON' : 'OFF'}
               </span>
             </td>
-            <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-              <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+            <td className="py-3 px-4 text-right">
+              <div className="flex gap-1 justify-end">
                 <button
-                  className="btn"
-                  style={{ padding: '4px 8px', fontSize: 11 }}
+                  className="btn !py-1 !px-2 !text-[11px]"
                   onClick={() => handleExport(user)}
                   title="GDPR export — download all personal data as JSON"
                 >
@@ -146,8 +134,7 @@ export default function Users() {
                 {user.id !== me?.id && (
                   <>
                     <button
-                      className="btn"
-                      style={{ padding: '4px 8px', color: 'var(--failure-text)', fontSize: 11 }}
+                      className="btn !py-1 !px-2 !text-failure-text !text-[11px]"
                       disabled={deleteMut.isPending}
                       onClick={() => handleDelete(user)}
                       title="Delete user"
@@ -155,8 +142,7 @@ export default function Users() {
                       <Trash2 size={12} />
                     </button>
                     <button
-                      className="btn"
-                      style={{ padding: '4px 8px', color: 'var(--failure-text)', fontSize: 10 }}
+                      className="btn !py-1 !px-2 !text-failure-text !text-[10px]"
                       onClick={() => handlePurge(user)}
                       title="GDPR purge — delete user and anonymise audit log"
                     >
@@ -209,7 +195,7 @@ export default function Users() {
   return (
     <>
       <TopBar crumbs={['System', 'Users']} helpTopic="settings" />
-      <div className="scroll" style={{ maxWidth: 780 }}>
+      <div className="scroll max-w-[780px]">
         <div className="page-h">
           <h1>Users</h1>
           <button className="btn btn-primary" onClick={() => { setShowAdd(true); setFormError('') }}>
@@ -219,20 +205,16 @@ export default function Users() {
 
         {/* Add User modal */}
         {showAdd && (
-          <div style={{
-            position: 'fixed', inset: 0, zIndex: 50,
-            background: 'rgba(0,0,0,0.5)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
-          }}>
-            <div className="card" style={{ width: '100%', maxWidth: 420, padding: 24, position: 'relative' }}>
+          <div className="fixed inset-0 z-50 bg-[rgba(0,0,0,0.5)] flex items-center justify-center p-4">
+            <div className="card w-full max-w-[420px] !p-6 relative">
               <button
                 onClick={() => { setShowAdd(false); setForm(emptyForm()); setFormError('') }}
-                style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                className="absolute top-4 right-4 bg-transparent border-none cursor-pointer text-text-muted"
               >
                 <X size={16} />
               </button>
-              <h3 style={{ margin: '0 0 18px', fontSize: 14, fontWeight: 600 }}>Add User</h3>
-              <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <h3 className="m-0 mb-[18px] text-sm font-semibold">Add User</h3>
+              <form onSubmit={handleAdd} className="flex flex-col gap-3.5">
                 <div className="field">
                   <label htmlFor="user-form-username">Username</label>
                   <input
@@ -267,7 +249,7 @@ export default function Users() {
                   </select>
                 </div>
                 <div className="field">
-                  <label htmlFor="user-form-email">Email <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>(optional — for password reset)</span></label>
+                  <label htmlFor="user-form-email">Email <span className="text-[11px] text-text-muted font-normal">(optional — for password reset)</span></label>
                   <input
                     id="user-form-email"
                     className="input"
@@ -278,11 +260,11 @@ export default function Users() {
                   />
                 </div>
                 {formError && (
-                  <div style={{ fontSize: 12.5, color: 'var(--failure-text)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, padding: '8px 12px' }}>
+                  <div className="text-[12.5px] text-failure-text bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.2)] rounded-r-sm py-2 px-3">
                     {formError}
                   </div>
                 )}
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <div className="flex gap-2 justify-end">
                   <button type="button" className="btn" onClick={() => { setShowAdd(false); setForm(emptyForm()) }}>Cancel</button>
                   <button type="submit" className="btn btn-primary" disabled={createMut.isPending}>
                     {createMut.isPending ? 'Creating…' : 'Create User'}
@@ -294,7 +276,7 @@ export default function Users() {
         )}
 
         {/* Users table */}
-        <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
+        <div className="card overflow-hidden !p-0">
           {usersTableContent}
         </div>
       </div>

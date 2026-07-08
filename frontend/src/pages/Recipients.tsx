@@ -18,10 +18,10 @@ function ChipInput({ values, onChange, id }: { values: string[]; onChange: (v: s
     setInput('')
   }
   return (
-    <div className="input flex flex-wrap gap-1 min-h-9 h-auto py-1.5">
+    <div className="input flex flex-wrap gap-1 min-h-9 !h-auto !py-1.5">
       {values.map(v => (
-        <span key={v} className="badge-muted flex items-center gap-1">
-          {v}<button onClick={() => onChange(values.filter(x => x !== v))}><X size={10}/></button>
+        <span key={v} className="chip">
+          {v}<button className="x" onClick={() => onChange(values.filter(x => x !== v))}><X size={10}/></button>
         </span>
       ))}
       <input id={id} className="flex-1 bg-transparent outline-none text-sm min-w-40"
@@ -45,16 +45,16 @@ function GroupRow({ group, onSaved, onDelete, canEdit }: { group: RecipientGroup
   if (!editing) {
     return (
       <tr>
-        <td style={{ fontWeight: 500, color: 'var(--text)' }}>{group.name}</td>
-        <td style={{ color: 'var(--text-3)', fontSize: 12 }}>{group.description}</td>
+        <td className="font-medium !text-text-primary">{group.name}</td>
+        <td className="!text-text-3 text-xs">{group.description}</td>
         <td>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {group.addresses.map(a => <span key={a} className="chip" style={{ height: 20, fontSize: 11 }}>{a}</span>)}
+          <div className="flex flex-wrap gap-1">
+            {group.addresses.map(a => <span key={a} className="chip !h-5 !text-[11px]">{a}</span>)}
           </div>
         </td>
         {canEdit && (
           <td>
-            <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+            <div className="flex gap-1 justify-end">
               <button className="btn btn-sm btn-ghost btn-icon" onClick={() => setEditing(true)}><Pencil size={12} /></button>
               <button className="btn btn-sm btn-ghost btn-icon" onClick={() => globalThis.confirm(`Delete "${group.name}"?`) && onDelete()}><Trash2 size={12} /></button>
             </div>
@@ -66,12 +66,12 @@ function GroupRow({ group, onSaved, onDelete, canEdit }: { group: RecipientGroup
 
   return (
     <tr>
-      <td><input className="input" value={name} onChange={e => setName(e.target.value)} style={{ height: 32 }} /></td>
-      <td><input className="input" value={desc} onChange={e => setDesc(e.target.value)} style={{ height: 32 }} /></td>
+      <td><input className="input !h-8" value={name} onChange={e => setName(e.target.value)} /></td>
+      <td><input className="input !h-8" value={desc} onChange={e => setDesc(e.target.value)} /></td>
       <td><ChipInput values={addresses} onChange={setAddresses} /></td>
       <td>
-        <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-          <button className="btn btn-sm btn-ghost btn-icon" onClick={() => save()} disabled={isPending} style={{ color: 'var(--success-text)' }}>
+        <div className="flex gap-1 justify-end">
+          <button className="btn btn-sm btn-ghost btn-icon !text-success-text" onClick={() => save()} disabled={isPending}>
             {isPending ? <Spinner size={12} /> : <Check size={13} />}
           </button>
           <button className="btn btn-sm btn-ghost btn-icon" onClick={() => setEditing(false)}><X size={13} /></button>
@@ -106,19 +106,19 @@ export default function Recipients() {
       <TopBar crumbs={['Workspace', 'Recipients']} />
       <div className="scroll">
         <div className="page-h">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="flex flex-col gap-2">
             <Sk h={28} r={6} style={{ width: 180 }} />
             <Sk h={14} style={{ width: 70 }} />
           </div>
         </div>
-        <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
+        <div className="card !p-0 overflow-hidden">
           <table className="tbl">
             <thead>
               <tr>
                 <th>Name</th>
                 <th>Description</th>
                 <th>Addresses</th>
-                <th style={{ width: 80 }} />
+                <th className="w-20" />
               </tr>
             </thead>
             <tbody>
@@ -154,14 +154,14 @@ export default function Recipients() {
         </div>
 
         {showNew && (
-          <div className="card" style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12, borderColor: 'rgba(249,115,22,0.3)' }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>New Group</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="card mb-4 flex flex-col gap-3 !border-[rgba(249,115,22,0.3)]">
+            <div className="text-[13px] font-semibold text-text-primary">New Group</div>
+            <div className="grid grid-cols-2 gap-3">
               <div className="field"><label htmlFor="rg-name">Name *</label><input id="rg-name" className="input" value={newName} onChange={e => setNewName(e.target.value)} /></div>
               <div className="field"><label htmlFor="rg-desc">Description</label><input id="rg-desc" className="input" value={newDesc} onChange={e => setNewDesc(e.target.value)} /></div>
             </div>
             <div className="field"><label htmlFor="rg-addresses">Email addresses</label><ChipInput id="rg-addresses" values={newAddrs} onChange={setNewAddrs} /></div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="flex gap-2">
               <button className="btn btn-primary btn-sm" onClick={() => add()} disabled={isPending || !newName}>
                 {isPending ? <Spinner size={12} /> : null} Create
               </button>
@@ -170,18 +170,18 @@ export default function Recipients() {
           </div>
         )}
 
-        <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
+        <div className="card !p-0 overflow-hidden">
           <table className="tbl">
             <thead>
               <tr>
                 <th>Name</th>
                 <th>Description</th>
                 <th>Addresses</th>
-                <th style={{ width: 80 }} />
+                <th className="w-20" />
               </tr>
             </thead>
             <tbody>
-              {groups.length === 0 && <tr><td colSpan={4} style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>No recipient groups yet. Create a named list of addresses — "Finance Team", "Management" — and assign it to an email config.</td></tr>}
+              {groups.length === 0 && <tr><td colSpan={4} className="text-center !py-10 !px-0 !text-text-muted">No recipient groups yet. Create a named list of addresses — "Finance Team", "Management" — and assign it to an email config.</td></tr>}
               {groups.map(g => <GroupRow key={g.id} group={g} canEdit={canEdit} onSaved={() => qc.invalidateQueries({ queryKey: ['recipient-groups'] })} onDelete={() => remove(g.id)} />)}
             </tbody>
           </table>

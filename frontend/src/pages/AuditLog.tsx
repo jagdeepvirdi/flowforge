@@ -37,27 +37,25 @@ export default function AuditLog() {
         <div className="page-h">
           <div>
             <h1>Audit Log</h1>
-            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>System-wide compliance and security events.</div>
+            <div className="text-[13px] text-text-muted mt-1">System-wide compliance and security events.</div>
           </div>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <div className="input-wrap">
-              <Filter size={13} style={{ color: 'var(--text-muted)' }} />
+          <div className="flex gap-2.5 items-center">
+            <div className="flex items-center gap-1.5 bg-surface border border-border rounded-r px-3 h-[34px] w-[140px]">
+              <Filter size={13} className="text-text-muted shrink-0" />
               <input
-                className="input input-sm"
+                className="bg-transparent border-none outline-none text-text-primary text-[13px] font-[inherit] flex-1 min-w-0"
                 placeholder="Filter by action…"
                 value={actionFilter}
                 onChange={e => { setActionFilter(e.target.value); setPage(1) }}
-                style={{ width: 140 }}
               />
             </div>
-            <div className="input-wrap">
-              <User size={13} style={{ color: 'var(--text-muted)' }} />
+            <div className="flex items-center gap-1.5 bg-surface border border-border rounded-r px-3 h-[34px] w-[140px]">
+              <User size={13} className="text-text-muted shrink-0" />
               <input
-                className="input input-sm"
+                className="bg-transparent border-none outline-none text-text-primary text-[13px] font-[inherit] flex-1 min-w-0"
                 placeholder="Filter by user…"
                 value={userFilter}
                 onChange={e => { setUserFilter(e.target.value); setPage(1) }}
-                style={{ width: 140 }}
               />
             </div>
             <button className="btn btn-sm btn-ghost" onClick={handleExport} disabled={exporting}>
@@ -66,24 +64,24 @@ export default function AuditLog() {
           </div>
         </div>
 
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div className="card !p-0 overflow-hidden">
           {error ? (
-            <div style={{ padding: 20, color: 'var(--failure)', textAlign: 'center', fontSize: 13 }}>Failed to load audit logs.</div>
+            <div className="p-5 text-failure text-center text-[13px]">Failed to load audit logs.</div>
           ) : isLoading ? (
             <table className="tbl">
               <thead>
                 <tr>
-                  <th style={{ paddingLeft: 20, width: 160 }}><Clock size={11} style={{ display: 'inline', marginRight: 4 }} /> Timestamp</th>
-                  <th style={{ width: 140 }}><Hash size={11} style={{ display: 'inline', marginRight: 4 }} /> Action</th>
-                  <th style={{ width: 120 }}><User size={11} style={{ display: 'inline', marginRight: 4 }} /> User</th>
-                  <th style={{ width: 140 }}><Server size={11} style={{ display: 'inline', marginRight: 4 }} /> IP Address</th>
+                  <th className="!pl-5 w-[160px]"><Clock size={11} className="inline mr-1" /> Timestamp</th>
+                  <th className="w-[140px]"><Hash size={11} className="inline mr-1" /> Action</th>
+                  <th className="w-[120px]"><User size={11} className="inline mr-1" /> User</th>
+                  <th className="w-[140px]"><Server size={11} className="inline mr-1" /> IP Address</th>
                   <th>Details</th>
                 </tr>
               </thead>
               <tbody>
                 {Array.from({ length: 10 }, (_, i) => i).map(n => (
                   <tr key={'sk-' + n}>
-                    <td style={{ paddingLeft: 20 }}><Sk h={12} style={{ width: 130 }} /></td>
+                    <td className="!pl-5"><Sk h={12} style={{ width: 130 }} /></td>
                     <td><Sk h={18} r={4} style={{ width: 90 }} /></td>
                     <td><Sk h={12} style={{ width: 80 }} /></td>
                     <td><Sk h={12} style={{ width: 100 }} /></td>
@@ -93,15 +91,15 @@ export default function AuditLog() {
               </tbody>
             </table>
           ) : data?.logs.length === 0 ? (
-            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>No audit events found.</div>
+            <div className="p-10 text-center text-text-muted">No audit events found.</div>
           ) : (
             <table className="tbl">
               <thead>
                 <tr>
-                  <th style={{ paddingLeft: 20, width: 160 }}><Clock size={11} style={{ display: 'inline', marginRight: 4 }} /> Timestamp</th>
-                  <th style={{ width: 140 }}><Hash size={11} style={{ display: 'inline', marginRight: 4 }} /> Action</th>
-                  <th style={{ width: 120 }}><User size={11} style={{ display: 'inline', marginRight: 4 }} /> User</th>
-                  <th style={{ width: 140 }}><Server size={11} style={{ display: 'inline', marginRight: 4 }} /> IP Address</th>
+                  <th className="!pl-5 w-[160px]"><Clock size={11} className="inline mr-1" /> Timestamp</th>
+                  <th className="w-[140px]"><Hash size={11} className="inline mr-1" /> Action</th>
+                  <th className="w-[120px]"><User size={11} className="inline mr-1" /> User</th>
+                  <th className="w-[140px]"><Server size={11} className="inline mr-1" /> IP Address</th>
                   <th>Details</th>
                 </tr>
               </thead>
@@ -110,18 +108,15 @@ export default function AuditLog() {
                   const ts = log.timestamp ? new Date(log.timestamp).toLocaleString() : 'N/A'
                   return (
                     <tr key={log.id}>
-                      <td style={{ paddingLeft: 20, fontSize: 11.5, color: 'var(--text-2)' }} className="mono">{ts}</td>
+                      <td className="mono !pl-5 text-[11.5px]">{ts}</td>
                       <td>
-                        <span style={{
-                          background: 'var(--surface-2)', padding: '2px 6px', borderRadius: 4,
-                          fontSize: 10.5, fontWeight: 600, color: 'var(--text-2)'
-                        }} className="mono">
+                        <span className="mono bg-surface2 py-0.5 px-1.5 rounded text-[10.5px] font-semibold text-text-2">
                           {log.action}
                         </span>
                       </td>
-                      <td style={{ fontWeight: 500 }}>{log.username}</td>
-                      <td className="mono" style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{log.ip_address || '—'}</td>
-                      <td className="mono" style={{ fontSize: 11, color: 'var(--text-3)', wordBreak: 'break-all' }}>
+                      <td className="font-medium">{log.username}</td>
+                      <td className="mono text-[11.5px] !text-text-muted">{log.ip_address || '—'}</td>
+                      <td className="mono text-[11px] !text-text-3 break-all">
                         {Object.keys(log.details).length > 0 ? JSON.stringify(log.details) : ''}
                       </td>
                     </tr>
@@ -131,11 +126,11 @@ export default function AuditLog() {
             </table>
           )}
           {data && data.pages > 1 && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderTop: '1px solid var(--border)' }}>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            <div className="flex items-center justify-between py-3 px-5 border-t border-border">
+              <div className="text-xs text-text-muted">
                 Page {data.page} of {data.pages} ({data.total} records)
               </div>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div className="flex gap-1.5">
                 <button
                   className="btn btn-sm"
                   disabled={page <= 1}

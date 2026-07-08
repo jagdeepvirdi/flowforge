@@ -916,8 +916,42 @@ single session has to touch the whole frontend at once.*
 
 ## 12.11 `pages/Users.tsx` + `pages/AuditLog.tsx` + `pages/Recipients.tsx` (32 + 30 + 25 = 87 occurrences)
 
-- [ ] `Users.tsx`: list, add-user form, role changes. `AuditLog.tsx`: table + filters + loading
+- [x] `Users.tsx`: list, add-user form, role changes. `AuditLog.tsx`: table + filters + loading
   skeleton (2026-07-06). `Recipients.tsx`: list, inline add/edit rows, chip input.
+  **Done 2026-07-08**: converted all three files (`Users.tsx`'s `RoleBadge` plus the page; the whole of
+  `AuditLog.tsx`; `Recipients.tsx`'s `ChipInput`/`GroupRow` plus the page). Notable finds:
+  - `Recipients.tsx`'s `ChipInput` had the exact same dead `badge-muted` class bug flagged (but left
+    for this chunk) in chunk 12.8 — fixed identically: replaced with `.chip` plus a `className="x"` on
+    the remove button for the hover treatment.
+  - `AuditLog.tsx`'s two filter inputs referenced `className="input-wrap"`/`"input input-sm"` —
+    **also neither class is defined anywhere in `index.css`**, a second, previously-unknown instance of
+    the same "dead class, unstyled at runtime" bug family as `badge-muted`. Unlike `badge-muted` there
+    was no adjacent real class with matching intent to swap in, so these were rebuilt from scratch using
+    the icon+bordered-box search-input pattern already established in `RunHistory.tsx`/`Pipelines.tsx`
+    (chunks 12.9/12.10) for consistency, rather than inventing a fourth visual treatment for the same
+    concept.
+  - `Users.tsx`'s `RoleBadge` (admin/editor/viewer, a genuine fixed 3-state enum) converted to a
+    Tailwind class map the same way as chunks 12.5/12.8/12.9's status maps; `editor`'s `#60A5FA` and
+    `admin`'s exact-token `var(--accent-text)` were kept precise (`text-blue-400` and `text-accent-text`
+    respectively) while the non-matching `rgba(...)` background tints stayed arbitrary.
+  - `AuditLog.tsx` and `Recipients.tsx` both render real `<table className="tbl">` markup, unlike
+    `Users.tsx`'s plain unclassed table — every `.tbl td` color override needed `!` (e.g. the group
+    name/description cells), while padding-left/font-size overrides on the same cells did not, per the
+    inheritance-vs-direct-match distinction nailed down in chunk 12.8. Both tables' empty-state cells
+    (`text-align/padding/color` on a bare `<td>`) needed the same `!py-10 !px-0 !text-text-muted`
+    treatment as `RunHistory.tsx`'s chunk-12.9 empty state.
+  - `Recipients.tsx`'s `GroupRow` edit-mode name/description inputs (`style={{ height: 32 }}`) and the
+    "New Group" form's intentional accent-tinted border (`borderColor: 'rgba(249,115,22,0.3)'`, a fixed
+    constant rather than a per-instance value) both needed `!h-8`/`!border-[rgba(249,115,22,0.3)]`
+    respectively against `.input`/`.card`'s own defaults.
+  Verified: `tsc --noEmit` and `eslint` clean (zero warnings), `npx vitest run` — 97/97 passing,
+  `npm run build` succeeds. Live-verified via the same dev stack (Playwright, headless): Users' table
+  (admin's own row showing the `(you)` tag, ADMIN role badge, OFF MFA badge, export-only actions since
+  self-actions are hidden) and the Add User modal; Audit Log's real login-event history with the two
+  rebuilt filter boxes rendering identically to the established search-box pattern; Recipients' existing
+  group row (compact chip pill) and a new-group form exercising the chip input live (added two real
+  address chips, confirming visible pill styling instead of the previous unstyled bare text) plus the
+  accent-tinted form border. Zero console/React errors throughout.
 
 ## 12.12 `pages/Emails.tsx` + `pages/BulkLoads.tsx` + `pages/Reports.tsx` (24 + 22 + 21 = 67 occurrences)
 
