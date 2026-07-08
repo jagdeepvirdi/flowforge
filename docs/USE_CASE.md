@@ -135,9 +135,8 @@ For any company migrating from Oracle to PostgreSQL, FlowForge is uniquely posit
 
 | Limitation | Implication |
 |---|---|
-| Sequential steps only | Can't run report generation and a procedure call in parallel |
 | No conditional branching | Can't say "only send email if row count > 0" — workaround: always send, filter in query |
-| Desktop-only UI | No mobile support; not designed for field use |
+| No visual DAG canvas | Pipelines and dependencies are configured via forms/lists, not drag-and-drop — see ROADMAP.md |
 
 ---
 

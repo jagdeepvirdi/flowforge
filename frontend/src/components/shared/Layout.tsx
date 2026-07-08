@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth, useCurrentUser } from '../../lib/auth'
 import { getRuns, logout as apiLogout } from '../../lib/api'
 import HelpDrawer from './HelpDrawer'
 import RouteErrorBoundary from './RouteErrorBoundary'
+import RouteFallback from './RouteFallback'
 
 const NAV_MAIN = [
   { to: '/dashboard',   label: 'Dashboard',       icon: 'dashboard' },
@@ -219,7 +220,9 @@ export default function Layout() {
         </div>
 
         <RouteErrorBoundary>
-          <Outlet />
+          <Suspense fallback={<RouteFallback />}>
+            <Outlet />
+          </Suspense>
         </RouteErrorBoundary>
       </main>
 

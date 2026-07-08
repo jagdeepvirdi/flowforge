@@ -224,6 +224,12 @@ CREATE TABLE ff_audit_log (
 
 ## Step Types
 
+> The six types below are the original core set from this doc's initial design. Many more have
+> shipped since — `bulk_load`, `sftp_transfer`, `onedrive_upload`, `s3_upload`, `azure_blob_upload`,
+> `ssh_command`, `ssh_health_check`, `db_health_check`, `data_report`, `notification` (Slack/Teams/
+> Telegram), and a plugin system for community-defined types. See [`docs/step-types.md`](docs/step-types.md)
+> for the complete, current reference and [`README.md`](README.md) for the up-to-date summary table.
+
 ### db_procedure
 Call a stored procedure or package in any configured database.
 ```json
@@ -279,7 +285,7 @@ Upload a file to Google Drive.
 }
 ```
 
-### ai_analyze (v2)
+### ai_analyze
 ```json
 {
   "connection_id": "uuid",
@@ -293,6 +299,10 @@ Upload a file to Google Drive.
 ---
 
 ## Email Provider Implementations
+
+> Three providers shown below from the original design. SendGrid, AWS SES, and Mailgun have
+> since shipped as additional providers behind the same `EmailProvider` interface — see
+> `flowforge/email_providers/` and [`docs/email-providers.md`](docs/email-providers.md).
 
 ### Abstract Base
 ```python
@@ -389,6 +399,10 @@ uploaded to Google Drive for your convenience:
 
 ## Database Connection Support
 
+> PostgreSQL and Oracle shown below from the original design. MySQL/MariaDB, MSSQL, generic ODBC,
+> Snowflake, BigQuery, and Redshift have since shipped as additional connections behind the same
+> `BaseConnection` interface — see `flowforge/connections/`.
+
 ### PostgreSQL
 ```python
 class PostgreSQLConnection(BaseConnection):
@@ -410,6 +424,10 @@ Both implement the same `BaseConnection` interface — pipelines don't know whic
 ---
 
 ## Frontend Pages
+
+> Pages below are the original design set. `Login` (with MFA/SSO/password-reset flows), `Users`
+> (admin user management), `Bulk Loads`, and `Projects` (multi-project workspace switcher) have
+> since shipped as additional pages under `frontend/src/pages/`.
 
 ### Dashboard
 - Pipeline cards: name, status badge (Success/Failed/Running/Never Run), last run time, next scheduled run, Run Now button

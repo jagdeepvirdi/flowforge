@@ -686,6 +686,47 @@ remote_path: /outbound/reports/{{ current_month }}/
 
 ---
 
+## notification
+
+Sends a message to Slack, Microsoft Teams, or Telegram via webhook/bot API. Useful for pipeline alerts alongside (or instead of) email — pair with `send_only_on_failure` / `on_error` for failure-only alerting.
+
+```yaml
+step_type: notification
+config:
+  platform:    slack                          # 'slack' | 'teams' | 'telegram'  (required)
+  message:     "Pipeline {{ pipeline_name }} finished with {{ steps.check.rows_affected }} rows"
+  title:       "FlowForge Alert"              # optional — bold header (Teams / Telegram only)
+
+  # Slack + Teams only:
+  webhook_url: "{{ env.SLACK_WEBHOOK_URL }}"  # incoming-webhook URL
+
+  # Telegram only:
+  bot_token:   "{{ env.TELEGRAM_BOT_TOKEN }}" # bot token from @BotFather
+  chat_id:     "-1001234567890"               # target chat/group/channel ID
+  parse_mode:  HTML                           # 'HTML' (default) or 'Markdown'
+```
+
+**Fields:**
+
+| Field | Applies to | Description |
+|---|---|---|
+| `platform` | all | `slack`, `teams`, or `telegram` |
+| `message` | all | Jinja2 template — the message body |
+| `title` | teams, telegram | Optional bold header; ignored by Slack |
+| `webhook_url` | slack, teams | Incoming-webhook URL from the Slack/Teams app |
+| `bot_token` | telegram | Bot token issued by `@BotFather` |
+| `chat_id` | telegram | Target chat, group, or channel ID |
+| `parse_mode` | telegram | `HTML` (default) or `Markdown` — controls how `title`/`message` are formatted |
+
+**Notes:**
+- Slack and Teams webhook URLs are validated against SSRF (`assert_public_url`) before the request is sent — internal/private-network URLs are rejected.
+- Requests use stdlib `urllib` (no extra dependency); a non-2xx response fails the step with the HTTP status and response body (truncated to 200 chars).
+- Slack payload is a plain `{"text": message}`; Teams uses a legacy `MessageCard` payload; Telegram calls `POST https://api.telegram.org/bot<token>/sendMessage`.
+
+**Outputs:** none (no `{{ steps.<name>.* }}` values set).
+
+---
+
 ## Variable Reference
 
 All config string fields support Jinja2 variables. Available at runtime:

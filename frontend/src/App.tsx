@@ -1,26 +1,28 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { getMe } from './lib/api'
 import { useAuth } from './lib/auth'
 import Layout from './components/shared/Layout'
-import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
-import Pipelines from './pages/Pipelines'
-import PipelineEdit from './pages/PipelineEdit'
-import Reports from './pages/Reports'
-import ReportEdit from './pages/ReportEdit'
-import Emails from './pages/Emails'
-import EmailEdit from './pages/EmailEdit'
-import Connections from './pages/Connections'
-import Recipients from './pages/Recipients'
-import RunHistory from './pages/RunHistory'
-import RunDetail from './pages/RunDetail'
-import Settings from './pages/Settings'
-import BulkLoads from './pages/BulkLoads'
-import BulkLoadEdit from './pages/BulkLoadEdit'
-import Projects from './pages/Projects'
-import Users from './pages/Users'
-import AuditLog from './pages/AuditLog'
+import RouteFallback from './components/shared/RouteFallback'
+
+const Login = lazy(() => import('./pages/Login'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Pipelines = lazy(() => import('./pages/Pipelines'))
+const PipelineEdit = lazy(() => import('./pages/PipelineEdit'))
+const Reports = lazy(() => import('./pages/Reports'))
+const ReportEdit = lazy(() => import('./pages/ReportEdit'))
+const Emails = lazy(() => import('./pages/Emails'))
+const EmailEdit = lazy(() => import('./pages/EmailEdit'))
+const Connections = lazy(() => import('./pages/Connections'))
+const Recipients = lazy(() => import('./pages/Recipients'))
+const RunHistory = lazy(() => import('./pages/RunHistory'))
+const RunDetail = lazy(() => import('./pages/RunDetail'))
+const Settings = lazy(() => import('./pages/Settings'))
+const BulkLoads = lazy(() => import('./pages/BulkLoads'))
+const BulkLoadEdit = lazy(() => import('./pages/BulkLoadEdit'))
+const Projects = lazy(() => import('./pages/Projects'))
+const Users = lazy(() => import('./pages/Users'))
+const AuditLog = lazy(() => import('./pages/AuditLog'))
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth()
@@ -46,6 +48,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AppBootstrap>
+      <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route
@@ -80,6 +83,7 @@ export default function App() {
           <Route path="settings/audit" element={<AuditLog />} />
         </Route>
       </Routes>
+      </Suspense>
       </AppBootstrap>
     </BrowserRouter>
   )

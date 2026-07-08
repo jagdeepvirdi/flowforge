@@ -7,17 +7,96 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+### Changed — 2026-07-08
+
+- **Frontend route-based code splitting** — `App.tsx` now lazy-loads every page via `React.lazy()` instead of static imports, with a `<Suspense>` boundary around the top-level `<Routes>` (covers `/login`) and a second one in `Layout.tsx` around `<Outlet/>` (covers nested authenticated routes, keeping the sidebar/topbar mounted during navigation). New `components/shared/RouteFallback.tsx` centers the existing `Spinner` as the loading fallback. The single production JS bundle dropped from ~1.1MB to a 254 kB main chunk, with Recharts, CodeMirror, and per-page code now split into on-demand chunks — clears Vite's default 500 kB `chunkSizeWarningLimit`. ([`frontend/src/App.tsx`](frontend/src/App.tsx), [`frontend/src/components/shared/Layout.tsx`](frontend/src/components/shared/Layout.tsx), [`frontend/src/components/shared/RouteFallback.tsx`](frontend/src/components/shared/RouteFallback.tsx))
+
+> The entries below were reconstructed from commit history to close a gap — a large amount of
+> work landed in a small number of squash-merged PRs whose commit messages didn't reflect their
+> full contents, so it was never itemized here at the time. Grouped by the date it actually shipped.
+
+### Added — 2026-07-01
+
+- **Plugin step-type system** — Drop a `BaseStep` subclass into `FLOWFORGE_PLUGIN_DIR` (default `./plugins`) and it's picked up automatically on next pipeline load — no fork required. See [`docs/plugins.md`](docs/plugins.md). ([`flowforge/engine/loader.py`](flowforge/engine/loader.py))
+- **Snowflake, BigQuery, and Redshift connectors** — Three more database types behind the same `BaseConnection` interface (Redshift reuses the core `psycopg2` dependency; no extra install needed). Install with `pip install 'flowforge-io[snowflake]'` / `[bigquery]`. ([`flowforge/connections/snowflake.py`](flowforge/connections/snowflake.py), [`flowforge/connections/bigquery.py`](flowforge/connections/bigquery.py), [`flowforge/connections/redshift.py`](flowforge/connections/redshift.py))
+- **`s3_upload` / `azure_blob_upload` steps** — Upload a file to an AWS S3 bucket or Azure Blob Storage container; wired into the smart-attachment fallback alongside Drive/OneDrive. Install with `[ses]` (S3 shares the `boto3` dependency) / `[azure_blob]`. ([`flowforge/storage/s3.py`](flowforge/storage/s3.py), `flowforge/steps/s3_upload.py`, [`flowforge/storage/azure_blob.py`](flowforge/storage/azure_blob.py), `flowforge/steps/azure_blob_upload.py`)
+- **SAML 2.0 SSO** — Enterprise IdP login (Okta, Azure AD, PingFederate) alongside the existing Google/Microsoft OAuth2 SSO. Install with `pip install 'flowforge-io[sso]'` (requires system `libxmlsec1`). ([`flowforge/api/routes/sso.py`](flowforge/api/routes/sso.py))
+- **Redis-backed distributed concurrency lock** — Replaces the in-process run-limit check so multiple API/worker instances can be scaled horizontally without over-running the same pipeline concurrently.
+- **Team-scoped project membership** (`ff_project_members`) — Projects can now be restricted to specific users instead of being visible instance-wide.
+
+### Added — 2026-06-05
+
+*A large batch of work (SSH steps, production hardening, the compliance track, new connectors, pipeline dependencies, and new email providers) shipped together; grouped by area below.*
+
+**New step types:**
+- **`ssh_command`** — run a remote command over SSH; `save_output` writes stdout (+ optionally stderr) to a file and sets `output_path`, even on non-zero exit, so failure logs can be attached to an alert email.
+- **`ssh_health_check`** — connects once over SSH and collects load average, memory, disk usage, and top processes in a single session; generates an Excel/CSV report directly (`flowforge/reports/health_report.py`).
+- **`db_health_check`** (refactored) — now also generates an Excel/CSV report and sets `output_path` instead of only logging. PostgreSQL: sessions, cache hit ratio, replication lag. Oracle: sessions, buffer cache, tablespace usage. MySQL: thread count.
+- **`data_report`** (`flowforge/steps/script_report.py`) — turns an arbitrary script's output into a report.
+
+  ([`flowforge/steps/ssh_command.py`](flowforge/steps/ssh_command.py), [`flowforge/steps/ssh_health_check.py`](flowforge/steps/ssh_health_check.py), [`flowforge/connections/ssh.py`](flowforge/connections/ssh.py); see [`docs/scenarios/health-monitoring.md`](docs/scenarios/health-monitoring.md) and [`docs/scenarios/log-extraction.md`](docs/scenarios/log-extraction.md) for end-to-end setup guides)
+
+**Production hardening:**
+- **Gunicorn + Nginx + systemd deployment guide** (`docs/RUNBOOK.md` §4a) — gevent workers, worker-count formula, TLS termination, systemd units for web/scheduler/worker processes. `Dockerfile` CMD switched to gevent workers with `GUNICORN_WORKERS` / `GUNICORN_TIMEOUT` overrides.
+- **SQLAlchemy connection pool tuning** — `SQLALCHEMY_POOL_SIZE` / `MAX_OVERFLOW` / `POOL_TIMEOUT` / `POOL_RECYCLE` env vars, with PgBouncer guidance for 100+ concurrent pipelines (`docs/RUNBOOK.md` §9).
+- **Prometheus metrics endpoint** — `GET /api/metrics` (Bearer-token protected) exposes `flowforge_runs_total{status}`, `flowforge_runs_active`, and `flowforge_queue_depth` in plain-text exposition format, no extra dependency. ([`flowforge/api/routes/metrics.py`](flowforge/api/routes/metrics.py))
+- **Celery Flower dashboard** — opt-in `flower` service in `docker-compose.yml` under `--profile monitoring`.
+
+**Compliance track:**
+- **Report encryption at rest** (`FLOWFORGE_ENCRYPT_OUTPUT=true`) — `crypto.py` gains `encrypt_file()` / `decrypt_file_to_stream()`; the download endpoint decrypts `.enc` files transparently.
+- **TOTP MFA** — `ff_users` gains `mfa_secret` / `mfa_enabled` / `mfa_backup_codes` (AES-256 encrypted); `/auth/mfa/enroll|confirm|disable|verify|use-backup` endpoints; QR-code enrollment in Settings; 10 backup codes; step-2 TOTP input on the login page. (`pyotp` dependency)
+- **SSO (Google OAuth2 + Microsoft OAuth2)** — `/auth/sso/google|microsoft` + callbacks; token delivered via a `#sso_token=` hash fragment; `FLOWFORGE_SSO_AUTO_CREATE` controls whether first-time SSO logins auto-provision a user.
+- **GDPR data export & purge** — `GET /api/admin/users/{id}/export` (profile + audit log + run history); `DELETE /api/admin/users/{id}?purge=true` (anonymises audit log, deletes the user).
+- **IP allowlisting** — `FLOWFORGE_ALLOWED_IPS=CIDR,...` rejects `/api/*` requests from non-listed source IPs.
+- **TruffleHog secrets scan** — new `.github/workflows/secrets-scan.yml` CI job.
+- **`docs/data-flow.md`** — data inventory, encryption, retention, and GDPR-rights reference for SOC 2 / GDPR / HIPAA assessments.
+
+  ([`flowforge/api/routes/mfa.py`](flowforge/api/routes/mfa.py), [`flowforge/api/routes/sso.py`](flowforge/api/routes/sso.py), [`flowforge/crypto.py`](flowforge/crypto.py))
+
+**New connectors + password reset:**
+- **MSSQL connector** — `pyodbc` with SQL Server ODBC driver, named-param `EXEC` syntax, `fast_executemany` for bulk loads. Install with `pip install 'flowforge-io[mssql]'`.
+- **Generic ODBC connector** — DSN or raw connection string; `{CALL procedure(?,?)}` syntax for portable procedure calls.
+- **Email-based password reset** — `POST /auth/password-reset/request` (always returns 200 — no user-existence leak) and `/confirm` (1-hour TTL, single-use token); "Forgot password?" flow on the Login page.
+
+  ([`flowforge/connections/mssql.py`](flowforge/connections/mssql.py), [`flowforge/connections/odbc.py`](flowforge/connections/odbc.py))
+
+**Pipeline dependencies + parallel execution:**
+- **Pipeline dependencies** — `ff_pipeline_dependencies` table; cycle detection via BFS; a downstream pipeline auto-launches once all of its upstreams have a successful run since it last started (`triggered_by="dependency"`). `DependenciesCard` in the Pipeline Builder.
+- **Parallel step execution** — steps sharing a `parallel_group` run concurrently in a `ThreadPoolExecutor`; outputs merge back into the shared context after the wave completes.
+
+  ([`flowforge/engine/runner.py`](flowforge/engine/runner.py))
+
+**Run diff, report formatting, and environment promotion:**
+- **Run diff view** — `GET /api/runs/{id}/diff` compares a run against the previous successful run of the same pipeline (row/duration/file-size deltas per step); `DiffPanel` in Run Detail.
+- **Excel column formatting** — `column_formatting` on report configs applies number formats, explicit column widths, and conditional cell coloring (`lt`/`lte`/`gt`/`gte`/`eq`/`ne` rules); `ColumnFormattingCard` in the Report Designer.
+- **Environment promotion** — `POST /api/pipelines/{id}/promote` clones a pipeline (steps + non-secret variables) into a different project, starting disabled for safety.
+
+**New email providers + notification step:**
+- **SendGrid, AWS SES, Mailgun** — three more `EmailProvider` implementations behind the existing interface. Install with `[ses]` for SES.
+- **`notification` step** — sends a message to Slack, Microsoft Teams, or Telegram via webhook/bot API (stdlib `urllib`, no extra dependency); outbound webhook URLs are validated against SSRF.
+
+  ([`flowforge/email_providers/sendgrid.py`](flowforge/email_providers/sendgrid.py), [`flowforge/email_providers/ses.py`](flowforge/email_providers/ses.py), [`flowforge/email_providers/mailgun.py`](flowforge/email_providers/mailgun.py), [`flowforge/steps/notification.py`](flowforge/steps/notification.py))
+
+### Security — 2026-06-05 / 2026-07-01
+
+- CVE patches across the full Python and npm dependency tree (cryptography, Flask, Flask-CORS, bcrypt, PyJWT, SQLAlchemy, Alembic, Vite, Vitest, react-router-dom, and more) — `npm audit` and `pip-audit` both report 0 known vulnerabilities as of this batch.
+- **Fuzzing** — property-based tests (`hypothesis`) covering `render()` crash-safety, env-var blocklist enforcement, and pipeline variable handling; runs in CI outside the main DB-backed test suite.
+- **Signed releases + PyPI publishing** — `.github/workflows/release.yml` attaches SLSA build provenance to tagged releases; `.github/workflows/publish.yml` publishes to PyPI via OIDC trusted publishing (no stored tokens).
+- Hash-pinned `requirements.txt` (via `requirements.in` + `pip-compile --generate-hashes`); `ruff` and frontend ESLint added to CI.
+- CII Best Practices Silver documentation: `CODE_OF_CONDUCT.md`, `GOVERNANCE.md`, `ROADMAP.md`, `docs/threat-model.md`.
+
+### Changed — 2026-07-05 to 2026-07-08
+
+- **Full Tailwind CSS frontend migration** — every page and shared component converted from inline style objects / hand-written CSS to Tailwind utility classes; custom classes that remain are wrapped in `@layer components` instead of relying on `!important` overrides. (Commits tagged `chunk 12.1`–`12.13` in git history.)
+- Docker service images (`docker-compose*.yml`, CI service containers) pinned to digest; Dependabot now tracks the `Dockerfile` + compose files for digest updates.
+- Migration files with autogenerated hash IDs renamed to fit the numbered scheme (filenames only — revision IDs untouched) so directory order matches execution order.
+
+### Added — earlier 2026-07 (previously undocumented)
 
 - **Bulk load dry-run V2** — "Attempt insert (rolled back)" checkbox in the Bulk Load editor's Test File action. Inserts each sampled row individually against the real target table inside a transaction (rolled back, never committed), catching NOT NULL/unique/length/type errors that untyped CSV text can't reveal on its own. Failures are grouped by column + error type with affected rows/cells highlighted in the preview table. Not available for the Oracle SQL\*Loader path. ([`flowforge/steps/bulk_load.py`](flowforge/steps/bulk_load.py), [`frontend/src/pages/BulkLoadEdit.tsx`](frontend/src/pages/BulkLoadEdit.tsx))
 - **Step performance trends** — new `GET /api/step-runs/trends` endpoint aggregates existing `step_runs` data (avg/p95 duration, row counts, failures) into daily buckets over a rolling window. Collapsible "Performance Trends" panel on the Run History page with a step-type/window picker and a Recharts duration chart. ([`flowforge/api/routes/runs.py`](flowforge/api/routes/runs.py), [`frontend/src/components/runs/StepTrendsPanel.tsx`](frontend/src/components/runs/StepTrendsPanel.tsx))
 - **Audit log `run_id` cross-referencing** — `EMAIL_SENT`/`REPORT_EXPORTED` audit entries now carry `run_id`, so they can be joined directly to `pipeline_runs`/`step_runs` instead of fuzzy-matching on name and timestamp. ([`flowforge/audit.py`](flowforge/audit.py))
 - **Loading skeletons** on 9 pages that previously showed a bare spinner on a blank screen (`AuditLog`, `BulkLoadEdit`, `Emails`, `Pipelines`, `Projects`, `Recipients`, `Reports`, `RunDetail`, `Settings`), matching the content-shaped skeleton pattern already used on `Dashboard`/`BulkLoads`/`RunHistory`.
-
-### Changed
-
-- Docker service images (`docker-compose*.yml`, CI service containers) pinned to digest; Dependabot now tracks the `Dockerfile` + compose files for digest updates.
-- Migration files with autogenerated hash IDs renamed to fit the numbered scheme (filenames only — revision IDs untouched) so directory order matches execution order.
 
 ## [1.0.0] — 2026-05-25 *(Initial Public Release)*
 
