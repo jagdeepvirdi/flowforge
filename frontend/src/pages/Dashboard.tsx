@@ -71,7 +71,7 @@ function PipelineCard({ pipeline, runs }: { pipeline: Pipeline; runs: PipelineRu
   }
 
   return (
-    <div className="card flex flex-col gap-3.5 p-4">
+    <div className="card flex flex-col gap-3.5">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -189,7 +189,7 @@ export default function Dashboard() {
         </div>
         <div className="grid-stats mb-7">
           {[0,1,2,3].map(i => (
-            <div key={i} className="card p-[16px_18px] flex flex-col gap-2.5">
+            <div key={i} className="card !p-[16px_18px] flex flex-col gap-2.5">
               <Sk h={11} style={{ width: 80 }} />
               <Sk h={28} r={6} style={{ width: 60 }} />
             </div>
@@ -201,7 +201,7 @@ export default function Dashboard() {
         </div>
         <div className="grid-pipelines">
           {[0,1,2].map(i => (
-            <div key={i} className="card flex flex-col gap-3.5 p-4">
+            <div key={i} className="card flex flex-col gap-3.5">
               <div className="flex justify-between gap-3">
                 <div className="flex-1 flex flex-col gap-1.5">
                   <Sk h={14} style={{ width: '55%' }} />
@@ -254,7 +254,7 @@ export default function Dashboard() {
         {/* Stats row */}
         <div className="grid-stats mb-7">
           {stats.map((s) => (
-            <div key={s.label} className="card p-[16px_18px]">
+            <div key={s.label} className="card !p-[16px_18px]">
               <div className="text-[11px] text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-2">{s.label}</div>
               <div className={`text-[28px] font-semibold font-mono tracking-tight ${s.danger ? 'text-[var(--failure-text)]' : 'text-[var(--text)]'}`}>
                 {s.value}
@@ -289,7 +289,7 @@ export default function Dashboard() {
               <h2>Recent failures</h2>
               <Link to="/runs?status=failed" className="text-[12px] text-[var(--text-3)] no-underline">View all failures →</Link>
             </div>
-            <div className="card overflow-hidden p-0">
+            <div className="card overflow-hidden !p-0">
               <table className="tbl">
                 <thead>
                   <tr>
@@ -308,8 +308,8 @@ export default function Dashboard() {
                         <div className="font-medium text-[var(--text)]">{r.pipeline_name}</div>
                         {r.error_step && <div className="mono text-[11px] text-[var(--text-muted)] mt-0.5">→ {r.error_step}</div>}
                       </td>
-                      <td className="text-[var(--text-3)] text-xs max-w-[360px]">{r.error_message ?? '—'}</td>
-                      <td className="mono text-[var(--text-muted)] text-[11.5px]">{fmtRel(r.started_at)}</td>
+                      <td className="!text-[var(--text-3)] text-xs max-w-[360px]">{r.error_message ?? '—'}</td>
+                      <td className="mono !text-[var(--text-muted)] text-[11.5px]">{fmtRel(r.started_at)}</td>
                       <td className="text-right">
                         <Link to={`/runs/${r.id}`} className="btn btn-sm btn-ghost">View</Link>
                       </td>
