@@ -45,32 +45,32 @@ export default function BulkLoads() {
       <TopBar crumbs={['Workspace', 'Bulk Loads']} />
       <div className="scroll">
         <div className="page-h">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="flex flex-col gap-2">
             <Sk h={28} r={6} style={{ width: 140 }} />
             <Sk h={14} style={{ width: 180 }} />
           </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="flex flex-col gap-2.5">
           {[0, 1, 2].map(i => (
-            <div key={i} className="card" style={{ padding: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div key={i} className="card">
+              <div className="flex items-center gap-3.5">
                 <Sk h={40} r={9} style={{ width: 40, flexShrink: 0 }} />
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <div className="flex-1 flex flex-col gap-1.5">
+                  <div className="flex gap-2.5 items-center">
                     <Sk h={14} style={{ width: 160 }} />
                     <Sk h={14} r={4} style={{ width: 50 }} />
                   </div>
                   <Sk h={11} style={{ width: 220 }} />
                 </div>
-                <div style={{ display: 'flex', gap: 24, flexShrink: 0 }}>
+                <div className="flex gap-6 shrink-0">
                   {[50, 40].map(w => (
-                    <div key={w} style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 70 }}>
+                    <div key={w} className="flex flex-col gap-1 min-w-[70px]">
                       <Sk h={10} style={{ width: 40 }} />
                       <Sk h={12} style={{ width: w }} />
                     </div>
                   ))}
                 </div>
-                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                <div className="flex gap-1.5 shrink-0">
                   <Sk h={28} r={6} style={{ width: 62 }} />
                   <Sk h={28} r={6} style={{ width: 30 }} />
                   <Sk h={28} r={6} style={{ width: 30 }} />
@@ -108,14 +108,14 @@ export default function BulkLoads() {
         {configs.length === 0 ? (
           <div className="card ff-empty">
             <p className="msg">No bulk load configs yet.</p>
-            <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: '0 0 14px' }}>
+            <p className="text-[12.5px] text-text-muted m-0 mb-3.5">
               A bulk load config defines the source directory, file pattern, and target table.
               Once created, reference it in a pipeline's Bulk Load step.
             </p>
             <button className="btn btn-primary" onClick={() => navigate('/bulk-loads/new')}>Create first bulk load config</button>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="flex flex-col gap-2.5">
             {configs.map(c => (
               <BulkLoadRow
                 key={c.id}

@@ -33,19 +33,19 @@ export default function Reports() {
       <TopBar crumbs={['Workspace', 'Reports']} />
       <div className="scroll">
         <div className="page-h">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="flex flex-col gap-2">
             <Sk h={28} r={6} style={{ width: 130 }} />
             <Sk h={14} style={{ width: 110 }} />
           </div>
         </div>
-        <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
+        <div className="card !p-0 overflow-hidden">
           <table className="tbl">
             <thead>
               <tr>
                 <th>Name</th>
-                <th style={{ width: 80 }}>Format</th>
-                <th style={{ width: 280 }}>Output filename</th>
-                <th style={{ width: 80 }} />
+                <th className="w-20">Format</th>
+                <th className="w-[280px]">Output filename</th>
+                <th className="w-20" />
               </tr>
             </thead>
             <tbody>
@@ -83,18 +83,18 @@ export default function Reports() {
         {configs.length === 0 ? (
           <div className="card ff-empty">
             <p className="msg">No report configs yet.</p>
-            <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: '0 0 14px' }}>A report config pairs a SQL query with an output format (Excel, PDF, CSV). Once created, reference it in a pipeline's report step.</p>
+            <p className="text-[12.5px] text-text-muted m-0 mb-3.5">A report config pairs a SQL query with an output format (Excel, PDF, CSV). Once created, reference it in a pipeline's report step.</p>
             {canEdit && <Link to="/reports/new" className="btn btn-primary">Create first report config</Link>}
           </div>
         ) : (
-          <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
+          <div className="card !p-0 overflow-hidden">
             <table className="tbl">
               <thead>
                 <tr>
                   <th>Name</th>
-                  <th style={{ width: 80 }}>Format</th>
-                  <th style={{ width: 280 }}>Output filename</th>
-                  <th style={{ width: 80 }} />
+                  <th className="w-20">Format</th>
+                  <th className="w-[280px]">Output filename</th>
+                  <th className="w-20" />
                 </tr>
               </thead>
               <tbody>
@@ -103,20 +103,18 @@ export default function Reports() {
                   return (
                     <tr key={c.id}>
                       <td>
-                        <div style={{ fontWeight: 500, color: 'var(--text)' }}>
-                          <Link to={`/reports/${c.id}/edit`} style={{ color: 'var(--text)', textDecoration: 'none' }}
-                            onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent-text)')}
-                            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text)')}>
+                        <div className="font-medium text-text-primary">
+                          <Link to={`/reports/${c.id}/edit`} className="text-text-primary no-underline hover:!text-accent-text">
                             {c.name}
                           </Link>
                         </div>
-                        {c.description && <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>{c.description}</div>}
+                        {c.description && <div className="text-[11.5px] text-text-muted mt-0.5">{c.description}</div>}
                       </td>
                       <td><span className={`tbadge ${m.cls}`}>{c.format.toUpperCase()}</span></td>
-                      <td className="mono" style={{ fontSize: 11.5, color: 'var(--text-3)' }}>{c.output_filename}</td>
+                      <td className="mono text-[11.5px] !text-text-3">{c.output_filename}</td>
                       {canEdit && (
                         <td>
-                          <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                          <div className="flex gap-1 justify-end">
                             <Link to={`/reports/${c.id}/edit`} className="btn btn-sm btn-ghost btn-icon"><Pencil size={12} /></Link>
                             <button className="btn btn-sm btn-ghost btn-icon" onClick={() => globalThis.confirm(`Delete "${c.name}"?`) && remove(c.id)}>
                               <Trash2 size={12} />

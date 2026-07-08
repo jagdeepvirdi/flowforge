@@ -955,10 +955,104 @@ single session has to touch the whole frontend at once.*
 
 ## 12.12 `pages/Emails.tsx` + `pages/BulkLoads.tsx` + `pages/Reports.tsx` (24 + 22 + 21 = 67 occurrences)
 
-- [ ] All three are simple list pages (empty state + table) — good chunk to pair with a newer
+- [x] All three are simple list pages (empty state + table) — good chunk to pair with a newer
   contributor or do quickly once the pattern is well-established from earlier chunks.
+  **Done 2026-07-08**: converted all three files. As expected, the fastest chunk so far — no new
+  patterns, no dead classes, no surprises. `Emails.tsx` and `Reports.tsx` both use real `.tbl` tables
+  (provider/subject/filename cells needed `!` for color overrides, same inheritance-vs-direct-match
+  distinction as every prior `.tbl`-using chunk); `BulkLoads.tsx` delegates its rows to the already-
+  converted `BulkLoadRow` (chunk 12.4) and just needed its own loading-skeleton/empty-state wrapper
+  converted, including dropping one more `style={{ padding: 16 }}` that was redundant against `.card`'s
+  own default (same class of finding as chunks 12.2/12.3/12.9).
+  Verified: `tsc --noEmit` and `eslint` clean (zero warnings), `npx vitest run` — 97/97 passing,
+  `npm run build` succeeds. Live-verified via the same dev stack (Playwright, headless): Emails' empty
+  state (no configs seeded), Bulk Loads' real config row (rendered through the untouched `BulkLoadRow`
+  component, confirming this page's wrapper conversion didn't disturb it), and Reports' two real
+  configs with EXCEL format badges and mono filenames. Zero console/React errors throughout.
 
 ## 12.13 `pages/Dashboard.tsx` — cleanup pass (12 occurrences)
 
 - [ ] Already ~90% Tailwind (see the file for the target style) — just finish the remaining inline
   styles for full consistency. Smallest chunk; good last step to close out the phase.
+
+---
+
+# Phase 13 — Unified Registry & Plugin Architecture (2026-07-07)
+
+*Replaces the four separate hardcoded if/elif dispatch points (steps, connections, email providers,
+storage) with one generic registry primitive, then wires the existing plugin loader and frontend
+through it. Framing note: this phase builds the capability-introspection **seam** (what's registered,
+what's installed) — it deliberately does not add a tier/licensing/entitlement **gate** on top of it.*
+
+## 13.1 Generic registry primitive
+
+- [ ] **[ARCH-3] Generic `Registry` class** — Add `flowforge/registry.py`: `.register(key, cls,
+  **metadata)`, `.get(key)`, `.list()`, `.metadata(key)`. One instance per category (steps,
+  connections, email_providers). Storage and reports are **not** in scope for this phase — see the note
+  at the end of 13.2 for why.
+- [ ] **[ARCH-4] `IntegrationSpec` dataclass** — `key`, `display_name`, `description`, `requires` (pip
+  extra name, for the "declared but dependency missing" case), `config_schema` (optional, for future
+  generic frontend forms), and `tier: str | None = None` (unenforced, read by nothing yet). *Revised
+  2026-07-08*: originally scoped as "no tier field — deliberately absent," on the theory that omitting
+  it kept the seam honest. Reconsidered — the stated purpose of this whole phase is to prepare for a
+  future Free/Paid split, so a registry that can't even *represent* a tier isn't a smaller seam, it's a
+  missing one. Every category migrated in 13.2 would need a second pass to add it later. The field
+  costs nothing today (nothing reads it) and removes that rework.
+
+## 13.2 Migrate connections + email providers off if/elif
+
+- [ ] **[ARCH-5] Registry-based connections factory** — Replace `connections/factory.py`'s if/elif
+  chain with `@registry.connections.register("postgresql", ...)` decorators on each `BaseConnection`
+  subclass. Keep the existing lazy-import-inside-function pattern (so `oracledb` isn't imported unless
+  someone actually uses Oracle) — just move the lazy import inside the decorated registration function
+  instead of inside the factory's if-branch.
+- [ ] **[ARCH-6] Registry-based email providers factory** — Same treatment for
+  `email_providers/factory.py`.
+- [ ] **[TEST-1] Contract test** — A single parametrized test that walks every registered
+  connection/provider and asserts it satisfies its ABC (catches "someone added a class but forgot an
+  abstract method" automatically, going forward).
+
+*Note on scope (added 2026-07-08):* `ARCH-3` originally listed `storage` and `reports` as registry
+categories, but neither gets a migration task here, and they're not equivalent gaps. `report.py:36`
+(`if fmt == 'excel': elif fmt == 'pdf': ...`) has the identical shape to the connections/providers
+dispatch and could get the same treatment in a follow-up phase — it just isn't scheduled yet. `storage`
+is structurally different: there's no shared dispatch function to replace at all today — `s3_upload.py`,
+`azure_blob_upload.py`, and `drive_upload.py` each import their own storage module directly. Registering
+storage backends would mean refactoring how upload steps *choose* a backend, not just decorating
+existing classes — a bigger, separate design question. Left out of this phase rather than silently
+scope-creeping it.
+
+## 13.3 Extend the plugin loader beyond steps
+
+- [ ] **[ARCH-7] Generalize `engine/loader.py`** — It currently only scans for `BaseStep` subclasses.
+  Parametrize it to scan for any registered base class, so a plugin file can define a step, a
+  connection, a storage backend, or a report format in the same `FLOWFORGE_PLUGIN_DIR`.
+- [ ] **[ARCH-8] `importlib.metadata` entry-point support** — Alongside directory scanning, support
+  `group="flowforge.plugins"` so a pip-installed package (not just a dropped-in file) can register
+  itself. This is what makes a future plugin marketplace possible without having to build a private
+  packaging system later.
+
+## 13.4 Kill remaining hardcoded lists
+
+- [ ] **[ARCH-9] `GET /api/registry/{category}` endpoint** — Replace frontend hardcoded
+  step/connection/provider-type arrays with a single endpoint backed by the new registry (already done
+  for step types via `GET /api/step-types` — extend the same idea to connections and providers,
+  matching the pattern from the Phase 11 `StepEditor` refactor).
+- [ ] **[ARCH-10] Generic JSON-config fallback for plugin connections/providers** — `StepEditor`
+  already falls back to a raw JSON textarea for unrecognized step types; give `Connections.tsx` and the
+  email provider UI the same fallback so 3rd-party plugin connections/providers work in the UI with
+  zero frontend changes, same as plugin steps do today.
+
+## 13.5 Capability introspection (the seam, not the gate)
+
+- [ ] **[ARCH-11] `GET /api/registry` aggregate endpoint** — Returns every registered key across all
+  categories plus two separate booleans: `installed` (whether its `requires` extra is actually
+  present) and `entitled` (hardcoded `true` for now — no entitlement system exists yet). *Revised
+  2026-07-08*: originally a single `available: bool`. Split because "installed" and "entitled" are
+  different questions the moment a Free/Paid split exists (a paid connector can be installed but not
+  licensed, or licensed but not installed) — shipping one merged field now means an API-shape break for
+  every consumer of this endpoint later. Splitting costs nothing today since `entitled` is a stub.
+  Purely informational for now (powers a future "what's installed" admin page) — but it's the exact
+  shape an entitlement check will read from later. Building the seam, not the gate.
+- [ ] **[DOC-1] Rewrite `docs/plugins.md`** — Currently steps-only; expand to document all four
+  pluggable categories and the entry-point mechanism.
