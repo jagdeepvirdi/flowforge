@@ -658,9 +658,38 @@ single session has to touch the whole frontend at once.*
 
 ## 12.6 `pages/ReportEdit.tsx` — standalone (104 occurrences)
 
-- [ ] Includes the CodeMirror SQL editor panel and `ChartPreview` integration (already converted in
+- [x] Includes the CodeMirror SQL editor panel and `ChartPreview` integration (already converted in
   12.4 — don't reconvert). Test create-new and edit-existing, all 3 formats (Excel/CSV/PDF), and the
   query preview table.
+  **Done 2026-07-08**: converted the whole file (`ColumnFormattingCard` plus the page component).
+  Notable finds:
+  - The "SQL editor" is actually a plain styled `<textarea>`, not CodeMirror — `CLAUDE.md` names
+    CodeMirror 6 as the intended stack but it was never wired up here. Out of scope for a styling-only
+    pass; converted the textarea's inline styles as-is and left a note rather than touching behavior.
+  - The format-selector buttons (Excel/CSV/PDF/JSON) are a clean 2-state-per-button toggle (active vs.
+    inactive) fed by CSS-var strings in inline `style` — same pattern as chunk 12.5's status colors,
+    same fix: a single conditional class string per button instead of inline style, so the "dynamic"
+    part is which of two known class sets applies, not a real per-instance value.
+  - Two more `<select className="input" style={{ height: 34 }}>` dead-weight overrides found (Data
+    source connection picker) — removed rather than converted, same as chunks 12.2/12.3's finding that
+    `.input`'s own CSS already sets `height: 34px`.
+  - `#3B82F6` (the data-profiling consent banner's `Activity` icon) is an exact match for `--running`,
+    converted to `text-running` even though the surrounding banner has nothing to do with run status —
+    token match is about the color value, not the semantic context.
+  - The optimization/explanation/profile panels' "original vs. suggested" tinted backgrounds
+    (`rgba(239,68,68,0.02/0.04)`, `rgba(34,197,94,0.02/0.05)`) are faint one-off diff-view tints, not
+    reused anywhere else — kept as arbitrary values (none are close to the failure/success-soft tokens
+    either, at 0.14).
+  Verified: `tsc --noEmit` clean, `eslint` clean (one pre-existing unrelated warning on
+  `react-hooks/incompatible-library` for `useForm().watch()`, untouched by this change), `npx vitest
+  run` — 97/97 passing, `npm run build` succeeds. Live-verified via the same dev Postgres + Flask +
+  Vite stack as 12.5 (Playwright, headless): created a new report and cycled all 4 formats (Excel/CSV/
+  PDF/JSON — confirming the Sheet-name/Title/Column-Formatting fields correctly show/hide per format),
+  filled and saved it, then deleted it again afterward; opened a real pre-existing Excel report
+  ("Product Stock Summary"), added a column-formatting rule plus a conditional sub-rule to check that
+  card's full row layout, and ran a real query preview against Retail-DB (20-row mono table, "Visualize"/
+  "Summarise" actions appearing in the TopBar once preview data existed). Zero console/React errors
+  throughout.
 
 ## 12.7 `pages/Settings.tsx` + `pages/BulkLoadEdit.tsx` (75 + 73 = 148 occurrences)
 
