@@ -879,8 +879,40 @@ single session has to touch the whole frontend at once.*
 
 ## 12.10 `pages/Pipelines.tsx` + `pages/Login.tsx` (50 + 46 = 96 occurrences)
 
-- [ ] `Pipelines.tsx`: list, filters, promote modal, import/export. `Login.tsx`: sign-in form, MFA
+- [x] `Pipelines.tsx`: list, filters, promote modal, import/export. `Login.tsx`: sign-in form, MFA
   step-2 input, SSO buttons (if configured), forgot-password link.
+  **Done 2026-07-08**: converted both files (`Pipelines.tsx`'s `FilterChip` plus the page component;
+  `Login.tsx`'s 7-step auth state machine plus `ErrorBox`). Notable finds:
+  - `FilterChip`'s `style={{ gap: 4 }}` on a `btn btn-sm` button conflicted with `.btn`'s own
+    `gap: 6px` (unlayered) — needed `!gap-1`. Caught by the grep sweep before running checks, not
+    after — the ground rule from chunk 12.9's near-miss is already paying for itself.
+    Same fix needed on `Login.tsx`'s three SSO buttons (`gap: 8` vs. `.btn`'s `gap: 6px`) and the
+    "Use a backup code instead" button (`font-size: 12`/`color: text-muted` vs. `.btn`'s own
+    `font-size: 12.5px`/`color: text`).
+    Login's promote-pipeline "Got it" button and every full-width submit button used
+    `justifyContent: 'center'` alongside `.btn`'s own already-`center` default — redundant, dropped
+    rather than converted, matching the established "don't convert what's already the default"
+    precedent from chunks 12.2/12.3.
+  - Two more hover-color-toggle patterns (`Pipelines.tsx`'s row-name link and delete button) replaced
+    with `hover:!text-accent-text`/`hover:!text-failure-text` — same reasoning as chunks 12.7/12.9's
+    `.btn-ghost:hover` fix, generalized here to a plain link with no matching unlayered hover rule at
+    all (so no `!` was actually required for the link's hover, only for the button's, since
+    `.btn-ghost:hover` is the one unlayered rule in play).
+  - `Pipelines.tsx`'s steps-count `<td className="mono" style={{ color: 'var(--text-2)' }}>` was
+    redundant — `.tbl td` already sets that exact color — dropped entirely rather than kept as a
+    matching-but-pointless override.
+  - `Login.tsx`'s MFA code input reused the identical `!text-lg` fix already verified working on
+    Settings.tsx's MFA card in chunk 12.7 (same `.input` font-size conflict, same resolution).
+  Verified: `tsc --noEmit` and `eslint` clean (zero warnings), `npx vitest run` — 97/97 passing,
+  `npm run build` succeeds. Live-verified via the same dev stack (Playwright, headless): the full
+  credentials → forgot-password → "check your email" confirmation → back-to-sign-in → real
+  successful login round-trip (reaching `/dashboard`), and separately the Pipelines list, filter
+  chips, and the Promote modal (opened on the one seeded pipeline, confirming the `!p-6` padding
+  fix visibly matches the intended generous modal spacing vs. `.card`'s tighter 16px default). The
+  MFA-code/backup-code/reset-password steps were verified by code inspection rather than a full live
+  TOTP round-trip — they reuse byte-for-byte the same input-styling classes already empirically
+  confirmed correct on Settings.tsx's MFA card, and building a throwaway TOTP session for a
+  styling-only chunk wasn't worth the added complexity. Zero console/React errors throughout.
 
 ## 12.11 `pages/Users.tsx` + `pages/AuditLog.tsx` + `pages/Recipients.tsx` (32 + 30 + 25 = 87 occurrences)
 

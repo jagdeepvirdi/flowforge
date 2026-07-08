@@ -47,10 +47,10 @@ function FilterChip({ label, value, options, onChange }: {
 }) {
   const next = () => onChange(options[(options.indexOf(value) + 1) % options.length])
   return (
-    <button className="btn btn-sm" style={{ gap: 4 }} onClick={next}>
-      <span style={{ color: 'var(--text-muted)' }}>{label}</span>
+    <button className="btn btn-sm !gap-1" onClick={next}>
+      <span className="text-text-muted">{label}</span>
       <span>{value}</span>
-      <ChevronDown size={11} style={{ color: 'var(--text-muted)' }} />
+      <ChevronDown size={11} className="text-text-muted" />
     </button>
   )
 }
@@ -122,20 +122,20 @@ export default function Pipelines() {
       <TopBar crumbs={['Workspace', 'Pipelines']} />
       <div className="scroll">
         <div className="page-h">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="flex flex-col gap-2">
             <Sk h={28} r={6} style={{ width: 160 }} />
             <Sk h={14} style={{ width: 90 }} />
           </div>
         </div>
-        <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
+        <div className="card overflow-hidden !p-0">
           <table className="tbl">
             <thead>
               <tr>
                 <th>Name</th>
-                <th style={{ width: 110 }}>Status</th>
-                <th style={{ width: 200 }}>Schedule</th>
-                <th style={{ width: 60 }}>Steps</th>
-                <th style={{ width: 120 }} />
+                <th className="w-[110px]">Status</th>
+                <th className="w-[200px]">Schedule</th>
+                <th className="w-[60px]">Steps</th>
+                <th className="w-[120px]" />
               </tr>
             </thead>
             <tbody>
@@ -161,8 +161,8 @@ export default function Pipelines() {
         crumbs={['Workspace', 'Pipelines']}
         helpTopic="pipelines"
         actions={canEdit ? (
-          <div style={{ display: 'flex', gap: 6 }}>
-            <input ref={importRef} type="file" accept=".yaml,.yml" style={{ display: 'none' }} onChange={handleImportFile} />
+          <div className="flex gap-1.5">
+            <input ref={importRef} type="file" accept=".yaml,.yml" className="hidden" onChange={handleImportFile} />
             <button className="btn btn-sm btn-ghost" onClick={() => importRef.current?.click()}><Upload size={13} /> Import</button>
             <Link to="/pipelines/new" className="btn btn-primary btn-sm"><Plus size={13} /> New Pipeline</Link>
           </div>
@@ -179,13 +179,13 @@ export default function Pipelines() {
         </div>
 
         {/* Filter bar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '0 12px', height: 34, flex: 1, maxWidth: 360 }}>
-            <Search size={14} style={{ color: 'var(--text-muted)' }} />
+        <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-1.5 bg-surface border border-border rounded-r px-3 h-[34px] flex-1 max-w-[360px]">
+            <Search size={14} className="text-text-muted" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              style={{ background: 'transparent', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 13, fontFamily: 'inherit', flex: 1 }}
+              className="bg-transparent border-none outline-none text-text-primary text-[13px] font-[inherit] flex-1"
               placeholder="Filter pipelines…"
             />
           </div>
@@ -199,44 +199,42 @@ export default function Pipelines() {
             {!search && canEdit && <Link to="/pipelines/new" className="btn btn-primary">Create your first pipeline</Link>}
           </div>
         ) : (
-          <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
+          <div className="card overflow-hidden !p-0">
             <table className="tbl">
               <thead>
                 <tr>
                   <th>Name</th>
-                  <th style={{ width: 110 }}>Status</th>
-                  <th style={{ width: 200 }}>Schedule</th>
-                  <th style={{ width: 60 }}>Steps</th>
-                  <th style={{ width: 120 }} />
+                  <th className="w-[110px]">Status</th>
+                  <th className="w-[200px]">Schedule</th>
+                  <th className="w-[60px]">Steps</th>
+                  <th className="w-[120px]" />
                 </tr>
               </thead>
               <tbody>
                 {filtered.map(p => (
                   <tr key={p.id}>
                     <td>
-                      <div style={{ fontWeight: 500, color: 'var(--text)' }}>
-                        <Link to={`/pipelines/${p.id}/edit`} style={{ color: 'var(--text)', textDecoration: 'none' }}
-                          onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent-text)')}
-                          onMouseLeave={e => (e.currentTarget.style.color = 'var(--text)')}>
+                      <div className="font-medium text-text-primary">
+                        <Link to={`/pipelines/${p.id}/edit`} className="text-text-primary no-underline hover:!text-accent-text">
                           {p.name}
                         </Link>
                       </div>
-                      {p.description && <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>{p.description}</div>}
+                      {p.description && <div className="text-[11.5px] text-text-muted mt-0.5">{p.description}</div>}
                     </td>
                     <td><StatusBadge status={p.enabled ? 'active' : 'paused'} label={p.enabled ? 'Active' : 'Disabled'} /></td>
                     <td>
                       {p.schedule ? (
                         <>
-                          <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{describeCron(p.schedule)}</div>
-                          <div className="mono" style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 2 }}>{p.schedule}</div>
+                          <div className="text-xs text-text-2">{describeCron(p.schedule)}</div>
+                          <div className="mono text-[10.5px] text-text-muted mt-0.5">{p.schedule}</div>
                         </>
                       ) : (
-                        <span style={{ color: 'var(--text-dim)' }}>Manual only</span>
+                        <span className="text-text-dim">Manual only</span>
                       )}
                     </td>
-                    <td className="mono" style={{ color: 'var(--text-2)' }}>{p.steps.length}</td>
+                    <td className="mono">{p.steps.length}</td>
                     <td>
-                      <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                      <div className="flex gap-1 justify-end">
                         <button className="btn btn-sm btn-ghost btn-icon" title="Export YAML" onClick={async () => {
                           const blob = await exportPipeline(p.id)
                           const url = URL.createObjectURL(blob)
@@ -244,7 +242,7 @@ export default function Pipelines() {
                           a.href = url; a.download = `${p.name.replace(/\s+/g, '_')}.yaml`; a.click()
                           URL.revokeObjectURL(url)
                         }}>
-                          <Upload size={12} style={{ transform: 'rotate(180deg)' }} />
+                          <Upload size={12} className="rotate-180" />
                         </button>
                         {canEdit && (
                           <>
@@ -264,10 +262,7 @@ export default function Pipelines() {
                               <Pencil size={12} />
                             </Link>
                             <button
-                              className="btn btn-sm btn-ghost btn-icon"
-                              style={{ color: 'var(--text-muted)' }}
-                              onMouseEnter={e => (e.currentTarget.style.color = 'var(--failure-text)')}
-                              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+                              className="btn btn-sm btn-ghost btn-icon hover:!text-failure-text"
                               onClick={() => globalThis.confirm(`Delete "${p.name}"?`) && remove(p.id)}
                               title="Delete"
                             >
@@ -291,39 +286,39 @@ export default function Pipelines() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="promote-modal-title"
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16 }}
+          className="fixed inset-0 bg-[rgba(0,0,0,0.55)] flex items-center justify-center z-[100] p-4"
           onClick={e => { if (e.target === e.currentTarget) { setPromoteTarget(null); setPromoteWarnings([]) } }}
           onKeyDown={e => { if (e.key === 'Escape') { setPromoteTarget(null); setPromoteWarnings([]) } }}
         >
-          <div className="card" style={{ width: '100%', maxWidth: 440, padding: 24, position: 'relative' }}>
+          <div className="card w-full max-w-[440px] !p-6 relative">
             <button onClick={() => { setPromoteTarget(null); setPromoteWarnings([]) }}
-              style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+              className="absolute top-4 right-4 bg-transparent border-none cursor-pointer text-text-muted">
               <X size={15} />
             </button>
 
-            <h3 id="promote-modal-title" style={{ margin: '0 0 6px', fontSize: 14, fontWeight: 600 }}>Promote Pipeline</h3>
-            <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 18px', lineHeight: 1.5 }}>
-              Copy <strong style={{ color: 'var(--text)' }}>{promoteTarget.name}</strong> to another project.
+            <h3 id="promote-modal-title" className="m-0 mb-1.5 text-sm font-semibold">Promote Pipeline</h3>
+            <p className="text-[13px] text-text-muted m-0 mb-[18px] leading-[1.5]">
+              Copy <strong className="text-text-primary">{promoteTarget.name}</strong> to another project.
               The promoted copy starts disabled — enable it after reviewing step configurations.
             </p>
 
             {promoteWarnings.length > 0 ? (
               <>
-                <div style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(249,115,22,0.07)', border: '1px solid rgba(249,115,22,0.25)', borderRadius: 6 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: '#F97316', marginBottom: 6 }}>Review required</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <div className="mb-3.5 py-2.5 px-3 bg-[rgba(249,115,22,0.07)] border border-[rgba(249,115,22,0.25)] rounded-r-sm">
+                  <div className="text-xs font-semibold text-accent mb-1.5">Review required</div>
+                  <div className="flex flex-col gap-[5px]">
                     {promoteWarnings.map((w, i) => (
-                      <div key={i} style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>• {w}</div>
+                      <div key={i} className="text-xs text-text-2 leading-[1.5]">• {w}</div>
                     ))}
                   </div>
                 </div>
-                <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}
+                <button className="btn btn-primary w-full"
                   onClick={() => { setPromoteTarget(null); setPromoteWarnings([]) }}>
                   Got it — I'll update the step configs
                 </button>
               </>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div className="flex flex-col gap-3.5">
                 <div className="field">
                   <label htmlFor="promote-project">Target project *</label>
                   <select id="promote-project" className="input" value={promoteProjectId}
@@ -334,7 +329,7 @@ export default function Pipelines() {
                       .map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
                 </div>
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <div className="flex gap-2 justify-end">
                   <button className="btn" onClick={() => setPromoteTarget(null)}>Cancel</button>
                   <button className="btn btn-primary"
                     disabled={!promoteProjectId || promoteMut.isPending}

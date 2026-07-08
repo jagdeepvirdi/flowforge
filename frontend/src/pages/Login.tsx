@@ -163,11 +163,11 @@ export default function Login() {
   const anySso = ssoProviders && (ssoProviders.google || ssoProviders.microsoft || ssoProviders.saml)
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div style={{ width: '100%', maxWidth: 360 }}>
+    <div className="min-h-screen bg-bg flex items-center justify-center p-4">
+      <div className="w-full max-w-[360px]">
         {/* Brand */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 32 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="flex justify-center mb-8">
+          <div className="flex items-center gap-2.5">
             <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
               <defs>
                 <linearGradient id="flame-login" x1="16" y1="32" x2="16" y2="0" gradientUnits="userSpaceOnUse">
@@ -179,17 +179,17 @@ export default function Login() {
               <path d="M16 2C16 2 10 8 10 14C10 17.3 12 19.5 12 19.5C12 19.5 11 17 13 15C13 15 12 20 16 22C20 20 19 15 19 15C21 17 20 19.5 20 19.5C20 19.5 22 17.3 22 14C22 8 16 2 16 2Z" fill="url(#flame-login)" />
               <path d="M16 18C14.5 17 14 15.5 14 14.5C14 14.5 14.5 16 16 16.5C17.5 16 18 14.5 18 14.5C18 15.5 17.5 17 16 18Z" fill="#FEF3C7" opacity="0.8" />
             </svg>
-            <span style={{ fontSize: 22, fontWeight: 600, color: 'var(--text)', fontFamily: 'Inter, sans-serif', letterSpacing: '-0.01em' }}>FlowForge</span>
+            <span className="text-[22px] font-semibold text-text-primary font-sans tracking-[-0.01em]">FlowForge</span>
           </div>
         </div>
 
-        <div className="card" style={{ padding: '28px 24px' }}>
+        <div className="card !py-7 !px-6">
 
           {/* ── Step 1: Credentials ── */}
           {step === 'credentials' && (
             <>
-              <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 20, marginTop: 0 }}>Sign in</h2>
-              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <h2 className="text-base font-semibold text-text-primary mb-5 mt-0">Sign in</h2>
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                 <div className="field">
                   <label htmlFor="login-username">Username</label>
                   <input
@@ -216,12 +216,11 @@ export default function Login() {
                   />
                 </div>
                 {error && <ErrorBox>{error}</ErrorBox>}
-                <button type="submit" className="btn btn-primary" disabled={loading}
-                  style={{ width: '100%', justifyContent: 'center', marginTop: 4 }}>
+                <button type="submit" className="btn btn-primary w-full mt-1" disabled={loading}>
                   {loading ? 'Signing in…' : 'Sign in'}
                 </button>
                 <button type="button"
-                  style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', marginTop: 6, fontSize: 12, color: 'var(--accent-text)', textDecoration: 'none' }}
+                  className="w-full bg-transparent border-none cursor-pointer mt-1.5 text-xs text-accent-text no-underline"
                   onClick={() => { setStep('forgot-password'); setError('') }}>
                   Forgot password?
                 </button>
@@ -229,24 +228,24 @@ export default function Login() {
 
               {anySso && (
                 <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '18px 0 14px' }}>
-                    <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-                    <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>or continue with</span>
-                    <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                  <div className="flex items-center gap-2.5 mt-[18px] mb-3.5">
+                    <div className="flex-1 h-px bg-border" />
+                    <span className="text-[11px] text-text-muted whitespace-nowrap">or continue with</span>
+                    <div className="flex-1 h-px bg-border" />
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div className="flex flex-col gap-2">
                     {ssoProviders.google && (
-                      <a href="/api/auth/sso/google" className="btn" style={{ width: '100%', justifyContent: 'center', gap: 8, textDecoration: 'none' }}>
+                      <a href="/api/auth/sso/google" className="btn w-full !gap-2 no-underline">
                         <GoogleIcon /> Sign in with Google
                       </a>
                     )}
                     {ssoProviders.microsoft && (
-                      <a href="/api/auth/sso/microsoft" className="btn" style={{ width: '100%', justifyContent: 'center', gap: 8, textDecoration: 'none' }}>
+                      <a href="/api/auth/sso/microsoft" className="btn w-full !gap-2 no-underline">
                         <MicrosoftIcon /> Sign in with Microsoft
                       </a>
                     )}
                     {ssoProviders.saml && (
-                      <a href="/api/auth/sso/saml/login" className="btn" style={{ width: '100%', justifyContent: 'center', gap: 8, textDecoration: 'none' }}>
+                      <a href="/api/auth/sso/saml/login" className="btn w-full !gap-2 no-underline">
                         <SamlIcon /> Sign in with SSO
                       </a>
                     )}
@@ -259,16 +258,16 @@ export default function Login() {
           {/* ── Step 2a: MFA code ── */}
           {step === 'mfa-code' && (
             <>
-              <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 8, marginTop: 0 }}>Two-factor authentication</h2>
-              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 18 }}>
+              <h2 className="text-base font-semibold text-text-primary mb-2 mt-0">Two-factor authentication</h2>
+              <p className="text-[13px] text-text-muted mb-[18px]">
                 Enter the 6-digit code from your authenticator app.
               </p>
-              <form onSubmit={handleMfaVerify} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <form onSubmit={handleMfaVerify} className="flex flex-col gap-3.5">
                 <div className="field">
                   <label htmlFor="mfa-code">Authenticator code</label>
                   <input
                     id="mfa-code"
-                    className="input mono"
+                    className="input mono tracking-[0.3em] !text-lg text-center"
                     type="text"
                     inputMode="numeric"
                     autoComplete="one-time-code"
@@ -278,26 +277,23 @@ export default function Login() {
                     onChange={e => setMfaCode(e.target.value.replace(/\D/g, ''))}
                     autoFocus
                     required
-                    style={{ letterSpacing: '0.3em', fontSize: 18, textAlign: 'center' }}
                   />
                 </div>
                 {error && <ErrorBox>{error}</ErrorBox>}
-                <button type="submit" className="btn btn-primary" disabled={loading || mfaCode.length !== 6}
-                  style={{ width: '100%', justifyContent: 'center' }}>
+                <button type="submit" className="btn btn-primary w-full" disabled={loading || mfaCode.length !== 6}>
                   {loading ? 'Verifying…' : 'Verify'}
                 </button>
               </form>
               <button
                 type="button"
-                className="btn"
-                style={{ width: '100%', justifyContent: 'center', marginTop: 8, fontSize: 12, color: 'var(--text-muted)' }}
+                className="btn w-full mt-2 !text-xs !text-text-muted"
                 onClick={() => { setStep('mfa-backup'); setError('') }}
               >
                 Use a backup code instead
               </button>
               <button
                 type="button"
-                style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', marginTop: 6, fontSize: 12, color: 'var(--text-dim)', textDecoration: 'underline' }}
+                className="w-full bg-transparent border-none cursor-pointer mt-1.5 text-xs text-text-dim underline"
                 onClick={() => { setStep('credentials'); setError('') }}
               >
                 ← Back to sign in
@@ -308,24 +304,23 @@ export default function Login() {
           {/* ── Forgot password ── */}
           {step === 'forgot-password' && (
             <>
-              <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 8, marginTop: 0 }}>Forgot password</h2>
-              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 18 }}>
+              <h2 className="text-base font-semibold text-text-primary mb-2 mt-0">Forgot password</h2>
+              <p className="text-[13px] text-text-muted mb-[18px]">
                 Enter your username. If an account with a registered email exists, you'll receive a reset link.
               </p>
-              <form onSubmit={handleForgotPassword} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <form onSubmit={handleForgotPassword} className="flex flex-col gap-3.5">
                 <div className="field">
                   <label htmlFor="forgot-username">Username</label>
                   <input id="forgot-username" className="input" type="text" value={username}
                     onChange={e => setUsername(e.target.value)} autoFocus required />
                 </div>
                 {error && <ErrorBox>{error}</ErrorBox>}
-                <button type="submit" className="btn btn-primary" disabled={loading}
-                  style={{ width: '100%', justifyContent: 'center' }}>
+                <button type="submit" className="btn btn-primary w-full" disabled={loading}>
                   {loading ? 'Sending…' : 'Send reset link'}
                 </button>
               </form>
               <button type="button"
-                style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', marginTop: 10, fontSize: 12, color: 'var(--text-dim)', textDecoration: 'underline' }}
+                className="w-full bg-transparent border-none cursor-pointer mt-2.5 text-xs text-text-dim underline"
                 onClick={() => { setStep('credentials'); setError('') }}>
                 ← Back to sign in
               </button>
@@ -335,11 +330,11 @@ export default function Login() {
           {/* ── Forgot-sent confirmation ── */}
           {step === 'forgot-sent' && (
             <>
-              <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 8, marginTop: 0 }}>Check your email</h2>
-              <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+              <h2 className="text-base font-semibold text-text-primary mb-2 mt-0">Check your email</h2>
+              <p className="text-[13px] text-text-muted leading-[1.6]">
                 If an account for <strong>{username}</strong> has a registered email address, a reset link has been sent. It expires in 1 hour.
               </p>
-              <button type="button" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 18 }}
+              <button type="button" className="btn btn-primary w-full mt-[18px]"
                 onClick={() => { setStep('credentials'); setError('') }}>
                 Back to sign in
               </button>
@@ -349,8 +344,8 @@ export default function Login() {
           {/* ── Reset password form (arrived via email link) ── */}
           {step === 'reset-password' && (
             <>
-              <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 8, marginTop: 0 }}>Set new password</h2>
-              <form onSubmit={handleResetPassword} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <h2 className="text-base font-semibold text-text-primary mb-2 mt-0">Set new password</h2>
+              <form onSubmit={handleResetPassword} className="flex flex-col gap-3.5">
                 <div className="field">
                   <label htmlFor="reset-new-password">New password</label>
                   <input id="reset-new-password" className="input" type="password" value={newPassword}
@@ -362,8 +357,7 @@ export default function Login() {
                     onChange={e => setConfirmPassword(e.target.value)} required />
                 </div>
                 {error && <ErrorBox>{error}</ErrorBox>}
-                <button type="submit" className="btn btn-primary" disabled={loading}
-                  style={{ width: '100%', justifyContent: 'center' }}>
+                <button type="submit" className="btn btn-primary w-full" disabled={loading}>
                   {loading ? 'Saving…' : 'Set password'}
                 </button>
               </form>
@@ -373,9 +367,9 @@ export default function Login() {
           {/* ── Reset done ── */}
           {step === 'reset-done' && (
             <>
-              <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 8, marginTop: 0 }}>Password updated</h2>
-              <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>Your password has been set successfully. You can now sign in.</p>
-              <button type="button" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 18 }}
+              <h2 className="text-base font-semibold text-text-primary mb-2 mt-0">Password updated</h2>
+              <p className="text-[13px] text-text-muted leading-[1.6]">Your password has been set successfully. You can now sign in.</p>
+              <button type="button" className="btn btn-primary w-full mt-[18px]"
                 onClick={() => { setStep('credentials'); setError(''); setNewPassword(''); setConfirmPassword('') }}>
                 Sign in
               </button>
@@ -385,11 +379,11 @@ export default function Login() {
           {/* ── Step 2b: backup code ── */}
           {step === 'mfa-backup' && (
             <>
-              <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 8, marginTop: 0 }}>Backup code</h2>
-              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 18 }}>
+              <h2 className="text-base font-semibold text-text-primary mb-2 mt-0">Backup code</h2>
+              <p className="text-[13px] text-text-muted mb-[18px]">
                 Enter one of the one-time backup codes you saved during MFA setup.
               </p>
-              <form onSubmit={handleMfaBackup} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <form onSubmit={handleMfaBackup} className="flex flex-col gap-3.5">
                 <div className="field">
                   <label htmlFor="mfa-backup-code">Backup code</label>
                   <input
@@ -404,14 +398,13 @@ export default function Login() {
                   />
                 </div>
                 {error && <ErrorBox>{error}</ErrorBox>}
-                <button type="submit" className="btn btn-primary" disabled={loading}
-                  style={{ width: '100%', justifyContent: 'center' }}>
+                <button type="submit" className="btn btn-primary w-full" disabled={loading}>
                   {loading ? 'Verifying…' : 'Use backup code'}
                 </button>
               </form>
               <button
                 type="button"
-                style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', marginTop: 10, fontSize: 12, color: 'var(--text-dim)', textDecoration: 'underline' }}
+                className="w-full bg-transparent border-none cursor-pointer mt-2.5 text-xs text-text-dim underline"
                 onClick={() => { setStep('mfa-code'); setError('') }}
               >
                 ← Use authenticator code
@@ -420,7 +413,7 @@ export default function Login() {
           )}
         </div>
 
-        <p style={{ textAlign: 'center', marginTop: 20, fontSize: 12, color: 'var(--text-dim)' }}>
+        <p className="text-center mt-5 text-xs text-text-dim">
           FlowForge — database-driven pipeline orchestrator
         </p>
       </div>
@@ -430,7 +423,7 @@ export default function Login() {
 
 function ErrorBox({ children }: Readonly<{ children: string }>) {
   return (
-    <div style={{ fontSize: 12.5, color: 'var(--failure-text)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, padding: '8px 12px' }}>
+    <div className="text-[12.5px] text-failure-text bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.2)] rounded-r-sm py-2 px-3">
       {children}
     </div>
   )
