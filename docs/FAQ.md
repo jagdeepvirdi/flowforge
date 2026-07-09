@@ -38,11 +38,16 @@ Code: `frontend/src/components/pipeline/canvas/`, `frontend/src/lib/pipelineWave
 
 ## Triggers
 
+Schedule, Upstream Dependencies, and Webhook / API Trigger — the three ways a pipeline can start —
+are consolidated into one **Triggers** card in the pipeline editor (shown only once the pipeline
+already exists), with a Schedule / Dependencies / Webhook tab switcher. `DependenciesCard.tsx` and
+`WebhookCard.tsx` still hold their original logic; `TriggersCard.tsx` renders them inline (via a
+`bare` prop) as the tab content instead of duplicating it.
+
 ### What is "Webhook / API Trigger"?
 
-A card in the pipeline editor (shown only once the pipeline already exists) that lets you trigger
-a pipeline run from outside FlowForge via a plain HTTP `POST`, instead of waiting for its cron
-schedule:
+The Webhook tab of the Triggers card. It lets you trigger a pipeline run from outside FlowForge
+via a plain HTTP `POST`, instead of waiting for its cron schedule:
 
 ```
 POST /api/pipelines/{pipeline-id}/trigger?token=<token>
@@ -52,9 +57,9 @@ Generate a token, copy the URL (shown once, not recoverable), and call it from C
 a monitoring alert. Tokens are scoped to one pipeline, stored as bcrypt hashes, individually
 revocable, don't expire by default, and every trigger is written to the audit log.
 
-Code: `frontend/src/components/pipeline/WebhookCard.tsx`, `flowforge/api/routes/pipelines.py`,
-`flowforge/db/migrations/versions/0010_webhook_tokens.py`. Docs: `docs/getting-started.md`
-("API / Webhook Triggers"), `docs/security.md` ("Webhook / API Trigger Tokens").
+Code: `frontend/src/components/pipeline/TriggersCard.tsx`, `frontend/src/components/pipeline/WebhookCard.tsx`,
+`flowforge/api/routes/pipelines.py`, `flowforge/db/migrations/versions/0010_webhook_tokens.py`.
+Docs: `docs/getting-started.md` ("API / Webhook Triggers"), `docs/security.md` ("Webhook / API Trigger Tokens").
 
 ---
 
@@ -62,9 +67,10 @@ Code: `frontend/src/components/pipeline/WebhookCard.tsx`, `flowforge/api/routes/
 
 ### What is "Upstream Dependencies"?
 
-A card in the pipeline editor (`DependenciesCard.tsx`) that lets a pipeline auto-launch after
-one or more *other* pipelines succeed, instead of (or in addition to) running on its own cron
-schedule. Backed by the `ff_pipeline_dependencies` table (`upstream_id` / `downstream_id`).
+The Dependencies tab of the Triggers card (`DependenciesCard.tsx`, rendered inline by
+`TriggersCard.tsx`) that lets a pipeline auto-launch after one or more *other* pipelines succeed,
+instead of (or in addition to) running on its own cron schedule. Backed by the
+`ff_pipeline_dependencies` table (`upstream_id` / `downstream_id`).
 
 After any pipeline run finishes successfully, `runner.py`'s `_trigger_downstream_pipelines()`
 checks each of its downstreams: if *all* of that downstream's upstreams have had a successful run
@@ -73,12 +79,12 @@ with no upstream deps behaves exactly as before — schedule or manual trigger o
 
 ### Can I add or remove dependencies from the UI?
 
-Yes. In the **Upstream Dependencies** card: pick a pipeline from the dropdown to add it (only
+Yes. In the Triggers card's **Dependencies** tab: pick a pipeline from the dropdown to add it (only
 pipelines not already listed, and not the pipeline itself, are offered); click the trash icon to
 remove one. Changes are staged in local state and only persisted when you click **Save** on the
 pipeline — `PipelineEdit.tsx` diffs the before/after list and calls the add/remove API endpoints
 for whatever changed. Unsaved changes are discarded like any other pipeline edit if you navigate
-away. The card only appears once the pipeline already exists (needs a real pipeline ID).
+away. The Triggers card only appears once the pipeline already exists (needs a real pipeline ID).
 
 ### What happens if a dependency would create a cycle?
 

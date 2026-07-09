@@ -98,7 +98,8 @@ Audit Log entry for the run.
 
 ### 5. Close (30s)
 Talking point: *"Free to run — Postgres, Redis, the app container. AI is local by default. Pay
-only if you opt into Claude for analysis, or if you're pushing files to S3/Drive at scale."*
+only if you opt into Claude (or use Gemini's free tier) for analysis, or if you're pushing files
+to S3/Drive at scale."*
 Land on the GitHub URL / call to action.
 
 ---
@@ -131,6 +132,6 @@ Talking points only, no live app required — use this if the demo environment b
 | If this happens | Do this |
 |---|---|
 | A live query is slow / times out | Have a pre-run pipeline's Run History ready as a fallback — narrate over it instead of waiting |
-| Ollama isn't responding | The AI buttons degrade gracefully ("AI unavailable") — acknowledge it in one sentence and move on, don't debug live |
+| Ollama isn't responding | If Claude/Gemini is configured it silently falls back; otherwise the AI buttons degrade gracefully ("AI unavailable") — acknowledge it in one sentence and move on, don't debug live |
 | An email doesn't arrive in time | Show the step log's "sent" confirmation instead of waiting for the inbox — narrate that delivery is provider-side |
 | Someone asks a QA-level "what happens if X fails" question | Answer at a high level, then say "happy to show that in detail after" rather than derailing into an error-handling deep dive |

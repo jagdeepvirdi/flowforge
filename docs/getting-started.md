@@ -220,9 +220,9 @@ flowforge import pipelines/example_pipeline.yaml
 
 ## API / Webhook Triggers
 
-Any pipeline can be triggered externally via an HTTP `POST` request. Generate a token in the Pipeline Builder (the **Webhook / API Trigger** card appears when editing an existing pipeline):
+Any pipeline can be triggered externally via an HTTP `POST` request. Generate a token in the Pipeline Builder (the **Triggers** card's **Webhook** tab appears when editing an existing pipeline):
 
-1. Open a pipeline → **Webhook / API Trigger** card → enter a label → click **Generate token**
+1. Open a pipeline → **Triggers** card → **Webhook** tab → enter a label → click **Generate token**
 2. Copy the full trigger URL shown — it is only displayed once:
    ```
    POST /api/pipelines/{pipeline-id}/trigger?token=<token>

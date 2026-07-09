@@ -8,7 +8,7 @@ All documentation files in this directory and what they contain.
 
 | File | Purpose |
 |---|---|
-| [getting-started.md](getting-started.md) | Full setup walkthrough: prerequisites, install, `.env` config, first pipeline, CLI reference, Gmail/Drive OAuth2 setup, OneDrive setup, AI features (Ollama), scheduler diagnostics |
+| [getting-started.md](getting-started.md) | Full setup walkthrough: prerequisites, install, `.env` config, first pipeline, CLI reference, Gmail/Drive OAuth2 setup, OneDrive setup, AI features (Ollama/Claude/Gemini), scheduler diagnostics |
 | [deployment.md](deployment.md) | Production deployment guide: Docker Compose (recommended) and bare-metal Gunicorn + Nginx + systemd on Ubuntu/Debian, TLS with Let's Encrypt, upgrade procedure |
 | [step-types.md](step-types.md) | Complete config reference for every step type: `db_procedure`, `db_query`, `report`, `email`, `data_load`, `bulk_load`, `drive_upload`, `onedrive_upload`, `s3_upload`, `azure_blob_upload`, `ai_analyze`, `ssh_command`, `db_health_check`, `ssh_health_check`, `data_report`, `sftp_transfer`, `notification` — with JSONB examples, field tables, output variable docs, and full Jinja2 variable reference |
 | [email-providers.md](email-providers.md) | Setup guides for all three email providers: SMTP (with presets for Outlook, Yahoo, SendGrid), Microsoft 365 (Azure AD app registration + admin consent + token refresh), Gmail (OAuth2 via `flowforge setup gmail`) |

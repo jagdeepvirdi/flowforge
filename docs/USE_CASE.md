@@ -76,7 +76,7 @@ FlowForge replaces that entirely — with scheduling, run history, and zero infr
 | Monthly campaign performance | Analytics query → Excel + Drive upload → share link in email | Smart attachment for large reports |
 | Customer segment extract | Query → CSV → email marketing team | Fast, repeatable |
 | Investor metrics report | KPI query → Excel → Google Drive (shareable) → email investors | Drive-first workflow |
-| AI-generated insight digest | `ai_analyze` on sales data → email body includes Ollama-generated summary | No LLM coding required; zero API cost |
+| AI-generated insight digest | `ai_analyze` on sales data → email body includes an AI-generated summary (Ollama, Claude, or Gemini) | No LLM coding required; zero API cost with Ollama |
 
 ### Small SaaS / Startups
 
@@ -88,12 +88,12 @@ FlowForge replaces that entirely — with scheduling, run history, and zero infr
 | SFTP data ingest | `sftp_transfer` download from partner SFTP → `bulk_load` to DB | No scripting; password or key auth |
 | OneDrive report distribution | Report → `onedrive_upload` → shareable link in email | Microsoft 365 shops; no Google Drive needed |
 
-### AI-Assisted Pipelines (Ollama — zero cost, data stays local)
+### AI-Assisted Pipelines (Ollama by default — zero cost, data stays local; Claude/Gemini optional)
 
 | Pipeline | Steps | Why FlowForge |
 |---|---|---|
 | Monthly narrative summary | `ai_analyze` → plain-English summary injected into email body | `{{ ai_summary }}` available to downstream steps |
-| Anomaly alerting | Run History Anomaly Alerts flag outlier steps; Ollama explains the deviation | Statistical detection + optional narrative |
+| Anomaly alerting | Run History Anomaly Alerts flag outlier steps; AI narrative explains the deviation (Ollama, falling back to Claude/Gemini if configured) | Statistical detection + optional narrative |
 | SQL optimisation in report designer | SQL Optimizer rewrites slow queries; side-by-side diff shown | No DBA required for basic index hints |
 | Chart suggestion | AI Chart Generator picks chart type from query columns | One click from preview to visualisation |
 

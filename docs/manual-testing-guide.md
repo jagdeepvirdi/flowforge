@@ -699,11 +699,13 @@ Same credentials as M365 email — set `MICROSOFT_TENANT_ID`, `MICROSOFT_CLIENT_
 
 ---
 
-## 14. AI Features (UI — Ollama required)
+## 14. AI Features (UI — Ollama by default, Claude/Gemini fallback)
 
 *(Requires Ollama running locally: `ollama serve`. Pull a model first:
-`ollama pull llama3.2:3b`. All features are best-effort — if Ollama is
-unreachable the button shows "AI unavailable" and the rest of the UI works normally.)*
+`ollama pull llama3.2:3b`. All features are best-effort — if Ollama is unreachable
+AND neither `ANTHROPIC_API_KEY` nor `GEMINI_API_KEY` is set, the button shows
+"AI unavailable" and the rest of the UI works normally. If one of those keys is
+set, the request instead falls back to Claude, then Gemini — see 14h.)*
 
 ### 14a. AI Chart Generator
 
@@ -715,7 +717,7 @@ unreachable the button shows "AI unavailable" and the rest of the UI works norma
 - [ ] Chart type, X axis, and Y axis are populated with sensible suggestions
 - [ ] Recharts chart renders immediately (bar, line, area, pie, or scatter)
 - [ ] User can change chart type and axes via dropdowns — chart updates live
-- [ ] If Ollama is unreachable: "AI unavailable — is Ollama running?" shown, no crash
+- [ ] If Ollama is unreachable and no Claude/Gemini key is configured: "AI unavailable — is Ollama running?" shown, no crash
 
 ### 14b. SQL Explainer
 
@@ -785,11 +787,22 @@ unreachable the button shows "AI unavailable" and the rest of the UI works norma
 
 - [ ] All AI buttons reappear
 
+### 14h. Claude/Gemini fallback when Ollama is unreachable
+
+1. Set `ANTHROPIC_API_KEY` (or `GEMINI_API_KEY`) in `.env` and restart the server
+2. Stop Ollama (`Ctrl+C` the `ollama serve` process)
+3. Trigger any AI feature from 14a–14f (e.g. **Explain** in the SQL editor)
+
+- [ ] The feature still succeeds (request transparently falls back to Claude/Gemini)
+- [ ] Server logs show "Ollama unreachable, falling back to claude" (or `gemini`)
+- [ ] With both keys set: Claude is tried first, Gemini only if Claude also errors
+- [ ] With no keys set and Ollama down: feature shows "AI unavailable" as in 14a (no silent failure)
+
 ---
 
 ## 15. AI Analyze Step (ai_analyze)
 
-*(Requires Ollama running locally, or `ANTHROPIC_API_KEY` set for Claude provider.)*
+*(Requires Ollama running locally, or `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` set for the Claude / Gemini provider — set `provider: "claude"` or `provider: "gemini"` on the step.)*
 
 ### 15a. Basic ai_analyze step — Ollama
 
@@ -1719,7 +1732,7 @@ flowforge worker --concurrency 4
 ### 34a. Upstream dependency triggers downstream automatically
 
 1. Create Pipeline A (`Upstream Test`) and Pipeline B (`Downstream Test`), both enabled
-2. Open Pipeline B → **Upstream Dependencies** card → **"+ Add upstream dependency…"** → select Pipeline A
+2. Open Pipeline B → **Triggers** card → **Dependencies** tab → **"+ Add upstream dependency…"** → select Pipeline A
 3. Save Pipeline B
 4. Run Pipeline A manually via **Run Now**
 

@@ -495,7 +495,7 @@ Both implement the same `BaseConnection` interface — pipelines don't know whic
 - FlowForge system config (attachment threshold default, Drive folder default)
 - Google OAuth setup (Gmail + Drive)
 - Microsoft 365 setup (MSAL)
-- AI / Ollama configuration status
+- AI / Ollama / Claude / Gemini configuration status (dedicated AI tab)
 - Data retention (run history, audit log, output file TTL) — view/edit (admin), DB-backed override
   of `FLOWFORGE_RUN_RETENTION_DAYS` / `FLOWFORGE_AUDIT_RETENTION_DAYS` / `FLOWFORGE_OUTPUT_TTL_DAYS`
 - Export all pipeline configs as YAML
@@ -708,6 +708,7 @@ See Claude Design handoff. Key tokens:
 | Scheduler | $0 |
 | AI analysis (Ollama) | $0 — local |
 | AI analysis (Claude API) | Pay-per-use, opt-in only |
+| AI analysis (Gemini API) | Free tier available, opt-in only |
 | **Monthly baseline** | **$0** |
 
 ---
