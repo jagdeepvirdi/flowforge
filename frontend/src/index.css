@@ -530,4 +530,30 @@
     .grid-stats { grid-template-columns: 1fr; }
     .grid-pipelines { grid-template-columns: 1fr; }
   }
+
+  /* ── Pipeline canvas (react-flow) ───────────────────── */
+  .ff-canvas-wrap {
+    --xy-background-color: var(--bg-code);
+    --xy-background-pattern-color: var(--border);
+    --xy-edge-stroke-default: var(--border-strong);
+    --xy-edge-stroke-selected-default: var(--accent);
+    --xy-edge-stroke-width-default: 1.5;
+    --xy-handle-background-color-default: var(--border-strong);
+    --xy-handle-border-color-default: var(--border-strong);
+    --xy-attribution-background-color-default: transparent;
+    --xy-controls-button-background-color-default: var(--surface-2);
+    --xy-controls-button-background-color-hover-default: var(--surface-3);
+    --xy-controls-button-color-default: var(--text-muted);
+    --xy-controls-button-color-hover-default: var(--text);
+    --xy-controls-button-border-color-default: var(--border);
+    --xy-controls-box-shadow-default: var(--shadow);
+  }
+  .ff-canvas-wrap .react-flow__controls {
+    border-radius: var(--r);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .ff-canvas-wrap .react-flow__controls-button {
+    border-bottom: 1px solid var(--border);
+  }
 }

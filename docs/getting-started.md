@@ -208,6 +208,10 @@ In the web UI:
 4. Go to **Pipeline Builder** — create a pipeline, add a `report` step and an `email` step; set `on_error: stop` or `continue` per step
 5. Click **Run Now**
 
+Steps can be edited either as a list (drag to reorder) or as a visual canvas — toggle between the two with the list/grid icons above the step list. The canvas lays steps out left-to-right in the order they'll actually run, grouping steps that share a `parallel_group` into the same column since those run concurrently. Drag a node to reorder it or move it into/out of a group column, click a node to edit its config in a side panel, and duplicate/delete from the node's hover actions.
+
+![Pipeline canvas view showing a db query step, a parallel "notify" group with a report and email step, then a drive upload step](screenshots/pipeline-canvas.png)
+
 Or import a pipeline YAML exported from another instance:
 
 ```bash

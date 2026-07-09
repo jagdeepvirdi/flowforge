@@ -1,31 +1,17 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronUp, Trash2, GripVertical } from 'lucide-react'
+import { ChevronDown, ChevronUp, Trash2, GripVertical, Copy } from 'lucide-react'
 import type { PipelineStep } from '../../lib/types'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import FieldTooltip from '../shared/FieldTooltip'
-import { STEP_HINTS } from '../../lib/helpContent'
-import Field from './stepForms/Field'
-import { STEP_FORMS } from './stepForms'
-
-const STEP_META: Record<string, { label: string; cls: string }> = {
-  db_procedure:      { label: 'Proc',   cls: 'tbadge-procedure' },
-  db_query:          { label: 'Query',  cls: 'tbadge-query' },
-  report:            { label: 'Report', cls: 'tbadge-report' },
-  email:             { label: 'Email',  cls: 'tbadge-email' },
-  drive_upload:      { label: 'Drive',  cls: 'tbadge-drive' },
-  ai_analyze:        { label: 'AI',     cls: 'tbadge-transform' },
-  data_load:         { label: 'Load',   cls: 'tbadge-load' },
-  bulk_load:         { label: 'Bulk',   cls: 'tbadge-bulk' },
-  notification:      { label: 'Notify', cls: 'tbadge-email' },
-  s3_upload:         { label: 'S3',     cls: 'tbadge-drive' },
-  azure_blob_upload: { label: 'Azure',  cls: 'tbadge-drive' },
-}
+import { stepMeta } from './stepMeta'
+import StepConfigForm from './StepConfigForm'
 
 type Props = Readonly<{
   step: PipelineStep
   onChange: (id: string, updates: Partial<PipelineStep>) => void
   onDelete: (id: string) => void
+  onDuplicate: (id: string) => void
   allSteps: PipelineStep[]
   dbConnections: { id: string; name: string }[]
   reportConfigs: { id: string; name: string; output_filename: string }[]
@@ -34,7 +20,7 @@ type Props = Readonly<{
 }>
 
 
-export default function StepEditor({ step, onChange, onDelete, allSteps, dbConnections, reportConfigs, emailConfigs, bulkLoadConfigs }: Props) {
+export default function StepEditor({ step, onChange, onDelete, onDuplicate, allSteps, dbConnections, reportConfigs, emailConfigs, bulkLoadConfigs }: Props) {
   const [expanded, setExpanded] = useState(true)
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: step.id })
   const style = { transform: CSS.Transform.toString(transform), transition }
@@ -43,8 +29,7 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
   const setConfig = (key: string, value: unknown) =>
     onChange(step.id, { config: { ...cfg, [key]: value } })
 
-  const meta = STEP_META[step.step_type] ?? { label: step.step_type, cls: 'tbadge-query' }
-  const StepForm = STEP_FORMS[step.step_type]
+  const meta = stepMeta(step.step_type)
 
   return (
     <div ref={setNodeRef} style={style} className="mb-1.5">
@@ -115,38 +100,25 @@ export default function StepEditor({ step, onChange, onDelete, allSteps, dbConne
           <button onClick={() => setExpanded(x => !x)} className="btn btn-sm btn-ghost btn-icon">
             {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
           </button>
+          <button onClick={() => onDuplicate(step.id)} className="btn btn-sm btn-ghost btn-icon text-text-muted hover:text-text" title="Duplicate step">
+            <Copy size={13} />
+          </button>
           <button onClick={() => onDelete(step.id)} className="btn btn-sm btn-ghost btn-icon text-text-muted hover:text-failure-text">
             <Trash2 size={13} />
           </button>
         </div>
 
         {expanded && (
-          <div className="pt-3 pr-3.5 pb-3.5 pl-3.5 border-t border-border flex flex-col gap-2.5">
-            {/* Contextual hint banner */}
-            {STEP_HINTS[step.step_type] && (
-              <div className="text-xs text-text-muted bg-bg-code rounded-r-sm py-[7px] px-2.5 leading-normal">
-                {STEP_HINTS[step.step_type].summary}
-              </div>
-            )}
-
-            {StepForm ? (
-              <StepForm
-                cfg={cfg}
-                setConfig={setConfig}
-                step={step}
-                allSteps={allSteps}
-                dbConnections={dbConnections}
-                reportConfigs={reportConfigs}
-                emailConfigs={emailConfigs}
-                bulkLoadConfigs={bulkLoadConfigs}
-              />
-            ) : (
-              <Field label="Config (JSON)" tooltip="No dedicated form for this step type (a plugin, or a built-in without a form yet) — edit its raw config here.">
-                <textarea className="input mono-input h-auto resize-y" rows={8} value={JSON.stringify(cfg, null, 2)}
-                  onChange={e => { try { onChange(step.id, { config: JSON.parse(e.target.value) }) } catch { /* invalid JSON while typing — ignore */ } }}
-                />
-              </Field>
-            )}
+          <div className="pt-3 pr-3.5 pb-3.5 pl-3.5 border-t border-border">
+            <StepConfigForm
+              step={step}
+              onChange={onChange}
+              allSteps={allSteps}
+              dbConnections={dbConnections}
+              reportConfigs={reportConfigs}
+              emailConfigs={emailConfigs}
+              bulkLoadConfigs={bulkLoadConfigs}
+            />
           </div>
         )}
       </div>

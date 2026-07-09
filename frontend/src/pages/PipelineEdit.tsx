@@ -5,8 +5,8 @@ import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core'
-import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
-import { Plus, Save, ArrowLeft } from 'lucide-react'
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { Plus, Save, ArrowLeft, List as ListIcon, LayoutGrid } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import {
   getPipeline, createPipeline, updatePipeline,
@@ -21,7 +21,9 @@ import type {
   DbConnection, ReportConfig, EmailConfig, BulkLoadConfig,
 } from '../lib/types'
 import { useProjectStore } from '../lib/store'
+import { reorderSteps, renumberSteps, duplicateStep as duplicateStepHelper } from '../lib/pipelineReorder'
 import StepEditor from '../components/pipeline/StepEditor'
+import PipelineCanvas from '../components/pipeline/canvas/PipelineCanvas'
 import PipelineVariablesCard, { type PipelineVar } from '../components/pipeline/PipelineVariablesCard'
 import DependenciesCard from '../components/pipeline/DependenciesCard'
 import WebhookCard from '../components/pipeline/WebhookCard'
@@ -167,6 +169,7 @@ function PipelineForm({
     })),
   )
   const [upstreamDeps, setUpstreamDeps] = useState<PipelineDep[]>(existing?.upstream_deps ?? [])
+  const [view, setView]           = useState<'list' | 'canvas'>('list')
   const [saving, setSaving]       = useState(false)
   const [error, setError]         = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
@@ -178,8 +181,7 @@ function PipelineForm({
     if (!over || active.id === over.id) return
     const from = steps.findIndex(s => s.id === active.id)
     const to   = steps.findIndex(s => s.id === over.id)
-    const reordered = arrayMove(steps, from, to).map((s, i) => ({ ...s, step_order: i + 1 }))
-    setSteps(reordered)
+    setSteps(prev => reorderSteps(prev, from, to))
   }
 
   const handleStepChange = (stepId: string, updates: Partial<PipelineStep>) => {
@@ -187,7 +189,11 @@ function PipelineForm({
   }
 
   const handleStepDelete = (stepId: string) => {
-    setSteps(prev => prev.filter(s => s.id !== stepId).map((s, i) => ({ ...s, step_order: i + 1 })))
+    setSteps(prev => renumberSteps(prev.filter(s => s.id !== stepId)))
+  }
+
+  const handleStepDuplicate = (stepId: string) => {
+    setSteps(prev => duplicateStepHelper(prev, stepId))
   }
 
   const addNewStep = (type: StepType) => {
@@ -340,7 +346,27 @@ function PipelineForm({
         {/* Steps */}
         <div className="mb-4">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-[var(--text)]">Steps <span className="font-mono text-[var(--text-muted)] text-[11px]">({steps.length})</span></span>
+            <div className="flex items-center gap-2.5">
+              <span className="text-xs font-semibold text-[var(--text)]">Steps <span className="font-mono text-[var(--text-muted)] text-[11px]">({steps.length})</span></span>
+              <div className="flex gap-px p-px bg-surface2 rounded-[7px] border border-border">
+                <button
+                  className={`btn btn-sm ${view === 'list' ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setView('list')}
+                  title="List view"
+                  data-testid="view-toggle-list"
+                >
+                  <ListIcon size={12} />
+                </button>
+                <button
+                  className={`btn btn-sm ${view === 'canvas' ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setView('canvas')}
+                  title="Canvas view"
+                  data-testid="view-toggle-canvas"
+                >
+                  <LayoutGrid size={12} />
+                </button>
+              </div>
+            </div>
             <div className="flex gap-1 flex-wrap justify-end">
               {stepTypes
                 .filter(st => (STEP_TYPES as string[]).includes(st.type) || st.plugin)
@@ -353,26 +379,40 @@ function PipelineForm({
           </div>
 
           <RouteErrorBoundary label="Step editor">
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={steps.map(s => s.id)} strategy={verticalListSortingStrategy}>
-                {steps.map(step => (
-                  <StepEditor
-                    key={step.id}
-                    step={step}
-                    onChange={handleStepChange}
-                    onDelete={handleStepDelete}
-                    allSteps={steps}
-                    dbConnections={dbConns.map(c => ({ id: c.id, name: c.name }))}
-                    reportConfigs={reportCfgs.map(r => ({ id: r.id, name: r.name, output_filename: r.output_filename }))}
-                    emailConfigs={emailCfgs.map(e => ({ id: e.id, name: e.name }))}
-                    bulkLoadConfigs={bulkLoadCfgs.map(b => ({ id: b.id, name: b.name, source_directory: b.source_directory, target_table: b.target_table }))}
-                  />
-                ))}
-              </SortableContext>
-            </DndContext>
+            {view === 'list' ? (
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={steps.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                  {steps.map(step => (
+                    <StepEditor
+                      key={step.id}
+                      step={step}
+                      onChange={handleStepChange}
+                      onDelete={handleStepDelete}
+                      onDuplicate={handleStepDuplicate}
+                      allSteps={steps}
+                      dbConnections={dbConns.map(c => ({ id: c.id, name: c.name }))}
+                      reportConfigs={reportCfgs.map(r => ({ id: r.id, name: r.name, output_filename: r.output_filename }))}
+                      emailConfigs={emailCfgs.map(e => ({ id: e.id, name: e.name }))}
+                      bulkLoadConfigs={bulkLoadCfgs.map(b => ({ id: b.id, name: b.name, source_directory: b.source_directory, target_table: b.target_table }))}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
+            ) : (
+              <PipelineCanvas
+                steps={steps}
+                onStepsChange={setSteps}
+                onDuplicate={handleStepDuplicate}
+                onDelete={handleStepDelete}
+                dbConnections={dbConns.map(c => ({ id: c.id, name: c.name }))}
+                reportConfigs={reportCfgs.map(r => ({ id: r.id, name: r.name, output_filename: r.output_filename }))}
+                emailConfigs={emailCfgs.map(e => ({ id: e.id, name: e.name }))}
+                bulkLoadConfigs={bulkLoadCfgs.map(b => ({ id: b.id, name: b.name, source_directory: b.source_directory, target_table: b.target_table }))}
+              />
+            )}
           </RouteErrorBoundary>
 
-          {steps.length === 0 && (
+          {view === 'list' && steps.length === 0 && (
             <div className="card ff-empty border-dashed py-6">
               <p className="msg">Add steps using the buttons above.</p>
             </div>
