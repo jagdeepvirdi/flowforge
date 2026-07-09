@@ -14,6 +14,7 @@ All documentation files in this directory and what they contain.
 | [email-providers.md](email-providers.md) | Setup guides for all three email providers: SMTP (with presets for Outlook, Yahoo, SendGrid), Microsoft 365 (Azure AD app registration + admin consent + token refresh), Gmail (OAuth2 via `flowforge setup gmail`) |
 | [gmail-oauth2-setup.md](gmail-oauth2-setup.md) | Step-by-step Gmail OAuth2 credential setup in Google Cloud Console — screenshots and common errors |
 | [running-the-server.md](running-the-server.md) | How to run FlowForge in dev and prod modes, manage the scheduler process, use `flowforge.ps1` / `flowforge.sh`, troubleshoot common startup errors |
+| [FAQ.md](FAQ.md) | Answers to specific "what is X" / "how does Y behave" questions not spelled out elsewhere — pipeline canvas, webhook triggers, upstream dependencies and cycle detection, etc. |
 
 ---
 
@@ -78,4 +79,4 @@ All documentation files in this directory and what they contain.
 
 ---
 
-*Last updated: 2026-07-08*
+*Last updated: 2026-07-09*
