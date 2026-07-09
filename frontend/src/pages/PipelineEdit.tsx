@@ -73,7 +73,7 @@ export default function PipelineEdit() {
 
   if (!isNew && isLoading) return (
     <>
-      <TopBar crumbs={crumbs} actions={
+      <TopBar crumbs={crumbs} helpTopic="pipeline_builder" actions={
         <div className="flex gap-2">
           <Sk h={28} r={6} className="w-[68px]" />
           <Sk h={28} r={6} className="w-[68px]" />
@@ -274,6 +274,7 @@ function PipelineForm({
     <>
       <TopBar
         crumbs={crumbs}
+        helpTopic="pipeline_builder"
         actions={
           <div className="flex gap-2">
             <Link to="/pipelines" className="btn btn-sm"><ArrowLeft size={12} />{' '}Back</Link>

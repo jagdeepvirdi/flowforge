@@ -99,7 +99,7 @@ Designed for solo developers, data analysts, and small teams who need lightweigh
 - **Signed releases** — SLSA build provenance attestation on tagged releases; PyPI publish via OIDC trusted publishing
 
 ### Developer Experience
-- **In-app help**: context-sensitive help drawer, page intro cards, field tooltips, concept glossary
+- **In-app help**: context-sensitive help drawer, page intro cards, field tooltips, concept glossary, FAQ link
 - **Webhook / API trigger**: `POST /pipelines/{id}/trigger?token=...` for external integration; per-pipeline tokens with audit trail
 - **Output cleanup**: CLI command + daily scheduler job to prune old report files by TTL
 - **Docker Compose**: one-command local stack (API + frontend + PostgreSQL + scheduler + Redis + Celery worker)

@@ -4,6 +4,10 @@ Answers to questions that come up while using or reviewing the app but aren't sp
 in one place elsewhere. Not exhaustive — see [`docs/INDEX.md`](INDEX.md) for the full doc set,
 and treat the source files linked below as the ground truth if this ever drifts.
 
+Also linked from the in-app **Help** drawer (the book icon in the top bar) — a small **FAQ ↗**
+link next to the drawer's close button opens this file raw via `GET /api/docs/FAQ.md`
+(`frontend/src/components/shared/HelpDrawer.tsx`).
+
 ---
 
 ## Pipelines

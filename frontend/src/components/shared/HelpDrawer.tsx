@@ -3,7 +3,7 @@ import { X, BookOpen, List, ExternalLink, ChevronDown, ChevronRight } from 'luci
 import { useHelp } from '../../lib/useHelp'
 import { INTRO_CARDS, GLOSSARY, STEP_HINTS, PROVIDER_SETUP_GUIDES, type ProviderSetupGuide } from '../../lib/helpContent'
 
-const STEP_TYPES = ['db_procedure', 'db_query', 'report', 'email', 'drive_upload'] as const
+const STEP_TYPES = ['db_procedure', 'db_query', 'report', 'email', 'drive_upload', 'data_load', 'bulk_load'] as const
 
 function GlossaryTab() {
   return (
@@ -189,6 +189,13 @@ export default function HelpDrawer() {
         <div className="flex items-center gap-2.5 py-3.5 px-4 border-b border-border shrink-0">
           <BookOpen size={15} className="text-accent" />
           <span className="text-sm font-semibold text-text-primary flex-1">Help</span>
+          <a
+            href="/api/docs/FAQ.md"
+            target="_blank" rel="noreferrer"
+            className="text-[11px] text-accent-text no-underline inline-flex items-center gap-1"
+          >
+            FAQ <ExternalLink size={10} />
+          </a>
           <button
             onClick={closeHelp}
             className="bg-transparent border-none cursor-pointer text-text-muted hover:text-text-primary flex p-1 rounded"

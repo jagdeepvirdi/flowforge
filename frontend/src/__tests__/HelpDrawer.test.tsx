@@ -41,4 +41,22 @@ describe('HelpDrawer open/close', () => {
     act(() => useHelp.getState().closeHelp())
     expect(dialog).toHaveStyle({ display: 'none' })
   })
+
+  it('links to the FAQ doc via the raw docs endpoint', async () => {
+    render(<HelpDrawer />)
+    act(() => useHelp.getState().openHelp('dashboard'))
+    const link = await screen.findByRole('link', { name: /FAQ/ })
+    expect(link).toHaveAttribute('href', '/api/docs/FAQ.md')
+    expect(link).toHaveAttribute('target', '_blank')
+  })
+
+  it('shows the pipeline builder intro card and full step type reference for the pipeline_builder topic', async () => {
+    render(<HelpDrawer />)
+    act(() => useHelp.getState().openHelp('pipeline_builder'))
+    await screen.findByText('Editing a pipeline')
+    expect(screen.queryByText('Select a page to see contextual help.')).not.toBeInTheDocument()
+    for (const type of ['db_procedure', 'db_query', 'report', 'email', 'drive_upload', 'data_load', 'bulk_load']) {
+      expect(screen.getByText(type)).toBeInTheDocument()
+    }
+  })
 })

@@ -14,6 +14,10 @@ export const INTRO_CARDS: Record<string, IntroCard> = {
     title: 'What is a pipeline?',
     body:  'A pipeline is an ordered list of steps that run in sequence: query a database, generate a report, send an email, upload to Drive. Each step gets the outputs of previous steps via {{ variables }}.',
   },
+  pipeline_builder: {
+    title: 'Editing a pipeline',
+    body:  'Add steps, drag to reorder (list view) or switch to the canvas to see steps laid out in actual execution order — steps sharing a Parallel Group render as one column. Click a step to configure it; group steps under Upstream Dependencies to chain pipelines together; generate a token under Webhook / API Trigger to run this pipeline from outside FlowForge.',
+  },
   reports: {
     title: 'What is a report config?',
     body:  'A report config pairs a SQL query with an output format (Excel / PDF / CSV). When a pipeline\'s report step runs, it executes the query and writes the file. The output path is available to downstream steps as {{ steps.step_name.output_path }}.',
