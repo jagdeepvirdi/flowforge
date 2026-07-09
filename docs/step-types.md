@@ -388,8 +388,8 @@ config:
     Summarise the regional revenue distribution for {{ current_month }} in 3 sentences.
     Highlight the top and bottom performers and flag any unusual patterns.
   output_variable: ai_summary                          # name of the pipeline variable (default: ai_summary)
-  provider:        ollama                              # 'ollama' (default, free, local) | 'claude'
-  model:           llama3.2:3b                         # optional — overrides OLLAMA_QUERY_MODEL / default Claude model
+  provider:        ollama                              # 'ollama' (default, free, local) | 'claude' | 'gemini'
+  model:           llama3.2:3b                         # optional — overrides OLLAMA_QUERY_MODEL / default Claude/Gemini model
   max_rows:        100                                 # rows sent to LLM (default 100, hard cap 500)
 ```
 
@@ -406,6 +406,7 @@ config:
 |---|---|---|
 | `ollama` (default) | Ollama running at `OLLAMA_URL` | `OLLAMA_QUERY_MODEL` (default `llama3.2:3b`) |
 | `claude` | `ANTHROPIC_API_KEY` set + `pip install anthropic` | `claude-haiku-4-5-20251001` |
+| `gemini` | `GEMINI_API_KEY` set (free tier available — [aistudio.google.com/apikey](https://aistudio.google.com/apikey)) | `GEMINI_QUERY_MODEL` (default `gemini-2.5-flash`) |
 
 **Using the result downstream:**
 

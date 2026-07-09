@@ -272,7 +272,11 @@ export type SetupStatus = {
   gmail:        { configured: boolean; sender: string }
   drive:        { configured: boolean; folder_id: string }
   microsoft365: { configured: boolean; sender: string }
-  ai:           { enabled: boolean; ollama_url: string; model: string }
+  ai: {
+    enabled: boolean; ollama_url: string; model: string
+    claude: { configured: boolean }
+    gemini: { configured: boolean; model: string }
+  }
   retention:    { run_days: number; audit_days: number }
 }
 export const getSetupStatus = () => get<SetupStatus>('/setup/status')

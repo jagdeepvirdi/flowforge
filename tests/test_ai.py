@@ -357,3 +357,132 @@ def test_anomaly_narrative_ollama_unreachable_returns_503(client, headers):
                                  'value': 0, 'mean': 1000, 'pct_diff': -100.0},
                            headers=headers)
     assert resp.status_code == 503
+
+
+# ── Fallback to Claude/Gemini when Ollama is unreachable ─────────────────────
+
+def test_query_explain_falls_back_to_claude_when_configured(client, headers, monkeypatch):
+    monkeypatch.setenv('ANTHROPIC_API_KEY', 'sk-ant-test')
+    with patch('flowforge.api.routes.ai._ollama_generate',
+               side_effect=urllib.error.URLError('connection refused')), \
+         patch('flowforge.api.routes.ai._call_claude',
+               return_value='Explanation from Claude.') as mock_claude:
+        resp = client.post('/api/ai/query',
+                           json={'task': 'explain', 'sql': 'SELECT 1'},
+                           headers=headers)
+    assert resp.status_code == 200
+    assert resp.get_json()['result'] == 'Explanation from Claude.'
+    mock_claude.assert_called_once()
+
+
+def test_query_explain_falls_back_to_gemini_when_only_gemini_configured(client, headers, monkeypatch):
+    monkeypatch.delenv('ANTHROPIC_API_KEY', raising=False)
+    monkeypatch.setenv('GEMINI_API_KEY', 'test-key')
+    with patch('flowforge.api.routes.ai._ollama_generate',
+               side_effect=urllib.error.URLError('connection refused')), \
+         patch('flowforge.api.routes.ai._call_gemini',
+               return_value='Explanation from Gemini.') as mock_gemini:
+        resp = client.post('/api/ai/query',
+                           json={'task': 'explain', 'sql': 'SELECT 1'},
+                           headers=headers)
+    assert resp.status_code == 200
+    assert resp.get_json()['result'] == 'Explanation from Gemini.'
+    mock_gemini.assert_called_once()
+
+
+def test_query_explain_prefers_claude_over_gemini_when_both_configured(client, headers, monkeypatch):
+    monkeypatch.setenv('ANTHROPIC_API_KEY', 'sk-ant-test')
+    monkeypatch.setenv('GEMINI_API_KEY', 'test-key')
+    with patch('flowforge.api.routes.ai._ollama_generate',
+               side_effect=urllib.error.URLError('connection refused')), \
+         patch('flowforge.api.routes.ai._call_claude', return_value='From Claude.') as mock_claude, \
+         patch('flowforge.api.routes.ai._call_gemini', return_value='From Gemini.') as mock_gemini:
+        resp = client.post('/api/ai/query',
+                           json={'task': 'explain', 'sql': 'SELECT 1'},
+                           headers=headers)
+    assert resp.status_code == 200
+    assert resp.get_json()['result'] == 'From Claude.'
+    mock_claude.assert_called_once()
+    mock_gemini.assert_not_called()
+
+
+def test_query_falls_back_to_gemini_when_claude_configured_but_fails(client, headers, monkeypatch):
+    """If Claude is configured but errors (e.g. package not installed), try Gemini next."""
+    monkeypatch.setenv('ANTHROPIC_API_KEY', 'sk-ant-test')
+    monkeypatch.setenv('GEMINI_API_KEY', 'test-key')
+    with patch('flowforge.api.routes.ai._ollama_generate',
+               side_effect=urllib.error.URLError('connection refused')), \
+         patch('flowforge.api.routes.ai._call_claude', side_effect=ImportError('pip install anthropic')), \
+         patch('flowforge.api.routes.ai._call_gemini', return_value='From Gemini.') as mock_gemini:
+        resp = client.post('/api/ai/query',
+                           json={'task': 'explain', 'sql': 'SELECT 1'},
+                           headers=headers)
+    assert resp.status_code == 200
+    assert resp.get_json()['result'] == 'From Gemini.'
+    mock_gemini.assert_called_once()
+
+
+def test_query_ollama_unreachable_no_fallback_configured_returns_503(client, headers, monkeypatch):
+    monkeypatch.delenv('ANTHROPIC_API_KEY', raising=False)
+    monkeypatch.delenv('GEMINI_API_KEY', raising=False)
+    with patch('flowforge.api.routes.ai._ollama_generate',
+               side_effect=urllib.error.URLError('connection refused')):
+        resp = client.post('/api/ai/query',
+                           json={'task': 'explain', 'sql': 'SELECT 1'},
+                           headers=headers)
+    assert resp.status_code == 503
+    assert 'Ollama' in resp.get_json()['error']
+
+
+def test_query_ollama_unreachable_all_fallbacks_fail_returns_503(client, headers, monkeypatch):
+    """Both cloud providers configured but erroring — original Ollama error still surfaces."""
+    monkeypatch.setenv('ANTHROPIC_API_KEY', 'sk-ant-test')
+    monkeypatch.setenv('GEMINI_API_KEY', 'test-key')
+    with patch('flowforge.api.routes.ai._ollama_generate',
+               side_effect=urllib.error.URLError('connection refused')), \
+         patch('flowforge.api.routes.ai._call_claude', side_effect=Exception('claude down')), \
+         patch('flowforge.api.routes.ai._call_gemini', side_effect=Exception('gemini down')):
+        resp = client.post('/api/ai/query',
+                           json={'task': 'explain', 'sql': 'SELECT 1'},
+                           headers=headers)
+    assert resp.status_code == 503
+    assert 'Ollama' in resp.get_json()['error']
+
+
+def test_chart_config_falls_back_to_claude(client, headers, monkeypatch):
+    monkeypatch.setenv('ANTHROPIC_API_KEY', 'sk-ant-test')
+    mock_json = json.dumps({'type': 'bar', 'x': 'month', 'y': 'revenue', 'title': 'T'})
+    with patch('flowforge.api.routes.ai._ollama_generate',
+               side_effect=urllib.error.URLError('connection refused')), \
+         patch('flowforge.api.routes.ai._call_claude', return_value=mock_json):
+        resp = client.post('/api/ai/chart-config',
+                           json={'columns': ['month', 'revenue'], 'rows': []},
+                           headers=headers)
+    assert resp.status_code == 200
+    assert resp.get_json()['type'] == 'bar'
+
+
+def test_data_profile_falls_back_to_gemini(client, headers, monkeypatch):
+    monkeypatch.delenv('ANTHROPIC_API_KEY', raising=False)
+    monkeypatch.setenv('GEMINI_API_KEY', 'test-key')
+    with patch('flowforge.api.routes.ai._ollama_generate',
+               side_effect=urllib.error.URLError('connection refused')), \
+         patch('flowforge.api.routes.ai._call_gemini', return_value='Profile from Gemini.'):
+        resp = client.post('/api/ai/data-profile',
+                           json={'columns': ['x'], 'rows': [['1']]},
+                           headers=headers)
+    assert resp.status_code == 200
+    assert resp.get_json()['result'] == 'Profile from Gemini.'
+
+
+def test_anomaly_narrative_falls_back_to_claude(client, headers, monkeypatch):
+    monkeypatch.setenv('ANTHROPIC_API_KEY', 'sk-ant-test')
+    with patch('flowforge.api.routes.ai._ollama_generate',
+               side_effect=urllib.error.URLError('timeout')), \
+         patch('flowforge.api.routes.ai._call_claude', return_value='Anomaly from Claude.'):
+        resp = client.post('/api/ai/anomaly-narrative',
+                           json={'step_name': 'Step', 'metric': 'rows',
+                                 'value': 0, 'mean': 1000, 'pct_diff': -100.0},
+                           headers=headers)
+    assert resp.status_code == 200
+    assert resp.get_json()['result'] == 'Anomaly from Claude.'

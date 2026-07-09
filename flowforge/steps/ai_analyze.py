@@ -71,6 +71,31 @@ def _call_claude(prompt: str, model: str) -> str:
     return message.content[0].text.strip()
 
 
+def _call_gemini(prompt: str, model: str, timeout: int = 120) -> str:
+    """Call the Gemini API directly over REST — no SDK dependency required."""
+    api_key = os.environ.get('GEMINI_API_KEY', '')
+    if not api_key:
+        raise ValueError('GEMINI_API_KEY is not set')
+    url = f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent'
+    body = json.dumps({
+        'contents': [{'parts': [{'text': prompt}]}],
+        'generationConfig': {'temperature': 0.2},
+    }).encode()
+    req = urllib.request.Request(
+        url,
+        data=body,
+        # API key goes in a header, not the URL, so it doesn't end up in logs/proxies.
+        headers={'Content-Type': 'application/json', 'x-goog-api-key': api_key},
+        method='POST',
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310
+        result = json.loads(resp.read())
+    try:
+        return result['candidates'][0]['content']['parts'][0]['text'].strip()
+    except (KeyError, IndexError):
+        raise ValueError(f'Gemini returned an unexpected response: {result}')
+
+
 class AiAnalyzeStep(BaseStep):
     """Run a SQL query and pass the results to an LLM for summarisation.
 
@@ -86,7 +111,8 @@ class AiAnalyzeStep(BaseStep):
                         Supports {{ variables }}.  Default: summarise in 3 sentences.
         output_variable Name of the pipeline variable to store the result in.
                         Default: ai_summary
-        provider        'ollama' (default, free, local) or 'claude' (Anthropic API)
+        provider        'ollama' (default, free, local), 'claude' (Anthropic API),
+                        or 'gemini' (Google Gemini API — has a free tier)
         model           Override the default model (optional)
         max_rows        Maximum rows to include in the prompt (default 100, hard cap 500)
     """
@@ -163,8 +189,10 @@ class AiAnalyzeStep(BaseStep):
         try:
             return self._call_provider(provider, prompt), ''
         except urllib.error.URLError as exc:
-            ollama_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
-            return '', f'Ollama is not reachable at {ollama_url}. Is it running? ({exc})'
+            if provider == 'ollama':
+                ollama_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
+                return '', f'Ollama is not reachable at {ollama_url}. Is it running? ({exc})'
+            return '', f'{provider} API call failed: {exc}'
         except Exception as exc:
             logger.exception("ai_analyze: LLM call failed")
             return '', f'AI call failed: {exc}'
@@ -187,5 +215,8 @@ class AiAnalyzeStep(BaseStep):
         if provider == 'claude':
             model = self.config.get('model') or 'claude-haiku-4-5-20251001'
             return _call_claude(prompt, model)
+        if provider == 'gemini':
+            model = self.config.get('model') or os.environ.get('GEMINI_QUERY_MODEL', 'gemini-2.5-flash')
+            return _call_gemini(prompt, model)
         model = self.config.get('model') or os.environ.get('OLLAMA_QUERY_MODEL', 'llama3.2:3b')
         return _call_ollama(prompt, model)

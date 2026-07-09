@@ -1,4 +1,7 @@
-"""AI utility endpoints — Ollama-only, zero external cost."""
+"""AI utility endpoints — Ollama by default (zero external cost), with an
+optional fallback to Claude or Gemini (in that order) when Ollama is
+unreachable and one of them is configured via ANTHROPIC_API_KEY / GEMINI_API_KEY.
+"""
 import json
 import logging
 import os
@@ -8,6 +11,7 @@ import urllib.request
 from flask import Blueprint, jsonify, request
 
 from flowforge.api.auth import require_auth
+from flowforge.steps.ai_analyze import _call_claude, _call_gemini
 
 logger = logging.getLogger(__name__)
 bp = Blueprint('ai', __name__)
@@ -61,6 +65,31 @@ def _ollama_generate(prompt: str, model: str, *, json_mode: bool = True, timeout
     return result.get('response', '')
 
 
+def _fallback_candidates() -> list[tuple[str, str]]:
+    """Cloud providers to try, in order, when Ollama is unreachable."""
+    candidates = []
+    if os.environ.get('ANTHROPIC_API_KEY', '').strip():
+        candidates.append(('claude', 'claude-haiku-4-5-20251001'))
+    if os.environ.get('GEMINI_API_KEY', '').strip():
+        candidates.append(('gemini', os.environ.get('GEMINI_QUERY_MODEL', 'gemini-2.5-flash')))
+    return candidates
+
+
+def _generate_text(prompt: str, model: str, *, json_mode: bool = True, timeout: int = 30) -> str:
+    """Ollama first; falls back to Claude/Gemini if Ollama is unreachable and one is configured."""
+    try:
+        return _ollama_generate(prompt, model, json_mode=json_mode, timeout=timeout)
+    except urllib.error.URLError as ollama_exc:
+        for provider, fb_model in _fallback_candidates():
+            try:
+                logger.info("ai: Ollama unreachable, falling back to %s", provider)
+                call = _call_claude if provider == 'claude' else _call_gemini
+                return call(prompt, fb_model)
+            except Exception:
+                logger.exception("ai: %s fallback failed", provider)
+        raise ollama_exc
+
+
 @bp.post('/ai/data-profile')
 @require_auth
 def data_profile():
@@ -91,7 +120,7 @@ def data_profile():
     )
 
     try:
-        result = _ollama_generate(prompt, _chart_model(), json_mode=False, timeout=60)
+        result = _generate_text(prompt, _chart_model(), json_mode=False, timeout=60)
     except urllib.error.URLError:
         url = _ollama_url()
         return jsonify({'error': f'Ollama is not reachable at {url}. Is it running?'}), 503
@@ -138,7 +167,7 @@ def chart_config():
     )
 
     try:
-        raw = _ollama_generate(prompt, _chart_model(), json_mode=True)
+        raw = _generate_text(prompt, _chart_model(), json_mode=True)
         cfg: dict = json.loads(raw)
     except urllib.error.URLError:
         url = _ollama_url()
@@ -188,7 +217,7 @@ def ai_query():
         sql       = ''
 
     try:
-        raw = _ollama_generate(prompt, _query_model(), json_mode=json_mode, timeout=60)
+        raw = _generate_text(prompt, _query_model(), json_mode=json_mode, timeout=60)
     except urllib.error.URLError:
         url = _ollama_url()
         return jsonify({'error': f'Ollama is not reachable at {url}. Is it running?'}), 503
@@ -242,7 +271,7 @@ def anomaly_narrative():
         )
 
     try:
-        result = _ollama_generate(prompt, _query_model(), json_mode=False, timeout=30)
+        result = _generate_text(prompt, _query_model(), json_mode=False, timeout=30)
     except urllib.error.URLError:
         url = _ollama_url()
         return jsonify({'error': f'Ollama is not reachable at {url}. Is it running?'}), 503

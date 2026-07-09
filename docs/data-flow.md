@@ -91,7 +91,8 @@ unless explicitly configured to transmit to:
 - **Google / Microsoft OAuth2** — for SSO login (redirects only; no data sent to FlowForge from the IdP beyond email + name)
 - **SAML 2.0 IdP** (Okta / Azure AD / PingFederate) — for enterprise SSO login (browser redirect + POST of a signed assertion; no data sent to FlowForge beyond the NameID/email in the assertion)
 - **Ollama** — local AI; data stays on your machine
-- **Claude API (Anthropic)** — only if `USE_CLAUDE=true` and `ANTHROPIC_API_KEY` is set; query result rows are sent to Anthropic for analysis
+- **Claude API (Anthropic)** — only if `ANTHROPIC_API_KEY` is set, either via an `ai_analyze` step's `provider: "claude"`, or as the automatic fallback for SQL Explain/Optimize, Data Profiler, Chart Generator, and Pipeline Failure Diagnosis when Ollama is unreachable; query result rows are sent to Anthropic for analysis
+- **Gemini API (Google)** — only if `GEMINI_API_KEY` is set, either via an `ai_analyze` step's `provider: "gemini"`, or as the automatic fallback (after Claude) for the same UI AI features when Ollama is unreachable; query result rows are sent to Google for analysis
 
 ---
 

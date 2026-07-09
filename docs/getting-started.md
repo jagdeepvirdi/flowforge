@@ -161,7 +161,7 @@ See [Step Types Reference → onedrive_upload](step-types.md#onedrive_upload) fo
 
 ## AI Features (Optional)
 
-FlowForge ships with six AI-powered features. By default these run through [Ollama](https://ollama.com) locally — no data leaves your machine and there is no API cost. The `ai_analyze` pipeline step also supports the **Claude API** as an alternative provider (set `USE_CLAUDE=true` and `ANTHROPIC_API_KEY` in `.env`).
+FlowForge ships with six AI-powered features. By default these run through [Ollama](https://ollama.com) locally — no data leaves your machine and there is no API cost. If `ANTHROPIC_API_KEY` or `GEMINI_API_KEY` is set (Settings → AI), the five UI-driven features below automatically fall back to Claude, then Gemini, whenever Ollama is unreachable. The `ai_analyze` pipeline step instead lets you pick the provider explicitly per step via `provider: "claude"` or `provider: "gemini"` (Gemini has a [free tier](https://aistudio.google.com/apikey)).
 
 | Feature | Where | What it does |
 |---|---|---|

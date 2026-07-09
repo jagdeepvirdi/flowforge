@@ -295,6 +295,7 @@ Upload a file to Google Drive.
   "provider": "ollama"
 }
 ```
+`provider` also accepts `"claude"` (Anthropic API) or `"gemini"` (Google Gemini API — has a free tier).
 
 ---
 
@@ -572,11 +573,12 @@ MICROSOFT_SENDER_EMAIL=
 GOOGLE_DRIVE_FOLDER_ID=
 
 # AI (optional, for ai_analyze step)
-ANTHROPIC_API_KEY=
-USE_CLAUDE=false
 OLLAMA_URL=http://localhost:11434
 OLLAMA_QUERY_MODEL=llama3.2:3b    # model for explain/optimize/diagnose
 OLLAMA_CHART_MODEL=llama3.2:3b    # model for chart & profile tasks
+ANTHROPIC_API_KEY=                # ai_analyze step: provider: "claude"
+GEMINI_API_KEY=                   # ai_analyze step: provider: "gemini" (has a free tier)
+GEMINI_QUERY_MODEL=gemini-2.5-flash
 
 # Data retention (scheduler prunes daily)
 FLOWFORGE_RUN_RETENTION_DAYS=90       # delete pipeline_runs + step_runs older than N days (0 = keep forever)

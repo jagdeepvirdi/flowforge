@@ -169,7 +169,7 @@ function AiOllamaCard({ status, isLoading }: { status: SetupStatus | undefined; 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-[7px] text-[13px] font-semibold text-text-primary">
           <BrainCircuit size={15} className="text-text-muted" />
-          AI Features (Ollama)
+          AI Features
         </div>
         {isLoading
           ? <Sk h={13} style={{ width: 120 }} />
@@ -183,7 +183,9 @@ function AiOllamaCard({ status, isLoading }: { status: SetupStatus | undefined; 
       </div>
       <p className="text-[13px] text-text-muted m-0">
         SQL Explain, SQL Optimize, Data Profiler, Chart Generator, and Pipeline Failure Diagnosis all
-        route through a local <InlineCode>Ollama</InlineCode> instance — no data leaves your machine and there is no API cost.
+        route through a local <InlineCode>Ollama</InlineCode> instance by default — no data leaves your
+        machine and there is no API cost. If Claude or Gemini is configured below, they're used as an
+        automatic fallback only when Ollama is unreachable (Claude first, then Gemini).
         Set <InlineCode>FLOWFORGE_AI_ENABLED=false</InlineCode> to hide all AI buttons and disable all AI endpoints.
       </p>
       {status && !status.ai.enabled && (
@@ -196,6 +198,48 @@ function AiOllamaCard({ status, isLoading }: { status: SetupStatus | undefined; 
         <CodeBlock>OLLAMA_URL=http://localhost:11434</CodeBlock>
         <CodeBlock>OLLAMA_CHART_MODEL=llama3.2:3b   # model for chart & profile tasks</CodeBlock>
         <CodeBlock>OLLAMA_QUERY_MODEL=llama3.2:3b   # model for explain/optimize/diagnose</CodeBlock>
+      </div>
+
+      <div className="h-px bg-border my-0.5" />
+
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-[13px] font-medium text-text-primary">Claude / Gemini fallback &amp; ai_analyze providers</span>
+        </div>
+        <p className="text-[13px] text-text-muted m-0">
+          Configuring a key here enables it as the Ollama-unreachable fallback above, and makes it
+          selectable in the <InlineCode>ai_analyze</InlineCode> pipeline step via
+          <InlineCode>provider: "claude"</InlineCode> or <InlineCode>provider: "gemini"</InlineCode>.
+        </p>
+
+        <div className="flex items-center justify-between mt-1">
+          <span className="text-[13px] text-text-2">Claude API (Anthropic)</span>
+          {isLoading
+            ? <Sk h={13} style={{ width: 90 }} />
+            : status && (
+              <StatusBadge
+                ok={status.ai.claude.configured}
+                label={status.ai.claude.configured ? 'Key configured' : 'Not configured'}
+              />
+            )
+          }
+        </div>
+        <CodeBlock>ANTHROPIC_API_KEY=   # requires: pip install anthropic</CodeBlock>
+
+        <div className="flex items-center justify-between mt-1">
+          <span className="text-[13px] text-text-2">Gemini API (Google, free tier)</span>
+          {isLoading
+            ? <Sk h={13} style={{ width: 90 }} />
+            : status && (
+              <StatusBadge
+                ok={status.ai.gemini.configured}
+                label={status.ai.gemini.configured ? `Key configured · ${status.ai.gemini.model}` : 'Not configured'}
+              />
+            )
+          }
+        </div>
+        <CodeBlock>GEMINI_API_KEY=   # free tier: aistudio.google.com/apikey</CodeBlock>
+        <CodeBlock>GEMINI_QUERY_MODEL=gemini-2.5-flash</CodeBlock>
       </div>
     </div>
   )
@@ -467,11 +511,12 @@ function RetentionCard({ status, isLoading }: { status: SetupStatus | undefined;
   )
 }
 
-type Tab = 'account' | 'email-ai' | 'system' | 'docs'
+type Tab = 'account' | 'email' | 'ai' | 'system' | 'docs'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'account', label: 'Account' },
-  { id: 'email-ai', label: 'Email & AI' },
+  { id: 'email', label: 'Email' },
+  { id: 'ai', label: 'AI' },
   { id: 'system', label: 'System' },
   { id: 'docs', label: 'Docs' },
 ]
@@ -515,12 +560,15 @@ export default function Settings() {
             </>
           )}
 
-          {tab === 'email-ai' && (
+          {tab === 'email' && (
             <>
               <GoogleOAuthCard status={status} isLoading={isLoading} />
               <Microsoft365Card status={status} isLoading={isLoading} />
-              <AiOllamaCard status={status} isLoading={isLoading} />
             </>
+          )}
+
+          {tab === 'ai' && (
+            <AiOllamaCard status={status} isLoading={isLoading} />
           )}
 
           {tab === 'system' && (

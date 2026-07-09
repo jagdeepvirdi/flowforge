@@ -74,13 +74,14 @@ Designed for solo developers, data analysts, and small teams who need lightweigh
 - **Gunicorn + Nginx deployment guide**: gevent workers, systemd units, TLS termination — see `docs/deployment.md` / `RUNBOOK.md`
 - **SQLAlchemy pool tuning**: pool size/overflow/timeout/recycle configurable via env vars, with PgBouncer guidance for 100+ concurrent pipelines
 
-### AI Features (Ollama or Claude API)
-- **AI chart generator**: "Visualize" button on Report Preview — sends column names + sample rows to Ollama; renders result with Recharts (bar, line, area, pie, scatter)
+### AI Features (Ollama, Claude API, or Gemini API)
+All AI-powered UI features (below) run through Ollama by default (local, zero cost) and fall back to Claude or Gemini — in that order — if Ollama is unreachable and one of `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` is set. Configure in Settings → AI.
+- **AI chart generator**: "Visualize" button on Report Preview — sends column names + sample rows to the AI provider; renders result with Recharts (bar, line, area, pie, scatter)
 - **SQL Explainer**: "Explain" button in the SQL editor — plain-English summary of what a query does
 - **SQL Optimizer**: "Optimize" button — side-by-side diff of original vs AI-suggested rewrite; accept with one click
 - **Pipeline failure diagnosis**: "Explain this error" on failed step logs — 2–4 sentence cause and fix
 - **Data Profiler**: one-click narrative summary of query result (structure, ranges, nulls, outliers)
-- **Run history anomaly alerts**: statistical outlier detection (>2σ) on row counts and durations; Ollama narrative when anomaly is detected
+- **Run history anomaly alerts**: statistical outlier detection (>2σ) on row counts and durations; AI narrative when anomaly is detected
 
 ### Security
 - **AES-256-GCM** credential encryption for all DB and email provider configs stored in the database
@@ -118,7 +119,7 @@ Designed for solo developers, data analysts, and small teams who need lightweigh
 | Google Drive / OneDrive | Built-in | DIY | DIY | DIY |
 | Smart attachments | Built-in | DIY | DIY | DIY |
 | Multi-user roles | Built-in | Built-in | Built-in | DIY |
-| AI analysis | Built-in (Ollama/Claude) | DIY | DIY | DIY |
+| AI analysis | Built-in (Ollama/Claude/Gemini) | DIY | DIY | DIY |
 | Scheduling | Built-in UI | Built-in | Built-in | OS cron |
 | Run history / logs | Built-in UI | Built-in | Built-in | DIY |
 | SFTP transfer | Built-in | Plugin | Plugin | DIY |
@@ -146,7 +147,7 @@ Designed for solo developers, data analysts, and small teams who need lightweigh
 | `db_health_check` | Collect DB health metrics (sessions, cache hit ratio, replication lag, etc.); outputs a report file |
 | `data_report` | Run an arbitrary script and turn its output into a report |
 | `notification` | Send a message to Slack, Microsoft Teams, or Telegram |
-| `ai_analyze` | Run a SQL query, summarize results with Claude or Ollama; result available as `{{ ai_summary }}` |
+| `ai_analyze` | Run a SQL query, summarize results with Ollama, Claude, or Gemini; result available as `{{ ai_summary }}` |
 
 Custom step types can also be added via the [plugin system](docs/plugins.md) without forking FlowForge.
 
@@ -166,7 +167,7 @@ Custom step types can also be added via the [plugin system](docs/plugins.md) wit
 | Task queue | Celery + Redis (optional — threads used when Redis is not configured) |
 | Auth | Username/password + JWT, MFA (TOTP), SSO (Google, Microsoft, SAML 2.0) |
 | Monitoring | Prometheus metrics endpoint, Celery Flower dashboard |
-| AI (optional) | Claude API (Anthropic), Ollama (local, zero cost) |
+| AI (optional) | Ollama (local, zero cost), Claude API (Anthropic), Gemini API (Google, free tier) |
 
 ---
 
@@ -218,6 +219,8 @@ pip install -e ".[sso]"           # SSO: Google, Microsoft, SAML 2.0
 pip install -e ".[claude]"        # ai_analyze step via Claude API
 pip install -e ".[all]"           # Everything above
 ```
+
+`ai_analyze` step via Gemini API needs no extra install — it's a plain REST call, just set `GEMINI_API_KEY`.
 
 #### 3. Configure
 

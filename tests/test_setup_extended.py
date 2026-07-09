@@ -113,6 +113,36 @@ def test_setup_status_ollama_url_in_response(client, headers, monkeypatch):
     assert resp.get_json()['ai']['ollama_url'] == 'http://custom-ollama:11434'
 
 
+def test_setup_status_claude_not_configured_by_default(client, headers, monkeypatch):
+    monkeypatch.delenv('ANTHROPIC_API_KEY', raising=False)
+    resp = client.get('/api/setup/status', headers=headers)
+    assert resp.get_json()['ai']['claude']['configured'] is False
+
+
+def test_setup_status_claude_configured_when_env_set(client, headers, monkeypatch):
+    monkeypatch.setenv('ANTHROPIC_API_KEY', 'sk-ant-test')
+    resp = client.get('/api/setup/status', headers=headers)
+    assert resp.get_json()['ai']['claude']['configured'] is True
+
+
+def test_setup_status_gemini_not_configured_by_default(client, headers, monkeypatch):
+    monkeypatch.delenv('GEMINI_API_KEY', raising=False)
+    resp = client.get('/api/setup/status', headers=headers)
+    assert resp.get_json()['ai']['gemini']['configured'] is False
+
+
+def test_setup_status_gemini_configured_when_env_set(client, headers, monkeypatch):
+    monkeypatch.setenv('GEMINI_API_KEY', 'test-key')
+    resp = client.get('/api/setup/status', headers=headers)
+    assert resp.get_json()['ai']['gemini']['configured'] is True
+
+
+def test_setup_status_gemini_model_in_response(client, headers, monkeypatch):
+    monkeypatch.setenv('GEMINI_QUERY_MODEL', 'gemini-2.5-pro')
+    resp = client.get('/api/setup/status', headers=headers)
+    assert resp.get_json()['ai']['gemini']['model'] == 'gemini-2.5-pro'
+
+
 def test_setup_status_requires_auth(client):
     resp = client.get('/api/setup/status')
     assert resp.status_code == 401

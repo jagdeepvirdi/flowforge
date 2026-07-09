@@ -70,6 +70,13 @@ def setup_status():
             'enabled': _ai_enabled(),
             'ollama_url': os.environ.get('OLLAMA_URL', 'http://localhost:11434'),
             'model': os.environ.get('OLLAMA_QUERY_MODEL', 'llama3.2:3b'),
+            'claude': {
+                'configured': _all('ANTHROPIC_API_KEY'),
+            },
+            'gemini': {
+                'configured': _all('GEMINI_API_KEY'),
+                'model': os.environ.get('GEMINI_QUERY_MODEL', 'gemini-2.5-flash'),
+            },
         },
         'retention': {
             'run_days': int(os.environ.get('FLOWFORGE_RUN_RETENTION_DAYS', 90)),

@@ -9,7 +9,11 @@ vi.mock('../lib/api', () => ({
     gmail:        { configured: false, sender: '' },
     drive:        { configured: false, folder_id: '' },
     microsoft365: { configured: false, sender: '' },
-    ai:           { enabled: true, ollama_url: 'http://localhost:11434', model: 'llama3.2:3b' },
+    ai: {
+      enabled: true, ollama_url: 'http://localhost:11434', model: 'llama3.2:3b',
+      claude: { configured: false },
+      gemini: { configured: false, model: 'gemini-2.5-flash' },
+    },
     retention:    { run_days: 90, audit_days: 90 },
   })),
   getMfaStatus:   vi.fn(() => Promise.resolve({ mfa_enabled: false, sso_provider: null })),
@@ -39,7 +43,7 @@ describe('Settings', () => {
   it('shows Google OAuth2 section', async () => {
     const user = userEvent.setup()
     renderWithProviders(<Settings />)
-    await user.click(await screen.findByRole('button', { name: 'Email & AI' }))
+    await user.click(await screen.findByRole('button', { name: 'Email' }))
     await waitFor(() => {
       expect(screen.getByText('Google OAuth2 (Gmail + Drive)')).toBeInTheDocument()
     })
@@ -48,7 +52,7 @@ describe('Settings', () => {
   it('shows Microsoft 365 section', async () => {
     const user = userEvent.setup()
     renderWithProviders(<Settings />)
-    await user.click(await screen.findByRole('button', { name: 'Email & AI' }))
+    await user.click(await screen.findByRole('button', { name: 'Email' }))
     await waitFor(() => {
       expect(screen.getByText('Microsoft 365 OAuth2')).toBeInTheDocument()
     })
@@ -57,9 +61,19 @@ describe('Settings', () => {
   it('shows AI section title', async () => {
     const user = userEvent.setup()
     renderWithProviders(<Settings />)
-    await user.click(await screen.findByRole('button', { name: 'Email & AI' }))
+    await user.click(await screen.findByRole('button', { name: 'AI' }))
     await waitFor(() => {
-      expect(screen.getByText('AI Features (Ollama)')).toBeInTheDocument()
+      expect(screen.getByText('AI Features')).toBeInTheDocument()
+    })
+  })
+
+  it('shows Claude and Gemini provider status for ai_analyze', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<Settings />)
+    await user.click(await screen.findByRole('button', { name: 'AI' }))
+    await waitFor(() => {
+      expect(screen.getByText('Claude API (Anthropic)')).toBeInTheDocument()
+      expect(screen.getByText('Gemini API (Google, free tier)')).toBeInTheDocument()
     })
   })
 
@@ -90,12 +104,13 @@ describe('Settings', () => {
     })
   })
 
-  it('does not show Email & AI or System content on the default Account tab', async () => {
+  it('does not show Email, AI, or System content on the default Account tab', async () => {
     renderWithProviders(<Settings />)
     await waitFor(() => {
       expect(screen.getAllByText('Change Password').length).toBeGreaterThan(0)
     })
     expect(screen.queryByText('Google OAuth2 (Gmail + Drive)')).not.toBeInTheDocument()
+    expect(screen.queryByText('AI Features')).not.toBeInTheDocument()
     expect(screen.queryByText('Data Retention Policies')).not.toBeInTheDocument()
   })
 })

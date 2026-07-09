@@ -260,6 +260,73 @@ def test_step_claude_not_installed_returns_failure():
     assert 'pip install' in result.error
 
 
+# ── Step: Gemini provider ─────────────────────────────────────────────────────
+
+def test_step_gemini_happy_path():
+    rows = [('Q1', 50000)]
+    cols = ['quarter', 'revenue']
+    step = _make_step(provider='gemini')
+
+    with patch.object(step, '_execute_query', return_value=(rows, cols)), \
+         patch('flowforge.steps.ai_analyze._call_gemini', return_value='Q1 revenue was 50K.') as mock_gemini:
+        result = step.run({'steps': {}})
+
+    assert result.success
+    assert result.ai_summary == 'Q1 revenue was 50K.'
+    mock_gemini.assert_called_once()
+
+
+def test_step_gemini_uses_configured_model():
+    rows = [('x', 1)]
+    cols = ['a', 'b']
+    step = _make_step(provider='gemini', model='gemini-2.5-pro')
+
+    with patch.object(step, '_execute_query', return_value=(rows, cols)), \
+         patch('flowforge.steps.ai_analyze._call_gemini', return_value='Text.') as mock_gemini:
+        step.run({'steps': {}})
+
+    model_arg = mock_gemini.call_args[0][1]
+    assert model_arg == 'gemini-2.5-pro'
+
+
+def test_step_gemini_missing_api_key_returns_failure():
+    rows = [('x', 1)]
+    cols = ['a', 'b']
+    step = _make_step(provider='gemini')
+
+    with patch.object(step, '_execute_query', return_value=(rows, cols)), \
+         patch('flowforge.steps.ai_analyze._call_gemini',
+               side_effect=ValueError('GEMINI_API_KEY is not set')):
+        result = step.run({'steps': {}})
+
+    assert not result.success
+    assert 'GEMINI_API_KEY' in result.error
+
+
+def test_step_gemini_unreachable_returns_failure():
+    rows = [('x', 1)]
+    cols = ['a', 'b']
+    step = _make_step(provider='gemini')
+
+    with patch.object(step, '_execute_query', return_value=(rows, cols)), \
+         patch('flowforge.steps.ai_analyze._call_gemini',
+               side_effect=urllib.error.URLError('connection refused')):
+        result = step.run({'steps': {}})
+
+    assert not result.success
+    assert 'gemini' in result.error
+
+
+def test_call_gemini_missing_api_key_raises(monkeypatch):
+    from flowforge.steps.ai_analyze import _call_gemini
+    monkeypatch.delenv('GEMINI_API_KEY', raising=False)
+    try:
+        _call_gemini('prompt', 'gemini-2.5-flash')
+        assert False, 'expected ValueError'
+    except ValueError as exc:
+        assert 'GEMINI_API_KEY' in str(exc)
+
+
 # ── Step: Jinja2 variable rendering in query and prompt ──────────────────────
 
 def test_step_renders_jinja_in_query():
