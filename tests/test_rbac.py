@@ -187,3 +187,21 @@ def test_editor_cannot_create_user(client, editor_headers):
                        json={'username': 'mu3_newuser', 'password': 'Pass1234!', 'role': 'viewer'},
                        headers=editor_headers)
     assert resp.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# Settings (admin-only writes; any authenticated role can read)
+# ---------------------------------------------------------------------------
+
+def test_viewer_can_read_retention_settings(client, viewer_headers):
+    assert client.get('/api/settings/retention', headers=viewer_headers).status_code == 200
+
+
+def test_viewer_cannot_update_retention_settings(client, viewer_headers):
+    resp = client.put('/api/settings/retention', json={'run_retention_days': 10}, headers=viewer_headers)
+    assert resp.status_code == 403
+
+
+def test_editor_cannot_update_retention_settings(client, editor_headers):
+    resp = client.put('/api/settings/retention', json={'run_retention_days': 10}, headers=editor_headers)
+    assert resp.status_code == 403

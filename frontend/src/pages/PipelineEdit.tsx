@@ -25,13 +25,10 @@ import { reorderSteps, renumberSteps, duplicateStep as duplicateStepHelper } fro
 import StepEditor from '../components/pipeline/StepEditor'
 import PipelineCanvas from '../components/pipeline/canvas/PipelineCanvas'
 import PipelineVariablesCard, { type PipelineVar } from '../components/pipeline/PipelineVariablesCard'
-import DependenciesCard from '../components/pipeline/DependenciesCard'
-import WebhookCard from '../components/pipeline/WebhookCard'
-import CronBuilder from '../components/pipeline/CronBuilder'
+import TriggersCard from '../components/pipeline/TriggersCard'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 import Sk from '../components/shared/Skeleton'
-import FieldTooltip from '../components/shared/FieldTooltip'
 import RouteErrorBoundary from '../components/shared/RouteErrorBoundary'
 
 const STEP_TYPES: StepType[] = ['db_procedure', 'db_query', 'report', 'email', 'drive_upload', 'data_load', 'bulk_load', 'notification', 's3_upload', 'azure_blob_upload']
@@ -107,8 +104,8 @@ export default function PipelineEdit() {
         </div>
         <div className="card flex flex-col gap-3">
           <Sk h={13} className="w-20" />
-          <Sk h={64} r={6} />
-          <Sk h={64} r={6} />
+          <Sk h={28} r={7} className="w-[220px]" />
+          <Sk h={40} r={6} />
         </div>
       </div>
     </>
@@ -293,21 +290,10 @@ function PipelineForm({
         {/* Basic info */}
         <div className="card mb-4 flex flex-col gap-3">
           <div className="text-xs font-semibold text-[var(--text)]">Details</div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="field">
-              <label htmlFor="pipeline-name">Name *</label>
-              <input id="pipeline-name" className="input" data-testid="pipeline-name" value={name} onChange={e => { setName(e.target.value); if (fieldErrors.name) setFieldErrors(f => ({ ...f, name: '' })) }} />
-              {fieldErrors.name && <span className="text-[11.5px] text-[var(--failure)]">{fieldErrors.name}</span>}
-            </div>
-            <div className="field">
-              <label className="flex items-center gap-1">
-                Schedule{' '}
-                <FieldTooltip field="cron" />
-              </label>
-              {(!id || existing) && (
-                <CronBuilder key={id ?? 'new'} defaultValue={schedule} onChange={setSchedule} />
-              )}
-            </div>
+          <div className="field">
+            <label htmlFor="pipeline-name">Name *</label>
+            <input id="pipeline-name" className="input" data-testid="pipeline-name" value={name} onChange={e => { setName(e.target.value); if (fieldErrors.name) setFieldErrors(f => ({ ...f, name: '' })) }} />
+            {fieldErrors.name && <span className="text-[11.5px] text-[var(--failure)]">{fieldErrors.name}</span>}
           </div>
           <div className="field">
             <label htmlFor="pipeline-desc">Description</label>
@@ -333,16 +319,16 @@ function PipelineForm({
         {/* Pipeline Variables */}
         <PipelineVariablesCard vars={vars} setVars={setVars} />
 
-        {/* Upstream Dependencies */}
-        <DependenciesCard
+        {/* Schedule / Upstream Dependencies / Webhook — three ways to trigger this pipeline */}
+        <TriggersCard
+          id={id}
+          existing={existing}
+          schedule={schedule}
+          onScheduleChange={setSchedule}
           upstreamDeps={upstreamDeps}
           setUpstreamDeps={setUpstreamDeps}
           allPipelines={allPipelines}
-          thisPipelineId={id}
         />
-
-        {/* Webhook tokens — only shown when editing an existing pipeline */}
-        {!isNew && id && <WebhookCard pipelineId={id} />}
 
         {/* Steps */}
         <div className="mb-4">

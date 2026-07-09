@@ -131,8 +131,16 @@ def _register_sync_job() -> None:
 
 def _cleanup_job() -> None:
     from flowforge.engine.cleanup import cleanup_output_files
-    cleanup_output_files()
+    # Wrapped in an app context (when available) so cleanup_output_files() can
+    # resolve a DB-backed FLOWFORGE_OUTPUT_TTL_DAYS override, same as the prune
+    # functions below do for their own retention settings.
+    if _app is not None:
+        with _app.app_context():
+            cleanup_output_files()
+    else:
+        cleanup_output_files()
     _prune_token_blocklist()
+    _prune_expired_password_reset_tokens()
     _prune_old_runs()
     _prune_old_audit_logs()
 
@@ -140,13 +148,14 @@ def _cleanup_job() -> None:
 def _prune_old_runs() -> None:
     if _app is None:
         return
-    retention_days = int(os.environ.get('FLOWFORGE_RUN_RETENTION_DAYS', 90))
-    if retention_days <= 0:
-        return
-        
     try:
         from datetime import datetime, timedelta
+
+        from flowforge.engine.settings import get_run_retention_days
         with _app.app_context():
+            retention_days = get_run_retention_days()
+            if retention_days <= 0:
+                return
             from flowforge.db.models import PipelineRun, db
             cutoff = datetime.now(UTC) - timedelta(days=retention_days)
             # Delete runs older than cutoff. Cascading takes care of step_runs.
@@ -165,14 +174,14 @@ def _prune_old_runs() -> None:
 def _prune_old_audit_logs() -> None:
     if _app is None:
         return
-    # Default to run retention if audit retention isn't explicitly set
-    retention_days = int(os.environ.get('FLOWFORGE_AUDIT_RETENTION_DAYS', os.environ.get('FLOWFORGE_RUN_RETENTION_DAYS', 90)))
-    if retention_days <= 0:
-        return
-        
     try:
         from datetime import datetime, timedelta
+
+        from flowforge.engine.settings import get_audit_retention_days
         with _app.app_context():
+            retention_days = get_audit_retention_days()
+            if retention_days <= 0:
+                return
             from flowforge.db.models import AuditLog, db
             cutoff = datetime.now(UTC) - timedelta(days=retention_days)
             deleted = (
@@ -204,6 +213,27 @@ def _prune_token_blocklist() -> None:
                 logger.info("Pruned %d expired token blocklist entry/entries.", deleted)
     except Exception:
         logger.exception("Token blocklist pruning failed")
+
+
+def _prune_expired_password_reset_tokens() -> None:
+    """Single-use tokens are never deleted on use or expiry by the reset flow itself
+    (it only checks expires_at/used_at) — sweep them here so the table doesn't grow forever."""
+    if _app is None:
+        return
+    try:
+        from datetime import datetime
+        with _app.app_context():
+            from flowforge.db.models import PasswordResetToken, db
+            deleted = (
+                db.session.query(PasswordResetToken)
+                .filter(PasswordResetToken.expires_at < datetime.now(UTC))
+                .delete()
+            )
+            db.session.commit()
+            if deleted:
+                logger.info("Pruned %d expired password reset token(s).", deleted)
+    except Exception:
+        logger.exception("Password reset token pruning failed")
 
 
 def _sync_db_job() -> None:

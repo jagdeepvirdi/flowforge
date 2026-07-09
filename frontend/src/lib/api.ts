@@ -281,6 +281,22 @@ export type SetupStatus = {
 }
 export const getSetupStatus = () => get<SetupStatus>('/setup/status')
 
+// Data retention settings (DB override, falls back to env vars when unset)
+export type RetentionSettings = {
+  run_retention_days: number
+  audit_retention_days: number
+  output_ttl_days: number
+  is_custom: { run_retention_days: boolean; audit_retention_days: boolean; output_ttl_days: boolean }
+}
+export type RetentionUpdate = Partial<{
+  run_retention_days: number | null
+  audit_retention_days: number | null
+  output_ttl_days: number | null
+}>
+export const getRetentionSettings    = () => get<RetentionSettings>('/settings/retention')
+export const updateRetentionSettings = (data: RetentionUpdate) =>
+  put<Omit<RetentionSettings, 'is_custom'>>('/settings/retention', data)
+
 // Audit Logs
 export type AuditLogEntry = {
   id: string

@@ -496,8 +496,8 @@ Both implement the same `BaseConnection` interface — pipelines don't know whic
 - Google OAuth setup (Gmail + Drive)
 - Microsoft 365 setup (MSAL)
 - AI / Ollama configuration status
-- Run retention policy display (`FLOWFORGE_RUN_RETENTION_DAYS`)
-- Audit log retention display (`FLOWFORGE_AUDIT_RETENTION_DAYS`)
+- Data retention (run history, audit log, output file TTL) — view/edit (admin), DB-backed override
+  of `FLOWFORGE_RUN_RETENTION_DAYS` / `FLOWFORGE_AUDIT_RETENTION_DAYS` / `FLOWFORGE_OUTPUT_TTL_DAYS`
 - Export all pipeline configs as YAML
 - Import pipeline configs from YAML
 
@@ -580,9 +580,12 @@ ANTHROPIC_API_KEY=                # ai_analyze step: provider: "claude"
 GEMINI_API_KEY=                   # ai_analyze step: provider: "gemini" (has a free tier)
 GEMINI_QUERY_MODEL=gemini-2.5-flash
 
-# Data retention (scheduler prunes daily)
+# Data retention (scheduler prunes daily) — all three below can also be overridden at runtime
+# via Settings → System (admin-only), which takes priority over these env vars when set
 FLOWFORGE_RUN_RETENTION_DAYS=90       # delete pipeline_runs + step_runs older than N days (0 = keep forever)
 FLOWFORGE_AUDIT_RETENTION_DAYS=90     # delete audit log entries older than N days (defaults to RUN_RETENTION_DAYS)
+FLOWFORGE_OUTPUT_TTL_DAYS=7           # delete generated report files older than N days (min 1 — see docs/RUNBOOK.md §8a)
+FLOWFORGE_OUTPUT_DIR=output           # directory generated reports are written to
 
 # Audit log output (flowforge/audit.py)
 FLOWFORGE_LOG_DIR=logs                # directory for audit.log rotating file

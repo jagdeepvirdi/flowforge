@@ -4,7 +4,11 @@ import { Copy, Link as LinkIcon, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { createWebhookToken, getWebhookTokens, revokeWebhookToken } from '../../lib/api'
 import type { WebhookToken } from '../../lib/types'
 
-export default function WebhookCard({ pipelineId }: { pipelineId: string }) {
+export default function WebhookCard({ pipelineId, bare = false }: {
+  pipelineId: string
+  /** Render just the body, without the card wrapper/title — for embedding in TriggersCard. */
+  bare?: boolean
+}) {
   const qc = useQueryClient()
   const [newLabel, setNewLabel] = useState('')
   const [creating, setCreating] = useState(false)
@@ -45,15 +49,8 @@ export default function WebhookCard({ pipelineId }: { pipelineId: string }) {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  return (
-    <div className="card mb-4">
-      <div className="flex items-center justify-between mb-2.5">
-        <div className="flex items-center gap-2">
-          <LinkIcon size={13} className="text-[var(--text-muted)]" />
-          <span className="text-xs font-semibold text-[var(--text)]">Webhook / API Trigger</span>
-        </div>
-      </div>
-
+  const body = (
+    <>
       <p className="text-[11.5px] text-[var(--text-muted)] mb-3 mt-0">
         Trigger this pipeline from external systems using{' '}
         <code className="text-[11px] bg-[var(--surface)] p-[1px_5px] rounded-[3px]">
@@ -130,6 +127,20 @@ export default function WebhookCard({ pipelineId }: { pipelineId: string }) {
           {creating ? <RefreshCw size={11} /> : <Plus size={11} />} Generate token
         </button>
       </div>
+    </>
+  )
+
+  if (bare) return body
+
+  return (
+    <div className="card mb-4">
+      <div className="flex items-center justify-between mb-2.5">
+        <div className="flex items-center gap-2">
+          <LinkIcon size={13} className="text-[var(--text-muted)]" />
+          <span className="text-xs font-semibold text-[var(--text)]">Webhook / API Trigger</span>
+        </div>
+      </div>
+      {body}
     </div>
   )
 }

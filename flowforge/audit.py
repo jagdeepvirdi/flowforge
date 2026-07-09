@@ -138,6 +138,12 @@ def log_connection_change(action: str, name: str, conn_id: str) -> None:
     _write_db_audit(f'CONNECTION_{action.upper()}', _current_user(), _current_user_id(), '', {'name': name, 'id': conn_id})
 
 
+def log_settings_change(changed: dict) -> None:
+    """changed: the fields that were updated, e.g. {'output_ttl_days': 14}"""
+    _get_logger().info('SETTINGS  UPDATED  %s  by=%s  user_id=%s', changed, _current_user(), _current_user_id())
+    _write_db_audit('SETTINGS_UPDATED', _current_user(), _current_user_id(), '', changed)
+
+
 def log_provider_change(action: str, name: str, provider_id: str) -> None:
     """action: CREATED | UPDATED | DELETED"""
     _get_logger().info('PROVIDER   %-7s  name=%-30r  id=%s  by=%s  user_id=%s', action.upper(), name, provider_id, _current_user(), _current_user_id())

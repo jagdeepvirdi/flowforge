@@ -72,10 +72,20 @@ SOC 2, GDPR, HIPAA, and other regulated-environment assessments.
 
 | Data | Retention | Config |
 |---|---|---|
-| Pipeline runs + step logs | 90 days (configurable) | `FLOWFORGE_RUN_RETENTION_DAYS` |
-| Audit log entries | 90 days (configurable) | `FLOWFORGE_AUDIT_RETENTION_DAYS` |
-| Report output files | 7 days (configurable) | `FLOWFORGE_OUTPUT_TTL_DAYS` |
+| Pipeline runs + step logs | 90 days (configurable) | Settings → System (admin) or `FLOWFORGE_RUN_RETENTION_DAYS` |
+| Audit log entries | 90 days (configurable) | Settings → System (admin) or `FLOWFORGE_AUDIT_RETENTION_DAYS` |
+| Report output files | 7 days (configurable, min 1) | Settings → System (admin) or `FLOWFORGE_OUTPUT_TTL_DAYS` |
 | Audit log file (disk) | Rotated at 10 MB, 5 backups | `FLOWFORGE_LOG_DIR` |
+| Revoked JWTs / expired password reset tokens | Swept once expired, not configurable | n/a |
+| Webhook / API trigger tokens | Never expire — must be revoked manually | n/a |
+
+Settings → System values are stored in `ff_system_settings` and take priority over the env vars
+when set; leaving them unset (or clicking "Use default") preserves the env-var behavior exactly.
+Output file retention can't be set to `0` from Settings — that would delete every report
+immediately rather than "keep forever" like the other two — see `docs/RUNBOOK.md` §8a for the
+CLI-only escape hatch.
+
+All pruning above is deletion, not archival, and runs from the scheduler process's daily job — see [`docs/RUNBOOK.md` §8a](RUNBOOK.md#8a-data-retention--cleanup) for exact mechanics and the "scheduler must be running" caveat.
 
 ---
 

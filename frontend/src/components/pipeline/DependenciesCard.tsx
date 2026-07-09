@@ -2,12 +2,14 @@ import { Trash2 } from 'lucide-react'
 import type { Pipeline, PipelineDep } from '../../lib/types'
 
 export default function DependenciesCard({
-  upstreamDeps, setUpstreamDeps, allPipelines, thisPipelineId,
+  upstreamDeps, setUpstreamDeps, allPipelines, thisPipelineId, bare = false,
 }: {
   upstreamDeps: PipelineDep[]
   setUpstreamDeps: React.Dispatch<React.SetStateAction<PipelineDep[]>>
   allPipelines: Pipeline[]
   thisPipelineId: string | undefined
+  /** Render just the body, without the card wrapper/title — for embedding in TriggersCard. */
+  bare?: boolean
 }) {
   const available = allPipelines.filter(
     p => p.id !== thisPipelineId && !upstreamDeps.some(d => d.pipeline_id === p.id)
@@ -19,19 +21,14 @@ export default function DependenciesCard({
     setUpstreamDeps(prev => [...prev, { dep_id: `_new_${Date.now()}`, pipeline_id: p.id, pipeline_name: p.name }])
   }
 
-  return (
-    <div className="card mb-4">
-      <div className="flex items-center justify-between mb-2.5">
-        <div>
-          <span className="text-xs font-semibold text-[var(--text)]">Upstream Dependencies</span>
-          <span className="text-[11px] text-[var(--text-muted)] ml-2">
-            this pipeline runs automatically when all listed pipelines succeed
-          </span>
-        </div>
-      </div>
+  const body = (
+    <>
+      <p className="text-[11.5px] text-[var(--text-muted)] mb-2.5 mt-0">
+        This pipeline runs automatically when all listed pipelines succeed.
+      </p>
 
       {upstreamDeps.length === 0 ? (
-        <p className="text-xs text-[var(--text-muted)] m-0">
+        <p className="text-xs text-[var(--text-muted)] m-0 mb-2.5">
           No dependencies. This pipeline runs on its own schedule or when triggered manually.
         </p>
       ) : (
@@ -63,6 +60,17 @@ export default function DependenciesCard({
           {available.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       )}
+    </>
+  )
+
+  if (bare) return body
+
+  return (
+    <div className="card mb-4">
+      <div className="flex items-center justify-between mb-2.5">
+        <span className="text-xs font-semibold text-[var(--text)]">Upstream Dependencies</span>
+      </div>
+      {body}
     </div>
   )
 }

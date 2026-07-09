@@ -467,7 +467,57 @@ After import, set any secret variables (`***`) manually via the Pipeline Builder
 - **`.env` is auto-loaded** by the Alembic `env.py` from the project root, so `flowforge db` commands work without manually exporting env vars.
 - **Schema changes without Alembic** (e.g. direct `ALTER TABLE`) will cause Alembic's autogenerate to detect drift. Run `flowforge db revision -m "description" --autogenerate` to capture them.
 - **M365 tokens** are refreshed automatically before each send — MSAL handles the 1-hour expiry transparently via its in-memory cache.
-- **Output file cleanup**: `flowforge cleanup --days 7` deletes generated reports older than 7 days. Can be added as a cron job or scheduled pipeline.
+- **Output file cleanup** runs automatically — see [§8a. Data Retention & Cleanup](#8a-data-retention--cleanup) below. `flowforge cleanup --days 7` is available for a manual/one-off run.
+
+---
+
+## 8a. Data Retention & Cleanup
+
+A daily job runs at **02:00 UTC**, registered by `_register_cleanup_job()` inside the **scheduler process** (`flowforge schedule`, or the `flowforge-scheduler` systemd unit in §4a). It calls `_cleanup_job()` (`flowforge/engine/scheduler.py`), which prunes everything below in sequence.
+
+**This only runs if the scheduler process is actually running.** If you deploy just the API/web process without the scheduler, none of this executes — no error, no warning, the data just accumulates indefinitely.
+
+| What | Function | Retention control | Behavior |
+|---|---|---|---|
+| Generated report files (`output/`) | `cleanup_output_files()` | Settings → System (admin) or `FLOWFORGE_OUTPUT_TTL_DAYS` (default 7) | Deletes files by mtime |
+| Revoked JWTs (`ff_token_blocklist`) | `_prune_token_blocklist()` | always on | Deletes rows past `expires_at` |
+| Password reset tokens (`ff_password_reset_tokens`) | `_prune_expired_password_reset_tokens()` | always on | Deletes rows past `expires_at`, used or not |
+| Pipeline run history (`ff_pipeline_runs`, `ff_step_runs`) | `_prune_old_runs()` | Settings → System (admin) or `FLOWFORGE_RUN_RETENTION_DAYS` (default 90; `0` = keep forever) | Hard delete; step runs cascade-delete with their parent run |
+| Audit log — DB table (`ff_audit_log`) | `_prune_old_audit_logs()` | Settings → System (admin) or `FLOWFORGE_AUDIT_RETENTION_DAYS` (falls back to `FLOWFORGE_RUN_RETENTION_DAYS` if unset; default 90) | Hard delete |
+| Audit log — file (`logs/audit.log`) | Python `RotatingFileHandler` | size-based only, not configurable | Rotates at 10MB × 5 backups (~60MB cap); independent of the DB table's retention window |
+
+**Settings → System (admin-only) can override the three DB-backed values above at runtime** —
+`GET`/`PUT /api/settings/retention`, backed by the `ff_system_settings` singleton table
+(`flowforge/engine/settings.py`). A saved override is checked first; leaving a field unset (or
+resetting it via "Use default") falls back to the env var exactly as before, so upgrading an
+existing instance changes nothing until an admin explicitly sets a value. No restart required —
+the next scheduled run (or the next `flowforge cleanup` invocation without `--days`) picks it up.
+
+**Output file TTL cannot be set to `0` via Settings** — `0` means "delete every file
+immediately" for this one (unlike run/audit retention, where `0` means "keep forever"), so the
+UI and the `PUT` endpoint both reject it to prevent an accidental full wipe. The `flowforge
+cleanup --days 0` CLI command still allows it deliberately, gated behind a confirmation prompt
+(`--yes` to skip, e.g. for scripted use).
+
+All of the above is **deletion, not archival** — there's no export-then-delete step anywhere. If you need long-term audit retention for compliance, export `ff_audit_log` (Audit Log page → CSV export) before its retention window elapses.
+
+**Webhook tokens** (`ff_webhook_tokens`) are deliberately excluded from this job and have no
+Settings override either. They're documented as never expiring by default (`docs/security.md`) —
+auto-pruning them would silently break any external integration (CI, cron, monitoring) still
+using an old token. Revoking a token via the UI/API deletes its row immediately, so there's no
+"revoked but lingering" state to sweep. A token that's simply gone unused for a long time is not
+auto-detected; review and revoke stale tokens manually from the pipeline's Webhook / API Trigger tab.
+
+Manual output-file cleanup is also available standalone, useful for a dry run or a one-off pass without waiting for the scheduled job:
+```bash
+flowforge cleanup --days 7 --dry-run
+flowforge cleanup --days 7
+
+# Deletes everything regardless of age — asks for confirmation unless --yes is passed
+flowforge cleanup --days 0
+flowforge cleanup --days 0 --yes
+```
+There is no equivalent CLI command for run-history or audit-log pruning — that logic only runs inside the scheduler process's daily job.
 
 ---
 

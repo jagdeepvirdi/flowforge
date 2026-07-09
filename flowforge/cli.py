@@ -223,18 +223,33 @@ def export(pipeline_name: str, output: str | None):
 
 @cli.command()
 @click.option('--days', default=None, type=int,
-              help='Delete files older than this many days (default: FLOWFORGE_OUTPUT_TTL_DAYS or 7).')
+              help='Delete files older than this many days (default: the Settings page override, '
+                   'FLOWFORGE_OUTPUT_TTL_DAYS, or 7). Pass 0 to delete every file regardless of age.')
 @click.option('--dir', 'output_dir', default=None,
               help='Output directory to clean (default: FLOWFORGE_OUTPUT_DIR or ./output).')
 @click.option('--dry-run', is_flag=True, help='Show what would be deleted without deleting.')
-def cleanup(days: int | None, output_dir: str | None, dry_run: bool):
+@click.option('--yes', is_flag=True, help='Skip the confirmation prompt when --days 0 would delete everything.')
+def cleanup(days: int | None, output_dir: str | None, dry_run: bool, yes: bool):
     """Delete generated output files older than the TTL."""
     import os
     from datetime import datetime
     from pathlib import Path
 
     directory = Path(output_dir or os.environ.get('FLOWFORGE_OUTPUT_DIR', 'output'))
-    ttl = days if days is not None else int(os.environ.get('FLOWFORGE_OUTPUT_TTL_DAYS', 7))
+    if days is not None:
+        ttl = days
+    else:
+        app = _create_app()
+        with app.app_context():
+            from flowforge.engine.settings import get_output_ttl_days
+            ttl = get_output_ttl_days()
+
+    if ttl <= 0 and not dry_run and not yes:
+        click.confirm(
+            f"TTL is {ttl} — this deletes EVERY file in {directory}, including ones "
+            "created today. Continue?",
+            abort=True,
+        )
 
     if not directory.exists():
         click.echo(f"Output directory does not exist: {directory}")

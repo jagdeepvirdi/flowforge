@@ -23,11 +23,11 @@ def cleanup_output_files(
         output_dir
         or os.environ.get('FLOWFORGE_OUTPUT_DIR', _DEFAULT_DIR)
     )
-    days = (
-        ttl_days
-        if ttl_days is not None
-        else int(os.environ.get('FLOWFORGE_OUTPUT_TTL_DAYS', _DEFAULT_TTL_DAYS))
-    )
+    if ttl_days is not None:
+        days = ttl_days
+    else:
+        from flowforge.engine.settings import get_output_ttl_days
+        days = get_output_ttl_days()
 
     if not directory.exists():
         logger.info("Output directory does not exist, skipping cleanup: %s", directory)

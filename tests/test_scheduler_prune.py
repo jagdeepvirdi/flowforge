@@ -2,7 +2,7 @@
 
 Covers: _register_cleanup_job, _register_sync_job, _cleanup_job,
         _prune_old_runs, _prune_old_audit_logs, _prune_token_blocklist,
-        _sync_db_job, _run_pipeline_job.
+        _prune_expired_password_reset_tokens, _sync_db_job, _run_pipeline_job.
 """
 import os
 from unittest.mock import MagicMock, patch
@@ -16,12 +16,18 @@ def _make_mock_app():
 
 
 def _mock_db_session():
-    """Return a mock db with a chainable session.query(...).filter(...).delete() setup."""
+    """Return a mock db with a chainable session.query(...).filter(...).delete() setup.
+
+    session.get(...) (used by flowforge.engine.settings._singleton_row) returns None,
+    i.e. "no ff_system_settings override" — retention resolution falls through to
+    whatever env var the individual test sets, same as before this module existed.
+    """
     mock_db = MagicMock()
     query = MagicMock()
     mock_db.session.query.return_value = query
     query.filter.return_value = query
     query.delete.return_value = 3
+    mock_db.session.get.return_value = None
     return mock_db
 
 
@@ -57,12 +63,14 @@ def test_register_sync_job_uses_interval():
 def test_cleanup_job_calls_all_helpers():
     import flowforge.engine.scheduler as sched_mod
     with patch.object(sched_mod, '_prune_token_blocklist') as mock_tb, \
+         patch.object(sched_mod, '_prune_expired_password_reset_tokens') as mock_prt, \
          patch.object(sched_mod, '_prune_old_runs') as mock_runs, \
          patch.object(sched_mod, '_prune_old_audit_logs') as mock_audit, \
          patch('flowforge.engine.cleanup.cleanup_output_files') as mock_cleanup:
         sched_mod._cleanup_job()
     mock_cleanup.assert_called_once()
     mock_tb.assert_called_once()
+    mock_prt.assert_called_once()
     mock_runs.assert_called_once()
     mock_audit.assert_called_once()
 
@@ -80,13 +88,17 @@ def test_prune_old_runs_no_op_when_app_is_none():
 
 
 def test_prune_old_runs_no_op_when_retention_zero():
+    """Retention resolution now needs a DB read (for the ff_system_settings override),
+    so the app context IS entered even when the result is 0 — but no query/delete runs."""
     import flowforge.engine.scheduler as sched_mod
     original = sched_mod._app
     sched_mod._app = _make_mock_app()
+    mock_db = _mock_db_session()
     try:
-        with patch.dict(os.environ, {'FLOWFORGE_RUN_RETENTION_DAYS': '0'}):
-            sched_mod._prune_old_runs()  # must not create app context
-        sched_mod._app.app_context.assert_not_called()
+        with patch.dict(os.environ, {'FLOWFORGE_RUN_RETENTION_DAYS': '0'}), \
+             patch('flowforge.db.models.db', mock_db):
+            sched_mod._prune_old_runs()
+        mock_db.session.query.assert_not_called()
     finally:
         sched_mod._app = original
 
@@ -131,14 +143,18 @@ def test_prune_old_audit_logs_no_op_when_app_is_none():
 
 
 def test_prune_old_audit_logs_no_op_when_retention_zero():
+    """Retention resolution now needs a DB read (for the ff_system_settings override),
+    so the app context IS entered even when the result is 0 — but no query/delete runs."""
     import flowforge.engine.scheduler as sched_mod
     original = sched_mod._app
     sched_mod._app = _make_mock_app()
+    mock_db = _mock_db_session()
     try:
         env = {'FLOWFORGE_AUDIT_RETENTION_DAYS': '0', 'FLOWFORGE_RUN_RETENTION_DAYS': '0'}
-        with patch.dict(os.environ, env):
+        with patch.dict(os.environ, env), \
+             patch('flowforge.db.models.db', mock_db):
             sched_mod._prune_old_audit_logs()
-        sched_mod._app.app_context.assert_not_called()
+        mock_db.session.query.assert_not_called()
     finally:
         sched_mod._app = original
 
@@ -220,6 +236,43 @@ def test_prune_token_blocklist_swallows_exception():
     sched_mod._app = mock_app
     try:
         sched_mod._prune_token_blocklist()
+    finally:
+        sched_mod._app = original
+
+
+# ── _prune_expired_password_reset_tokens ──────────────────────────────────────
+
+def test_prune_password_reset_tokens_no_op_when_app_is_none():
+    import flowforge.engine.scheduler as sched_mod
+    original = sched_mod._app
+    sched_mod._app = None
+    try:
+        sched_mod._prune_expired_password_reset_tokens()
+    finally:
+        sched_mod._app = original
+
+
+def test_prune_password_reset_tokens_deletes_expired():
+    import flowforge.engine.scheduler as sched_mod
+    original = sched_mod._app
+    sched_mod._app = _make_mock_app()
+    mock_db = _mock_db_session()
+    try:
+        with patch('flowforge.db.models.db', mock_db):
+            sched_mod._prune_expired_password_reset_tokens()
+        mock_db.session.commit.assert_called_once()
+    finally:
+        sched_mod._app = original
+
+
+def test_prune_password_reset_tokens_swallows_exception():
+    import flowforge.engine.scheduler as sched_mod
+    original = sched_mod._app
+    mock_app = _make_mock_app()
+    mock_app.app_context.return_value.__enter__.side_effect = Exception('crash')
+    sched_mod._app = mock_app
+    try:
+        sched_mod._prune_expired_password_reset_tokens()
     finally:
         sched_mod._app = original
 

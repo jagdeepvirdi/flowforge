@@ -1,11 +1,15 @@
-import { useState } from 'react'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ExternalLink, CheckCircle2, XCircle, BrainCircuit, Shield, ShieldCheck, ShieldOff } from 'lucide-react'
 import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 import Sk from '../components/shared/Skeleton'
 import PageIntro from '../components/shared/PageIntro'
-import { getSetupStatus, changePassword, getMfaStatus, mfaEnroll, mfaConfirm, mfaDisable, type SetupStatus } from '../lib/api'
+import { useCurrentUser } from '../lib/auth'
+import {
+  getSetupStatus, changePassword, getMfaStatus, mfaEnroll, mfaConfirm, mfaDisable, type SetupStatus,
+  getRetentionSettings, updateRetentionSettings,
+} from '../lib/api'
 
 function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
@@ -478,35 +482,174 @@ function MfaCard() {
   )
 }
 
-function RetentionCard({ status, isLoading }: { status: SetupStatus | undefined; isLoading: boolean }) {
+function RetentionField({
+  id, label, value, onChange, min, hint,
+}: {
+  id: string; label: string; value: string
+  onChange: (v: string) => void; min: number; hint: string
+}) {
   return (
-    <div className="card flex flex-col gap-3">
-      <div className="flex items-center justify-between">
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
+      <input id={id} className="input" type="number" min={min} value={value}
+        onChange={e => onChange(e.target.value)} />
+      <span className="text-[11px] text-text-muted">{hint}</span>
+    </div>
+  )
+}
+
+function RetentionCard() {
+  const qc = useQueryClient()
+  const me = useCurrentUser()
+  const isAdmin = me?.role === 'admin'
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['retention-settings'],
+    queryFn: getRetentionSettings,
+  })
+
+  const [form, setForm] = useState({ run: '', audit: '', outputTtl: '' })
+  const [error, setError]     = useState('')
+  const [success, setSuccess] = useState(false)
+
+  useEffect(() => {
+    if (data) {
+      setForm({
+        run:       String(data.run_retention_days),
+        audit:     String(data.audit_retention_days),
+        outputTtl: String(data.output_ttl_days),
+      })
+    }
+  }, [data])
+
+  const mut = useMutation({
+    mutationFn: updateRetentionSettings,
+    onSuccess: () => {
+      setSuccess(true)
+      setError('')
+      qc.invalidateQueries({ queryKey: ['retention-settings'] })
+    },
+    onError: (e: Error) => { setError(e.message); setSuccess(false) },
+  })
+
+  const outputTtlNum = Number(form.outputTtl)
+  const outputTtlInvalid = form.outputTtl.trim() === '' || !Number.isInteger(outputTtlNum) || outputTtlNum < 1
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+    setSuccess(false)
+    if (outputTtlInvalid) {
+      setError('Output file TTL must be at least 1 day — 0 would delete every generated report immediately.')
+      return
+    }
+    mut.mutate({
+      run_retention_days: Number(form.run),
+      audit_retention_days: Number(form.audit),
+      output_ttl_days: outputTtlNum,
+    })
+  }
+
+  function resetToDefault(field: 'run_retention_days' | 'audit_retention_days' | 'output_ttl_days') {
+    setError('')
+    setSuccess(false)
+    mut.mutate({ [field]: null })
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="card flex flex-col gap-3">
         <div className="text-[13px] font-semibold text-text-primary">Data Retention Policies</div>
         {isLoading
-          ? <div className="flex gap-3"><Sk h={13} style={{ width: 100 }} /><Sk h={13} style={{ width: 100 }} /></div>
-          : status && (
-            <div className="flex gap-3">
-              <StatusBadge
-                ok={true}
-                label={`Runs: ${status.retention.run_days} days`}
-              />
-              <StatusBadge
-                ok={true}
-                label={`Audit: ${status.retention.audit_days} days`}
-              />
+          ? <div className="flex gap-3"><Sk h={13} style={{ width: 100 }} /><Sk h={13} style={{ width: 100 }} /><Sk h={13} style={{ width: 100 }} /></div>
+          : data && (
+            <div className="flex gap-3 flex-wrap">
+              <StatusBadge ok label={`Runs: ${data.run_retention_days} days`} />
+              <StatusBadge ok label={`Audit: ${data.audit_retention_days} days`} />
+              <StatusBadge ok label={`Output files: ${data.output_ttl_days} days`} />
             </div>
           )
         }
+        <p className="text-[13px] text-text-muted m-0">
+          How long historical pipeline runs, audit logs, and generated report files are kept
+          before the nightly background job deletes them. Only admins can change these values.
+        </p>
       </div>
+    )
+  }
+
+  return (
+    <div className="card flex flex-col gap-3.5">
+      <div className="text-[13px] font-semibold text-text-primary">Data Retention Policies</div>
       <p className="text-[13px] text-text-muted m-0">
-        Determines how long historical pipeline runs and audit logs are kept before being automatically purged by the nightly background job.
-        Configured via environment variables.
+        How long historical pipeline runs, audit logs, and generated report files are kept
+        before the nightly background job deletes them. Falls back to the server's env var
+        default unless overridden below.
       </p>
-      <div className="flex flex-col gap-1.5">
-        <CodeBlock>FLOWFORGE_RUN_RETENTION_DAYS=90     # defaults to 90</CodeBlock>
-        <CodeBlock>FLOWFORGE_AUDIT_RETENTION_DAYS=365  # defaults to RUN_RETENTION_DAYS</CodeBlock>
-      </div>
+      {isLoading ? (
+        <Sk h={64} r={6} />
+      ) : (
+        <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="flex flex-col gap-1">
+              <RetentionField
+                id="retention-run" label="Pipeline runs (days)" min={0}
+                value={form.run} onChange={v => setForm(f => ({ ...f, run: v }))}
+                hint={`0 = keep forever${data?.is_custom.run_retention_days ? ' · custom' : ' · default'}`}
+              />
+              {data?.is_custom.run_retention_days && (
+                <button type="button" className="btn btn-sm w-fit" onClick={() => resetToDefault('run_retention_days')} disabled={mut.isPending}>
+                  Use default
+                </button>
+              )}
+            </div>
+            <div className="flex flex-col gap-1">
+              <RetentionField
+                id="retention-audit" label="Audit log (days)" min={0}
+                value={form.audit} onChange={v => setForm(f => ({ ...f, audit: v }))}
+                hint={`0 = keep forever${data?.is_custom.audit_retention_days ? ' · custom' : ' · default'}`}
+              />
+              {data?.is_custom.audit_retention_days && (
+                <button type="button" className="btn btn-sm w-fit" onClick={() => resetToDefault('audit_retention_days')} disabled={mut.isPending}>
+                  Use default
+                </button>
+              )}
+            </div>
+            <div className="flex flex-col gap-1">
+              <RetentionField
+                id="retention-output" label="Output files (days)" min={1}
+                value={form.outputTtl} onChange={v => setForm(f => ({ ...f, outputTtl: v }))}
+                hint={`min 1${data?.is_custom.output_ttl_days ? ' · custom' : ' · default'}`}
+              />
+              {data?.is_custom.output_ttl_days && (
+                <button type="button" className="btn btn-sm w-fit" onClick={() => resetToDefault('output_ttl_days')} disabled={mut.isPending}>
+                  Use default
+                </button>
+              )}
+            </div>
+          </div>
+          <p className="text-[11px] text-text-muted m-0">
+            Output files can't be set to 0 here — that would delete every report immediately.
+            Use <InlineCode>flowforge cleanup --days 0</InlineCode> if you intentionally need
+            that; it requires explicit confirmation.
+          </p>
+          {error && (
+            <div className="text-[12.5px] text-failure-text bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.2)] rounded-r-sm py-2 px-3">
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="text-[12.5px] text-success-text bg-[rgba(34,197,94,0.08)] border border-[rgba(34,197,94,0.2)] rounded-r-sm py-2 px-3">
+              Saved.
+            </div>
+          )}
+          <div>
+            <button type="submit" className="btn btn-primary" disabled={mut.isPending || outputTtlInvalid}>
+              {mut.isPending ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   )
 }
@@ -573,7 +716,7 @@ export default function Settings() {
 
           {tab === 'system' && (
             <>
-              <RetentionCard status={status} isLoading={isLoading} />
+              <RetentionCard />
               <YamlCard />
             </>
           )}

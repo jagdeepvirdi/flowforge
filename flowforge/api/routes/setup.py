@@ -4,6 +4,7 @@ import os
 from flask import Blueprint, jsonify, request
 
 from flowforge.api.auth import login, require_auth
+from flowforge.engine.settings import get_audit_retention_days, get_run_retention_days
 
 bp = Blueprint('setup', __name__)
 
@@ -79,8 +80,8 @@ def setup_status():
             },
         },
         'retention': {
-            'run_days': int(os.environ.get('FLOWFORGE_RUN_RETENTION_DAYS', 90)),
-            'audit_days': int(os.environ.get('FLOWFORGE_AUDIT_RETENTION_DAYS', os.environ.get('FLOWFORGE_RUN_RETENTION_DAYS', 90))),
+            'run_days': get_run_retention_days(),
+            'audit_days': get_audit_retention_days(),
         },
         'encrypt_output': os.environ.get('FLOWFORGE_ENCRYPT_OUTPUT', '').lower() == 'true',
     })
