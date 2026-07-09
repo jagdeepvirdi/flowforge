@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ExternalLink, CheckCircle2, XCircle, BrainCircuit, Shield, ShieldCheck, ShieldOff } from 'lucide-react'
 import TopBar from '../components/shared/TopBar'
@@ -512,7 +512,11 @@ function RetentionCard() {
   const [error, setError]     = useState('')
   const [success, setSuccess] = useState(false)
 
-  useEffect(() => {
+  // Sync fetched data into local editable form state, adjusted during render
+  // (React's documented pattern for this) rather than in an effect.
+  const [prevData, setPrevData] = useState(data)
+  if (data !== prevData) {
+    setPrevData(data)
     if (data) {
       setForm({
         run:       String(data.run_retention_days),
@@ -520,7 +524,7 @@ function RetentionCard() {
         outputTtl: String(data.output_ttl_days),
       })
     }
-  }, [data])
+  }
 
   const mut = useMutation({
     mutationFn: updateRetentionSettings,
