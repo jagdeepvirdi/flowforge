@@ -136,7 +136,7 @@ For any company migrating from Oracle to PostgreSQL, FlowForge is uniquely posit
 | Limitation | Implication |
 |---|---|
 | No conditional branching | Can't say "only send email if row count > 0" — workaround: always send, filter in query |
-| No visual DAG canvas | Pipelines and dependencies are configured via forms/lists, not drag-and-drop — see ROADMAP.md |
+| No arbitrary step DAG editing | The canvas view visualizes/edits the sequential + parallel-group model (drag to reorder/group); no freeform dependency-edge drawing like Airflow — see ROADMAP.md |
 
 ---
 

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — 2026-07-09
+
+- **Visual pipeline canvas** — a react-flow + dagre graph view as an alternative to the linear step list in the pipeline editor, toggled via list/grid icons above the step list in `PipelineEdit.tsx`. Steps render as nodes laid out left-to-right in actual execution-wave order (steps sharing a `parallel_group` become one column) via [`frontend/src/lib/pipelineWaves.ts`](frontend/src/lib/pipelineWaves.ts), a faithful port of the runner's `_build_execution_waves` grouping algorithm — the canvas can't visually misrepresent execution order. Supports drag-to-reorder, drag-into/out-of a group column, click-to-edit via a side panel (reusing the existing `STEP_FORMS` registry), and add/duplicate/delete from the canvas. No backend or schema changes; this is Option A of TASKS.md Phase 14 — arbitrary step-to-step dependency edges (Option B) remain unbuilt. ([`frontend/src/components/pipeline/canvas/`](frontend/src/components/pipeline/canvas/), [`frontend/src/lib/pipelineReorder.ts`](frontend/src/lib/pipelineReorder.ts))
+
 ### Changed — 2026-07-08
 
 - **Frontend route-based code splitting** — `App.tsx` now lazy-loads every page via `React.lazy()` instead of static imports, with a `<Suspense>` boundary around the top-level `<Routes>` (covers `/login`) and a second one in `Layout.tsx` around `<Outlet/>` (covers nested authenticated routes, keeping the sidebar/topbar mounted during navigation). New `components/shared/RouteFallback.tsx` centers the existing `Spinner` as the loading fallback. The single production JS bundle dropped from ~1.1MB to a 254 kB main chunk, with Recharts, CodeMirror, and per-page code now split into on-demand chunks — clears Vite's default 500 kB `chunkSizeWarningLimit`. ([`frontend/src/App.tsx`](frontend/src/App.tsx), [`frontend/src/components/shared/Layout.tsx`](frontend/src/components/shared/Layout.tsx), [`frontend/src/components/shared/RouteFallback.tsx`](frontend/src/components/shared/RouteFallback.tsx))

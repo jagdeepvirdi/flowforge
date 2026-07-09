@@ -708,10 +708,12 @@ See Claude Design handoff. Key tokens:
 ---
 
 ## Non-Goals
-> Multi-user auth, Slack/Teams notifications, and S3/Azure Blob upload — originally
-> listed here as deferred to v2 — have since shipped; see [ROADMAP.md](ROADMAP.md) and
+> Multi-user auth, Slack/Teams notifications, S3/Azure Blob upload, and a visual pipeline canvas —
+> originally listed here as deferred to v2 — have since shipped; see [ROADMAP.md](ROADMAP.md) and
 > [docs/TASKS.md](docs/TASKS.md) for current status, which is authoritative over this file.
 
-- No drag-and-drop visual pipeline canvas — not yet built, tracked in ROADMAP.md
+- No arbitrary step-to-step DAG editing (freeform edge-drawing) — the canvas view (Phase 14) visualizes
+  and edits the existing sequential + parallel-group model; true Airflow-style branching would require
+  a runner rewrite, tracked as Option B in `docs/TASKS.md`
 - No Airflow DAG import
 - No cloud SaaS version
