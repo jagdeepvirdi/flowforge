@@ -18,7 +18,7 @@ const NAV_MAIN = [
 const NAV_SYSTEM = [
   { to: '/projects',    label: 'Projects',         icon: 'projects' },
   { to: '/connections', label: 'Connections',      icon: 'plug' },
-  { to: '/recipients',  label: 'Recipients',       icon: 'users' },
+  { to: '/recipients',  label: 'Recipient Groups', icon: 'users' },
   { to: '/settings',    label: 'Settings',         icon: 'cog' },
 ]
 

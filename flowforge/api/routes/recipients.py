@@ -20,6 +20,8 @@ def _group_dict(g: RecipientGroup) -> dict:
         'name': g.name,
         'description': g.description,
         'addresses': g.addresses or [],
+        'cc_addresses': g.cc_addresses or [],
+        'bcc_addresses': g.bcc_addresses or [],
         'project_id': g.project_id,
         'created_at': g.created_at.isoformat() if g.created_at else None,
     }
@@ -43,8 +45,8 @@ def create_group():
     data = request.get_json() or {}
     if not data.get('name'):
         return jsonify({'error': 'name is required'}), 400
-    if not data.get('addresses'):
-        return jsonify({'error': 'addresses is required'}), 400
+    if not (data.get('addresses') or data.get('cc_addresses') or data.get('bcc_addresses')):
+        return jsonify({'error': 'At least one of addresses (To), cc_addresses, or bcc_addresses is required'}), 400
     err = validate_recipient_group(data)
     if err:
         return jsonify({'error': err}), 400
@@ -56,7 +58,9 @@ def create_group():
     group = RecipientGroup(
         name=data['name'],
         description=data.get('description', ''),
-        addresses=data['addresses'],
+        addresses=data.get('addresses', []),
+        cc_addresses=data.get('cc_addresses', []),
+        bcc_addresses=data.get('bcc_addresses', []),
         project_id=target_project_id,
     )
     db.session.add(group)
@@ -87,7 +91,7 @@ def update_group(group_id):
     data = request.get_json() or {}
     if 'project_id' in data and data['project_id'] != group.project_id and not can_access_project(data['project_id']):
         return jsonify(ACCESS_DENIED), 403
-    for field in ('name', 'description', 'addresses', 'project_id'):
+    for field in ('name', 'description', 'addresses', 'cc_addresses', 'bcc_addresses', 'project_id'):
         if field in data:
             setattr(group, field, data[field])
 

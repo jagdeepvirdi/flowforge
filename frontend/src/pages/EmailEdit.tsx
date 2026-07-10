@@ -63,10 +63,7 @@ const schema = z.object({
   maxMb:      z.number().min(1).max(50),
   folderId:   z.string(),
   driveMsg:   z.string(),
-}).refine(
-  data => data.groupId !== '' || data.to.length > 0,
-  { message: 'Add at least one recipient address or select a group', path: ['to'] }
-)
+})
 type FormValues = z.infer<typeof schema>
 
 export default function EmailEdit() {
@@ -83,7 +80,7 @@ export default function EmailEdit() {
     queryFn: () => getRecipientGroups(activeProjectId ? { project_id: activeProjectId } : undefined),
   })
 
-  const { register, handleSubmit, control, watch, reset, formState: { errors, isSubmitting } } = useForm<FormValues>({
+  const { register, handleSubmit, control, watch, reset, setError: setFieldError, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       name: '', desc: '', providerId: '', fromName: '',
@@ -101,6 +98,15 @@ export default function EmailEdit() {
 
   const maxMb  = watch('maxMb')
   const groupId = watch('groupId')
+
+  const selectedGroup = groups.find(g => g.id === groupId)
+  const groupTo  = selectedGroup?.addresses ?? []
+  const groupCc  = selectedGroup?.cc_addresses ?? []
+  const groupBcc = selectedGroup?.bcc_addresses ?? []
+  const showTo  = !(groupId && groupTo.length  > 0)
+  const showCc  = !(groupId && groupCc.length  > 0)
+  const showBcc = !(groupId && groupBcc.length > 0)
+  const groupSuppliesAny = !!groupId && (groupTo.length > 0 || groupCc.length > 0 || groupBcc.length > 0)
 
   useEffect(() => {
     if (existing) reset({
@@ -137,6 +143,12 @@ export default function EmailEdit() {
 
   const onSubmit = async (values: FormValues) => {
     setError('')
+    const group = groups.find(g => g.id === values.groupId)
+    const groupSuppliesTo = !!(values.groupId && group?.addresses?.length)
+    if (!groupSuppliesTo && values.to.length === 0) {
+      setFieldError('to', { message: 'Add at least one recipient address or select a group that provides To addresses' })
+      return
+    }
     try {
       const payload = {
         name: values.name, description: values.desc,
@@ -272,13 +284,22 @@ export default function EmailEdit() {
             <div className="card flex flex-col gap-3">
               <div className="text-xs font-semibold text-text-primary">Recipients</div>
               <div className="field">
-                <label htmlFor="email-recipient-group">Recipient group <span className="text-text-muted font-normal">(overrides To addresses)</span></label>
+                <label htmlFor="email-recipient-group">Recipient group <span className="text-text-muted font-normal">(To/CC/BCC set on the group override the matching field below)</span></label>
                 <select id="email-recipient-group" className="input" {...register('groupId')}>
                   <option value="">Use direct addresses</option>
-                  {groups.map(g => <option key={g.id} value={g.id}>{g.name} ({g.addresses.length} recipients)</option>)}
+                  {groups.map(g => <option key={g.id} value={g.id}>{g.name} ({g.addresses.length + g.cc_addresses.length + g.bcc_addresses.length} recipients)</option>)}
                 </select>
               </div>
-              {!groupId && (
+              {groupSuppliesAny && (
+                <p className="text-[11.5px] text-text-muted m-0">
+                  From group: {[
+                    groupTo.length  ? `To (${groupTo.length})`   : null,
+                    groupCc.length  ? `CC (${groupCc.length})`   : null,
+                    groupBcc.length ? `BCC (${groupBcc.length})` : null,
+                  ].filter(Boolean).join(', ')}
+                </p>
+              )}
+              {showTo && (
                 <div className="field">
                   <label htmlFor="email-to-addresses">To addresses <span className="text-text-muted font-normal">(Enter or comma to add)</span></label>
                   <Controller
@@ -291,22 +312,29 @@ export default function EmailEdit() {
                   {errors.to && <span className="text-[11.5px] text-failure">{errors.to.message}</span>}
                 </div>
               )}
-              <div className="field">
-                <label htmlFor="ec-cc">CC</label>
-                <Controller
-                  control={control}
-                  name="cc"
-                  render={({ field }) => <ChipInput id="ec-cc" values={field.value} onChange={field.onChange} placeholder="cc@example.com" />}
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="ec-bcc">BCC</label>
-                <Controller
-                  control={control}
-                  name="bcc"
-                  render={({ field }) => <ChipInput id="ec-bcc" values={field.value} onChange={field.onChange} placeholder="bcc@example.com" />}
-                />
-              </div>
+              {showCc && (
+                <div className="field">
+                  <label htmlFor="ec-cc">CC</label>
+                  <Controller
+                    control={control}
+                    name="cc"
+                    render={({ field }) => <ChipInput id="ec-cc" values={field.value} onChange={field.onChange} placeholder="cc@example.com" />}
+                  />
+                </div>
+              )}
+              {showBcc && (
+                <div className="field">
+                  <label htmlFor="ec-bcc">BCC</label>
+                  <Controller
+                    control={control}
+                    name="bcc"
+                    render={({ field }) => <ChipInput id="ec-bcc" values={field.value} onChange={field.onChange} placeholder="bcc@example.com" />}
+                  />
+                </div>
+              )}
+              {!showTo && !showCc && !showBcc && (
+                <p className="text-[11.5px] text-text-muted m-0">All recipients (To, CC, and BCC) come from the selected group.</p>
+              )}
             </div>
 
             {/* Body */}

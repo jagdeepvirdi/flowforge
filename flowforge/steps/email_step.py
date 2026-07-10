@@ -123,9 +123,7 @@ class EmailStep(BaseStep):
             warnings_out=upload_warnings,
         )
 
-        to = self._resolve_recipients(email_cfg)
-        cc  = email_cfg.get('cc_addresses') or []
-        bcc = email_cfg.get('bcc_addresses') or []
+        to, cc, bcc = self._resolve_recipients(email_cfg)
 
         subject = render_guarded(email_cfg.get('subject', ''), context, sink='email subject')
         body    = render_guarded(email_cfg.get('body_template', ''), context, sink='email body') + extra_body
@@ -181,14 +179,20 @@ class EmailStep(BaseStep):
         inline = self.config.get('inline_config', {})
         return inline, _build_inline_provider(inline)
 
-    def _resolve_recipients(self, email_cfg: dict) -> list[str]:
+    def _resolve_recipients(self, email_cfg: dict) -> tuple[list[str], list[str], list[str]]:
+        """Resolve (to, cc, bcc). A recipient group supplies a role only when it has
+        addresses for that role — any role the group leaves empty falls back to the
+        email config's own field, so a group can cover none, some, or all three."""
+        group = None
         group_id = email_cfg.get('recipient_group_id')
         if group_id:
             from flowforge.db.models import RecipientGroup, db
             group = db.session.get(RecipientGroup, group_id)
-            if group:
-                return list(group.addresses)
-        return list(email_cfg.get('to_addresses') or [])
+
+        to  = list(group.addresses)     if group and group.addresses     else list(email_cfg.get('to_addresses') or [])
+        cc  = list(group.cc_addresses)  if group and group.cc_addresses  else list(email_cfg.get('cc_addresses') or [])
+        bcc = list(group.bcc_addresses) if group and group.bcc_addresses else list(email_cfg.get('bcc_addresses') or [])
+        return to, cc, bcc
 
 
 def _build_inline_provider(email_cfg: dict):

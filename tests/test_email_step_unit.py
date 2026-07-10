@@ -267,11 +267,14 @@ class TestEmailStepRun:
         step = EmailStep.__new__(EmailStep)
         step.config = {}
         step.name = 'e'
-        cfg = {'to_addresses': ['direct@x.com']}
-        recipients = step._resolve_recipients(cfg)
-        assert recipients == ['direct@x.com']
+        cfg = {'to_addresses': ['direct@x.com'], 'cc_addresses': ['cc@x.com']}
+        to, cc, bcc = step._resolve_recipients(cfg)
+        assert to == ['direct@x.com']
+        assert cc == ['cc@x.com']
+        assert bcc == []
 
-    def test_resolve_recipients_uses_group(self):
+    def test_resolve_recipients_uses_group_for_to_only(self):
+        """Group supplies only To — CC/BCC still fall back to the email config."""
         from flowforge.steps.email_step import EmailStep
         step = EmailStep.__new__(EmailStep)
         step.config = {}
@@ -279,13 +282,46 @@ class TestEmailStepRun:
 
         mock_group = MagicMock()
         mock_group.addresses = ['a@team.com', 'b@team.com']
+        mock_group.cc_addresses = []
+        mock_group.bcc_addresses = []
         mock_db = MagicMock()
         mock_db.session.get.return_value = mock_group
 
         with patch('flowforge.db.models.db', mock_db):
-            recipients = step._resolve_recipients({'recipient_group_id': 'group-uuid'})
+            to, cc, bcc = step._resolve_recipients({
+                'recipient_group_id': 'group-uuid',
+                'cc_addresses': ['template-cc@x.com'],
+            })
 
-        assert recipients == ['a@team.com', 'b@team.com']
+        assert to == ['a@team.com', 'b@team.com']
+        assert cc == ['template-cc@x.com']
+        assert bcc == []
+
+    def test_resolve_recipients_group_supplies_all_three(self):
+        """Group with To, CC, and BCC overrides the email config's own fields entirely."""
+        from flowforge.steps.email_step import EmailStep
+        step = EmailStep.__new__(EmailStep)
+        step.config = {}
+        step.name = 'e'
+
+        mock_group = MagicMock()
+        mock_group.addresses = ['a@team.com']
+        mock_group.cc_addresses = ['cc@team.com']
+        mock_group.bcc_addresses = ['bcc@team.com']
+        mock_db = MagicMock()
+        mock_db.session.get.return_value = mock_group
+
+        with patch('flowforge.db.models.db', mock_db):
+            to, cc, bcc = step._resolve_recipients({
+                'recipient_group_id': 'group-uuid',
+                'to_addresses': ['ignored@x.com'],
+                'cc_addresses': ['ignored-cc@x.com'],
+                'bcc_addresses': ['ignored-bcc@x.com'],
+            })
+
+        assert to == ['a@team.com']
+        assert cc == ['cc@team.com']
+        assert bcc == ['bcc@team.com']
 
     def test_resolve_recipients_group_not_found_falls_back(self):
         from flowforge.steps.email_step import EmailStep
@@ -297,12 +333,14 @@ class TestEmailStepRun:
         mock_db.session.get.return_value = None
 
         with patch('flowforge.db.models.db', mock_db):
-            recipients = step._resolve_recipients({
+            to, cc, bcc = step._resolve_recipients({
                 'recipient_group_id': 'missing',
                 'to_addresses': ['fallback@x.com'],
             })
 
-        assert recipients == ['fallback@x.com']
+        assert to == ['fallback@x.com']
+        assert cc == []
+        assert bcc == []
 
 
 class TestEmailStepLoadConfig:

@@ -32,7 +32,7 @@ export const INTRO_CARDS: Record<string, IntroCard> = {
   },
   recipients: {
     title: 'What are recipient groups?',
-    body:  'Recipient groups are named lists of email addresses — "Finance Team", "Management", "All Staff". Assign a group to an email config instead of typing addresses every time. Groups can be shared across many email configs.',
+    body:  'Recipient groups are named lists of email addresses — "Finance Team", "Management", "All Staff". A group can define To, CC, and BCC addresses. Assign a group to an email config instead of typing addresses every time — whichever roles (To/CC/BCC) the group defines override that same field on the email template; any role the group leaves empty still comes from the template. Groups can be shared across many email configs.',
   },
   runs: {
     title: 'Run history',
@@ -57,7 +57,7 @@ export const GLOSSARY: GlossaryEntry[] = [
   { term: 'Report Config',   def: 'Stores a SQL query + output format (Excel/PDF/CSV). Referenced by report steps.',                                                       where: 'Reports page' },
   { term: 'Email Config',    def: 'Stores subject, body template, recipients, and smart-attachment settings. Referenced by email steps.',                                   where: 'Emails page' },
   { term: 'Email Provider',  def: 'Gmail, Microsoft 365, or SMTP credentials used to actually send mail. One config can be shared across many email configs.',             where: 'Connections page' },
-  { term: 'Recipient Group', def: 'A named list of email addresses. Assign to an email config so you don\'t type addresses every time.',                                   where: 'Recipients page' },
+  { term: 'Recipient Group', def: 'A named list of To/CC/BCC email addresses. Assign to an email config so you don\'t type addresses every time; whichever roles the group defines override that field on the template.', where: 'Recipient Groups page' },
   { term: 'Smart Attachment',def: 'If a report file exceeds the size threshold, FlowForge uploads it to Google Drive and puts a link in the email instead of attaching.',  where: 'Email config → Smart Attachment' },
   { term: 'Run',             def: 'One execution of a pipeline — has a status (running / success / failed / cancelled) and a full step-by-step log.',                      where: 'Run History page' },
   { term: 'Step Run',        def: 'The record of one step within a run — includes duration, rows affected, output path, and error message.',                               where: 'Run Detail page' },
@@ -198,7 +198,7 @@ export const PROVIDER_SETUP_GUIDES: Record<string, ProviderSetupGuide> = {
 
   microsoft365: {
     title:   'Microsoft 365 Setup',
-    docPath: 'email-providers.md',
+    docPath: 'microsoft365-oauth2-setup.md',
     intro:   'FlowForge sends mail via the Microsoft Graph API using an Azure AD app registration with client credentials (no user login required).',
     steps: [
       {

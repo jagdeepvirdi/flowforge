@@ -10,7 +10,7 @@ import Spinner from '../components/shared/Spinner'
 import PageIntro from '../components/shared/PageIntro'
 import Sk from '../components/shared/Skeleton'
 
-function ChipInput({ values, onChange, id }: { values: string[]; onChange: (v: string[]) => void; id?: string }) {
+function ChipInput({ values, onChange, id, placeholder }: { values: string[]; onChange: (v: string[]) => void; id?: string; placeholder?: string }) {
   const [input, setInput] = useState('')
   const add = () => {
     const v = input.trim()
@@ -27,18 +27,29 @@ function ChipInput({ values, onChange, id }: { values: string[]; onChange: (v: s
       <input id={id} className="flex-1 bg-transparent outline-none text-sm min-w-40"
         value={input} onChange={e => setInput(e.target.value)}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add() } }}
-        onBlur={add} placeholder={values.length === 0 ? 'email@example.com, …' : ''}/>
+        onBlur={add} placeholder={values.length === 0 ? (placeholder ?? 'email@example.com, …') : ''}/>
+    </div>
+  )
+}
+
+function AddressChips({ values }: { values: string[] }) {
+  if (values.length === 0) return <span className="text-text-dim text-[11px]">—</span>
+  return (
+    <div className="flex flex-wrap gap-1">
+      {values.map(a => <span key={a} className="chip h-5 text-[11px]">{a}</span>)}
     </div>
   )
 }
 
 function GroupRow({ group, onSaved, onDelete, canEdit }: { group: RecipientGroup; onSaved: () => void; onDelete: () => void; canEdit: boolean }) {
-  const [editing, setEditing] = useState(false)
-  const [name, setName]       = useState(group.name)
-  const [desc, setDesc]       = useState(group.description)
-  const [addresses, setAddresses] = useState(group.addresses)
+  const [editing, setEditing]   = useState(false)
+  const [name, setName]         = useState(group.name)
+  const [desc, setDesc]         = useState(group.description)
+  const [addresses, setAddresses]     = useState(group.addresses)
+  const [ccAddresses, setCcAddresses]   = useState(group.cc_addresses)
+  const [bccAddresses, setBccAddresses] = useState(group.bcc_addresses)
   const { mutate: save, isPending } = useMutation({
-    mutationFn: () => updateRecipientGroup(group.id, { name, description: desc, addresses }),
+    mutationFn: () => updateRecipientGroup(group.id, { name, description: desc, addresses, cc_addresses: ccAddresses, bcc_addresses: bccAddresses }),
     onSuccess: () => { setEditing(false); onSaved() },
   })
 
@@ -47,11 +58,9 @@ function GroupRow({ group, onSaved, onDelete, canEdit }: { group: RecipientGroup
       <tr>
         <td className="font-medium text-text-primary">{group.name}</td>
         <td className="text-text-3 text-xs">{group.description}</td>
-        <td>
-          <div className="flex flex-wrap gap-1">
-            {group.addresses.map(a => <span key={a} className="chip h-5 text-[11px]">{a}</span>)}
-          </div>
-        </td>
+        <td><AddressChips values={group.addresses} /></td>
+        <td><AddressChips values={group.cc_addresses} /></td>
+        <td><AddressChips values={group.bcc_addresses} /></td>
         {canEdit && (
           <td>
             <div className="flex gap-1 justify-end">
@@ -68,7 +77,9 @@ function GroupRow({ group, onSaved, onDelete, canEdit }: { group: RecipientGroup
     <tr>
       <td><input className="input h-8" value={name} onChange={e => setName(e.target.value)} /></td>
       <td><input className="input h-8" value={desc} onChange={e => setDesc(e.target.value)} /></td>
-      <td><ChipInput values={addresses} onChange={setAddresses} /></td>
+      <td><ChipInput values={addresses} onChange={setAddresses} placeholder="To…" /></td>
+      <td><ChipInput values={ccAddresses} onChange={setCcAddresses} placeholder="CC…" /></td>
+      <td><ChipInput values={bccAddresses} onChange={setBccAddresses} placeholder="BCC…" /></td>
       <td>
         <div className="flex gap-1 justify-end">
           <button className="btn btn-sm btn-ghost btn-icon text-success-text" onClick={() => save()} disabled={isPending}>
@@ -90,20 +101,30 @@ export default function Recipients() {
     queryKey: ['recipient-groups', activeProjectId],
     queryFn: () => getRecipientGroups(activeProjectId ? { project_id: activeProjectId } : undefined),
   })
-  const [showNew, setShowNew]   = useState(false)
-  const [newName, setNewName]   = useState('')
-  const [newDesc, setNewDesc]   = useState('')
-  const [newAddrs, setNewAddrs] = useState<string[]>([])
+  const [showNew, setShowNew]       = useState(false)
+  const [newName, setNewName]       = useState('')
+  const [newDesc, setNewDesc]       = useState('')
+  const [newAddrs, setNewAddrs]     = useState<string[]>([])
+  const [newCc, setNewCc]           = useState<string[]>([])
+  const [newBcc, setNewBcc]         = useState<string[]>([])
 
   const { mutate: remove }   = useMutation({ mutationFn: deleteRecipientGroup, onSuccess: () => qc.invalidateQueries({ queryKey: ['recipient-groups'] }) })
   const { mutate: add, isPending } = useMutation({
-    mutationFn: () => createRecipientGroup({ name: newName, description: newDesc, addresses: newAddrs, project_id: activeProjectId ?? undefined }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['recipient-groups'] }); setShowNew(false); setNewName(''); setNewDesc(''); setNewAddrs([]) },
+    mutationFn: () => createRecipientGroup({
+      name: newName, description: newDesc,
+      addresses: newAddrs, cc_addresses: newCc, bcc_addresses: newBcc,
+      project_id: activeProjectId ?? undefined,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['recipient-groups'] })
+      setShowNew(false); setNewName(''); setNewDesc(''); setNewAddrs([]); setNewCc([]); setNewBcc([])
+    },
   })
+  const canCreate = !!newName && (newAddrs.length > 0 || newCc.length > 0 || newBcc.length > 0)
 
   if (isLoading) return (
     <>
-      <TopBar crumbs={['Workspace', 'Recipients']} />
+      <TopBar crumbs={['Workspace', 'Recipient Groups']} />
       <div className="scroll">
         <div className="page-h">
           <div className="flex flex-col gap-2">
@@ -117,7 +138,9 @@ export default function Recipients() {
               <tr>
                 <th>Name</th>
                 <th>Description</th>
-                <th>Addresses</th>
+                <th>To</th>
+                <th>CC</th>
+                <th>BCC</th>
                 <th className="w-20" />
               </tr>
             </thead>
@@ -127,6 +150,8 @@ export default function Recipients() {
                   <td><Sk h={14} style={{ width: '50%' }} /></td>
                   <td><Sk h={12} style={{ width: '60%' }} /></td>
                   <td><Sk h={12} style={{ width: '75%' }} /></td>
+                  <td><Sk h={12} style={{ width: '50%' }} /></td>
+                  <td><Sk h={12} style={{ width: '50%' }} /></td>
                   <td><Sk h={24} r={4} style={{ width: 50, marginLeft: 'auto' }} /></td>
                 </tr>
               ))}
@@ -140,7 +165,7 @@ export default function Recipients() {
   return (
     <>
       <TopBar
-        crumbs={['Workspace', 'Recipients']}
+        crumbs={['Workspace', 'Recipient Groups']}
         helpTopic="recipients"
         actions={canEdit ? <button className="btn btn-primary btn-sm" onClick={() => setShowNew(true)}><Plus size={13} /> New Group</button> : undefined}
       />
@@ -160,9 +185,22 @@ export default function Recipients() {
               <div className="field"><label htmlFor="rg-name">Name *</label><input id="rg-name" className="input" value={newName} onChange={e => setNewName(e.target.value)} /></div>
               <div className="field"><label htmlFor="rg-desc">Description</label><input id="rg-desc" className="input" value={newDesc} onChange={e => setNewDesc(e.target.value)} /></div>
             </div>
-            <div className="field"><label htmlFor="rg-addresses">Email addresses</label><ChipInput id="rg-addresses" values={newAddrs} onChange={setNewAddrs} /></div>
+            <div className="field">
+              <label htmlFor="rg-addresses">To addresses <span className="text-text-muted font-normal">(overrides the email template's To field when this group is selected)</span></label>
+              <ChipInput id="rg-addresses" values={newAddrs} onChange={setNewAddrs} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="field">
+                <label htmlFor="rg-cc">CC addresses <span className="text-text-muted font-normal">(optional — overrides template CC)</span></label>
+                <ChipInput id="rg-cc" values={newCc} onChange={setNewCc} />
+              </div>
+              <div className="field">
+                <label htmlFor="rg-bcc">BCC addresses <span className="text-text-muted font-normal">(optional — overrides template BCC)</span></label>
+                <ChipInput id="rg-bcc" values={newBcc} onChange={setNewBcc} />
+              </div>
+            </div>
             <div className="flex gap-2">
-              <button className="btn btn-primary btn-sm" onClick={() => add()} disabled={isPending || !newName}>
+              <button className="btn btn-primary btn-sm" onClick={() => add()} disabled={isPending || !canCreate}>
                 {isPending ? <Spinner size={12} /> : null} Create
               </button>
               <button className="btn btn-sm" onClick={() => setShowNew(false)}>Cancel</button>
@@ -176,12 +214,14 @@ export default function Recipients() {
               <tr>
                 <th>Name</th>
                 <th>Description</th>
-                <th>Addresses</th>
+                <th>To</th>
+                <th>CC</th>
+                <th>BCC</th>
                 <th className="w-20" />
               </tr>
             </thead>
             <tbody>
-              {groups.length === 0 && <tr><td colSpan={4} className="text-center py-10 px-0 text-text-muted">No recipient groups yet. Create a named list of addresses — "Finance Team", "Management" — and assign it to an email config.</td></tr>}
+              {groups.length === 0 && <tr><td colSpan={6} className="text-center py-10 px-0 text-text-muted">No recipient groups yet. Create a named list of To/CC/BCC addresses — "Finance Team", "Management" — and assign it to an email config.</td></tr>}
               {groups.map(g => <GroupRow key={g.id} group={g} canEdit={canEdit} onSaved={() => qc.invalidateQueries({ queryKey: ['recipient-groups'] })} onDelete={() => remove(g.id)} />)}
             </tbody>
           </table>

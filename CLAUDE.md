@@ -157,11 +157,15 @@ CREATE TABLE email_configs (
 );
 
 -- Recipient groups (reusable across email configs)
+-- `addresses` is the group's To list from the original design; `cc_addresses`/`bcc_addresses`
+-- have since shipped so a group can also supply CC/BCC — see docs/step-types.md's `email` step.
 CREATE TABLE recipient_groups (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name            VARCHAR(100) NOT NULL,           -- "Finance Team", "Management"
     description     TEXT,
-    addresses       TEXT[] NOT NULL,
+    addresses       TEXT[] NOT NULL,                 -- To
+    cc_addresses    TEXT[],
+    bcc_addresses   TEXT[],
     created_at      TIMESTAMP DEFAULT NOW()
 );
 

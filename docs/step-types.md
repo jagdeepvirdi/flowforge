@@ -131,10 +131,10 @@ The email config (stored in `email_configs` table) contains:
 | `from_name` | Display name in the From field |
 | `subject` | Supports `{{ variables }}` |
 | `body_template` | HTML + Jinja2 template |
-| `recipient_group_id` | Recipient group, or use `to_addresses` directly |
-| `to_addresses` | Direct list of recipient emails |
-| `cc_addresses` | CC list |
-| `bcc_addresses` | BCC list |
+| `recipient_group_id` | Recipient group, or use `to_addresses` directly. A recipient group can define its own To/CC/BCC lists — whichever role(s) the group defines override the matching field below; roles the group leaves empty still come from the fields below |
+| `to_addresses` | Direct list of recipient emails (ignored if the recipient group defines To) |
+| `cc_addresses` | CC list (ignored if the recipient group defines CC) |
+| `bcc_addresses` | BCC list (ignored if the recipient group defines BCC) |
 | `attachment_max_mb` | Smart attachment threshold (default: 10 MB) |
 | `drive_folder_id` | Drive folder for large-file uploads |
 | `drive_share_message` | Jinja2 template for the Drive link message |

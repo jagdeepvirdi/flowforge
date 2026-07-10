@@ -317,7 +317,7 @@ function ProjectCard({ project, onEdit, onManageMembers }: { project: Project; o
             ['Pipelines', counts.pipelines],
             ['Reports', counts.reports],
             ['Emails', counts.emails],
-            ['Recipients', counts.recipients],
+            ['Recipient Groups', counts.recipients],
           ].map(([label, n]) => (
             <div key={String(label)}>
               <div className="text-base font-semibold font-mono text-text-primary">{n}</div>

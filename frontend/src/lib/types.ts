@@ -276,6 +276,8 @@ export interface RecipientGroup {
   name: string
   description: string
   addresses: string[]
+  cc_addresses: string[]
+  bcc_addresses: string[]
   project_id: string | null
   created_at: string
 }
