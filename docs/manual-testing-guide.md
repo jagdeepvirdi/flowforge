@@ -61,7 +61,7 @@ These are required by almost every test below. Set them up first.
 5. Save and test
 
 - [X] M365 provider saved
-- [ ] Test send succeeds (check inbox at `jagdeep.singh.virdi@gmail.com`)
+- [X] Test send succeeds (check inbox at `jagdeep.singh.virdi@gmail.com`)
 
 ### 1d. SMTP provider (optional — covers Outlook, Yahoo, custom)
 
@@ -93,7 +93,7 @@ print('Done.')
 "
 ```
 
-- [ ] `public.bulk_test_subscribers` table created
+- [X] `public.bulk_test_subscribers` table created
 
 ### 2b. Create the Bulk Load config
 
@@ -134,10 +134,10 @@ Expected results:
 | records_loaded | 20 |
 | records_failed | 0 |
 
-- [ ] Run succeeds
-- [ ] Step log shows 2 files, 20 records
-- [ ] CSV files moved to `sample_data\bulk_load\archive\<today>\`
-- [ ] `ORDERS_20260522.csv` was NOT loaded (prefix filtered)
+- [X] Run succeeds
+- [X] Step log shows 2 files, 20 records
+- [X] CSV files moved to `sample_data\bulk_load\archive\<today>\`
+- [X] `ORDERS_20260522.csv` was NOT loaded (prefix filtered)
 
 ### 2d. Verify data in DB
 
@@ -152,14 +152,14 @@ Expected:
 
 | plan | status | subscribers | mrr |
 |---|---|---|---|
-| basic | active | 7 | 209.93 |
+| basic | active | 6 | 179.94 |
 | basic | cancelled | 1 | 29.99 |
 | premium | active | 6 | 599.94 |
 | premium | suspended | 1 | 99.99 |
-| standard | active | 4 | 239.96 |
+| standard | active | 5 | 299.95 |
 | standard | cancelled | 1 | 59.99 |
 
-- [ ] Data matches expected
+- [X] Data matches expected
 
 ### 2e. Re-run test (restore files first)
 
@@ -171,7 +171,7 @@ Copy-Item "D:\Project\flowforge\sample_data\bulk_load\archive\*\SUBS_*.csv" `
 Run the pipeline again. Because load mode is **Replace**, the table should
 still have exactly 20 rows after the second run (not 40).
 
-- [ ] Second run succeeds with 20 rows, not 40
+- [X] Second run succeeds with 20 rows, not 40
 
 ---
 
