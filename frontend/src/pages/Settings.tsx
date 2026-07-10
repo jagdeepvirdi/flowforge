@@ -159,7 +159,7 @@ function Microsoft365Card({ status, isLoading }: { status: SetupStatus | undefin
         and admin consent. You will need your Tenant ID, Client ID, and Client Secret from the Azure portal.
       </p>
       <CodeBlock>flowforge setup microsoft365</CodeBlock>
-      <a href="/api/docs/email-providers.md" target="_blank" rel="noreferrer"
+      <a href="/api/docs/microsoft365-oauth2-setup.md" target="_blank" rel="noreferrer"
         className="text-xs text-accent-text no-underline inline-flex items-center gap-[5px] hover:underline">
         Step-by-step Microsoft 365 setup guide <ExternalLink size={11} />
       </a>
@@ -269,6 +269,7 @@ function DocsCard() {
         ['Step Types Reference',     '/api/docs/step-types.md'],
         ['Email Providers (all)',    '/api/docs/email-providers.md'],
         ['Gmail OAuth2 Setup',       '/api/docs/gmail-oauth2-setup.md'],
+        ['Microsoft 365 Setup',      '/api/docs/microsoft365-oauth2-setup.md'],
       ] as [string, string][]).map(([label, href]) => (
         <a key={href} href={href} target="_blank" rel="noreferrer"
           className="text-accent-text text-[13px] no-underline inline-flex items-center gap-1.5 hover:underline">

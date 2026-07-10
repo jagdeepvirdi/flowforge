@@ -145,7 +145,7 @@ to act on them.*
 | Risk | Mitigation |
 |---|---|
 | ~~cx_Oracle requires Oracle Instant Client~~ | ✅ Migrated to `python-oracledb` (thin mode, pure Python) |
-| M365 requires Azure AD app registration | Step-by-step guide in `docs/email-providers.md`; `flowforge setup microsoft365` wizard |
+| M365 requires Azure AD app registration | Step-by-step guide in `docs/microsoft365-oauth2-setup.md`; `flowforge setup microsoft365` wizard |
 | Gmail OAuth2 token expiry | Refresh token handling; re-auth wizard in Settings |
 | Drive folder ID opaque to users | Folder picker in frontend fetches Drive tree via API |
 | Smart attachment: Drive upload fails after report generated | Fallback: attach directly if Drive upload fails, log warning |

@@ -13,6 +13,7 @@ All documentation files in this directory and what they contain.
 | [step-types.md](step-types.md) | Complete config reference for every step type: `db_procedure`, `db_query`, `report`, `email`, `data_load`, `bulk_load`, `drive_upload`, `onedrive_upload`, `s3_upload`, `azure_blob_upload`, `ai_analyze`, `ssh_command`, `db_health_check`, `ssh_health_check`, `data_report`, `sftp_transfer`, `notification` — with JSONB examples, field tables, output variable docs, and full Jinja2 variable reference |
 | [email-providers.md](email-providers.md) | Setup guides for all three email providers: SMTP (with presets for Outlook, Yahoo, SendGrid), Microsoft 365 (Azure AD app registration + admin consent + token refresh), Gmail (OAuth2 via `flowforge setup gmail`) |
 | [gmail-oauth2-setup.md](gmail-oauth2-setup.md) | Step-by-step Gmail OAuth2 credential setup in Google Cloud Console — screenshots and common errors |
+| [microsoft365-oauth2-setup.md](microsoft365-oauth2-setup.md) | Step-by-step Microsoft 365 setup in Azure AD — app registration, API permissions, client secret, `.env` config, and common errors |
 | [running-the-server.md](running-the-server.md) | How to run FlowForge in dev and prod modes, manage the scheduler process, use `flowforge.ps1` / `flowforge.sh`, troubleshoot common startup errors |
 | [FAQ.md](FAQ.md) | Answers to specific "what is X" / "how does Y behave" questions not spelled out elsewhere — pipeline canvas, webhook triggers, upstream dependencies and cycle detection, etc. |
 
