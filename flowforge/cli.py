@@ -78,7 +78,7 @@ def run(pipeline_name: str, var: tuple[str, ...]):
             secret_var_keys=secret_keys,
         )
 
-        click.echo(f"\nStatus:       {'✓ SUCCESS' if result.success else '✗ FAILED'}")
+        click.echo(f"\nStatus:       {'SUCCESS' if result.success else 'FAILED'}")
         click.echo(f"Steps run:    {result.steps_run}")
         click.echo(f"Steps failed: {result.steps_failed}")
         if result.run_id:
@@ -130,9 +130,9 @@ def validate(pipeline_name: str):
 
         try:
             steps, _, _sk = load_pipeline(pipeline.id)
-            click.echo(f"✓ Pipeline '{pipeline_name}' loaded: {len(steps)} steps")
+            click.echo(f"OK: Pipeline '{pipeline_name}' loaded: {len(steps)} steps")
         except Exception as e:
-            click.echo(f"✗ Validation failed: {e}", err=True)
+            click.echo(f"ERROR: Validation failed: {e}", err=True)
             sys.exit(1)
 
 
