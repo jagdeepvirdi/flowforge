@@ -803,6 +803,32 @@ def test_bulkloadstep_per_file_exception_increments_files_failed(tmp_path):
     assert result.success is False
 
 
+# ─── BulkLoadStep.run — multi-file replace mode via postgres COPY path ───────
+
+def test_bulkloadstep_postgres_replace_mode_multi_file_truncates_once(tmp_path):
+    """Regression test: with db_type=postgresql and load_mode=replace, only the
+    first of multiple files in one run should TRUNCATE — otherwise file 2's
+    TRUNCATE wipes out file 1's just-inserted rows (the bug this fixes)."""
+    from flowforge.steps.bulk_load import BulkLoadStep
+    _write_csv(tmp_path / 'a.csv', [['1', 'Alice']], header=['id', 'name'])
+    _write_csv(tmp_path / 'b.csv', [['2', 'Bob']], header=['id', 'name'])
+    cfg = _base_cfg(str(tmp_path))
+    cfg['load_mode'] = 'replace'
+
+    conn, cur = _mock_db_conn()
+    cur.rowcount = 1
+    with patch('flowforge.steps.bulk_load._resolve_connection', return_value=_pg_conn_cfg()), \
+         patch('flowforge.steps.bulk_load._open_raw_connection', return_value=conn):
+        result = BulkLoadStep('bulk', cfg).run({})
+
+    execute_sqls = [c[0][0] for c in cur.execute.call_args_list]
+    truncate_calls = [sql for sql in execute_sqls if 'TRUNCATE' in sql]
+    assert len(truncate_calls) == 1, f'expected exactly one TRUNCATE across the run, got {len(truncate_calls)}'
+    assert cur.copy_expert.call_count == 2, 'both files should have attempted a COPY'
+    assert result.success is True
+    assert result.records_loaded == 2
+
+
 # ─── _open_raw_connection — PostgreSQL path ───────────────────────────────────
 
 def test_open_raw_conn_postgresql_calls_psycopg2_connect():

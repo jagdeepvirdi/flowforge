@@ -198,12 +198,16 @@ class BulkLoadStep(BaseStep):
         files_loaded = files_failed = total_records_loaded = total_records_failed = 0
         log_lines: list[str] = []
 
-        for file_path in files:
+        for idx, file_path in enumerate(files):
+            # 'replace' truncates the target table — only the first file in this run
+            # should trigger that. Without this, each subsequent file's truncate
+            # would wipe out the rows the previous file in the same run just inserted.
+            effective_load_mode = cfg['load_mode'] if idx == 0 else 'append'
             try:
                 loaded, failed, file_log = _dispatch_single_file(
                     db_type, cfg['use_sqlloader'], conn_cfg, file_path,
                     cfg['delimiter'], cfg['header_rows'], cfg['footer_rows'],
-                    cfg['target_table'], cfg['load_mode'], cfg['column_mapping'],
+                    cfg['target_table'], effective_load_mode, cfg['column_mapping'],
                 )
                 total_records_loaded += loaded
                 total_records_failed += failed

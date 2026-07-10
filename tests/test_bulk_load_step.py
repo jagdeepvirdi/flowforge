@@ -267,6 +267,86 @@ def test_python_fallback_append_mode_no_truncate(tmp_path):
     assert not any('TRUNCATE' in sql for sql in execute_sqls)
 
 
+# ─── Multi-file replace mode (regression: truncate must only fire once) ──────
+
+def test_replace_mode_truncates_once_across_multiple_files(tmp_path):
+    """Each file's own 'replace' truncate must not wipe out rows the previous
+    file in the *same run* just inserted — only the first file should trigger
+    a TRUNCATE; every later file in that run must append instead."""
+    _write_csv(tmp_path / 'a.csv', [['Alice', '30']], header=['name', 'age'])
+    _write_csv(tmp_path / 'b.csv', [['Bob', '25']], header=['name', 'age'])
+
+    from flowforge.steps.bulk_load import BulkLoadStep
+    cfg = _base_cfg(str(tmp_path))
+    cfg['load_mode'] = 'replace'
+
+    conn, cur = _mock_db_conn()
+    with patch('flowforge.steps.bulk_load._resolve_connection', return_value=_pg_conn_cfg()), \
+         patch('flowforge.steps.bulk_load._open_raw_connection', return_value=conn):
+        result = BulkLoadStep('bulk', cfg).run({})
+
+    execute_sqls = [c[0][0] for c in cur.execute.call_args_list]
+    truncate_calls = [sql for sql in execute_sqls if 'TRUNCATE' in sql]
+    assert len(truncate_calls) == 1, f'expected exactly one TRUNCATE across the run, got {len(truncate_calls)}'
+    assert cur.executemany.call_count == 2, 'both files should have attempted an insert'
+    assert result.success is True
+    assert result.records_loaded == 2
+
+
+def test_effective_load_mode_only_replace_on_first_file(tmp_path):
+    """run() must pass the configured load_mode to only the first file and
+    force 'append' for every file after it in the same batch, regardless of
+    the configured mode — this is what stops file N's truncate from wiping
+    out file 1..N-1's inserts within the same run."""
+    _write_csv(tmp_path / 'a.csv', [['Alice']], header=['name'])
+    _write_csv(tmp_path / 'b.csv', [['Bob']], header=['name'])
+    _write_csv(tmp_path / 'c.csv', [['Carol']], header=['name'])
+
+    from flowforge.steps.bulk_load import BulkLoadStep
+    cfg = _base_cfg(str(tmp_path))
+    cfg['load_mode'] = 'replace'
+
+    seen_modes: list[str] = []
+
+    def _dispatch_side_effect(db_type, use_sqlloader, conn_cfg, file_path,
+                               delimiter, header_rows, footer_rows,
+                               target_table, load_mode, column_mapping):
+        seen_modes.append(load_mode)
+        return 1, 0, 'ok'
+
+    with patch('flowforge.steps.bulk_load._resolve_connection', return_value=_pg_conn_cfg()), \
+         patch('flowforge.steps.bulk_load._dispatch_single_file', side_effect=_dispatch_side_effect):
+        result = BulkLoadStep('bulk', cfg).run({})
+
+    assert seen_modes == ['replace', 'append', 'append']
+    assert result.success is True
+
+
+def test_effective_load_mode_unaffected_when_configured_append(tmp_path):
+    """Sanity check: when the configured mode is already 'append', every file
+    keeps seeing 'append' — the first-file special-case only matters for 'replace'."""
+    _write_csv(tmp_path / 'a.csv', [['Alice']], header=['name'])
+    _write_csv(tmp_path / 'b.csv', [['Bob']], header=['name'])
+
+    from flowforge.steps.bulk_load import BulkLoadStep
+    cfg = _base_cfg(str(tmp_path))
+    cfg['load_mode'] = 'append'
+
+    seen_modes: list[str] = []
+
+    def _dispatch_side_effect(db_type, use_sqlloader, conn_cfg, file_path,
+                               delimiter, header_rows, footer_rows,
+                               target_table, load_mode, column_mapping):
+        seen_modes.append(load_mode)
+        return 1, 0, 'ok'
+
+    with patch('flowforge.steps.bulk_load._resolve_connection', return_value=_pg_conn_cfg()), \
+         patch('flowforge.steps.bulk_load._dispatch_single_file', side_effect=_dispatch_side_effect):
+        BulkLoadStep('bulk', cfg).run({})
+
+    assert seen_modes == ['append', 'append']
+
+
 def test_python_fallback_uses_column_mapping(tmp_path):
     """Column mapping renames source header columns in the INSERT SQL."""
     _write_csv(tmp_path / 'data.csv', [['Alice', '30']], header=['FIRST_NAME', 'AGE'])

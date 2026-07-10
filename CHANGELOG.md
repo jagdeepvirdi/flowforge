@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — 2026-07-10
+
+- **`bulk_load` with `load_mode: replace` lost data when loading more than one file per run** — the `TRUNCATE` fired inside each file's load call rather than once per step run, so with N files in one run, file 2's truncate wiped out file 1's just-inserted rows, and so on; only the last file's rows survived even though the step reported success with the full `records_loaded` total summed across all files (each file's `TRUNCATE` + insert individually "succeeded", so nothing raised and every file was still archived). `BulkLoadStep.run()` now only passes the configured `load_mode` to the first file in the batch and forces `append` for every file after it in the same run, across all three load paths (PostgreSQL `COPY`, Oracle `SQL*Loader`, Python fallback) since the fix lives in the per-file dispatch loop, not the individual loaders. ([`flowforge/steps/bulk_load.py`](flowforge/steps/bulk_load.py))
+
 ### Added — 2026-07-09
 
 - **Visual pipeline canvas** — a react-flow + dagre graph view as an alternative to the linear step list in the pipeline editor, toggled via list/grid icons above the step list in `PipelineEdit.tsx`. Steps render as nodes laid out left-to-right in actual execution-wave order (steps sharing a `parallel_group` become one column) via [`frontend/src/lib/pipelineWaves.ts`](frontend/src/lib/pipelineWaves.ts), a faithful port of the runner's `_build_execution_waves` grouping algorithm — the canvas can't visually misrepresent execution order. Supports drag-to-reorder, drag-into/out-of a group column, click-to-edit via a side panel (reusing the existing `STEP_FORMS` registry), and add/duplicate/delete from the canvas. No backend or schema changes; this is Option A of TASKS.md Phase 14 — arbitrary step-to-step dependency edges (Option B) remain unbuilt. ([`frontend/src/components/pipeline/canvas/`](frontend/src/components/pipeline/canvas/), [`frontend/src/lib/pipelineReorder.ts`](frontend/src/lib/pipelineReorder.ts))
