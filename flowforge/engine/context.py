@@ -39,6 +39,7 @@ Built-in variables available in all config strings:
     {{ steps.name.* }}      outputs from a previous step
 """
 import calendar
+import html as _html
 import logging
 import os
 from datetime import date, datetime, timedelta
@@ -260,6 +261,23 @@ def render_guarded(template_str: str, context: dict[str, Any], *, sink: str = 't
             "pipeline. Pass secrets via db_procedure 'params' (bind variables) instead."
         )
     return _jinja.from_string(template_str).render(**context)
+
+
+def text_to_html(text: str) -> str:
+    """Convert a plain-text (Jinja2-rendered) email body into an HTML fragment.
+
+    Used for the "simple document" body format, where the user writes plain
+    text + Jinja2 and never touches HTML tags. Blank lines start a new <p>;
+    single newlines within a paragraph become <br>. All text is HTML-escaped
+    so the result is always a safe fragment, even if the rendered text
+    happens to contain characters like < or &.
+    """
+    paragraphs = text.replace('\r\n', '\n').split('\n\n')
+    html_paragraphs = [
+        f'<p>{_html.escape(para).replace(chr(10), "<br>" + chr(10))}</p>'
+        for para in paragraphs if para.strip()
+    ]
+    return '\n'.join(html_paragraphs)
 
 
 def render_sql(template_str: str, context: dict[str, Any]) -> str:

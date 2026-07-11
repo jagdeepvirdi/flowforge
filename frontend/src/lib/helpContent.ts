@@ -260,7 +260,7 @@ export const TOOLTIPS: Record<string, TooltipContent> = {
     example: 'Default: 10 MB\nSet to 0 to always attach directly (not recommended for large reports).',
   },
   body_template: {
-    text:    'HTML email body. Supports Jinja2 templating — use {{ variables }} anywhere.',
+    text:    'Email body. Supports Jinja2 templating — use {{ variables }} anywhere. Choose HTML for full markup control, or Simple document to write plain text that is auto-converted to HTML (blank lines become paragraphs, line breaks are preserved).',
     example: '<p>Hi,</p>\n<p>Please find the {{ current_month }} report below.</p>\n{% if drive_links %}\n  {{ drive_links[0].url }}\n{% endif %}',
   },
   on_error: {

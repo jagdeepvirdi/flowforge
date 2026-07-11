@@ -566,3 +566,36 @@ def test_render_guarded_allows_non_secret_vars():
     ctx['_secret_var_keys'] = set()
     result = render_guarded('Report for {{ report_month }}', ctx, sink='email body')
     assert 'Report for 2026-05' == result
+
+
+# ── text_to_html (simple document email body format) ──────────────────────────
+
+def test_text_to_html_single_paragraph():
+    from flowforge.engine.context import text_to_html
+    assert text_to_html('Hello there') == '<p>Hello there</p>'
+
+
+def test_text_to_html_blank_line_starts_new_paragraph():
+    from flowforge.engine.context import text_to_html
+    result = text_to_html('First paragraph.\n\nSecond paragraph.')
+    assert result == '<p>First paragraph.</p>\n<p>Second paragraph.</p>'
+
+
+def test_text_to_html_single_newline_becomes_br():
+    from flowforge.engine.context import text_to_html
+    result = text_to_html('Line one\nLine two')
+    assert result == '<p>Line one<br>\nLine two</p>'
+
+
+def test_text_to_html_escapes_special_characters():
+    from flowforge.engine.context import text_to_html
+    result = text_to_html('Tom & Jerry <script>alert(1)</script>')
+    assert '&amp;' in result
+    assert '&lt;script&gt;' in result
+    assert '<script>' not in result
+
+
+def test_text_to_html_skips_blank_paragraphs():
+    from flowforge.engine.context import text_to_html
+    result = text_to_html('First.\n\n\n\nSecond.')
+    assert result == '<p>First.</p>\n<p>Second.</p>'

@@ -40,6 +40,45 @@ function ChipInput({ id, values, onChange, placeholder }: { id?: string; values:
   )
 }
 
+// Mirrors flowforge.engine.context.text_to_html — used to convert the body in-place
+// when the user switches from Simple document to HTML, so what they see in the
+// textarea matches what will actually be sent.
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+}
+
+function textToHtml(text: string): string {
+  return text
+    .replace(/\r\n/g, '\n')
+    .split('\n\n')
+    .filter(p => p.trim())
+    .map(p => `<p>${escapeHtml(p).replace(/\n/g, '<br>\n')}</p>`)
+    .join('\n')
+}
+
+// Inverse of textToHtml — best-effort, so toggling HTML <-> Simple document back
+// and forth doesn't keep re-wrapping/re-escaping the body on every switch.
+function unescapeHtml(s: string): string {
+  return s
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&amp;/g, '&')
+}
+
+function htmlToText(html: string): string {
+  const withBreaks = html.replace(/<br\s*\/?>\n?/gi, '\n')
+  const withParagraphBreaks = withBreaks.replace(/<\/p>\s*\n?\s*<p>/gi, '\n\n')
+  const stripped = withParagraphBreaks.replace(/^<p>/i, '').replace(/<\/p>$/i, '')
+  return unescapeHtml(stripped)
+}
+
 const TEMPLATE_VARS = [
   '{{ current_month }}', '{{ current_date }}', '{{ current_year }}',
   '{{ yesterday }}', '{{ run_id }}', '{{ pipeline_name }}',
@@ -56,6 +95,7 @@ const schema = z.object({
   subject:    z.string().min(1, 'Subject is required'),
   headerText: z.string(),
   body:       z.string(),
+  bodyFormat: z.enum(['html', 'text']),
   groupId:    z.string(),
   to:         z.array(z.string()),
   cc:         z.array(z.string()),
@@ -80,11 +120,11 @@ export default function EmailEdit() {
     queryFn: () => getRecipientGroups(activeProjectId ? { project_id: activeProjectId } : undefined),
   })
 
-  const { register, handleSubmit, control, watch, reset, setError: setFieldError, formState: { errors, isSubmitting } } = useForm<FormValues>({
+  const { register, handleSubmit, control, watch, setValue, getValues, reset, setError: setFieldError, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       name: '', desc: '', providerId: '', fromName: '',
-      subject: '', headerText: '', body: '',
+      subject: '', headerText: '', body: '', bodyFormat: 'html',
       groupId: '', to: [], cc: [], bcc: [],
       maxMb: 10, folderId: '', driveMsg: '',
     },
@@ -98,6 +138,7 @@ export default function EmailEdit() {
 
   const maxMb  = watch('maxMb')
   const groupId = watch('groupId')
+  const bodyFormat = watch('bodyFormat')
 
   const selectedGroup = groups.find(g => g.id === groupId)
   const groupTo  = selectedGroup?.addresses ?? []
@@ -117,6 +158,7 @@ export default function EmailEdit() {
       subject:    existing.subject,
       headerText: existing.header_text ?? '',
       body:       existing.body_template,
+      bodyFormat: existing.body_format ?? 'html',
       groupId:    existing.recipient_group_id ?? '',
       to:         existing.to_addresses,
       cc:         existing.cc_addresses,
@@ -157,6 +199,7 @@ export default function EmailEdit() {
         subject: values.subject,
         header_text: values.headerText || null,
         body_template: values.body,
+        body_format: values.bodyFormat,
         recipient_group_id: values.groupId || null,
         to_addresses: values.to, cc_addresses: values.cc, bcc_addresses: values.bcc,
         attachment_max_mb: values.maxMb,
@@ -339,12 +382,41 @@ export default function EmailEdit() {
 
             {/* Body */}
             <div className="card flex flex-col gap-3">
-              <div className="text-xs font-semibold text-text-primary flex items-center gap-1.5">Body template <span className="text-text-muted font-normal font-mono text-[11px]">HTML + Jinja2</span><FieldTooltip field="body_template" /></div>
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-semibold text-text-primary flex items-center gap-1.5">Body template<FieldTooltip field="body_template" /></div>
+                <div className="flex gap-1 bg-bg border border-border rounded-[7px] p-0.5">
+                  {(['html', 'text'] as const).map(f => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => {
+                        if (f !== bodyFormat) {
+                          const converted = f === 'html'
+                            ? textToHtml(getValues('body'))
+                            : htmlToText(getValues('body'))
+                          setValue('body', converted, { shouldDirty: true })
+                        }
+                        setValue('bodyFormat', f)
+                      }}
+                      className={`py-1 px-2.5 rounded-[5px] border-0 cursor-pointer font-[inherit] text-[11px] font-semibold ${bodyFormat === f ? 'bg-[rgba(249,115,22,0.12)] text-accent-hover' : 'bg-transparent text-text-3'}`}
+                    >
+                      {f === 'html' ? 'HTML' : 'Simple document'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-[11.5px] text-text-muted m-0 -mt-1.5">
+                {bodyFormat === 'html'
+                  ? 'Raw HTML + Jinja2 — full control over markup.'
+                  : 'Plain text + Jinja2 — no HTML needed. Blank lines become paragraphs, line breaks are preserved automatically.'}
+              </p>
               <textarea
                 className="input mono-input resize-y text-[12.5px] leading-[1.6] min-h-[420px]"
                 rows={28}
                 {...register('body')}
-                placeholder={"<p>Hi {{ name }},</p>\n<p>Please find the attached report.</p>"}
+                placeholder={bodyFormat === 'html'
+                  ? "<p>Hi {{ name }},</p>\n<p>Please find the attached report.</p>"
+                  : "Hi {{ name }},\n\nPlease find the attached report.\n\nThanks,\nThe Team"}
               />
             </div>
           </div>

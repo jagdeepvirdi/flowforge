@@ -150,3 +150,42 @@ def test_preview_invalid_template_returns_422(client, headers):
 def test_preview_requires_auth(client, email_id):
     resp = client.get(f'/api/email-configs/{email_id}/preview')
     assert resp.status_code == 401
+
+
+# ── body_format (simple document mode) ────────────────────────────────────────
+
+def test_create_email_config_defaults_to_html_format(client, headers, email_id):
+    resp = client.get(f'/api/email-configs/{email_id}', headers=headers)
+    assert resp.get_json()['body_format'] == 'html'
+
+
+def test_create_email_config_rejects_invalid_body_format(client, headers):
+    bad = {**EMAIL_PAYLOAD, 'body_format': 'markdown'}
+    resp = client.post('/api/email-configs', json=bad, headers=headers)
+    assert resp.status_code == 400
+
+
+def test_update_email_config_rejects_invalid_body_format(client, headers, email_id):
+    resp = client.put(f'/api/email-configs/{email_id}',
+                      json={'body_format': 'markdown'}, headers=headers)
+    assert resp.status_code == 400
+
+
+def test_preview_text_format_wraps_in_paragraphs(client, headers):
+    resp = client.post('/api/email-configs', json={
+        'name': '__text_format_preview__',
+        'subject': 'OK',
+        'body_template': 'Hi {{ pipeline_name }},\n\nSecond line.',
+        'body_format': 'text',
+    }, headers=headers)
+    assert resp.status_code == 201
+    eid = resp.get_json()['id']
+
+    try:
+        preview_resp = client.get(f'/api/email-configs/{eid}/preview', headers=headers)
+        assert preview_resp.status_code == 200
+        html = preview_resp.get_json()['html']
+        assert '<p>' in html
+        assert '{{' not in html
+    finally:
+        client.delete(f'/api/email-configs/{eid}', headers=headers)

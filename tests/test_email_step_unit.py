@@ -224,6 +224,29 @@ class TestEmailStepRun:
         mock_log.assert_called_once()
         assert mock_log.call_args.kwargs['run_id'] == 'run-999'
 
+    def test_run_text_format_converts_body_to_html(self):
+        mock_provider = MagicMock()
+        mock_provider.send.return_value = MagicMock(success=True, recipients=['a@b.com'])
+
+        step = self._make_step({
+            'inline_config': {
+                'provider_type': 'smtp',
+                'subject': 'Test',
+                'body_template': 'Hi there,\n\nSecond line.',
+                'body_format': 'text',
+                'to_addresses': ['a@b.com'],
+            },
+            'attachments': [],
+        })
+
+        with patch('flowforge.steps.email_step._build_inline_provider', return_value=mock_provider), \
+             patch('flowforge.audit.log_email_sent'):
+            result = step.run({'steps': {}})
+
+        assert result.success is True
+        sent_body = mock_provider.send.call_args.args[4]
+        assert sent_body == '<p>Hi there,</p>\n<p>Second line.</p>'
+
     def test_run_failure_provider_returns_error(self):
         mock_provider = MagicMock()
         mock_provider.send.return_value = MagicMock(success=False, error='auth failed')

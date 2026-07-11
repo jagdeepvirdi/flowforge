@@ -99,7 +99,7 @@ class EmailStep(BaseStep):
     step_type = 'email'
 
     def run(self, context: dict[str, Any]) -> StepResult:
-        from flowforge.engine.context import render, render_guarded
+        from flowforge.engine.context import render, render_guarded, text_to_html
 
         # Smart Alerting: suppress routine emails if send_only_on_failure is set and no failure occurred
         if context.get('pipeline_send_only_on_failure') == 'true':
@@ -126,7 +126,12 @@ class EmailStep(BaseStep):
         to, cc, bcc = self._resolve_recipients(email_cfg)
 
         subject = render_guarded(email_cfg.get('subject', ''), context, sink='email subject')
-        body    = render_guarded(email_cfg.get('body_template', ''), context, sink='email body') + extra_body
+        body    = render_guarded(email_cfg.get('body_template', ''), context, sink='email body')
+        if email_cfg.get('body_format') == 'text':
+            body = text_to_html(body)
+            if extra_body:
+                extra_body = text_to_html(extra_body)
+        body += extra_body
 
         try:
             result = provider.send(to, cc, bcc, subject, body, direct_attachments)
@@ -161,6 +166,7 @@ class EmailStep(BaseStep):
             cfg = {
                 'subject':             row.subject,
                 'body_template':       row.body_template,
+                'body_format':         row.body_format,
                 'to_addresses':        row.to_addresses or [],
                 'cc_addresses':        row.cc_addresses or [],
                 'bcc_addresses':       row.bcc_addresses or [],

@@ -204,6 +204,7 @@ export interface EmailConfig {
   subject: string
   header_text: string | null
   body_template: string
+  body_format: 'html' | 'text'
   recipient_group_id: string | null
   to_addresses: string[]
   cc_addresses: string[]

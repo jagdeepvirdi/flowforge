@@ -229,6 +229,7 @@ class EmailConfig(db.Model):
     subject             = Column(String(500), nullable=False)
     header_text         = Column(String(500))
     body_template       = Column(Text, nullable=False)
+    body_format         = Column(String(10), nullable=False, default='html')
     recipient_group_id  = Column(UUID(as_uuid=False), ForeignKey('ff_recipient_groups.id', ondelete=_SET_NULL))
     to_addresses        = Column(ARRAY(Text))
     cc_addresses        = Column(ARRAY(Text))

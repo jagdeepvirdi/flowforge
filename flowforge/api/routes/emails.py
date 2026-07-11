@@ -29,6 +29,7 @@ def _email_dict(e: EmailConfig) -> dict:
         'subject': e.subject,
         'header_text': e.header_text,
         'body_template': e.body_template,
+        'body_format': e.body_format,
         'recipient_group_id': e.recipient_group_id,
         'to_addresses': e.to_addresses or [],
         'cc_addresses': e.cc_addresses or [],
@@ -63,6 +64,8 @@ def create_email_config():
     missing = [f for f in required if not data.get(f)]
     if missing:
         return jsonify({'error': f'Missing required fields: {", ".join(missing)}'}), 400
+    if data.get('body_format', 'html') not in ('html', 'text'):
+        return jsonify({'error': 'body_format must be html or text'}), 400
     err = validate_email_config(data)
     if err:
         return jsonify({'error': err}), 400
@@ -79,6 +82,7 @@ def create_email_config():
         subject=data['subject'],
         header_text=data.get('header_text'),
         body_template=data['body_template'],
+        body_format=data.get('body_format', 'html'),
         recipient_group_id=data.get('recipient_group_id'),
         to_addresses=data.get('to_addresses', []),
         cc_addresses=data.get('cc_addresses', []),
@@ -115,6 +119,8 @@ def update_email_config(config_id):
         return jsonify(ACCESS_DENIED), 403
 
     data = request.get_json() or {}
+    if 'body_format' in data and data['body_format'] not in ('html', 'text'):
+        return jsonify({'error': 'body_format must be html or text'}), 400
     err = validate_email_config(data)
     if err:
         return jsonify({'error': err}), 400
@@ -122,7 +128,7 @@ def update_email_config(config_id):
         return jsonify(ACCESS_DENIED), 403
     fields = (
         'name', 'description', 'provider_id', 'from_name', 'subject', 'header_text',
-        'body_template', 'recipient_group_id', 'to_addresses', 'cc_addresses',
+        'body_template', 'body_format', 'recipient_group_id', 'to_addresses', 'cc_addresses',
         'bcc_addresses', 'attachment_max_mb', 'drive_folder_id', 'drive_share_message',
         'onedrive_folder_id', 'project_id',
     )
@@ -173,6 +179,7 @@ def clone_email_config(config_id):
         subject=src.subject,
         header_text=src.header_text,
         body_template=src.body_template,
+        body_format=src.body_format,
         recipient_group_id=src.recipient_group_id,
         to_addresses=list(src.to_addresses) if src.to_addresses else [],
         cc_addresses=list(src.cc_addresses) if src.cc_addresses else [],
@@ -197,7 +204,7 @@ def preview_email_config(config_id):
     if not can_access_project(config.project_id):
         return jsonify(ACCESS_DENIED), 403
 
-    from flowforge.engine.context import build, render
+    from flowforge.engine.context import build, render, text_to_html
     # Build context with sample step results so previews are more realistic
     sample_steps = {
         'report': {
@@ -223,6 +230,8 @@ def preview_email_config(config_id):
     try:
         rendered_subject = render(config.subject or '', ctx)
         rendered_html = render(config.body_template or '', ctx)
+        if config.body_format == 'text':
+            rendered_html = text_to_html(rendered_html)
     except Exception as e:
         return jsonify({'error': f'Template render error: {e}'}), 422
 
