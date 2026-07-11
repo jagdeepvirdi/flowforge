@@ -52,7 +52,7 @@ export default function StepEditor({ step, onChange, onDelete, onDuplicate, allS
           )}
 
           <input
-            className="bg-transparent border-none outline-none text-text-primary text-[13px] font-medium flex-1 font-[inherit] cursor-text"
+            className="bg-transparent border border-transparent rounded-input px-1.5 -mx-1.5 outline-none text-text-primary text-[13px] font-medium flex-1 font-[inherit] cursor-text transition-colors hover:bg-surface-hover hover:border-border focus:bg-surface2 focus:border-accent focus:shadow-[0_0_0_3px_var(--accent-soft)]"
             value={step.name}
             onChange={e => onChange(step.id, { name: e.target.value })}
             placeholder="Step name"

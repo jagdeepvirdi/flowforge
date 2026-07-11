@@ -1,4 +1,5 @@
 import { Plus, Trash2 } from 'lucide-react'
+import CollapsibleCard from '../shared/CollapsibleCard'
 
 export type PipelineVar = { key: string; value: string; is_secret: boolean }
 
@@ -17,19 +18,19 @@ export default function PipelineVariablesCard({ vars, setVars }: {
   }
 
   return (
-    <div className="card mb-4">
-      <div className="flex items-center justify-between mb-2.5">
-        <div>
-          <span className="text-xs font-semibold text-[var(--text)]">Pipeline Variables</span>
-          <span className="text-[11px] text-[var(--text-muted)] ml-2">
-            available as <code className="text-[11px] bg-[var(--surface)] p-[1px_5px] rounded-[3px]">{'{{ var_name }}'}</code> in all step configs
-          </span>
-        </div>
+    <CollapsibleCard
+      title="Pipeline Variables"
+      headerExtra={
+        <span className="text-[11px] text-[var(--text-muted)]">
+          available as <code className="text-[11px] bg-[var(--surface)] p-[1px_5px] rounded-[3px]">{'{{ var_name }}'}</code> in all step configs
+        </span>
+      }
+      actions={
         <button type="button" className="btn btn-sm" onClick={addVar}>
           <Plus size={10} /> Add variable
         </button>
-      </div>
-
+      }
+    >
       {vars.length === 0 ? (
         <p className="text-xs text-[var(--text-muted)] m-0">
           No variables. Add one to pass constants like currency codes, environment names, or date ranges to all steps.
@@ -79,6 +80,6 @@ export default function PipelineVariablesCard({ vars, setVars }: {
           </p>
         </div>
       )}
-    </div>
+    </CollapsibleCard>
   )
 }

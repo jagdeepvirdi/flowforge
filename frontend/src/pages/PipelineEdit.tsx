@@ -30,6 +30,7 @@ import TopBar from '../components/shared/TopBar'
 import Spinner from '../components/shared/Spinner'
 import Sk from '../components/shared/Skeleton'
 import RouteErrorBoundary from '../components/shared/RouteErrorBoundary'
+import CollapsibleCard from '../components/shared/CollapsibleCard'
 
 const STEP_TYPES: StepType[] = ['db_procedure', 'db_query', 'report', 'email', 'drive_upload', 'data_load', 'bulk_load', 'notification', 's3_upload', 'azure_blob_upload']
 
@@ -38,7 +39,7 @@ function newStep(type: StepType, order: number): PipelineStep {
     id: `_new_${Date.now()}`,
     pipeline_id: '',
     step_order: order,
-    name: `${type.replace('_', ' ')} step`,
+    name: `${type}_step`,
     step_type: type,
     config: {},
     on_error: 'stop',
@@ -288,8 +289,8 @@ function PipelineForm({
         )}
 
         {/* Basic info */}
-        <div className="card mb-4 flex flex-col gap-3">
-          <div className="text-xs font-semibold text-[var(--text)]">Details</div>
+        <CollapsibleCard title="Details">
+          <div className="flex flex-col gap-3 mt-2.5">
           <div className="field">
             <label htmlFor="pipeline-name">Name *</label>
             <input id="pipeline-name" className="input" data-testid="pipeline-name" value={name} onChange={e => { setName(e.target.value); if (fieldErrors.name) setFieldErrors(f => ({ ...f, name: '' })) }} />
@@ -314,7 +315,8 @@ function PipelineForm({
               <input className="input flex-1 h-[30px] p-[4px_8px] text-xs" type="url" placeholder="https://hooks.slack.com/…" value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} />
             </div>
           </div>
-        </div>
+          </div>
+        </CollapsibleCard>
 
         {/* Pipeline Variables */}
         <PipelineVariablesCard vars={vars} setVars={setVars} />

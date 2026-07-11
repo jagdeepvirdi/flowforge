@@ -1,5 +1,6 @@
 import Field from './Field'
 import type { StepFormProps } from './types'
+import { stepRef } from '../../../lib/stepRef'
 
 export default function EmailForm({ cfg, setConfig, step, allSteps, reportConfigs, emailConfigs }: StepFormProps) {
   const capturingSteps = allSteps.filter(
@@ -25,7 +26,7 @@ export default function EmailForm({ cfg, setConfig, step, allSteps, reportConfig
         <Field label="Query data — available in email body">
           <div className="flex flex-col gap-1.5">
             {capturingSteps.map(qs => {
-              const ref = qs.name.includes(' ') ? `steps['${qs.name}']` : `steps.${qs.name}`
+              const ref = stepRef(qs.name)
               const snippets: [string, string][] = [
                 [`{{ ${ref}.table_html }}`, 'HTML table (all rows)'],
                 [`{{ ${ref}.kv_html }}`, 'Key-value list (first row)'],

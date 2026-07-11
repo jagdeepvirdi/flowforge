@@ -1,5 +1,6 @@
 import Field from './Field'
 import type { StepFormProps } from './types'
+import { stepRef } from '../../../lib/stepRef'
 
 export default function DbQueryForm({ cfg, setConfig, step, dbConnections }: StepFormProps) {
   return (
@@ -54,7 +55,7 @@ export default function DbQueryForm({ cfg, setConfig, step, dbConnections }: Ste
           <span className="text-[11px] text-text-muted">
             Makes query results available in downstream email steps as{' '}
             <code className="text-text-3 font-mono">
-              {`{{ steps.${step.name || 'this_step'}.table_html }}`}
+              {`{{ ${stepRef(step.name)}.table_html }}`}
             </code>
           </span>
         </div>

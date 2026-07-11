@@ -4,6 +4,7 @@ import CronBuilder from './CronBuilder'
 import DependenciesCard from './DependenciesCard'
 import WebhookCard from './WebhookCard'
 import FieldTooltip from '../shared/FieldTooltip'
+import CollapsibleCard from '../shared/CollapsibleCard'
 import type { Pipeline, PipelineDep } from '../../lib/types'
 
 type Tab = 'schedule' | 'dependencies' | 'webhook'
@@ -34,9 +35,7 @@ export default function TriggersCard({
   const [tab, setTab] = useState<Tab>('schedule')
 
   return (
-    <div className="card mb-4">
-      <div className="text-xs font-semibold text-[var(--text)] mb-3">Triggers</div>
-
+    <CollapsibleCard title="Triggers">
       <div className="flex gap-px p-px bg-surface2 rounded-[7px] border border-border w-fit mb-3.5">
         {TABS.map(({ key, label, icon: Icon }) => (
           <button
@@ -85,6 +84,6 @@ export default function TriggersCard({
           </p>
         )
       )}
-    </div>
+    </CollapsibleCard>
   )
 }
