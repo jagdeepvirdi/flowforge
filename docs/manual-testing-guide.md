@@ -6,7 +6,7 @@ sections create the connections and configs that later sections depend on.
 
 Mark each checkbox as you complete it.
 
----
+------------------------------$
 
 ## Prerequisites
 
@@ -15,7 +15,7 @@ Mark each checkbox as you complete it.
 - Browser open at `http://localhost:5000`
 - Logged in as `admin`
 
----
+------------------------------$
 
 ## 1. Connections Setup
 
@@ -72,7 +72,7 @@ These are required by almost every test below. Set them up first.
 
 - [X] SMTP provider saved
 
----
+------------------------------$
 
 ## 2. Bulk Load
 
@@ -173,17 +173,35 @@ still have exactly 20 rows after the second run (not 40).
 
 - [X] Second run succeeds with 20 rows, not 40
 
----
+------------------------------$
 
 ## 3. DB Query Step
 
 ### 3a. Simple query — write to output table
 
-1. Create a pipeline: `Query Test`
-2. Add a **DB Query** step:
+Unlike Bulk Load's `create_if_missing`, `db_query`'s `output_table` requires
+the target table to already exist — `Replace`/`Truncate + Insert` only
+`TRUNCATE` it, and `Append` only `INSERT`s, so create it first:
+
+```sql
+DROP TABLE IF EXISTS public.subscriber_summary;
+
+CREATE TABLE public.subscriber_summary (
+    plan    VARCHAR(50),
+    status  VARCHAR(20),
+    cnt     INTEGER,
+    mrr     NUMERIC(10, 2)
+);
+```
+
+- [X] `public.subscriber_summary` table created
+
+1. Create a pipeline: `DB Query Test`
+2. Add a **DB Query** step named `plan_summary`:
 
    | Field | Value |
    |---|---|
+   | Step name | `plan_summary` |
    | Connection | `FlowForge DB` |
    | Query | `SELECT plan, status, COUNT(*) AS cnt, SUM(monthly_amount) AS mrr FROM public.bulk_test_subscribers GROUP BY plan, status ORDER BY plan, status` |
    | Output table | `public.subscriber_summary` |
@@ -191,20 +209,50 @@ still have exactly 20 rows after the second run (not 40).
 
 3. Run the pipeline
 
-- [ ] Step succeeds
-- [ ] `public.subscriber_summary` created and populated (6 rows)
+- [X] Step succeeds
+- [X] `public.subscriber_summary` populated (6 rows)
 
-### 3b. Query with Jinja2 variable
+### 3b. Query with Jinja2 variable + downstream email
+
+Reuses the `plan_summary` step from 3a. The query stays aggregated so it
+still fits `subscriber_summary`'s 4 columns (avoids the column-count
+mismatch a `SELECT *` against `bulk_test_subscribers` would hit), but is
+now filtered by a pipeline variable. A downstream email step makes the
+filtered result actually visible instead of only inferable from "no error" —
+`db_query` has no results preview of its own, and Run History only shows
+the row count.
 
 1. Add a pipeline variable: `target_plan = premium`
-2. Edit the query step to use it:
+2. Edit the `plan_summary` step's query:
    ```sql
-   SELECT * FROM public.bulk_test_subscribers
+   SELECT plan, status, COUNT(*) AS cnt, SUM(monthly_amount) AS mrr
+   FROM public.bulk_test_subscribers
    WHERE plan = '{{ target_plan }}'
+   GROUP BY plan, status
+   ORDER BY plan, status
    ```
-3. Run — should return only premium subscribers
+   Leave **Output table** (`public.subscriber_summary`) and **Mode**
+   (`Replace`) as-is.
+3. Tick **Capture rows for email**, set **Row limit** to `10`.
+4. Add an **Email** step after `plan_summary` (using your Gmail config).
+5. In the email body, add:
+   ```html
+   <p>Filtered summary for {{ target_plan }}:</p>
+   {{ steps.plan_summary.table_html }}
+   ```
+6. Run the pipeline.
 
-- [ ] Variable resolved correctly in SQL
+Expected rows (premium only):
+
+| plan | status | cnt | mrr |
+|---|---|---|---|
+| premium | active | 6 | 599.94 |
+| premium | suspended | 1 | 99.99 |
+
+- [X] Variable resolved correctly — query filtered to premium only
+- [X] `public.subscriber_summary` now holds 2 rows, not 6 — `Replace` mode
+      overwrote 3a's result
+- [ ] Email received with a table showing exactly those 2 rows
 
 ### 3c. Query → email with results (capture_rows)
 
@@ -284,7 +332,7 @@ in a sent email — without the user writing any raw Jinja2.
 - [ ] Email sent without error (body renders with empty strings where `table_html`/`kv_html` were)
 - [ ] "Query data" section disappears from the email step in Pipeline Builder
 
----
+------------------------------$
 
 ## 4. DB Procedure Step
 
@@ -326,7 +374,7 @@ Run the pipeline.
 
 - [ ] Oracle procedure executes successfully
 
----
+------------------------------$
 
 ## 5. Report Generation
 
@@ -362,7 +410,7 @@ Repeat 5a with format `PDF`.
 
 - [ ] PDF generated (or clear error if WeasyPrint not installed)
 
----
+------------------------------$
 
 ## 6. Email — Gmail
 
@@ -404,7 +452,7 @@ Repeat 5a with format `PDF`.
 
 - [ ] Reset max attachment size back to `10` MB after testing
 
----
+------------------------------$
 
 ## 7. Email — Microsoft 365
 
@@ -413,7 +461,7 @@ Repeat tests 6a and 6b using the M365 provider instead of Gmail.
 - [ ] Email received via M365
 - [ ] Attachment delivered correctly
 
----
+------------------------------$
 
 ## 8. Google Drive Upload
 
@@ -434,7 +482,7 @@ Repeat tests 6a and 6b using the M365 provider instead of Gmail.
 - [ ] File appears in Google Drive folder with correct name
 - [ ] `drive_url` visible in step run log
 
----
+------------------------------$
 
 ## 9. Data Load Step (data_load)
 
@@ -483,7 +531,7 @@ Repeat tests 6a and 6b using the M365 provider instead of Gmail.
 
 - [ ] `public.active_subscribers` created and populated with active subscribers only
 
----
+------------------------------$
 
 ## 10. Pipeline Variables
 
@@ -581,7 +629,7 @@ Also available: `{{ last_success_date }}` — same run, YYYY-MM-DD format.
 - [ ] Secret var shows `***` in the UI — plaintext never returned
 - [ ] Variable is still usable in step configs (resolved at runtime)
 
----
+------------------------------$
 
 ## 11. Data Load — create_if_missing
 
@@ -640,7 +688,7 @@ that doesn't exist yet (rename `target_table` to `public.dl_replace_test`).
 - [ ] Table auto-created AND truncated on first run
 - [ ] Second run: table truncated, same row count (not doubled)
 
----
+------------------------------$
 
 ## 12. Scheduling
 
@@ -652,7 +700,7 @@ that doesn't exist yet (rename `target_table` to `public.dl_replace_test`).
 - [ ] Scheduled run appears in history with `triggered_by = scheduler`
 - [ ] Schedule disabled without deleting the pipeline
 
----
+------------------------------$
 
 ## 13. OneDrive Upload
 
@@ -697,7 +745,7 @@ Same credentials as M365 email — set `MICROSOFT_TENANT_ID`, `MICROSOFT_CLIENT_
 - [ ] Email received with OneDrive link in body instead of direct attachment
 - [ ] Log shows "smart attachment → OneDrive"
 
----
+------------------------------$
 
 ## 14. AI Features (UI — Ollama by default, Claude/Gemini fallback)
 
@@ -798,7 +846,7 @@ set, the request instead falls back to Claude, then Gemini — see 14h.)*
 - [ ] With both keys set: Claude is tried first, Gemini only if Claude also errors
 - [ ] With no keys set and Ollama down: feature shows "AI unavailable" as in 14a (no silent failure)
 
----
+------------------------------$
 
 ## 15. AI Analyze Step (ai_analyze)
 
@@ -864,7 +912,7 @@ set, the request instead falls back to Claude, then Gemini — see 14h.)*
 - [ ] Step fails with a clear "Ollama" error message
 - [ ] Set `on_error: continue` — pipeline continues; `{{ ai_summary }}` is empty in downstream steps
 
----
+------------------------------$
 
 ## 16. SFTP Transfer Step (sftp_transfer)
 
@@ -945,7 +993,7 @@ use any accessible SFTP endpoint you have credentials for.)*
 - [ ] Step fails with a clear "SFTP error" message
 - [ ] Pipeline error recorded in Run History with the step name
 
----
+------------------------------$
 
 ## 17. Multi-User Roles & Access Control
 
@@ -1016,7 +1064,7 @@ Settings → Users.)*
 - [ ] Server returns `401 Unauthorized` — token is revoked immediately on logout
 - [ ] Logging back in issues a new token that works
 
----
+------------------------------$
 
 ## 18. Pipeline Clone & YAML Import/Export
 
@@ -1065,7 +1113,7 @@ flowforge import pipeline.yaml --overwrite   # replace if name exists
 - [ ] CLI import succeeds
 - [ ] `--overwrite` replaces an existing pipeline without error
 
----
+------------------------------$
 
 ## 19. Step Retry & Failure Webhook
 
@@ -1107,7 +1155,7 @@ flowforge import pipeline.yaml --overwrite   # replace if name exists
 
 - [ ] Webhook does **not** fire on success
 
----
+------------------------------$
 
 ## 20. API / Webhook Trigger
 
@@ -1151,7 +1199,7 @@ Invoke-WebRequest -Method POST `
 
 - [ ] Trigger event logged with the pipeline name and `triggered_by = api`
 
----
+------------------------------$
 
 ## 21. Audit Log
 
@@ -1196,7 +1244,7 @@ Perform these actions and confirm each appears in the log:
 
 - [ ] Redirected or `403 Forbidden`
 
----
+------------------------------$
 
 ## 22. Notification Step (Slack / Teams / Telegram)
 
@@ -1262,7 +1310,7 @@ Perform these actions and confirm each appears in the log:
 - [ ] Step fails with a clear error message
 - [ ] Pipeline run status reflects the failure
 
----
+------------------------------$
 
 ## 23. Additional Email Providers
 
@@ -1340,7 +1388,7 @@ Perform these actions and confirm each appears in the log:
 - [ ] Email delivered via Mailgun
 - [ ] Provider saved
 
----
+------------------------------$
 
 ## 24. Additional Database Connections
 
@@ -1383,7 +1431,7 @@ Perform these actions and confirm each appears in the log:
 
 - [ ] Connection tested (result depends on your ODBC driver/DSN)
 
----
+------------------------------$
 
 ## 25. Report — JSON Format
 
@@ -1405,7 +1453,7 @@ Perform these actions and confirm each appears in the log:
 - [ ] Column names match query result columns
 - [ ] Output path visible in step run log
 
----
+------------------------------$
 
 ## 26. Celery / Redis Task Queue (optional)
 
@@ -1438,7 +1486,7 @@ flowforge worker --concurrency 4
 - [ ] Pipeline runs via background thread (no Celery error)
 - [ ] Run History shows the run completed normally
 
----
+------------------------------$
 
 ## 27. Snowflake / BigQuery / Redshift Connections
 
@@ -1494,7 +1542,7 @@ flowforge worker --concurrency 4
 - [ ] Test passes
 - [ ] DB Query step runs a simple `SELECT 1` successfully
 
----
+------------------------------$
 
 ## 28. S3 / Azure Blob Upload Steps
 
@@ -1542,7 +1590,7 @@ flowforge worker --concurrency 4
 - [ ] With `AZURE_STORAGE_ACCOUNT_KEY` set: step log shows a SAS URL (24h expiry) that opens the file without further auth
 - [ ] With only `AZURE_STORAGE_CONNECTION_STRING`/`AZURE_STORAGE_ACCOUNT_URL` and no account key: log shows a plain blob URL instead (SAS generation requires the account key) — not an error
 
----
+------------------------------$
 
 ## 29. MFA (TOTP)
 
@@ -1590,7 +1638,7 @@ flowforge worker --concurrency 4
 - [ ] MFA disabled — card returns to "Disabled" state
 - [ ] Next login does not prompt for a TOTP/backup code
 
----
+------------------------------$
 
 ## 30. SSO (Google / Microsoft) and SAML
 
@@ -1626,7 +1674,7 @@ flowforge worker --concurrency 4
 - [ ] Redirects to the IdP, then back to FlowForge via the ACS endpoint, and logs in successfully
 - [ ] `GET /auth/sso/providers` correctly reflects which of `google`/`microsoft`/`saml` are configured (used to decide which buttons render)
 
----
+------------------------------$
 
 ## 31. GDPR Export / Deletion
 
@@ -1657,7 +1705,7 @@ flowforge worker --concurrency 4
 
 - [ ] User is deleted, but their audit log entries retain the original username (no anonymisation) — confirms plain delete and GDPR purge are genuinely different operations
 
----
+------------------------------$
 
 ## 32. Plugin System
 
@@ -1692,7 +1740,7 @@ flowforge worker --concurrency 4
 
 - [ ] Server still starts — the broken plugin is skipped with a logged error, other plugins/built-ins still load
 
----
+------------------------------$
 
 ## 33. Team-Scoped Project Members
 
@@ -1725,7 +1773,7 @@ flowforge worker --concurrency 4
 
 - [ ] Admin can see and edit Project B's resources anyway — admins bypass project membership entirely
 
----
+------------------------------$
 
 ## 34. Pipeline Dependencies (Fan-Out) and Parallel Step Execution
 
@@ -1751,7 +1799,7 @@ flowforge worker --concurrency 4
 - [ ] Both steps' start times overlap in Run History (visible via step timestamps/durations) rather than running strictly sequentially
 - [ ] If one step in the group fails and has `on_error: stop`, the pipeline halts only after the whole wave completes (not mid-wave)
 
----
+------------------------------$
 
 ## 35. Pipeline Run Diff View
 
@@ -1763,7 +1811,7 @@ flowforge worker --concurrency 4
 - [ ] A step that's new in this run (didn't exist in the previous run) is marked as new, not shown with a misleading delta
 - [ ] On the very first successful run of a pipeline (no prior run to diff against), the panel explains there's nothing to compare instead of erroring
 
----
+------------------------------$
 
 ## 36. Report Column Formatting
 
@@ -1794,7 +1842,7 @@ flowforge worker --concurrency 4
 - [ ] Add a second, conflicting condition on the same column — confirm the **first** matching condition wins (not the last)
 - [ ] A custom raw number-format string (not one of the presets) is also accepted and applied correctly
 
----
+------------------------------$
 
 ## 37. Environment Promotion Workflow
 
@@ -1811,7 +1859,7 @@ flowforge worker --concurrency 4
 - [ ] Editing the promoted copy does not affect the original pipeline
 - [ ] Attempting to promote to the *same* project the pipeline is already in is rejected with a clear error
 
----
+------------------------------$
 
 ## 38. Prometheus Metrics + Flower Dashboard
 
@@ -1838,7 +1886,7 @@ flowforge worker --concurrency 4
 - [ ] Trigger a pipeline run — the corresponding `flowforge.run_pipeline_task` appears in Flower's task list
 - [ ] Without `--profile monitoring`, `docker compose up` does **not** start the Flower container (opt-in only)
 
----
+------------------------------$
 
 ## 39. IP Allowlisting
 
@@ -1868,7 +1916,7 @@ flowforge worker --concurrency 4
 
 - [ ] No IP filtering applied — behavior identical to before this feature existed
 
----
+------------------------------$
 
 ## Notes
 
