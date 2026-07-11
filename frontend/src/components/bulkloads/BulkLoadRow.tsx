@@ -1,17 +1,18 @@
-import { Pencil, Trash2, UploadCloud } from 'lucide-react'
+import { Pencil, Trash2, UploadCloud, Copy } from 'lucide-react'
 import StatusBadge from '../shared/StatusBadge'
 import Spinner from '../shared/Spinner'
 import StatCol from '../connections/StatCol'
 import type { BulkLoadConfig } from '../../lib/types'
 import type { BulkLoadPreview } from '../../lib/api'
 
-export default function BulkLoadRow({ config, testStatus, testError, testResult, onTest, onEdit, onDelete }: {
+export default function BulkLoadRow({ config, testStatus, testError, testResult, onTest, onEdit, onClone, onDelete }: {
   config: BulkLoadConfig
   testStatus?: 'testing' | 'ok' | 'warn' | 'fail'
   testError?: string
   testResult?: BulkLoadPreview
   onTest: () => void
   onEdit: () => void
+  onClone: () => void
   onDelete: () => void
 }) {
   return (
@@ -60,8 +61,9 @@ export default function BulkLoadRow({ config, testStatus, testError, testResult,
               : <span className={`w-1.5 h-1.5 rounded-full ${testStatus === 'ok' ? 'bg-success-text' : testStatus === 'warn' ? 'bg-yellow-500' : testStatus === 'fail' ? 'bg-failure' : 'bg-text-muted'}`} />}
             Test
           </button>
-          <button className="btn btn-sm btn-ghost btn-icon" onClick={onEdit}><Pencil size={12} /></button>
-          <button className="btn btn-sm btn-ghost btn-icon" onClick={onDelete}><Trash2 size={12} /></button>
+          <button className="btn btn-sm btn-ghost btn-icon" title="Edit" onClick={onEdit}><Pencil size={12} /></button>
+          <button className="btn btn-sm btn-ghost btn-icon" title="Clone" onClick={onClone}><Copy size={12} /></button>
+          <button className="btn btn-sm btn-ghost btn-icon" title="Delete" onClick={onDelete}><Trash2 size={12} /></button>
         </div>
       </div>
     </div>

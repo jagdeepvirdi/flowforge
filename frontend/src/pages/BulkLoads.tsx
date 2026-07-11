@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Plus } from 'lucide-react'
-import { getBulkLoadConfigs, deleteBulkLoadConfig, validateBulkLoadConfig, type BulkLoadPreview } from '../lib/api'
+import { getBulkLoadConfigs, deleteBulkLoadConfig, cloneBulkLoadConfig, validateBulkLoadConfig, type BulkLoadPreview } from '../lib/api'
 import TopBar from '../components/shared/TopBar'
 import Sk from '../components/shared/Skeleton'
 import PageIntro from '../components/shared/PageIntro'
@@ -17,6 +17,10 @@ export default function BulkLoads() {
   })
   const { mutate: remove } = useMutation({
     mutationFn: deleteBulkLoadConfig,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['bulk-load-configs'] }),
+  })
+  const { mutate: clone } = useMutation({
+    mutationFn: cloneBulkLoadConfig,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['bulk-load-configs'] }),
   })
 
@@ -125,6 +129,7 @@ export default function BulkLoads() {
                 testResult={testResults[c.id]}
                 onTest={() => testConfig(c.id)}
                 onEdit={() => navigate(`/bulk-loads/${c.id}/edit`)}
+                onClone={() => clone(c.id)}
                 onDelete={() => globalThis.confirm(`Delete "${c.name}"?`) && remove(c.id)}
               />
             ))}

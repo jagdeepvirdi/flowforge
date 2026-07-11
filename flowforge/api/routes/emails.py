@@ -147,6 +147,47 @@ def delete_email_config(config_id):
     return jsonify({'deleted': str(config_id)})
 
 
+def _unique_email_name(base_name: str, fmt: str = '{base} {n}') -> str:
+    candidate = base_name
+    n = 1
+    while db.session.query(EmailConfig).filter_by(name=candidate).first():
+        n += 1
+        candidate = fmt.format(base=base_name, n=n)
+    return candidate
+
+
+@bp.post('/email-configs/<uuid:config_id>/clone')
+@require_role(['admin', 'editor'])
+def clone_email_config(config_id):
+    src = db.session.get(EmailConfig, str(config_id))
+    if not src:
+        return jsonify({'error': _NOT_FOUND}), 404
+    if not can_access_project(src.project_id):
+        return jsonify(ACCESS_DENIED), 403
+
+    clone = EmailConfig(
+        name=_unique_email_name(f'{src.name} (Copy)'),
+        description=src.description,
+        provider_id=src.provider_id,
+        from_name=src.from_name,
+        subject=src.subject,
+        header_text=src.header_text,
+        body_template=src.body_template,
+        recipient_group_id=src.recipient_group_id,
+        to_addresses=list(src.to_addresses) if src.to_addresses else [],
+        cc_addresses=list(src.cc_addresses) if src.cc_addresses else [],
+        bcc_addresses=list(src.bcc_addresses) if src.bcc_addresses else [],
+        attachment_max_mb=src.attachment_max_mb,
+        drive_folder_id=src.drive_folder_id,
+        drive_share_message=src.drive_share_message,
+        onedrive_folder_id=src.onedrive_folder_id,
+        project_id=src.project_id,
+    )
+    db.session.add(clone)
+    db.session.commit()
+    return jsonify(_email_dict(clone)), 201
+
+
 @bp.get('/email-configs/<uuid:config_id>/preview')
 @require_auth
 def preview_email_config(config_id):

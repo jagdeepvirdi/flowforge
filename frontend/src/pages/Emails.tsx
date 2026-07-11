@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
-import { getEmailConfigs, deleteEmailConfig, getEmailProviders } from '../lib/api'
+import { Plus, Pencil, Trash2, Copy } from 'lucide-react'
+import { getEmailConfigs, deleteEmailConfig, cloneEmailConfig, getEmailProviders } from '../lib/api'
 import { useProjectStore } from '../lib/store'
 import { useCurrentUser } from '../lib/auth'
 import TopBar from '../components/shared/TopBar'
@@ -20,6 +20,10 @@ export default function Emails() {
   const { data: providers = [] } = useQuery({ queryKey: ['email-providers'], queryFn: getEmailProviders })
   const { mutate: remove } = useMutation({
     mutationFn: deleteEmailConfig,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['email-configs'] }),
+  })
+  const { mutate: clone } = useMutation({
+    mutationFn: cloneEmailConfig,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['email-configs'] }),
   })
 
@@ -116,8 +120,11 @@ export default function Emails() {
                     {canEdit && (
                       <td>
                         <div className="flex gap-1 justify-end">
-                          <Link to={`/emails/${c.id}/edit`} className="btn btn-sm btn-ghost btn-icon"><Pencil size={12} /></Link>
-                          <button className="btn btn-sm btn-ghost btn-icon" onClick={() => globalThis.confirm(`Delete "${c.name}"?`) && remove(c.id)}>
+                          <Link to={`/emails/${c.id}/edit`} className="btn btn-sm btn-ghost btn-icon" title="Edit"><Pencil size={12} /></Link>
+                          <button className="btn btn-sm btn-ghost btn-icon" title="Clone" onClick={() => clone(c.id)}>
+                            <Copy size={12} />
+                          </button>
+                          <button className="btn btn-sm btn-ghost btn-icon" title="Delete" onClick={() => globalThis.confirm(`Delete "${c.name}"?`) && remove(c.id)}>
                             <Trash2 size={12} />
                           </button>
                         </div>

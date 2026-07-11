@@ -119,6 +119,46 @@ def delete_bulk_load_config(config_id):
     return jsonify({'deleted': str(config_id)})
 
 
+def _unique_bulk_load_name(base_name: str, fmt: str = '{base} {n}') -> str:
+    candidate = base_name
+    n = 1
+    while db.session.query(BulkLoadConfig).filter_by(name=candidate).first():
+        n += 1
+        candidate = fmt.format(base=base_name, n=n)
+    return candidate
+
+
+@bp.post('/bulk-load-configs/<uuid:config_id>/clone')
+@require_auth
+def clone_bulk_load_config(config_id):
+    src = db.session.get(BulkLoadConfig, str(config_id))
+    if not src:
+        return jsonify({'error': _NOT_FOUND}), 404
+
+    clone = BulkLoadConfig(
+        name=_unique_bulk_load_name(f'{src.name} (Copy)'),
+        description=src.description,
+        connection_id=src.connection_id,
+        source_directory=src.source_directory,
+        file_prefix=src.file_prefix,
+        file_prefix_exclude=src.file_prefix_exclude,
+        file_type=src.file_type,
+        delimiter=src.delimiter,
+        header_rows=src.header_rows,
+        footer_rows=src.footer_rows,
+        target_table=src.target_table,
+        load_mode=src.load_mode,
+        column_mapping=list(src.column_mapping) if src.column_mapping else [],
+        use_sqlloader=src.use_sqlloader,
+        archive_directory=src.archive_directory,
+        on_no_files=src.on_no_files,
+    )
+    db.session.add(clone)
+    db.session.commit()
+    audit.log_bulk_load_change('CLONED', clone.name, clone.id)
+    return jsonify(_cfg_dict(clone)), 201
+
+
 @bp.post('/bulk-load-configs/<uuid:config_id>/validate')
 @require_auth
 def validate_bulk_load_config(config_id):

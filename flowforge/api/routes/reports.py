@@ -137,6 +137,44 @@ def delete_report_config(config_id):
     return jsonify({'deleted': str(config_id)})
 
 
+def _unique_report_name(base_name: str, fmt: str = '{base} {n}') -> str:
+    candidate = base_name
+    n = 1
+    while db.session.query(ReportConfig).filter_by(name=candidate).first():
+        n += 1
+        candidate = fmt.format(base=base_name, n=n)
+    return candidate
+
+
+@bp.post('/report-configs/<uuid:config_id>/clone')
+@require_role(['admin', 'editor'])
+def clone_report_config(config_id):
+    src = db.session.get(ReportConfig, str(config_id))
+    if not src:
+        return jsonify({'error': 'Report config not found'}), 404
+    if not can_access_project(src.project_id):
+        return jsonify(ACCESS_DENIED), 403
+
+    clone = ReportConfig(
+        name=_unique_report_name(f'{src.name} (Copy)'),
+        description=src.description,
+        connection_id=src.connection_id,
+        query=src.query,
+        format=src.format,
+        template_path=src.template_path,
+        output_filename=src.output_filename,
+        title=src.title,
+        sheet_name=src.sheet_name,
+        columns=list(src.columns) if src.columns else None,
+        column_formatting=list(src.column_formatting) if src.column_formatting else [],
+        project_id=src.project_id,
+    )
+    db.session.add(clone)
+    db.session.commit()
+    audit.log_report_change('CLONED', clone.name, clone.id)
+    return jsonify(_report_dict(clone)), 201
+
+
 @bp.post('/report-configs/<uuid:config_id>/preview')
 @require_auth
 def preview_report(config_id):

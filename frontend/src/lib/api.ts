@@ -139,6 +139,7 @@ export const getBulkLoadConfig    = (id: string) => get<import('./types').BulkLo
 export const createBulkLoadConfig = (data: Partial<import('./types').BulkLoadConfig>) => post<import('./types').BulkLoadConfig>('/bulk-load-configs', data)
 export const updateBulkLoadConfig = (id: string, data: Partial<import('./types').BulkLoadConfig>) => put<import('./types').BulkLoadConfig>(`/bulk-load-configs/${id}`, data)
 export const deleteBulkLoadConfig = (id: string) => del<{ deleted: string }>(`/bulk-load-configs/${id}`)
+export const cloneBulkLoadConfig  = (id: string) => post<import('./types').BulkLoadConfig>(`/bulk-load-configs/${id}/clone`)
 
 export interface BulkLoadErrorGroup {
   row_indices: number[]
@@ -171,6 +172,7 @@ export const getReportConfig    = (id: string) => get<import('./types').ReportCo
 export const createReportConfig = (data: Partial<import('./types').ReportConfig>) => post<import('./types').ReportConfig>('/report-configs', data)
 export const updateReportConfig = (id: string, data: Partial<import('./types').ReportConfig>) => put<import('./types').ReportConfig>(`/report-configs/${id}`, data)
 export const deleteReportConfig = (id: string) => del<{ deleted: string }>(`/report-configs/${id}`)
+export const cloneReportConfig  = (id: string) => post<import('./types').ReportConfig>(`/report-configs/${id}/clone`)
 export const previewReport      = (id: string) => post<{ columns: string[]; rows: unknown[][] }>(`/report-configs/${id}/preview`)
 export const profileData = (payload: { columns: string[]; rows: unknown[][] }) =>
   post<{ result: string }>('/ai/data-profile', payload)
@@ -192,6 +194,7 @@ export const getEmailConfig    = (id: string) => get<import('./types').EmailConf
 export const createEmailConfig = (data: Partial<import('./types').EmailConfig>) => post<import('./types').EmailConfig>('/email-configs', data)
 export const updateEmailConfig = (id: string, data: Partial<import('./types').EmailConfig>) => put<import('./types').EmailConfig>(`/email-configs/${id}`, data)
 export const deleteEmailConfig  = (id: string) => del<{ deleted: string }>(`/email-configs/${id}`)
+export const cloneEmailConfig   = (id: string) => post<import('./types').EmailConfig>(`/email-configs/${id}/clone`)
 export const previewEmailConfig = (id: string) => get<{ subject: string; html: string }>(`/email-configs/${id}/preview`)
 
 // Email providers
