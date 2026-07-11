@@ -275,8 +275,8 @@ in a sent email — without the user writing any raw Jinja2.
 3. Add an **Email** step (using your Gmail config):
    - In the Pipeline Builder, look at the **Query data** section under the email step — it should list `load_summary` with three snippet options.
 
-- [ ] "Query data — available in email body" section appears in the email step, listing `load_summary`
-- [ ] Three snippet lines visible: `table_html`, `kv_html`, custom loop
+- [X] "Query data — available in email body" section appears in the email step, listing `load_summary`
+- [X] Three snippet lines visible: `table_html`, `kv_html`, custom loop
 
 **Setup — configure the email body**
 
@@ -303,34 +303,38 @@ in a sent email — without the user writing any raw Jinja2.
 
 6. Check the **Available variables** card on the right — confirm `{{ steps.step_name.table_html }}`, `{{ steps.step_name.kv_html }}`, and the `{% for row %}` loop are listed.
 
-- [ ] New capture variables present in Available Variables card
+- [X] New capture variables present in Available Variables card
 
 **Run and verify**
 
 7. Save the email config and return to the pipeline. Run it via **Run Now**.
 
-- [ ] Pipeline succeeds — both steps green in Run History
-- [ ] Email received at `jagdeep.singh.virdi@gmail.com`
-- [ ] Email body contains an HTML `<table>` with columns `plan`, `status`, `subscribers`, `mrr`
-- [ ] Table has 6 data rows (one per plan/status combination)
-- [ ] `kv_html` block shows the first row as a key-value list (`plan`, `status`, `subscribers`, `mrr` as label:value)
-- [ ] Custom loop `<ul>` contains 6 `<li>` items with plan/status/count/mrr values
+- [X] Pipeline succeeds — both steps green in Run History
+- [X] Email received — note: goes to the recipient group's To address
+      (`jagdeepvirdi@advancetech.co.th` for the `Premium Subscriber Details`
+      config used here), not necessarily `jagdeep.singh.virdi@gmail.com` —
+      check which recipient group/addresses the email config you use is
+      actually wired to
+- [X] Email body contains an HTML `<table>` with columns `plan`, `status`, `subscribers`, `mrr`
+- [X] Table has 6 data rows (one per plan/status combination)
+- [X] `kv_html` block shows the first row as a key-value list (`plan`, `status`, `subscribers`, `mrr` as label:value)
+- [X] Custom loop `<ul>` contains 6 `<li>` items with plan/status/count/mrr values
 
 **Row limit test**
 
 8. Edit the `load_summary` step — set **Row limit** to `2`
 9. Re-run the pipeline
 
-- [ ] Email table now has exactly 2 data rows (not 6)
-- [ ] `rows_affected` in the step run log still shows `6` (full query count, not capped)
+- [X] Email table now has exactly 2 data rows (not 6)
+- [X] `rows_affected` in the step run log still shows `6` (full query count, not capped)
 
 **Capture disabled test**
 
 10. Untick **Capture rows for email** on the `load_summary` step
 11. Re-run the pipeline
 
-- [ ] Email sent without error (body renders with empty strings where `table_html`/`kv_html` were)
-- [ ] "Query data" section disappears from the email step in Pipeline Builder
+- [X] Email sent without error (body renders with empty strings where `table_html`/`kv_html` were)
+- [X] "Query data" section disappears from the email step in Pipeline Builder
 
 ------------------------------$
 
