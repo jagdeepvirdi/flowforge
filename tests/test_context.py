@@ -599,3 +599,46 @@ def test_text_to_html_skips_blank_paragraphs():
     from flowforge.engine.context import text_to_html
     result = text_to_html('First.\n\n\n\nSecond.')
     assert result == '<p>First.</p>\n<p>Second.</p>'
+
+
+# ── render_simple_document (simple document format + safe HTML fragments) ─────
+
+def test_render_simple_document_escapes_literal_text():
+    from flowforge.engine.context import build, render_simple_document
+    ctx = build('test')
+    ctx['_secret_var_keys'] = set()
+    result = render_simple_document('Tom & Jerry <script>alert(1)</script>', ctx)
+    assert '&amp;' in result
+    assert '&lt;script&gt;' in result
+    assert '<script>' not in result
+
+
+def test_render_simple_document_wraps_paragraphs():
+    from flowforge.engine.context import build, render_simple_document
+    ctx = build('test')
+    ctx['_secret_var_keys'] = set()
+    result = render_simple_document('Hi there,\n\nSecond line.', ctx)
+    assert result == '<p>Hi there,</p>\n<p>Second line.</p>'
+
+
+def test_render_simple_document_preserves_step_table_html():
+    """A step's table_html/kv_html must render as real markup, not escaped
+    source text, even in the "Simple document" (plain-text) body format."""
+    from flowforge.engine.context import build, render_simple_document
+    ctx = build('test', step_results={
+        'query': {'table_html': '<table><tr><td>1</td></tr></table>', 'kv_html': ''},
+    })
+    ctx['_secret_var_keys'] = set()
+    result = render_simple_document('Results:\n\n{{ steps.query.table_html }}', ctx)
+    assert '<table><tr><td>1</td></tr></table>' in result
+    assert '&lt;table&gt;' not in result
+
+
+def test_render_simple_document_escapes_text_around_table_html():
+    from flowforge.engine.context import build, render_simple_document
+    ctx = build('test', step_results={
+        'query': {'table_html': '<table></table>', 'kv_html': ''},
+    })
+    ctx['_secret_var_keys'] = set()
+    result = render_simple_document('A < B {{ steps.query.table_html }} C & D', ctx)
+    assert 'A &lt; B <table></table> C &amp; D' in result

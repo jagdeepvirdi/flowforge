@@ -189,3 +189,25 @@ def test_preview_text_format_wraps_in_paragraphs(client, headers):
         assert '{{' not in html
     finally:
         client.delete(f'/api/email-configs/{eid}', headers=headers)
+
+
+def test_preview_text_format_renders_step_table_html_unescaped(client, headers):
+    """A step's table_html must render as a real <table>, not escaped HTML
+    source text, even in the "Simple document" (plain-text) body format."""
+    resp = client.post('/api/email-configs', json={
+        'name': '__text_format_table_preview__',
+        'subject': 'OK',
+        'body_template': 'Results:\n\n{{ steps.report.table_html }}',
+        'body_format': 'text',
+    }, headers=headers)
+    assert resp.status_code == 201
+    eid = resp.get_json()['id']
+
+    try:
+        preview_resp = client.get(f'/api/email-configs/{eid}/preview', headers=headers)
+        assert preview_resp.status_code == 200
+        html = preview_resp.get_json()['html']
+        assert '<table border="1">' in html
+        assert '&lt;table' not in html
+    finally:
+        client.delete(f'/api/email-configs/{eid}', headers=headers)

@@ -24,6 +24,7 @@ def _handle_attachments(
     context: dict[str, Any],
     onedrive_folder_id: str = '',
     warnings_out: list[str] | None = None,
+    body_format: str = 'html',
 ) -> tuple[list[Path], str]:
     """Split attachments into direct and cloud-uploaded. Returns (direct_files, extra_body_text).
 
@@ -34,7 +35,7 @@ def _handle_attachments(
     The warning is appended to warnings_out (if provided) so callers can surface it in
     Run History step logs.
     """
-    from flowforge.engine.context import render_guarded
+    from flowforge.engine.context import render_guarded, render_simple_document
 
     max_bytes = max_mb * 1024 * 1024
     direct: list[Path] = []
@@ -88,7 +89,11 @@ def _handle_attachments(
     extra_text = ''
     if drive_links:
         tmpl = drive_message_template or _DEFAULT_DRIVE_MESSAGE
-        extra_text = render_guarded(tmpl, {**context, 'drive_links': drive_links}, sink='email drive-share message')
+        merged_context = {**context, 'drive_links': drive_links}
+        if body_format == 'text':
+            extra_text = render_simple_document(tmpl, merged_context, sink='email drive-share message')
+        else:
+            extra_text = render_guarded(tmpl, merged_context, sink='email drive-share message')
 
     return direct, extra_text
 
@@ -99,7 +104,7 @@ class EmailStep(BaseStep):
     step_type = 'email'
 
     def run(self, context: dict[str, Any]) -> StepResult:
-        from flowforge.engine.context import render, render_guarded, text_to_html
+        from flowforge.engine.context import render, render_guarded, render_simple_document
 
         # Smart Alerting: suppress routine emails if send_only_on_failure is set and no failure occurred
         if context.get('pipeline_send_only_on_failure') == 'true':
@@ -116,21 +121,22 @@ class EmailStep(BaseStep):
         drive_folder_id = email_cfg.get('drive_folder_id', '')
         drive_message = email_cfg.get('drive_share_message', '')
         onedrive_folder_id = email_cfg.get('onedrive_folder_id', '')
+        body_format = email_cfg.get('body_format')
         upload_warnings: list[str] = []
         direct_attachments, extra_body = _handle_attachments(
             attachments, max_mb, drive_folder_id, drive_message, context,
             onedrive_folder_id=onedrive_folder_id,
             warnings_out=upload_warnings,
+            body_format=body_format,
         )
 
         to, cc, bcc = self._resolve_recipients(email_cfg)
 
         subject = render_guarded(email_cfg.get('subject', ''), context, sink='email subject')
-        body    = render_guarded(email_cfg.get('body_template', ''), context, sink='email body')
-        if email_cfg.get('body_format') == 'text':
-            body = text_to_html(body)
-            if extra_body:
-                extra_body = text_to_html(extra_body)
+        if body_format == 'text':
+            body = render_simple_document(email_cfg.get('body_template', ''), context, sink='email body')
+        else:
+            body = render_guarded(email_cfg.get('body_template', ''), context, sink='email body')
         body += extra_body
 
         try:

@@ -263,6 +263,16 @@ def render_guarded(template_str: str, context: dict[str, Any], *, sink: str = 't
     return _jinja.from_string(template_str).render(**context)
 
 
+def _paragraphize(html_text: str) -> str:
+    """Wrap already-safe HTML text into <p>/<br> paragraphs (no escaping)."""
+    paragraphs = html_text.replace('\r\n', '\n').split('\n\n')
+    html_paragraphs = [
+        f'<p>{para.replace(chr(10), "<br>" + chr(10))}</p>'
+        for para in paragraphs if para.strip()
+    ]
+    return '\n'.join(html_paragraphs)
+
+
 def text_to_html(text: str) -> str:
     """Convert a plain-text (Jinja2-rendered) email body into an HTML fragment.
 
@@ -272,12 +282,62 @@ def text_to_html(text: str) -> str:
     so the result is always a safe fragment, even if the rendered text
     happens to contain characters like < or &.
     """
-    paragraphs = text.replace('\r\n', '\n').split('\n\n')
-    html_paragraphs = [
-        f'<p>{_html.escape(para).replace(chr(10), "<br>" + chr(10))}</p>'
-        for para in paragraphs if para.strip()
-    ]
-    return '\n'.join(html_paragraphs)
+    return _paragraphize(_html.escape(text))
+
+
+_HTML_SAFE_STEP_KEYS = ('table_html', 'kv_html')
+
+
+def _replace_safe_html_with_placeholders(context: dict[str, Any]) -> tuple[dict[str, Any], dict[str, str]]:
+    """Swap known-safe HTML fragments (a step's table_html/kv_html) for unique
+    placeholder tokens before rendering, so render_simple_document() can escape
+    the rendered body as a whole and then splice the real markup back in —
+    without escaping fragments that are already safe HTML.
+    """
+    steps = context.get('steps')
+    if not steps:
+        return context, {}
+
+    placeholders: dict[str, str] = {}
+    safe_steps = {}
+    for step_name, data in steps.items():
+        if isinstance(data, dict) and any(data.get(k) for k in _HTML_SAFE_STEP_KEYS):
+            new_data = dict(data)
+            for key in _HTML_SAFE_STEP_KEYS:
+                value = data.get(key)
+                if value:
+                    token = f'￹HTMLSAFE{uuid4().hex}￻'
+                    placeholders[token] = value
+                    new_data[key] = token
+            safe_steps[step_name] = new_data
+        else:
+            safe_steps[step_name] = data
+    return {**context, 'steps': safe_steps}, placeholders
+
+
+def render_simple_document(template_str: str, context: dict[str, Any], *, sink: str = 'this field') -> str:
+    """Render a "Simple document" (plain-text + Jinja2) template into an HTML fragment.
+
+    Like render_guarded(), but the whole rendered body is HTML-escaped —
+    except for known-safe HTML fragments produced by earlier steps (a step's
+    `table_html` / `kv_html` output), which are spliced back in unescaped so
+    query-result tables render as tables instead of showing up as literal
+    HTML source. Blank lines start a new <p>; single newlines become <br>.
+    """
+    secrets_used = _referenced_secrets(template_str, context)
+    if secrets_used:
+        raise SecretLeakError(
+            f"Refusing to render {sink}: references secret pipeline variable(s) "
+            f"{', '.join(sorted(secrets_used))}. Secret variables cannot be used here — "
+            "the rendered result may be persisted, displayed, or transmitted outside the "
+            "pipeline. Pass secrets via db_procedure 'params' (bind variables) instead."
+        )
+    safe_context, placeholders = _replace_safe_html_with_placeholders(context)
+    rendered = _jinja.from_string(template_str).render(**safe_context)
+    escaped = _html.escape(rendered)
+    for token, html_fragment in placeholders.items():
+        escaped = escaped.replace(token, html_fragment)
+    return _paragraphize(escaped)
 
 
 def render_sql(template_str: str, context: dict[str, Any]) -> str:

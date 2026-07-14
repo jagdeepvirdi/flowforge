@@ -204,7 +204,7 @@ def preview_email_config(config_id):
     if not can_access_project(config.project_id):
         return jsonify(ACCESS_DENIED), 403
 
-    from flowforge.engine.context import build, render, text_to_html
+    from flowforge.engine.context import build, render, render_simple_document
     # Build context with sample step results so previews are more realistic
     sample_steps = {
         'report': {
@@ -229,9 +229,10 @@ def preview_email_config(config_id):
 
     try:
         rendered_subject = render(config.subject or '', ctx)
-        rendered_html = render(config.body_template or '', ctx)
         if config.body_format == 'text':
-            rendered_html = text_to_html(rendered_html)
+            rendered_html = render_simple_document(config.body_template or '', ctx)
+        else:
+            rendered_html = render(config.body_template or '', ctx)
     except Exception as e:
         return jsonify({'error': f'Template render error: {e}'}), 422
 
