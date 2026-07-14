@@ -252,7 +252,7 @@ Expected rows (premium only):
 - [X] Variable resolved correctly — query filtered to premium only
 - [X] `public.subscriber_summary` now holds 2 rows, not 6 — `Replace` mode
       overwrote 3a's result
-- [ ] Email received with a table showing exactly those 2 rows
+- [X] Email received with a table showing exactly those 2 rows
 
 ### 3c. Query → email with results (capture_rows)
 
@@ -342,17 +342,20 @@ in a sent email — without the user writing any raw Jinja2.
 
 *(Requires a stored procedure to exist in the target DB.)*
 
-### 4a. PostgreSQL function
+### 4a. PostgreSQL procedure
 
-Create a test function first:
+Create a test procedure first. The db_procedure step issues a plain SQL `CALL`,
+which PostgreSQL only allows on objects created with `CREATE PROCEDURE` — a
+`CREATE FUNCTION` (even one `RETURNS void`) will fail with "is not a
+procedure ... HINT: To call a function, use SELECT.":
 
 ```sql
-CREATE OR REPLACE FUNCTION public.ff_test_proc(p_plan TEXT)
-RETURNS void AS $$
+CREATE OR REPLACE PROCEDURE public.ff_test_proc(p_plan TEXT)
+LANGUAGE plpgsql AS $$
 BEGIN
   RAISE NOTICE 'ff_test_proc called with plan=%', p_plan;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 ```
 
 Then in a pipeline, add a **DB Procedure** step:
@@ -365,18 +368,43 @@ Then in a pipeline, add a **DB Procedure** step:
 
 Run the pipeline.
 
-- [ ] Step succeeds with no error
-- [ ] Logs visible in step run detail
+- [X] Step succeeds with no error
+- [X] Logs visible in step run detail
 
 ### 4b. Oracle package (if Oracle connection configured)
+
+Create a test package first. The db_procedure step runs `BEGIN name(:param1, ...); END;`,
+so `name` must resolve to a callable procedure — a package-qualified procedure
+(`PKG_NAME.PROC_NAME`) works, same as a standalone one. Connect as the app user
+(see `docs/credentials.local.md` — Oracle App User `oracle` / FREEPDB1) and run:
+
+```sql
+CREATE OR REPLACE PACKAGE pkg_ff_test AS
+  PROCEDURE test_proc(p_plan IN VARCHAR2);
+END pkg_ff_test;
+/
+
+CREATE OR REPLACE PACKAGE BODY pkg_ff_test AS
+  PROCEDURE test_proc(p_plan IN VARCHAR2) IS
+  BEGIN
+    DBMS_OUTPUT.PUT_LINE('pkg_ff_test.test_proc called with plan=' || p_plan);
+  END test_proc;
+END pkg_ff_test;
+/
+```
+
+Then in a pipeline, add a **DB Procedure** step:
 
 | Field | Value |
 |---|---|
 | Connection | Your Oracle connection |
-| Procedure | `PKG_NAME.PROC_NAME` |
-| Parameters | `{ "param1": "value1" }` |
+| Procedure | `pkg_ff_test.test_proc` |
+| Parameters | `{ "p_plan": "premium" }` |
 
-- [ ] Oracle procedure executes successfully
+Run the pipeline.
+
+- [X] Step succeeds with no error
+- [X] Logs visible in step run detail
 
 ------------------------------$
 

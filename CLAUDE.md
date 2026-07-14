@@ -246,7 +246,7 @@ Call a stored procedure or package in any configured database.
   }
 }
 ```
-Supports: PostgreSQL functions, Oracle packages (`package.procedure` syntax).
+Supports: PostgreSQL procedures (created via `CREATE PROCEDURE`, invoked with `CALL` — a `CREATE FUNCTION` will fail with "is not a procedure"), Oracle packages (`package.procedure` syntax).
 
 ### db_query
 Run a SQL query and write results to a table.
@@ -412,7 +412,7 @@ uploaded to Google Drive for your convenience:
 ```python
 class PostgreSQLConnection(BaseConnection):
     # psycopg2-binary with ThreadedConnectionPool
-    # Supports: functions, queries, bulk operations
+    # Supports: procedures (CALL), queries, bulk operations
 ```
 
 ### Oracle
