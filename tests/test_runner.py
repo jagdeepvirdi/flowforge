@@ -456,3 +456,66 @@ def test_webhook_payload_contains_expected_keys():
     assert 'error_step' in captured
     assert 'error_message' in captured
     assert captured['pipeline_name'] == 'My Pipeline'
+
+
+# ── DevBrain notification hook ────────────────────────────────────────────────
+
+def test_notify_devbrain_posts_json(monkeypatch):
+    from flowforge.engine.runner import _notify_devbrain
+    monkeypatch.setenv('FLOWFORGE_DEVBRAIN_NOTIFY_URL', 'http://localhost:3001/api/notify')
+    with patch('urllib.request.urlopen') as mock_open:
+        mock_open.return_value.__enter__ = lambda s: s
+        mock_open.return_value.__exit__ = MagicMock(return_value=False)
+        _notify_devbrain('My Pipeline', 'run-1', True)
+    mock_open.assert_called_once()
+    req = mock_open.call_args[0][0]
+    import json
+    body = json.loads(req.data)
+    assert body['project'] == 'flowforge'
+    assert body['level'] == 'success'
+    assert 'My Pipeline' in body['title']
+
+
+def test_notify_devbrain_failure_payload(monkeypatch):
+    from flowforge.engine.runner import _notify_devbrain
+    monkeypatch.setenv('FLOWFORGE_DEVBRAIN_NOTIFY_URL', 'http://localhost:3001/api/notify')
+    with patch('urllib.request.urlopen') as mock_open:
+        mock_open.return_value.__enter__ = lambda s: s
+        mock_open.return_value.__exit__ = MagicMock(return_value=False)
+        _notify_devbrain('My Pipeline', 'run-1', False, error_step='bad_step', error_message='DB timeout')
+    req = mock_open.call_args[0][0]
+    import json
+    body = json.loads(req.data)
+    assert body['level'] == 'error'
+    assert 'bad_step' in body['body']
+    assert 'DB timeout' in body['body']
+
+
+def test_notify_devbrain_does_nothing_when_url_not_set(monkeypatch):
+    from flowforge.engine.runner import _notify_devbrain
+    monkeypatch.delenv('FLOWFORGE_DEVBRAIN_NOTIFY_URL', raising=False)
+    with patch('urllib.request.urlopen') as mock_open:
+        _notify_devbrain('My Pipeline', 'run-1', True)
+    mock_open.assert_not_called()
+
+
+def test_notify_devbrain_error_does_not_propagate(monkeypatch):
+    """Network errors must not raise — a notification failure must never fail a pipeline run."""
+    from flowforge.engine.runner import _notify_devbrain
+    monkeypatch.setenv('FLOWFORGE_DEVBRAIN_NOTIFY_URL', 'http://localhost:3001/api/notify')
+    with patch('urllib.request.urlopen', side_effect=Exception('network error')):
+        _notify_devbrain('My Pipeline', 'run-1', True)  # must not raise
+
+
+def test_notify_devbrain_called_on_pipeline_completion(monkeypatch):
+    from flowforge.engine.runner import run_pipeline
+    monkeypatch.setenv('FLOWFORGE_DEVBRAIN_NOTIFY_URL', 'http://localhost:3001/api/notify')
+    with patch('flowforge.engine.runner._create_run_record', return_value=None), \
+         patch('flowforge.engine.runner._write_step_run'), \
+         patch('flowforge.engine.runner._finish_run_record'), \
+         patch('flowforge.engine.runner._notify_devbrain') as mock_notify:
+        run_pipeline('Test Pipeline', [make_step('ok', success=True)])
+    mock_notify.assert_called_once()
+    args = mock_notify.call_args[0]
+    assert args[0] == 'Test Pipeline'
+    assert args[2] is True  # success
