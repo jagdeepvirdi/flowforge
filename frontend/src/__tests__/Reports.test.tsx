@@ -23,6 +23,7 @@ const MOCK_REPORTS = [
 vi.mock('../lib/api', () => ({
   getReportConfigs:  vi.fn(() => Promise.resolve(MOCK_REPORTS)),
   deleteReportConfig: vi.fn(() => Promise.resolve({})),
+  cloneReportConfig: vi.fn(() => Promise.resolve(MOCK_REPORTS[0])),
   getProjects:       vi.fn(() => Promise.resolve([])),
 }))
 
