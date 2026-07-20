@@ -34,6 +34,23 @@ canvas visualizes the existing sequential + parallel-group execution model, it d
 Code: `frontend/src/components/pipeline/canvas/`, `frontend/src/lib/pipelineWaves.ts`,
 `frontend/src/lib/pipelineReorder.ts`.
 
+### What happens if a step fails inside a parallel group?
+
+The other steps in that same group are **not** cancelled — `_run_parallel_wave()` dispatches every
+step in the group to a `ThreadPoolExecutor` and calls `concurrent.futures.wait(futures)`, which
+blocks until *all* of them finish, regardless of whether a sibling already failed. Isolation is at
+the wave boundary, not instant: a failing step can't stop steps already running alongside it, only
+the wave that runs *after* it.
+
+Once every step in the group has finished, results are evaluated in order: each failure marks the
+pipeline as failed (`_pipeline_has_failed`) and, if that step's `on_error` is `stop` (the default),
+sets `should_stop = True` — which halts the pipeline before the next wave starts. If `on_error` is
+`continue`, the failure is recorded (first error/step wins for the run's headline error) but the
+pipeline proceeds to the next wave anyway. Per-step retries (`retry_count`/`retry_delay`) still
+apply inside the group exactly as they would for a sequential step.
+
+Code: `flowforge/engine/runner.py` (`_run_parallel_wave`, `_build_execution_waves`).
+
 ---
 
 ## Triggers
