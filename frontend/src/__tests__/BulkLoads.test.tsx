@@ -19,6 +19,7 @@ const MOCK_CONFIGS = [
 vi.mock('../lib/api', () => ({
   getBulkLoadConfigs:      vi.fn(() => Promise.resolve(MOCK_CONFIGS)),
   deleteBulkLoadConfig:    vi.fn(() => Promise.resolve({})),
+  cloneBulkLoadConfig:     vi.fn(() => Promise.resolve(MOCK_CONFIGS[0])),
   validateBulkLoadConfig:  vi.fn(() => Promise.resolve({ file_name: '', files_matched: 0, columns: [], sample_rows: [], row_count_sampled: 0, warnings: [] })),
   getProjects:             vi.fn(() => Promise.resolve([])),
 }))
