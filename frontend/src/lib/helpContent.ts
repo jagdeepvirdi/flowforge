@@ -275,4 +275,8 @@ export const TOOLTIPS: Record<string, TooltipContent> = {
     text:    'Two supported formats for Oracle connections.',
     example: 'Format 1 — host + port + service name (Easy Connect):\n  host: db.example.com\n  port: 1521\n  database: ORCL\n\nFormat 2 — TNS alias (requires tnsnames.ora):\n  host: MY_TNS_ALIAS\n  port: (ignored)\n  database: (ignored)',
   },
+  sftp_remote_path: {
+    text:    'A file, or — for downloads only — a directory to pull every matching file from. There is no separate "SFTP connection": host, port, and credentials are entered directly on this step.',
+    example: 'Download one file:   /incoming/report.csv\nDownload a folder:   /incoming/reports/\nUpload a file:       /outgoing/report_{{ current_date }}.csv',
+  },
 }

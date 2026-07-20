@@ -9,6 +9,7 @@ import EmailForm from './EmailForm'
 import NotificationForm from './NotificationForm'
 import ReportForm from './ReportForm'
 import S3UploadForm from './S3UploadForm'
+import SftpTransferForm from './SftpTransferForm'
 import type { StepFormProps } from './types'
 
 export type { StepFormProps } from './types'
@@ -26,4 +27,5 @@ export const STEP_FORMS: Record<string, ComponentType<StepFormProps>> = {
   notification: NotificationForm,
   s3_upload: S3UploadForm,
   azure_blob_upload: AzureBlobUploadForm,
+  sftp_transfer: SftpTransferForm,
 }

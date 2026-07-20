@@ -32,7 +32,12 @@ import Sk from '../components/shared/Skeleton'
 import RouteErrorBoundary from '../components/shared/RouteErrorBoundary'
 import CollapsibleCard from '../components/shared/CollapsibleCard'
 
-const STEP_TYPES: StepType[] = ['db_procedure', 'db_query', 'report', 'email', 'drive_upload', 'data_load', 'bulk_load', 'notification', 's3_upload', 'azure_blob_upload']
+const STEP_TYPES: StepType[] = [
+  'db_procedure', 'db_query', 'report', 'email', 'drive_upload', 'onedrive_upload',
+  'ai_analyze', 'data_load', 'bulk_load', 'sftp_transfer', 'ssh_command',
+  'db_health_check', 'data_report', 'ssh_health_check', 'notification',
+  's3_upload', 'azure_blob_upload',
+]
 
 function newStep(type: StepType, order: number): PipelineStep {
   return {
