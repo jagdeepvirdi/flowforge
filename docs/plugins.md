@@ -1,38 +1,74 @@
-# Writing a Plugin Step Type
+# Writing FlowForge Plugins
 
 FlowForge ships with a fixed set of built-in step types (`db_procedure`,
-`db_query`, `report`, `email`, `ssh_command`, `notification`, ...). For
-anything else — a custom integration, an internal-only step — you can drop
-a Python file into a plugin directory instead of forking FlowForge.
+`db_query`, `report`, `email`, `ssh_command`, `notification`, ...), database
+connections (`postgresql`, `oracle`, `mysql`, ...), and email providers
+(`gmail`, `smtp`, `sendgrid`, ...). For anything else — a custom integration,
+an internal-only step, an unsupported database — you can drop a Python file
+into a plugin directory instead of forking FlowForge, or ship a pip-installable
+package that registers itself automatically.
+
+Three categories are pluggable today: **steps**, **database connections**, and
+**email providers**. Storage backends and report formats are not — see
+"What's not pluggable yet" near the end.
 
 ---
 
 ## How it works
 
 At startup (and once per process, lazily, the first time a pipeline is
-loaded), FlowForge scans `FLOWFORGE_PLUGIN_DIR` (default `./plugins`) for
-`*.py` files. Any file not starting with `_` is imported, and every class
-in it that subclasses `flowforge.steps.base.BaseStep` and sets a `step_type`
-is registered under that type string.
+loaded), FlowForge discovers plugins two ways:
 
-If the directory doesn't exist, plugin loading is a no-op — nothing changes
-for installs that don't use it.
+1. **Directory scanning** — `FLOWFORGE_PLUGIN_DIR` (default `./plugins`) is
+   scanned for `*.py` files. Any file not starting with `_` is imported.
+2. **Entry points** — pip-installed packages can register a plugin without a
+   file in `FLOWFORGE_PLUGIN_DIR` at all, via a `flowforge.plugins`
+   entry-point group (see below).
 
-Registered plugin types then behave exactly like built-in ones:
+Either way, every class found is checked against three pluggable categories:
 
-- Selectable as a step type via `GET /api/step-types` (and in the Pipeline
-  Builder's "Add step" list).
-- Configurable in the UI via a generic JSON config editor (plugin types have
-  no dedicated form — see the "Frontend" section below).
-- Executed the same way as any other step: `run(context)` is called by the
-  pipeline runner, with the same retry/`on_error`/parallel-group support.
+| Category | Base class | Key attribute | Extra requirement |
+|---|---|---|---|
+| Step | `flowforge.steps.base.BaseStep` | `step_type` | none |
+| Connection | `flowforge.connections.base.BaseConnection` | `db_type` | `from_config(cls, cfg)` classmethod |
+| Email provider | `flowforge.email_providers.base.EmailProvider` | `provider_type` | `from_config(cls, cfg)` classmethod |
 
-A plugin file that fails to import, or defines no usable `BaseStep`
-subclass, is logged and skipped — it never blocks startup or other plugins.
+A single file (or a single package) can define classes from more than one
+category — e.g. a plugin file with both a custom step and a custom
+connection registers both. Each matching class is registered under its key
+string, and behaves like a built-in of that category from then on (see
+"Frontend" and "Registry introspection" below).
+
+If the plugin directory doesn't exist, directory scanning is a no-op —
+nothing changes for installs that don't use it.
+
+A plugin file (or entry point) that fails to import/load, or that resolves
+to no usable plugin class, is logged and skipped — it never blocks startup
+or other plugins. A key that collides with an existing one (built-in or
+another plugin) is also skipped and logged rather than overwriting it.
+
+### Entry points (pip-installable plugins)
+
+A plugin package registers itself in its own `pyproject.toml`:
+
+```toml
+[project.entry-points."flowforge.plugins"]
+my_plugin = "my_package.plugin:MyStep"
+```
+
+Each entry point is expected to resolve to a class (not a module or
+function); it's checked against the same three categories as a
+directory-scanned class. `pip install`-ing the package is then enough — no
+file needs to be copied into `FLOWFORGE_PLUGIN_DIR`. If enumerating entry
+points fails, or one fails to load, or resolves to something that isn't a
+class, it's logged and skipped the same way a broken directory-scanned file
+would be.
 
 ---
 
-## Minimal example
+## Step plugins
+
+### Minimal example
 
 ```python
 # plugins/my_step.py
@@ -57,9 +93,7 @@ POSTs a Jinja2-rendered JSON payload to an arbitrary URL) into your
 `FLOWFORGE_PLUGIN_DIR` and restart FlowForge. The new step type appears
 immediately in the Pipeline Builder.
 
----
-
-## The `BaseStep` contract
+### The `BaseStep` contract
 
 ```python
 class BaseStep(ABC):
@@ -84,11 +118,121 @@ class BaseStep(ABC):
 | `output_variables` | dict merged into the pipeline context — downstream steps see these as `{{ variable_name }}`. |
 
 You don't need to catch every exception yourself — an uncaught exception in
-`run()` is caught by the runner and converted into `StepResult(success=False, error=str(e))` automatically. Returning a `StepResult` explicitly just gives
-you control over the message and any partial output.
+`run()` is caught by the runner and converted into
+`StepResult(success=False, error=str(e))` automatically. Returning a
+`StepResult` explicitly just gives you control over the message and any
+partial output.
 
 To render Jinja2 templates (variables, `{{ pipeline_name }}`, etc.) inside
-your config values, call `flowforge.engine.context.render(template_str, context)` — see `examples/plugins/http_webhook_step.py` for a working example.
+your config values, call
+`flowforge.engine.context.render(template_str, context)` — see
+`examples/plugins/http_webhook_step.py` for a working example.
+
+---
+
+## Connection plugins
+
+Unlike steps — which the runner constructs directly from a pipeline step's
+`(name, config)` — connections are built from a `db_connections` row's
+*decrypted config dict*. A plugin connection class must therefore define a
+`from_config` classmethod instead of relying on `__init__` alone:
+
+```python
+# plugins/my_connection.py
+from flowforge.connections.base import BaseConnection
+
+class MyConnection(BaseConnection):
+    db_type = 'my_custom_db'   # must be unique — matches a db_connections.db_type value
+
+    def __init__(self, host, api_key):
+        self.host, self.api_key = host, api_key
+
+    @classmethod
+    def from_config(cls, cfg: dict) -> 'MyConnection':
+        return cls(host=cfg['host'], api_key=cfg['api_key'])
+
+    # ... implement the rest of BaseConnection's abstract methods:
+    # execute_procedure, execute_query, execute_query_with_columns,
+    # execute_write, execute_many, make_placeholders, test, close ...
+```
+
+If the class is registered but has no `from_config` classmethod, building a
+connection of that type raises a clear `ValueError` at the point of use (not
+at plugin-load time — a plugin with a bug in `from_config` should still load
+and register, so the error surfaces as close as possible to the actual
+misuse rather than silently disabling the whole plugin file).
+
+---
+
+## Email provider plugins
+
+Same shape as connection plugins, against
+`flowforge.email_providers.base.EmailProvider`, keyed by `provider_type`
+instead of `db_type`:
+
+```python
+# plugins/my_provider.py
+from flowforge.email_providers.base import EmailProvider, EmailResult
+
+class MyProvider(EmailProvider):
+    provider_type = 'my_custom_provider'
+
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+
+    @classmethod
+    def from_config(cls, cfg: dict) -> 'MyProvider':
+        return cls(api_key=cfg['api_key'])
+
+    def send(self, to, cc, bcc, subject, html_body, attachments) -> EmailResult:
+        # ... call your provider's API ...
+        return EmailResult(success=True, recipients=to)
+```
+
+`EmailProvider.test()` has a default implementation (returns `(True,
+'Connected')`) — override it if your provider can verify credentials without
+actually sending mail.
+
+---
+
+## Registry introspection
+
+`GET /api/registry/<category>` (`category` is `steps`, `connections`, or
+`email_providers`) lists every registered key in that category — built-in
+and plugin — with `display_name`, `description`, `requires` (the pip extra
+needed, if any), `tier` (unused today — see `docs/TASKS.md` Phase 13.5), and
+two computed fields: `plugin` (registered by a plugin, not built in) and
+`installed` (whether `requires`' underlying package is actually importable;
+always `true` when `requires` is empty). `GET /api/registry` returns the same
+shape flattened across all three categories, with a `category` field added
+and an `entitled: true` stub on every row (there is no licensing/entitlement
+system — this is a forward-looking placeholder, not an active gate).
+
+This is what the frontend now uses to offer plugin connection/provider types
+in the Connections page (see "Frontend" below) rather than hardcoding a
+fixed list of them, and is generally useful for scripting/checking "what's
+actually installed" without reading source.
+
+---
+
+## Frontend
+
+All three categories get a generic fallback rather than a dedicated form,
+since a plugin's config shape is unknown to the frontend ahead of time:
+
+- **Steps**: the Pipeline Builder's step editor falls back to a raw JSON
+  textarea for any step type it doesn't specifically recognize, bound
+  directly to the step's `config`.
+- **Connections / email providers**: the Connections page's "Add
+  Connection"/"Add Email Provider" type dropdown lists plugin types
+  (fetched from the registry endpoint above) alongside the built-in ones.
+  Selecting a plugin type swaps the dedicated per-type form for a raw JSON
+  textarea bound to the connection/provider's `config`.
+
+This is intentionally minimal — if a plugin becomes popular enough to
+deserve a first-class form, that's a good candidate for a PR against
+`frontend/src/components/pipeline/StepEditor.tsx` (steps) or
+`frontend/src/pages/Connections.tsx` (connections/providers).
 
 ---
 
@@ -100,19 +244,23 @@ FLOWFORGE_PLUGIN_DIR=./plugins
 ```
 
 Leave unset (or point it at a directory that doesn't exist) to disable
-plugin loading entirely — the default in `.env.example` is `./plugins`,
-which most installs will never populate.
+directory-scanned plugin loading entirely — the default in `.env.example` is
+`./plugins`, which most installs will never populate. This has no effect on
+entry-point-based plugins, which are discovered from whatever's `pip
+install`-ed regardless of this setting.
 
 ---
 
-## Frontend
+## What's not pluggable yet
 
-Plugin step types have no dedicated configuration form. The Pipeline
-Builder's step editor falls back to a raw JSON textarea for any step type
-it doesn't specifically recognize, bound directly to the step's `config`.
-This is intentionally minimal — if a plugin becomes popular enough to
-deserve a first-class form, that's a good candidate for a PR against
-`frontend/src/components/pipeline/StepEditor.tsx`.
+Storage backends (`s3_upload`/`azure_blob_upload`/`drive_upload`) and report
+formats (`excel`/`pdf`/`csv`) aren't pluggable — there's no registry for
+either yet. `report.py`'s format dispatch has the same if/elif shape as the
+connections/providers dispatch this system replaced and could get the same
+treatment later; storage is structurally different, since there's no shared
+dispatch function to replace today (each upload step imports its own storage
+module directly) — see `docs/TASKS.md` Phase 13 for the full reasoning and
+current status.
 
 ---
 

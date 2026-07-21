@@ -27,7 +27,7 @@ All documentation files in this directory and what they contain.
 | [testing.md](testing.md) | Complete test runbook: Layer 1 unit tests, Layer 2 integration tests (test DB setup, env vars), Layer 3 frontend Vitest, Layer 4 Playwright E2E, Layer 5 API smoke test — copy-paste ready commands for all five layers |
 | [security.md](security.md) | Security model: AES-256 credential encryption, JWT auth with token blocklist, multi-user roles (admin/editor/viewer), webhook token security, audit log, Jinja2 sandbox, input validation, CORS, proxy trust |
 | [manual-testing-guide.md](manual-testing-guide.md) | Step-by-step manual test checklist for verifying end-to-end flows before a release: connections, bulk load, DB query, report generation, email (Gmail + M365), Drive/OneDrive, SFTP, AI features, scheduling |
-| [plugins.md](plugins.md) | How to write a community plugin step type — drop a `BaseStep` subclass into `FLOWFORGE_PLUGIN_DIR` without forking FlowForge |
+| [plugins.md](plugins.md) | How to write a community plugin — a step, database connection, or email provider — by dropping a file into `FLOWFORGE_PLUGIN_DIR` or shipping a pip-installable package, without forking FlowForge |
 | [threat-model.md](threat-model.md) | Trust boundaries, assets, threats, and mitigations for a self-hosted deployment — satisfies OpenSSF Best Practices Silver `assurance_case` |
 | [data-flow.md](data-flow.md) | Data inventory, encryption, retention, and GDPR rights reference — supports SOC 2 / GDPR / HIPAA assessments |
 | [SONAR_ISSUES.md](SONAR_ISSUES.md) | Point-in-time snapshot of open SonarCloud/Scorecard findings and their resolution status — see `docs/TASKS.md` Phase 10 for current state |

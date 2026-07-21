@@ -133,6 +133,21 @@ export const updateStep = (id: string, data: Partial<import('./types').PipelineS
 export const deleteStep = (id: string) => del<{ deleted: string }>(`/pipeline-steps/${id}`)
 export const getStepTypes = () => get<{ type: string; plugin: boolean }[]>('/step-types')
 
+// Registry introspection (ARCH-9/ARCH-11) — connections/email-provider type lists
+// (built-in + plugin), and step types are also exposed here for symmetry, though
+// getStepTypes()/`/step-types` above remains the one steps-specific UI actually uses.
+export interface RegistryEntry {
+  key: string
+  display_name: string
+  description: string
+  requires: string | null
+  tier: string | null
+  plugin: boolean
+  installed: boolean
+}
+export const getRegistryCategory = (category: 'steps' | 'connections' | 'email_providers') =>
+  get<RegistryEntry[]>(`/registry/${category}`)
+
 // Bulk load configs
 export const getBulkLoadConfigs   = () => get<import('./types').BulkLoadConfig[]>('/bulk-load-configs')
 export const getBulkLoadConfig    = (id: string) => get<import('./types').BulkLoadConfig>(`/bulk-load-configs/${id}`)

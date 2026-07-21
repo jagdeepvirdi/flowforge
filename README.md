@@ -149,7 +149,7 @@ All AI-powered UI features (below) run through Ollama by default (local, zero co
 | `notification` | Send a message to Slack, Microsoft Teams, or Telegram |
 | `ai_analyze` | Run a SQL query, summarize results with Ollama, Claude, or Gemini; result available as `{{ ai_summary }}` |
 
-Custom step types can also be added via the [plugin system](docs/plugins.md) without forking FlowForge.
+Custom step types, database connections, and email providers can also be added via the [plugin system](docs/plugins.md) without forking FlowForge.
 
 ---
 
@@ -405,7 +405,7 @@ flowforge/
 - [`docs/getting-started.md`](docs/getting-started.md) — end-to-end setup walkthrough
 - [`docs/step-types.md`](docs/step-types.md) — full config reference for all step types
 - [`docs/email-providers.md`](docs/email-providers.md) — SMTP, M365, Gmail, SendGrid, SES, and Mailgun setup guides
-- [`docs/plugins.md`](docs/plugins.md) — writing a custom plugin step type
+- [`docs/plugins.md`](docs/plugins.md) — writing a custom plugin step type, database connection, or email provider
 - [`docs/deployment.md`](docs/deployment.md) — production deployment (Docker Compose or Gunicorn + Nginx + systemd)
 - [`docs/security.md`](docs/security.md) / [`docs/threat-model.md`](docs/threat-model.md) / [`docs/data-flow.md`](docs/data-flow.md) — security model, threat model, and compliance reference
 - [`docs/RUNBOOK.md`](docs/RUNBOOK.md) — database migrations, startup sequence, production ops

@@ -1772,6 +1772,18 @@ flowforge worker --concurrency 4
 
 - [ ] Server still starts — the broken plugin is skipped with a logged error, other plugins/built-ins still load
 
+### 32d. Plugin connection / email provider
+
+1. Add a plugin file defining a `BaseConnection` subclass with a unique `db_type` and a `from_config(cls, cfg)` classmethod (see `docs/plugins.md` § Connection plugins), restart FlowForge
+
+- [ ] `GET /api/registry/connections` includes an entry for the new `db_type` with `"plugin": true`
+- [ ] Connections page → Add Connection → Type dropdown lists the new type, labelled `(plugin)`
+- [ ] Selecting it shows a raw JSON config textarea instead of the usual host/port/user fields
+2. Save a connection of that type with valid JSON config, then click **Test**
+
+- [ ] Test succeeds using the plugin's own `test()` implementation
+3. Repeat steps 1-2 for a plugin `EmailProvider` subclass (`provider_type` + `from_config`) — same checks against `GET /api/registry/email_providers` and the Email Providers tab
+
 ------------------------------$
 
 ## 33. Team-Scoped Project Members

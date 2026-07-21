@@ -4,6 +4,7 @@ import { Plus, X } from 'lucide-react'
 import {
   getDbConnections, getDbConnection, createDbConnection, updateDbConnection, deleteDbConnection, testDbConnection, testDbConnectionRaw,
   getEmailProviders, getEmailProvider, createEmailProvider, updateEmailProvider, deleteEmailProvider, testEmailProvider,
+  getRegistryCategory,
 } from '../lib/api'
 import { useCurrentUser } from '../lib/auth'
 import TopBar from '../components/shared/TopBar'
@@ -25,6 +26,7 @@ import MailFieldsMailgun from '../components/connections/MailFieldsMailgun'
 import {
   type DbForm, type MailForm,
   emptyDb, emptyMail, defaultDbPort, buildDbConfig, buildMailProviderConfig,
+  KNOWN_DB_TYPES, KNOWN_PROVIDER_TYPES,
 } from '../components/connections/types'
 
 type Tab = 'db' | 'mail'
@@ -56,6 +58,14 @@ export default function Connections() {
 
   const { data: dbConns = [], isLoading: dbLoading }   = useQuery({ queryKey: ['db-connections'],  queryFn: getDbConnections })
   const { data: providers = [], isLoading: mailLoading } = useQuery({ queryKey: ['email-providers'], queryFn: getEmailProviders })
+
+  // Plugin db_types/provider_types (ARCH-9/ARCH-10) — anything the registry
+  // knows about beyond the curated KNOWN_DB_TYPES/KNOWN_PROVIDER_TYPES set
+  // gets an extra dropdown option + a raw-JSON config fallback below.
+  const { data: dbTypeEntries = [] }       = useQuery({ queryKey: ['registry', 'connections'],     queryFn: () => getRegistryCategory('connections') })
+  const { data: providerTypeEntries = [] } = useQuery({ queryKey: ['registry', 'email_providers'], queryFn: () => getRegistryCategory('email_providers') })
+  const pluginDbTypes       = dbTypeEntries.filter(e => !KNOWN_DB_TYPES.includes(e.key))
+  const pluginProviderTypes = providerTypeEntries.filter(e => !KNOWN_PROVIDER_TYPES.includes(e.key))
 
   const { mutate: removeDb }    = useMutation({ mutationFn: deleteDbConnection,  onSuccess: () => qc.invalidateQueries({ queryKey: ['db-connections'] }) })
   const { mutate: removeEmail } = useMutation({ mutationFn: deleteEmailProvider, onSuccess: () => qc.invalidateQueries({ queryKey: ['email-providers'] }) })
@@ -100,7 +110,7 @@ export default function Connections() {
         const str = (v: unknown, fallback = '') => v == null ? fallback : String(v)
         const port = str(cfg.port, defaultDbPort(data.db_type))
         setDbForm({
-          name: data.name, db_type: data.db_type as DbForm['db_type'],
+          name: data.name, db_type: data.db_type,
           is_default: data.is_default,
           host: str(cfg.host), port, database: str(cfg.database),
           username: str(cfg.username), password: '***',
@@ -110,6 +120,7 @@ export default function Connections() {
           schema_name: str(cfg.schema), role: str(cfg.role),
           project_id: str(cfg.project_id), dataset: str(cfg.dataset),
           credentials_json: cfg.credentials_json ? '***' : '',
+          raw_config: KNOWN_DB_TYPES.includes(data.db_type) ? '{}' : JSON.stringify(cfg, null, 2),
         })
       }).catch(() => setFormError('Failed to load connection details'))
     } else {
@@ -117,7 +128,7 @@ export default function Connections() {
         const cfg = data.config ?? {}
         const str = (v: unknown, fallback = '') => v == null ? fallback : String(v)
         setMailForm({
-          name: data.name, provider_type: data.provider_type as MailForm['provider_type'],
+          name: data.name, provider_type: data.provider_type,
           is_default: data.is_default, sender: str(cfg.sender),
           host: str(cfg.host), port: str(cfg.port, '587'),
           username: str(cfg.username), password: '***', use_tls: Boolean(cfg.use_tls ?? true), use_ssl: Boolean(cfg.use_ssl ?? false),
@@ -129,6 +140,7 @@ export default function Connections() {
           aws_secret_access_key: cfg.aws_secret_access_key ? '***' : '',
           aws_region: str(cfg.aws_region, 'us-east-1'),
           domain: str(cfg.domain), region: str(cfg.region, 'us'),
+          raw_config: KNOWN_PROVIDER_TYPES.includes(data.provider_type) ? '{}' : JSON.stringify(cfg, null, 2),
         })
       }).catch(() => setFormError('Failed to load provider details'))
     }
@@ -136,17 +148,18 @@ export default function Connections() {
 
   function submitDb(e: React.FormEvent) {
     e.preventDefault(); setFormError('')
-    const payload = {
-      name: dbForm.name, db_type: dbForm.db_type, is_default: dbForm.is_default,
-      config: buildDbConfig(dbForm),
-    }
+    let config: Record<string, unknown>
+    try { config = buildDbConfig(dbForm) } catch (err) { setFormError((err as Error).message); return }
+    const payload = { name: dbForm.name, db_type: dbForm.db_type, is_default: dbForm.is_default, config }
     if (editId) saveDb({ id: editId, data: payload })
     else addDb(payload)
   }
 
   function submitMail(e: React.FormEvent) {
     e.preventDefault(); setFormError('')
-    const payload = { name: mailForm.name, provider_type: mailForm.provider_type, is_default: mailForm.is_default, config: buildMailProviderConfig(mailForm) }
+    let config: Record<string, unknown>
+    try { config = buildMailProviderConfig(mailForm) } catch (err) { setFormError((err as Error).message); return }
+    const payload = { name: mailForm.name, provider_type: mailForm.provider_type, is_default: mailForm.is_default, config }
     if (editId) saveMail({ id: editId, data: payload })
     else addMail(payload)
   }
@@ -354,7 +367,7 @@ export default function Connections() {
 
                 <Field label="Type">
                   <select className="input" value={dbForm.db_type} onChange={e => {
-                    const t = e.target.value as DbForm['db_type']
+                    const t = e.target.value
                     setDbForm(f => ({ ...f, db_type: t, port: defaultDbPort(t) }))
                   }}>
                     <option value="postgresql">PostgreSQL</option>
@@ -365,10 +378,18 @@ export default function Connections() {
                     <option value="redshift">Amazon Redshift</option>
                     <option value="snowflake">Snowflake</option>
                     <option value="bigquery">Google BigQuery</option>
+                    {pluginDbTypes.map(e => <option key={e.key} value={e.key}>{e.display_name} (plugin)</option>)}
                   </select>
                 </Field>
 
-                {dbForm.db_type === 'odbc' ? (
+                {!KNOWN_DB_TYPES.includes(dbForm.db_type) ? (
+                  <Field label="Config (JSON)">
+                    <p className="text-[12px] text-text-muted m-0 mb-1.5">No dedicated form for this plugin db_type — edit its raw config here.</p>
+                    <textarea className="input mono-input h-auto resize-y" rows={8} value={dbForm.raw_config}
+                      onChange={e => setDbForm(f => ({ ...f, raw_config: e.target.value }))}
+                    />
+                  </Field>
+                ) : dbForm.db_type === 'odbc' ? (
                   <DbFieldsOdbc form={dbForm} setForm={setDbForm} />
                 ) : dbForm.db_type === 'snowflake' ? (
                   <DbFieldsSnowflake form={dbForm} setForm={setDbForm} />
@@ -412,25 +433,39 @@ export default function Connections() {
                 </Field>
 
                 <Field label="Provider">
-                  <select className="input" value={mailForm.provider_type} onChange={e => setMailForm(f => ({ ...f, provider_type: e.target.value as MailForm['provider_type'] }))}>
+                  <select className="input" value={mailForm.provider_type} onChange={e => setMailForm(f => ({ ...f, provider_type: e.target.value }))}>
                     <option value="smtp">SMTP (Generic)</option>
                     <option value="gmail">Gmail (OAuth2)</option>
                     <option value="microsoft365">Microsoft 365 (OAuth2)</option>
                     <option value="sendgrid">SendGrid</option>
                     <option value="ses">AWS SES</option>
                     <option value="mailgun">Mailgun</option>
+                    {pluginProviderTypes.map(e => <option key={e.key} value={e.key}>{e.display_name} (plugin)</option>)}
                   </select>
                 </Field>
 
-                <Field label="Sender Email">
-                  <input className="input" type="email" value={mailForm.sender} onChange={e => setMailForm(f => ({ ...f, sender: e.target.value }))} placeholder="you@example.com" required />
-                </Field>
+                {KNOWN_PROVIDER_TYPES.includes(mailForm.provider_type) && (
+                  <Field label="Sender Email">
+                    <input className="input" type="email" value={mailForm.sender} onChange={e => setMailForm(f => ({ ...f, sender: e.target.value }))} placeholder="you@example.com" required />
+                  </Field>
+                )}
 
-                {mailForm.provider_type === 'smtp' && <MailFieldsSmtp form={mailForm} setForm={setMailForm} />}
-                {(mailForm.provider_type === 'gmail' || mailForm.provider_type === 'microsoft365') && <MailFieldsOAuth form={mailForm} setForm={setMailForm} />}
-                {mailForm.provider_type === 'sendgrid' && <MailFieldsSendgrid form={mailForm} setForm={setMailForm} />}
-                {mailForm.provider_type === 'ses' && <MailFieldsSes form={mailForm} setForm={setMailForm} />}
-                {mailForm.provider_type === 'mailgun' && <MailFieldsMailgun form={mailForm} setForm={setMailForm} />}
+                {!KNOWN_PROVIDER_TYPES.includes(mailForm.provider_type) ? (
+                  <Field label="Config (JSON)">
+                    <p className="text-[12px] text-text-muted m-0 mb-1.5">No dedicated form for this plugin provider_type — edit its raw config here.</p>
+                    <textarea className="input mono-input h-auto resize-y" rows={8} value={mailForm.raw_config}
+                      onChange={e => setMailForm(f => ({ ...f, raw_config: e.target.value }))}
+                    />
+                  </Field>
+                ) : (
+                  <>
+                    {mailForm.provider_type === 'smtp' && <MailFieldsSmtp form={mailForm} setForm={setMailForm} />}
+                    {(mailForm.provider_type === 'gmail' || mailForm.provider_type === 'microsoft365') && <MailFieldsOAuth form={mailForm} setForm={setMailForm} />}
+                    {mailForm.provider_type === 'sendgrid' && <MailFieldsSendgrid form={mailForm} setForm={setMailForm} />}
+                    {mailForm.provider_type === 'ses' && <MailFieldsSes form={mailForm} setForm={setMailForm} />}
+                    {mailForm.provider_type === 'mailgun' && <MailFieldsMailgun form={mailForm} setForm={setMailForm} />}
+                  </>
+                )}
 
                 <label className="flex items-center gap-2 text-[13px] text-text-3 cursor-pointer">
                   <input type="checkbox" checked={mailForm.is_default} onChange={e => setMailForm(f => ({ ...f, is_default: e.target.checked }))} />{' '}

@@ -116,6 +116,15 @@ s3 = [
 azure_blob = [
     "azure-storage-blob>=12.19",
 ]
+sendgrid = [
+    # SendGrid has no dedicated SDK dependency here — it sends via SendGrid's
+    # plain HTTP API using `requests`, which isn't otherwise a core dependency.
+    "requests>=2.31",
+]
+mailgun = [
+    # Same as sendgrid — Mailgun's Messages API is called directly via `requests`.
+    "requests>=2.31",
+]
 all = [
     "flowforge-io[gmail]",
     "flowforge-io[drive]",
@@ -131,6 +140,8 @@ all = [
     "flowforge-io[bigquery]",
     "flowforge-io[s3]",
     "flowforge-io[azure_blob]",
+    "flowforge-io[sendgrid]",
+    "flowforge-io[mailgun]",
 ]
 dev = [
     "pytest>=8.0",

@@ -1,14 +1,22 @@
 """Load a pipeline definition from the database into executable step objects.
 
 Also owns the step-type registry (built-in step classes plus any community
-plugin step classes loaded from FLOWFORGE_PLUGIN_DIR — see _load_plugins).
+plugin step classes loaded from FLOWFORGE_PLUGIN_DIR or a pip-installed
+"flowforge.plugins" entry point — see _load_plugins) and the generic plugin
+scanner (_PluginCategory / _register_plugin_class) that a single plugin file
+or entry point is checked against, so it may define a step, a connection, or
+an email provider — see docs/TASKS.md Phase 13.3.
 """
 import importlib
+import importlib.metadata
+import importlib.util
 import inspect
 import logging
 import os
 import sys
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 from flowforge.crypto import decrypt_value
 from flowforge.db.models import Pipeline, db
@@ -43,19 +51,87 @@ _BUILTIN_STEP_TYPES = frozenset(_STEP_CLASSES)
 _PLUGINS_LOADED = False
 
 
-def _load_plugins() -> None:
-    """Scan FLOWFORGE_PLUGIN_DIR (default ./plugins) for *.py files and register any
-    BaseStep subclass they define, keyed by its `step_type` class attribute.
+def _step_contains(key: str) -> bool:
+    return key in _STEP_CLASSES
 
-    Runs at most once per process. A plugin file that fails to import, or that
-    defines no usable BaseStep subclass, is logged and skipped — it never blocks
-    startup or other plugins. See docs/plugins.md for the authoring contract.
+
+def _step_register(key: str, cls: type) -> None:
+    _STEP_CLASSES[key] = cls
+
+
+@dataclass
+class _PluginCategory:
+    """One pluggable category the plugin scanner checks a class against.
+
+    `contains`/`register` abstract over each category's own storage — steps
+    use the module-level `_STEP_CLASSES` dict directly; connections/email
+    providers use their `Registry` instances (flowforge/registry.py) — so the
+    scanner below doesn't need to know how each category stores things.
     """
-    global _PLUGINS_LOADED
-    if _PLUGINS_LOADED:
-        return
-    _PLUGINS_LOADED = True
+    label: str            # for log messages, e.g. "step", "connection"
+    base_class: type
+    key_attr: str          # class attribute holding the registration key, e.g. "step_type"
+    contains: Callable[[str], bool]
+    register: Callable[[str, type], None]
 
+
+def _plugin_categories() -> list[_PluginCategory]:
+    """Built lazily (not at import time) to avoid a hard import-order dependency
+    between this module and the connections/email_providers factory modules."""
+    from flowforge.connections.base import BaseConnection
+    from flowforge.connections.factory import connections_registry
+    from flowforge.email_providers.base import EmailProvider
+    from flowforge.email_providers.factory import providers_registry
+
+    return [
+        _PluginCategory('step', BaseStep, 'step_type', _step_contains, _step_register),
+        _PluginCategory('connection', BaseConnection, 'db_type',
+                         connections_registry.__contains__, connections_registry.register),
+        _PluginCategory('email provider', EmailProvider, 'provider_type',
+                         providers_registry.__contains__, providers_registry.register),
+    ]
+
+
+def _register_plugin_class(obj: type, categories: list[_PluginCategory], source: str) -> bool:
+    """Try to register `obj` against whichever category's base class it subclasses.
+
+    Returns True if registered. A class belongs to at most one category — the
+    base classes (BaseStep, BaseConnection, EmailProvider) are unrelated
+    hierarchies, so the first category that matches `issubclass` is decisive:
+    if its `key_attr` is missing or already registered, nothing else would
+    have matched either, so we log and stop rather than trying the rest.
+    """
+    for category in categories:
+        if obj is category.base_class or not issubclass(obj, category.base_class):
+            continue
+        key = getattr(obj, category.key_attr, '') or ''
+        if not key:
+            logger.warning(
+                "Plugin %s class %s from %s has no %s set — skipped",
+                category.label, obj.__name__, source, category.key_attr,
+            )
+            return False
+        if category.contains(key):
+            logger.warning(
+                "Plugin %s '%s' from %s conflicts with an existing one — skipped",
+                category.label, key, source,
+            )
+            return False
+        category.register(key, obj)
+        logger.info("Registered plugin %s '%s' from %s", category.label, key, source)
+        return True
+    return False
+
+
+def _load_directory_plugins(categories: list[_PluginCategory]) -> None:
+    """Scan FLOWFORGE_PLUGIN_DIR (default ./plugins) for *.py files and register any
+    recognized plugin class they define (see _plugin_categories), keyed by that
+    category's key attribute (e.g. `step_type`, `db_type`, `provider_type`).
+
+    A plugin file that fails to import, or that defines no usable plugin class,
+    is logged and skipped — it never blocks startup or other plugins. See
+    docs/plugins.md for the authoring contract.
+    """
     plugin_dir = Path(os.environ.get('FLOWFORGE_PLUGIN_DIR', './plugins'))
     if not plugin_dir.is_dir():
         return
@@ -71,28 +147,61 @@ def _load_plugins() -> None:
             spec.loader.exec_module(module)
         except Exception:
             sys.modules.pop(module_name, None)
-            logger.exception("Failed to load plugin step file: %s", py_file)
+            logger.exception("Failed to load plugin file: %s", py_file)
             continue
 
         registered = 0
         for _, obj in inspect.getmembers(module, inspect.isclass):
-            if obj is BaseStep or not issubclass(obj, BaseStep) or obj.__module__ != module_name:
+            if obj.__module__ != module_name:
                 continue
-            step_type = getattr(obj, 'step_type', '') or ''
-            if not step_type:
-                logger.warning("Plugin class %s in %s has no step_type set — skipped", obj.__name__, py_file.name)
-                continue
-            if step_type in _STEP_CLASSES:
-                logger.warning(
-                    "Plugin step_type '%s' from %s conflicts with an existing step type — skipped",
-                    step_type, py_file.name,
-                )
-                continue
-            _STEP_CLASSES[step_type] = obj
-            registered += 1
-            logger.info("Registered plugin step type '%s' from %s", step_type, py_file.name)
+            if _register_plugin_class(obj, categories, source=py_file.name):
+                registered += 1
         if not registered:
-            logger.warning("Plugin file %s defined no usable BaseStep subclass — nothing registered", py_file.name)
+            logger.warning("Plugin file %s defined no usable plugin class — nothing registered", py_file.name)
+
+
+def _load_entry_point_plugins(categories: list[_PluginCategory]) -> None:
+    """Load plugins registered by a pip-installed package via the
+    `flowforge.plugins` entry-point group, e.g. in pyproject.toml:
+
+        [project.entry-points."flowforge.plugins"]
+        my_plugin = "my_package.plugin:MyStep"
+
+    This is what makes a plugin distributable/pip-installable, rather than
+    only usable by dropping a file into FLOWFORGE_PLUGIN_DIR.
+    """
+    try:
+        entry_points = importlib.metadata.entry_points(group='flowforge.plugins')
+    except Exception:
+        logger.exception("Failed to enumerate 'flowforge.plugins' entry points")
+        return
+
+    for ep in entry_points:
+        source = f"entry point '{ep.name}'"
+        try:
+            obj = ep.load()
+        except Exception:
+            logger.exception("Failed to load plugin %s", source)
+            continue
+        if not inspect.isclass(obj):
+            logger.warning("Plugin %s does not resolve to a class — skipped", source)
+            continue
+        _register_plugin_class(obj, categories, source=source)
+
+
+def _load_plugins() -> None:
+    """Load plugins from both FLOWFORGE_PLUGIN_DIR and installed entry points.
+
+    Runs at most once per process.
+    """
+    global _PLUGINS_LOADED
+    if _PLUGINS_LOADED:
+        return
+    _PLUGINS_LOADED = True
+
+    categories = _plugin_categories()
+    _load_directory_plugins(categories)
+    _load_entry_point_plugins(categories)
 
 
 def get_step_types() -> list[str]:
@@ -106,11 +215,22 @@ def is_plugin_step_type(step_type: str) -> bool:
 
 
 def _reset_plugin_state_for_tests() -> None:
-    """Test-only: drop plugin-registered types and allow _load_plugins to run again."""
+    """Test-only: drop plugin-registered types (steps, connections, email
+    providers) and allow _load_plugins to run again."""
     global _PLUGINS_LOADED
     for step_type in list(_STEP_CLASSES):
         if step_type not in _BUILTIN_STEP_TYPES:
             del _STEP_CLASSES[step_type]
+
+    from flowforge.connections.factory import BUILTIN_DB_TYPES, connections_registry
+    from flowforge.email_providers.factory import BUILTIN_PROVIDER_TYPES, providers_registry
+    for db_type in connections_registry.list():
+        if db_type not in BUILTIN_DB_TYPES:
+            connections_registry.unregister(db_type)
+    for provider_type in providers_registry.list():
+        if provider_type not in BUILTIN_PROVIDER_TYPES:
+            providers_registry.unregister(provider_type)
+
     _PLUGINS_LOADED = False
 
 
