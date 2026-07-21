@@ -279,6 +279,117 @@ def test_cycle_detection_blocked(client, headers, pipeline_id, second_pipeline_i
     assert 'circular' in resp.get_json()['error'].lower()
 
 
+# ── step dependencies (Phase 14 Option B, Milestone 1) ───────────────────────
+
+@pytest.fixture
+def two_step_ids(client, headers, pipeline_id):
+    """Add two db_query steps to `pipeline_id`'s pipeline; returns (step_a_id, step_b_id)."""
+    a = client.post(f'/api/pipelines/{pipeline_id}/steps',
+                    json={'name': 'Step A', 'step_type': 'db_query', 'config': {}}, headers=headers)
+    b = client.post(f'/api/pipelines/{pipeline_id}/steps',
+                    json={'name': 'Step B', 'step_type': 'db_query', 'config': {}}, headers=headers)
+    return a.get_json()['id'], b.get_json()['id']
+
+
+def test_get_step_dependencies_empty(client, headers, pipeline_id):
+    resp = client.get(f'/api/pipelines/{pipeline_id}/step-dependencies', headers=headers)
+    assert resp.status_code == 200
+    assert resp.get_json() == []
+
+
+def test_get_step_dependencies_pipeline_not_found(client, headers):
+    resp = client.get('/api/pipelines/00000000-0000-0000-0000-000000000000/step-dependencies',
+                      headers=headers)
+    assert resp.status_code == 404
+
+
+def test_add_list_remove_step_dependency(client, headers, pipeline_id, two_step_ids):
+    step_a_id, step_b_id = two_step_ids
+    resp = client.post(f'/api/pipelines/{pipeline_id}/step-dependencies',
+                       json={'upstream_step_id': step_a_id, 'downstream_step_id': step_b_id},
+                       headers=headers)
+    assert resp.status_code == 201
+    dep_id = resp.get_json()['dep_id']
+
+    deps = client.get(f'/api/pipelines/{pipeline_id}/step-dependencies', headers=headers).get_json()
+    assert any(d['dep_id'] == dep_id for d in deps)
+
+    del_resp = client.delete(f'/api/pipelines/{pipeline_id}/step-dependencies/{dep_id}', headers=headers)
+    assert del_resp.status_code == 200
+
+
+def test_add_step_dependency_self_reference(client, headers, pipeline_id, two_step_ids):
+    step_a_id, _ = two_step_ids
+    resp = client.post(f'/api/pipelines/{pipeline_id}/step-dependencies',
+                       json={'upstream_step_id': step_a_id, 'downstream_step_id': step_a_id},
+                       headers=headers)
+    assert resp.status_code == 400
+    assert 'itself' in resp.get_json()['error'].lower()
+
+
+def test_add_step_dependency_missing_ids(client, headers, pipeline_id):
+    resp = client.post(f'/api/pipelines/{pipeline_id}/step-dependencies', json={}, headers=headers)
+    assert resp.status_code == 400
+
+
+def test_add_step_dependency_step_not_found(client, headers, pipeline_id, two_step_ids):
+    step_a_id, _ = two_step_ids
+    resp = client.post(f'/api/pipelines/{pipeline_id}/step-dependencies',
+                       json={'upstream_step_id': step_a_id,
+                             'downstream_step_id': '00000000-0000-0000-0000-000000000000'},
+                       headers=headers)
+    assert resp.status_code == 404
+
+
+def test_add_step_dependency_cross_pipeline_rejected(client, headers, pipeline_id, second_pipeline_id, two_step_ids):
+    step_a_id, _ = two_step_ids
+    other = client.post(f'/api/pipelines/{second_pipeline_id}/steps',
+                        json={'name': 'Other Step', 'step_type': 'db_query', 'config': {}}, headers=headers)
+    other_step_id = other.get_json()['id']
+
+    resp = client.post(f'/api/pipelines/{pipeline_id}/step-dependencies',
+                       json={'upstream_step_id': step_a_id, 'downstream_step_id': other_step_id},
+                       headers=headers)
+    assert resp.status_code == 404
+
+
+def test_add_step_dependency_duplicate(client, headers, pipeline_id, two_step_ids):
+    step_a_id, step_b_id = two_step_ids
+    client.post(f'/api/pipelines/{pipeline_id}/step-dependencies',
+               json={'upstream_step_id': step_a_id, 'downstream_step_id': step_b_id}, headers=headers)
+    dup = client.post(f'/api/pipelines/{pipeline_id}/step-dependencies',
+                      json={'upstream_step_id': step_a_id, 'downstream_step_id': step_b_id}, headers=headers)
+    assert dup.status_code == 409
+
+
+def test_step_dependency_cycle_detection_blocked(client, headers, pipeline_id, two_step_ids):
+    step_a_id, step_b_id = two_step_ids
+    # A → B
+    client.post(f'/api/pipelines/{pipeline_id}/step-dependencies',
+               json={'upstream_step_id': step_a_id, 'downstream_step_id': step_b_id}, headers=headers)
+    # B → A (would close a cycle)
+    resp = client.post(f'/api/pipelines/{pipeline_id}/step-dependencies',
+                       json={'upstream_step_id': step_b_id, 'downstream_step_id': step_a_id},
+                       headers=headers)
+    assert resp.status_code == 409
+    assert 'circular' in resp.get_json()['error'].lower()
+
+
+def test_remove_step_dependency_not_found(client, headers, pipeline_id):
+    resp = client.delete(
+        f'/api/pipelines/{pipeline_id}/step-dependencies/00000000-0000-0000-0000-000000000000',
+        headers=headers)
+    assert resp.status_code == 404
+
+
+def test_add_step_dependency_pipeline_not_found(client, headers):
+    resp = client.post('/api/pipelines/00000000-0000-0000-0000-000000000000/step-dependencies',
+                       json={'upstream_step_id': '00000000-0000-0000-0000-000000000001',
+                             'downstream_step_id': '00000000-0000-0000-0000-000000000002'},
+                       headers=headers)
+    assert resp.status_code == 404
+
+
 # ── promote ──────────────────────────────────────────────────────────────────
 
 def test_promote_pipeline_missing_target(client, headers, pipeline_id):

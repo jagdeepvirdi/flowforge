@@ -288,9 +288,9 @@ change** — see the decisions and per-milestone breakdown below.*
   steps — an edge could legally reference a disabled step's id. M1's schema doesn't prevent this; M2
   needs a policy (skip-and-satisfy vs. error) when it starts walking edges.
 
-### Milestone 1 — Schema + migration (additive, zero runner changes) — next up
+### Milestone 1 — Schema + migration (additive, zero runner changes) — done 2026-07-22
 
-- [ ] **New model `StepDependency`** (`flowforge/db/models.py`, directly after `PipelineDependency`):
+- [x] **New model `StepDependency`** (`flowforge/db/models.py`, directly after `PipelineDependency`):
   table `ff_step_dependencies` — `id, pipeline_id (FK→ff_pipelines, CASCADE, indexed),
   upstream_step_id (FK→ff_pipeline_steps, CASCADE, indexed), downstream_step_id (FK→ff_pipeline_steps,
   CASCADE, indexed), created_at`. `UniqueConstraint('upstream_step_id','downstream_step_id',
@@ -303,19 +303,21 @@ change** — see the decisions and per-milestone breakdown below.*
   `exists_for_pipeline(pipeline_id) -> bool` — the single signal M2's dual-path engine selection
   branches on. On `PipelineStep`, add two relationships only (`upstream_step_deps`/
   `downstream_step_deps`, `cascade='all, delete-orphan'`) — no new columns, no `__table_args__`
-  changes. `step_order`/`parallel_group` stay completely untouched and unmigrated.
-- [ ] **Migration `0032_step_dependencies.py`** (`down_revision = '0031_email_body_format'`) — creates
+  changes. `step_order`/`parallel_group` stay completely untouched and unmigrated. — **done
+  2026-07-22**: implemented exactly as scoped in `flowforge/db/models.py`.
+- [x] **Migration `0032_step_dependencies.py`** (`down_revision = '0031_email_body_format'`) — creates
   `ff_step_dependencies` + 3 indexes (`ix_step_dep_pipeline/upstream/downstream`), following
   `0023_pipeline_deps_parallel.py`'s exact style. No changes to `ff_pipeline_steps`. `downgrade()`
-  drops the 3 indexes then the table.
-- [ ] **Step-level cycle detection, enforced at write-time** — new `_creates_step_cycle(pipeline_id,
+  drops the 3 indexes then the table. — **done 2026-07-22**.
+- [x] **Step-level cycle detection, enforced at write-time** — new `_creates_step_cycle(pipeline_id,
   new_upstream_id, new_downstream_id)` in `api/routes/steps.py` (NOT reusing `_has_path` — bound to
   the wrong model and one-query-per-hop): one query loads the whole per-pipeline edge set into an
   in-memory adjacency dict, then a visited-set/stack traversal checks whether the proposed edge would
   close a cycle. Safe to call on every request, including a future canvas keystroke in M3. Enforced now
-  (not deferred to M2/M3) so the table is acyclic by construction before anything reads it.
-- [ ] **New API routes** in `api/routes/steps.py` (reuse existing `bp`, no new blueprint; add
-  `require_role` import + `StepDependency` import):
+  (not deferred to M2/M3) so the table is acyclic by construction before anything reads it. — **done
+  2026-07-22**.
+- [x] **New API routes** in `api/routes/steps.py` (reuse existing `bp`, no new blueprint; add
+  `require_role` import + `StepDependency` import): — **done 2026-07-22**.
   - `GET /api/pipelines/<id>/step-dependencies` → flat `[{dep_id, upstream_step_id,
     downstream_step_id}]` list, 404/403 guarded same as existing routes.
   - `POST /api/pipelines/<id>/step-dependencies` (`@require_role(['admin','editor'])`) — validates
@@ -323,20 +325,29 @@ change** — see the decisions and per-milestone breakdown below.*
     `_creates_step_cycle` (409), duplicate (409), then insert (201).
   - `DELETE /api/pipelines/<id>/step-dependencies/<dep_id>` (`@require_role(['admin','editor'])`) —
     scoped by pipeline match, 404 if not found.
-- [ ] **Tests**: new `tests/test_step_dependencies_model.py` (valid edge, self-reference constraint,
+- [x] **Tests**: new `tests/test_step_dependencies_model.py` (valid edge, self-reference constraint,
   duplicate constraint, cascade on step delete, cascade on pipeline delete, `exists_for_pipeline`
   true/false). New API tests appended to `tests/test_pipelines_extended_coverage.py` alongside the
   existing pipeline-dependency tests (empty list, add+list+remove round-trip, self-reference → 400,
   missing ids → 400, step not found → 404, cross-pipeline rejected, cycle → 409 mirroring
   `test_cycle_detection_blocked`, duplicate → 409, remove-not-found → 404). **Regression test proving
-  zero impact on the existing engine** (added to `tests/test_runner_extended.py`/
-  `tests/test_loader_unit.py`): take the existing `test_build_waves_*` fixtures, additionally insert
-  `StepDependency` rows for that same pipeline (edges that, if honored, would reorder execution), then
-  assert `_build_execution_waves(...)`/`loader.load_pipeline(...)` produce byte-for-byte identical
-  output to before the edges existed — the concrete proof of the backward-compatibility decision above.
-- [ ] **Verification**: `alembic upgrade head` clean, `downgrade -1` then `upgrade head` again
+  zero impact on the existing engine** — **done 2026-07-22**, with one deviation from the original
+  plan: rather than extending `test_runner_extended.py`/`test_loader_unit.py` (both of which operate
+  on hand-built `BaseStep`/`MagicMock` fixtures with no real DB or pipeline_id, so there was nowhere
+  to hang a real `StepDependency` row), the regression test
+  (`test_step_dependencies_do_not_affect_loader_order`) lives in the new
+  `test_step_dependencies_model.py` alongside the other real-DB model tests: builds a real
+  pipeline/steps via the ORM, calls `loader.load_pipeline(...)` before and after inserting a
+  `StepDependency` edge that (if honored) would reverse execution order, and asserts the returned
+  step order is byte-for-byte identical both times — the concrete proof of the backward-compatibility
+  decision above.
+- [x] **Verification**: `alembic upgrade head` clean, `downgrade -1` then `upgrade head` again
   (reversibility); full backend suite green; manual round-trip (`POST` valid → 201, repeat → 409,
-  reversed pair closing a cycle → 409, `GET` lists it, `DELETE` removes it).
+  reversed pair closing a cycle → 409, `GET` lists it, `DELETE` removes it). — **done 2026-07-22**:
+  reversibility verified directly via `alembic` `command.current/downgrade/upgrade`; full backend
+  suite green (2067 passed); round-trip verified via the new pytest API-client tests rather than a
+  separately booted live app instance (Flask test client exercises the same routes end-to-end
+  against the same real Postgres test DB, so this is equivalent coverage, not a shortcut).
 
 ### Milestone 2 — Runner rewrite: topological DAG execution engine (roadmap-level, own design pass)
 
