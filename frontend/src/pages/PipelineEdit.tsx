@@ -15,6 +15,7 @@ import {
   getStepTypes,
   getPipelines,
   addPipelineDep, removePipelineDep,
+  getStepDeps,
 } from '../lib/api'
 import type {
   Pipeline, PipelineDep, PipelineStep, StepType,
@@ -71,6 +72,11 @@ export default function PipelineEdit() {
   const { data: allPipelines = [] } = useQuery({ queryKey: ['pipelines'],        queryFn: () => getPipelines() })
   const { data: stepTypes = STEP_TYPES.map(type => ({ type, plugin: false })) } =
     useQuery({ queryKey: ['step-types'], queryFn: getStepTypes })
+  const { data: stepDeps = [], refetch: refetchStepDeps } = useQuery({
+    queryKey: ['step-deps', id],
+    queryFn: () => getStepDeps(id!),
+    enabled: !isNew,
+  })
 
   const crumbs = isNew ? ['Workspace', 'Pipelines', 'New Pipeline'] : ['Workspace', 'Pipelines', 'Edit Pipeline']
 
@@ -132,6 +138,8 @@ export default function PipelineEdit() {
       bulkLoadCfgs={bulkLoadCfgs}
       allPipelines={allPipelines}
       stepTypes={stepTypes}
+      stepDeps={stepDeps}
+      refetchStepDeps={refetchStepDeps}
       navigate={navigate}
       qc={qc}
     />
@@ -139,7 +147,8 @@ export default function PipelineEdit() {
 }
 
 function PipelineForm({
-  id, isNew, existing, dbConns, reportCfgs, emailCfgs, bulkLoadCfgs, allPipelines, stepTypes, navigate, qc,
+  id, isNew, existing, dbConns, reportCfgs, emailCfgs, bulkLoadCfgs, allPipelines, stepTypes,
+  stepDeps, refetchStepDeps, navigate, qc,
 }: {
   id?: string
   isNew: boolean
@@ -150,6 +159,8 @@ function PipelineForm({
   bulkLoadCfgs: BulkLoadConfig[]
   allPipelines: Pipeline[]
   stepTypes: { type: string; plugin: boolean }[]
+  stepDeps: import('../lib/types').StepDep[]
+  refetchStepDeps: () => void
   navigate: NavigateFunction
   qc: QueryClient
 }) {
@@ -402,6 +413,9 @@ function PipelineForm({
                 reportConfigs={reportCfgs.map(r => ({ id: r.id, name: r.name, output_filename: r.output_filename }))}
                 emailConfigs={emailCfgs.map(e => ({ id: e.id, name: e.name }))}
                 bulkLoadConfigs={bulkLoadCfgs.map(b => ({ id: b.id, name: b.name, source_directory: b.source_directory, target_table: b.target_table }))}
+                pipelineId={id}
+                stepDeps={stepDeps}
+                onStepDepsChanged={refetchStepDeps}
               />
             )}
           </RouteErrorBoundary>

@@ -13,6 +13,12 @@
 import { test, expect, type Page } from '@playwright/test'
 
 let PIPELINE_NAME: string
+let DAG_PIPELINE_NAME: string
+
+/** Reads the JWT out of localStorage (zustand persist key `flowforge-auth`) for direct API calls. */
+async function getAuthToken(page: Page): Promise<string> {
+  return page.evaluate(() => JSON.parse(localStorage.getItem('flowforge-auth') ?? '{}')?.state?.token)
+}
 
 async function createPipeline(page: Page, name: string): Promise<void> {
   await page.goto('/pipelines')
@@ -116,5 +122,66 @@ test.describe('Pipeline canvas view', () => {
     const firstNode = page.locator('[data-testid^="canvas-node-"]').first()
     await firstNode.getByTitle('Delete step').click({ force: true })
     await expect(page.locator('[data-testid^="canvas-node-"]')).toHaveCount(1)
+  })
+})
+
+/**
+ * Real step-dependency edges (Phase 14 Option B, Milestone 3). Drawing a connection is a
+ * handle-to-handle pointer drag inside an SVG canvas — the same class of gesture already
+ * documented above as too flaky to automate reliably in headless CI (worse, even, than the
+ * node-repositioning drag: it requires landing precisely on a 6px handle). That interaction is
+ * covered instead by PipelineCanvas.test.tsx's mocked-ReactFlow component tests, which exercise
+ * the actual onConnect/onEdgesDelete handlers directly. What *is* reliably automatable here —
+ * and still real, end-to-end coverage — is that once a step-dependency exists (created via a
+ * direct API call, mirroring what a successful connect gesture would have done), the canvas
+ * fetches and renders it correctly, exclusively (not alongside the synthetic wave edge), and
+ * that it survives a reload.
+ */
+test.describe('Pipeline canvas — real step-dependency edges', () => {
+  test.beforeAll(async () => {
+    DAG_PIPELINE_NAME = `E2E Canvas DAG ${Date.now()}`
+  })
+
+  test.afterAll(async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: 'e2e/.auth.json' })
+    const page = await ctx.newPage()
+    try { await deletePipeline(page, DAG_PIPELINE_NAME) } catch { /* already deleted */ }
+    await ctx.close()
+  })
+
+  test('a step dependency created via the API renders as a real edge and survives reload', async ({ page, request }) => {
+    await createPipeline(page, DAG_PIPELINE_NAME)
+    await openPipelineEditor(page, DAG_PIPELINE_NAME)
+    await page.locator('[data-testid="view-toggle-canvas"]').click()
+
+    await page.getByRole('button', { name: /db query/i }).click()
+    await page.getByRole('button', { name: /db query/i }).click()
+    await expect(page.locator('[data-testid^="canvas-node-"]')).toHaveCount(2)
+
+    await page.getByRole('button', { name: /Save/i }).click()
+    await expect(page).toHaveURL(/\/pipelines$/, { timeout: 15_000 })
+
+    const token = await getAuthToken(page)
+    const pipelines = await request.get('/api/pipelines', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+    const pipeline = pipelines.find((p: { name: string }) => p.name === DAG_PIPELINE_NAME)
+    const steps = await request.get(`/api/pipelines/${pipeline.id}/steps`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+    expect(steps).toHaveLength(2)
+
+    const depRes = await request.post(`/api/pipelines/${pipeline.id}/step-dependencies`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { upstream_step_id: steps[0].id, downstream_step_id: steps[1].id },
+    })
+    expect(depRes.ok()).toBe(true)
+
+    await openPipelineEditor(page, DAG_PIPELINE_NAME)
+    await page.locator('[data-testid="view-toggle-canvas"]').click()
+    await expect(page.locator('.react-flow__edge')).toHaveCount(1)
+
+    // Reload — the edge must still be fetched and rendered, not just a leftover from this session.
+    await page.reload()
+    await page.locator('[data-testid="view-toggle-canvas"]').click()
+    await expect(page.locator('.react-flow__edge')).toHaveCount(1)
   })
 })

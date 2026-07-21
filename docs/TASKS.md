@@ -415,21 +415,56 @@ mocked) plus `tests/test_runner_dag_gate.py` (2 real-DB integration tests provin
 a pipeline with `StepDependency` rows routes to `run_dag` with the right edges; one with none stays
 on the wave path, `run_dag` never called). Full backend suite: 2081 passed, 0 regressions. Ruff clean.
 
-### Milestone 3 — Canvas: real edge-drawing wired to the M1 API (roadmap-level)
+### Milestone 3 — Canvas: real edge-drawing wired to the M1 API — done 2026-07-22
 
 Scope: `PipelineCanvas.tsx`, `StepNode.tsx`, `layout.ts`, new API client functions.
 
-- [ ] Wire `onConnect` on `<ReactFlow>` (absent today) → calls the M1 `POST step-dependencies`
-  endpoint; 409 (cycle) surfaces as inline UX feedback, not a silent failure.
-- [ ] Handle `id`s on `StepNode`'s `<Handle>` components if multiple distinct connection points per
-  step are needed (explicit M3 scope call — single handle per side may be an acceptable v1).
-- [ ] Fetch real edges from the M1 API; if any exist for the pipeline, use them exclusively and skip
+- [x] Wire `onConnect` on `<ReactFlow>` (absent today) → calls the M1 `POST step-dependencies`
+  endpoint; 409 (cycle) surfaces as inline UX feedback, not a silent failure. — **done**: new
+  `stepDeps.ts`'s `canConnectSteps` guards client-side (unsaved pipeline/step, self-connection)
+  before the round-trip; `PipelineCanvas.tsx`'s `handleConnect` calls `addStepDep` and shows any
+  API error (cycle, duplicate, etc.) in a dismissible inline banner
+  (`data-testid="canvas-connect-error"`) — never a silent failure. Deliberately diverges from how
+  pipeline-to-pipeline dependencies work elsewhere in this codebase (`DependenciesCard`/
+  `TriggersCard`: local-state-only, batched into the parent's Save-time sync loop): step edges
+  persist immediately on connect instead, because live cycle feedback at draw-time is the whole
+  point of a canvas connect gesture — deferring it to Save would let a doomed edge appear to draw
+  successfully and only fail later, disconnected from the gesture that created it.
+- [x] Handle `id`s on `StepNode`'s `<Handle>` components if multiple distinct connection points per
+  step are needed (explicit M3 scope call — single handle per side may be an acceptable v1). —
+  **taken as-is**: `StepNode.tsx` unchanged, single unnamed target/source handle per side (left/right).
+- [x] Fetch real edges from the M1 API; if any exist for the pipeline, use them exclusively and skip
   the synthetic `buildWaveEdges` cartesian edges — mirrors the backend's dual-path gate on the
-  frontend.
-- [ ] Decide what `onNodeDragStop`'s existing reorder logic (`resolveDropTarget`/`assignParallelGroup`)
-  means once a pipeline is in DAG mode.
-- [ ] Add drag/connect coverage to `PipelineCanvas.test.tsx` and `e2e/pipeline-canvas.spec.ts` — both
-  currently have zero.
+  frontend. — **done**: `PipelineEdit.tsx` fetches `stepDeps` via `useQuery(['step-deps', id])`
+  (`enabled: !isNew`) and passes them + `pipelineId` down; `PipelineCanvas.tsx`'s `hasRealEdges =
+  stepDeps.length > 0` gate switches both the rendered edges (`toRealFlowEdges` vs
+  `buildWaveEdges`) and the layout (`layoutRealEdges` vs `layoutWaves`, the former new in
+  `layout.ts`, both sharing a `layoutFromEdges` helper). Real edges render in the accent color,
+  visually distinct from the neutral synthetic ones — verified live in a browser (screenshots),
+  not just unit tests.
+- [x] Decide what `onNodeDragStop`'s existing reorder logic (`resolveDropTarget`/`assignParallelGroup`)
+  means once a pipeline is in DAG mode. — **decided**: it's a no-op once `hasRealEdges` is true —
+  `step_order`/`parallel_group` no longer drive execution order in DAG mode (M2), so reassigning
+  them on drag would be meaningless. The node still visually follows the cursor during the drag
+  (react-flow's default behavior) but snaps back to its dagre-computed position on the next render
+  since positions are never persisted — verified live: dragging a node in DAG mode leaves
+  `step_order`/`parallel_group` unchanged server-side and the node visually returns to place.
+- [x] Add drag/connect coverage to `PipelineCanvas.test.tsx` and `e2e/pipeline-canvas.spec.ts` — both
+  currently have zero. — **done, with a scope note**: a real handle-to-handle pointer drag is the
+  same class of gesture already documented in `pipeline-canvas.spec.ts`'s header comment as too
+  flaky to automate reliably (worse than node-repositioning drag — it must land on a 6px handle).
+  Followed that same established precedent rather than fighting it: `PipelineCanvas.test.tsx` mocks
+  `ReactFlow` itself (not the handlers under test) to expose `onConnect`/`onEdgesDelete` as plain
+  buttons while still mounting real `StepNode`/`StepPanel` components via the real `nodeTypes`, so
+  every pre-existing test in the file keeps exercising real DOM — 7 new tests cover synthetic-vs-
+  real edge selection, successful connect, unsaved-pipeline/self-connect rejection, 409 surfacing,
+  and edge deletion, all against the *actual* `handleConnect`/`handleEdgesDelete` code, not a
+  reimplementation. `e2e/pipeline-canvas.spec.ts` adds one real end-to-end test: create a step
+  dependency via a direct API call (mirroring what a successful drag would do), then assert the
+  canvas fetches and renders it as a real edge and that it survives a reload — run live against
+  the full stack (6/6 passed). Also added: unit tests for the new pure `stepDeps.ts` helpers
+  (`toRealFlowEdges`, `canConnectSteps`) and `layout.ts`'s new `layoutRealEdges`. Full frontend
+  suite: 172 passed (was 154), `tsc --noEmit` clean, `npm run build` clean, eslint clean.
 
 ### Milestone 4 — Test matrix and regression preservation (roadmap-level)
 

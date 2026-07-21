@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildWaveEdges, layoutWaves } from '../components/pipeline/canvas/layout'
+import { buildWaveEdges, layoutWaves, layoutRealEdges } from '../components/pipeline/canvas/layout'
 import type { PipelineStep } from '../lib/types'
 
 function makeStep(id: string, step_order: number, parallel_group: string | null = null): PipelineStep {
@@ -61,5 +61,27 @@ describe('layoutWaves', () => {
 
   it('handles an empty wave list', () => {
     expect(layoutWaves([]).size).toBe(0)
+  })
+})
+
+describe('layoutRealEdges', () => {
+  it('assigns exactly one position per step, from real edges rather than waves', () => {
+    const steps = [makeStep('a', 1), makeStep('b', 2), makeStep('c', 3)]
+    // Real graph: a -> c, b -> c (a diamond-ish shape a wave model would never produce for
+    // 3 sequential-order steps — proves this is edge-driven, not step_order/parallel_group-driven).
+    const positions = layoutRealEdges(steps, [{ source: 'a', target: 'c' }, { source: 'b', target: 'c' }])
+    expect(positions.size).toBe(3)
+    expect(positions.get('a')!.x).toBeLessThan(positions.get('c')!.x)
+    expect(positions.get('b')!.x).toBeLessThan(positions.get('c')!.x)
+  })
+
+  it('handles steps with no edges (all independent roots)', () => {
+    const steps = [makeStep('a', 1), makeStep('b', 2)]
+    const positions = layoutRealEdges(steps, [])
+    expect(positions.size).toBe(2)
+  })
+
+  it('handles an empty step list', () => {
+    expect(layoutRealEdges([], []).size).toBe(0)
   })
 })

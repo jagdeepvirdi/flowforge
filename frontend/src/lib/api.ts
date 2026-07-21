@@ -108,6 +108,14 @@ export const importPipeline   = (yamlContent: string) =>
   post<import('./types').Pipeline>('/pipelines/import', { yaml_content: yamlContent })
 export const getPipelineRuns  = (id: string) => get<import('./types').PipelineRun[]>(`/pipelines/${id}/runs`)
 
+// Step-level dependencies (Phase 14 Option B, Milestone 1 API / Milestone 3 canvas wiring)
+export const getStepDeps    = (pipelineId: string) =>
+  get<import('./types').StepDep[]>(`/pipelines/${pipelineId}/step-dependencies`)
+export const addStepDep     = (pipelineId: string, upstream_step_id: string, downstream_step_id: string) =>
+  post<import('./types').StepDep>(`/pipelines/${pipelineId}/step-dependencies`, { upstream_step_id, downstream_step_id })
+export const removeStepDep  = (pipelineId: string, dep_id: string) =>
+  del<{ deleted: string }>(`/pipelines/${pipelineId}/step-dependencies/${dep_id}`)
+
 // Pipeline dependencies
 export const getPipelineDeps    = (id: string) =>
   get<{ upstream: import('./types').PipelineDep[]; downstream: import('./types').PipelineDep[] }>(`/pipelines/${id}/dependencies`)

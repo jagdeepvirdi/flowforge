@@ -76,6 +76,13 @@ export interface PipelineDep {
   pipeline_name: string
 }
 
+/** Step-level dependency edge within one pipeline (Phase 14 Option B). */
+export interface StepDep {
+  dep_id: string
+  upstream_step_id: string
+  downstream_step_id: string
+}
+
 export interface PipelineVariable {
   id?: string
   var_key: string

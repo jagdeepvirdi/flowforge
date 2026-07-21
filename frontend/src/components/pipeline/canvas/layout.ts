@@ -24,22 +24,22 @@ export function buildWaveEdges(waves: PipelineStep[][]): WaveEdge[] {
 }
 
 /**
- * Auto-layout: waves become left-to-right columns (dagre rankdir LR), with
- * multiple steps in one wave stacked vertically in the same column. Node
- * x/y are never persisted — this is recomputed from `step_order`/
- * `parallel_group` on every render.
+ * Auto-layout shared by both edge sources below: left-to-right columns (dagre
+ * rankdir LR), multiple steps at the same rank stacked vertically. Node x/y
+ * are never persisted — recomputed on every render.
  */
-export function layoutWaves(waves: PipelineStep[][]): Map<string, { x: number; y: number }> {
+function layoutFromEdges(
+  steps: PipelineStep[],
+  edges: { source: string; target: string }[],
+): Map<string, { x: number; y: number }> {
   const g = new dagre.graphlib.Graph()
   g.setGraph({ rankdir: 'LR', nodesep: 28, ranksep: 96 })
   g.setDefaultEdgeLabel(() => ({}))
 
-  for (const wave of waves) {
-    for (const step of wave) {
-      g.setNode(step.id, { width: CANVAS_NODE_WIDTH, height: CANVAS_NODE_HEIGHT })
-    }
+  for (const step of steps) {
+    g.setNode(step.id, { width: CANVAS_NODE_WIDTH, height: CANVAS_NODE_HEIGHT })
   }
-  for (const edge of buildWaveEdges(waves)) {
+  for (const edge of edges) {
     g.setEdge(edge.source, edge.target)
   }
 
@@ -52,4 +52,22 @@ export function layoutWaves(waves: PipelineStep[][]): Map<string, { x: number; y
     positions.set(id, { x: n.x - CANVAS_NODE_WIDTH / 2, y: n.y - CANVAS_NODE_HEIGHT / 2 })
   }
   return positions
+}
+
+/** Wave-derived layout — the original Option A model (step_order/parallel_group only). */
+export function layoutWaves(waves: PipelineStep[][]): Map<string, { x: number; y: number }> {
+  return layoutFromEdges(waves.flat(), buildWaveEdges(waves))
+}
+
+/**
+ * Real-dependency-edge layout (Phase 14 Option B, Milestone 3) — used instead of
+ * `layoutWaves` once a pipeline has persisted `StepDependency` edges, mirroring the
+ * backend's dual-path gate: dagre lays the graph out from the actual edges, not the
+ * synthetic wave-to-wave cartesian ones.
+ */
+export function layoutRealEdges(
+  steps: PipelineStep[],
+  edges: { source: string; target: string }[],
+): Map<string, { x: number; y: number }> {
+  return layoutFromEdges(steps, edges)
 }
