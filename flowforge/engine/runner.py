@@ -260,57 +260,84 @@ def run_pipeline(
 
     audit.log_pipeline_run(pipeline_name, triggered_by, result.run_id or context['run_id'], 'STARTED')
 
-    waves = _build_execution_waves(steps)
-    wave_num = 0
-    pipeline_stopped = False
+    # Dual-path engine gate (Phase 14 Option B, Milestone 2): a pipeline with zero
+    # StepDependency rows keeps running through the wave engine below, byte-for-byte
+    # unchanged. The DAG engine only activates once a pipeline actually has step-level edges.
+    use_dag_engine = False
+    step_dep_edges: list[tuple[str, str]] = []
+    if pipeline_id:
+        try:
+            from flowforge.db.models import StepDependency, db
+            if StepDependency.exists_for_pipeline(pipeline_id):
+                use_dag_engine = True
+                step_dep_edges = [
+                    (e.upstream_step_id, e.downstream_step_id)
+                    for e in db.session.query(StepDependency).filter_by(pipeline_id=pipeline_id).all()
+                ]
+        except SQLAlchemyError:
+            logger.exception(
+                "[%s] Failed to check step dependencies; falling back to wave engine", pipeline_name,
+            )
 
     try:
-        for wave in waves:
-            wave_num += 1
-            if len(wave) == 1:
-                # ── Sequential step ────────────────────────────────────────
-                step = wave[0]
-                logger.info("[%s] Starting step: %s", pipeline_name, step.name)
-                retry_count, retry_delay = _get_retry_config(step)
-                step_start = datetime.now(UTC)
-                step_result = _run_step_with_retry(pipeline_name, step, context, retry_count, retry_delay)
-                step_end = datetime.now(UTC)
-                duration_ms = int((step_end - step_start).total_seconds() * 1000)
-                result.step_results[step.name] = step_result
-                result.steps_run += 1
-                _expose_step_outputs(context, pipeline_name, step.name, step_result)
-                _write_step_run(run_record, step, step.db_step_order or wave_num,
-                                step_result, step_start, step_end, duration_ms, vars_log)
-                vars_log = ''  # only include var dump in the first step's logs
-                if not step_result.success:
-                    result.steps_failed += 1
-                    result.success = False
-                    context['_pipeline_has_failed'] = True
-                    if _handle_failed_step(result, pipeline_name, step, step_result, run_record):
-                        pipeline_stopped = True
-                        break
-            else:
-                # ── Parallel wave ─────────────────────────────────────────
-                names = ', '.join(s.name for s in wave)
-                logger.info("[%s] Starting parallel wave (%d steps): %s", pipeline_name, len(wave), names)
-                should_stop = _run_parallel_wave(wave, context, result, run_record, pipeline_name, vars_log)
-                vars_log = ''
-                if should_stop:
-                    _finish_run_record(run_record, success=False,
-                                       error_step=result.error_step,
-                                       error_message=result.error)
-                    pipeline_stopped = True
-                    break
-
-        if not pipeline_stopped:
+        if use_dag_engine:
+            from flowforge.engine.dag import run_dag
+            logger.info("[%s] Step dependencies found — using DAG execution engine", pipeline_name)
+            run_dag(steps, step_dep_edges, context, result, run_record, pipeline_name, vars_log)
             if result.success:
                 logger.info("[%s] Pipeline completed (%d steps)", pipeline_name, result.steps_run)
-            _finish_run_record(run_record, success=result.success)
+            _finish_run_record(run_record, success=result.success,
+                               error_step=result.error_step, error_message=result.error)
+        else:
+            waves = _build_execution_waves(steps)
+            wave_num = 0
+            pipeline_stopped = False
+            for wave in waves:
+                wave_num += 1
+                if len(wave) == 1:
+                    # ── Sequential step ────────────────────────────────────────
+                    step = wave[0]
+                    logger.info("[%s] Starting step: %s", pipeline_name, step.name)
+                    retry_count, retry_delay = _get_retry_config(step)
+                    step_start = datetime.now(UTC)
+                    step_result = _run_step_with_retry(pipeline_name, step, context, retry_count, retry_delay)
+                    step_end = datetime.now(UTC)
+                    duration_ms = int((step_end - step_start).total_seconds() * 1000)
+                    result.step_results[step.name] = step_result
+                    result.steps_run += 1
+                    _expose_step_outputs(context, pipeline_name, step.name, step_result)
+                    _write_step_run(run_record, step, step.db_step_order or wave_num,
+                                    step_result, step_start, step_end, duration_ms, vars_log)
+                    vars_log = ''  # only include var dump in the first step's logs
+                    if not step_result.success:
+                        result.steps_failed += 1
+                        result.success = False
+                        context['_pipeline_has_failed'] = True
+                        if _handle_failed_step(result, pipeline_name, step, step_result, run_record):
+                            pipeline_stopped = True
+                            break
+                else:
+                    # ── Parallel wave ─────────────────────────────────────────
+                    names = ', '.join(s.name for s in wave)
+                    logger.info("[%s] Starting parallel wave (%d steps): %s", pipeline_name, len(wave), names)
+                    should_stop = _run_parallel_wave(wave, context, result, run_record, pipeline_name, vars_log)
+                    vars_log = ''
+                    if should_stop:
+                        _finish_run_record(run_record, success=False,
+                                           error_step=result.error_step,
+                                           error_message=result.error)
+                        pipeline_stopped = True
+                        break
+
+            if not pipeline_stopped:
+                if result.success:
+                    logger.info("[%s] Pipeline completed (%d steps)", pipeline_name, result.steps_run)
+                _finish_run_record(run_record, success=result.success)
     finally:
         if run_record:
             shutdown.unregister_run(run_record.id)
 
-    total_steps = sum(len(w) for w in waves)
+    total_steps = len(steps)
     if not result.success and result.steps_run < total_steps:
         logger.error("[%s] Pipeline failed after %d/%d steps", pipeline_name, result.steps_run, total_steps)
 
@@ -428,7 +455,8 @@ def _create_run_record(pipeline_id, pipeline_name, triggered_by, existing_run_id
         return None
 
 
-def _write_step_run(run_record, step, step_order, step_result, started_at, finished_at, duration_ms, vars_log=''):
+def _write_step_run(run_record, step, step_order, step_result, started_at, finished_at, duration_ms,
+                    vars_log='', skipped=False):
     if not run_record:
         return
     try:
@@ -439,7 +467,7 @@ def _write_step_run(run_record, step, step_order, step_result, started_at, finis
             step_name=step.name,
             step_type=step.step_type or step.__class__.__name__.replace('Step', '').lower(),
             step_order=step_order,
-            status='success' if step_result.success else 'failed',
+            status='skipped' if skipped else ('success' if step_result.success else 'failed'),
             started_at=started_at,
             finished_at=finished_at,
             duration_ms=duration_ms,

@@ -49,6 +49,7 @@ class BaseStep(ABC):
         self.on_error       = config.get('on_error', 'stop')
         self.parallel_group = config.get('parallel_group') or None
         self.db_step_order  = int(config.get('_db_step_order', 0))
+        self.db_step_id     = config.get('_db_step_id') or None
 
     @abstractmethod
     def run(self, context: dict[str, Any]) -> StepResult: ...

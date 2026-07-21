@@ -349,23 +349,71 @@ change** — see the decisions and per-milestone breakdown below.*
   separately booted live app instance (Flask test client exercises the same routes end-to-end
   against the same real Postgres test DB, so this is equivalent coverage, not a shortcut).
 
-### Milestone 2 — Runner rewrite: topological DAG execution engine (roadmap-level, own design pass)
+### Milestone 2 — Runner rewrite: topological DAG execution engine — done 2026-07-22
 
-Scope: `runner.py`, `loader.py`, likely a new `engine/dag.py` kept separate from the untouched wave
+Scope: `runner.py`, `loader.py`, new `engine/dag.py` kept separate from the untouched wave
 code path.
 
-- [ ] Dual-path gate on `StepDependency.exists_for_pipeline` — `False` keeps the exact existing wave
-  path; `True` builds the graph and runs the new scheduler.
-- [ ] New scheduler: in-degree/ready-set model — dispatch any step whose upstream deps have all
+- [x] Dual-path gate on `StepDependency.exists_for_pipeline` — `False` keeps the exact existing wave
+  path; `True` builds the graph and runs the new scheduler. — **done**: gated in
+  `runner.run_pipeline` on `pipeline_id` + `StepDependency.exists_for_pipeline`; wave path
+  (`_build_execution_waves` and the whole `for wave in waves` loop) is untouched — verified by the
+  full 2081-test suite staying green, including every pre-existing `test_runner*.py` test (all of
+  which call `run_pipeline` without a `pipeline_id`, so the gate is a no-op for them).
+- [x] New scheduler: in-degree/ready-set model — dispatch any step whose upstream deps have all
   completed, as soon as they complete, rather than wave-synchronized `ThreadPoolExecutor` batches.
-- [ ] Branch-scoped `on_error='stop'` — compute each step's transitive descendant set (same adjacency
-  structure as cycle detection) so a stop-failure only short-circuits its descendants.
-- [ ] Ancestors-only context — each step's context snapshot built from only its transitive-ancestor
+  — **done**: `flowforge/engine/dag.py::run_dag` — a single `ThreadPoolExecutor` alive for the
+  whole run, `concurrent.futures.wait(..., FIRST_COMPLETED)` driving a ready-queue/in-degree loop
+  (`tests/test_dag_engine.py::test_linear_chain_all_succeed`,
+  `test_independent_branches_run_concurrently`).
+- [x] Branch-scoped `on_error='stop'` — compute each step's transitive descendant set (same adjacency
+  structure as cycle detection) so a stop-failure only short-circuits its descendants. — **done**:
+  on a `stop` failure, the node's full transitive descendant set (precomputed once per node at
+  graph-build time, not recomputed per failure) is marked skipped and finalized immediately,
+  without going through the normal in-degree/ready path — proven safe because a descendant set is
+  closed under `adjacency` by construction, so nothing outside it needs touching. Independent
+  branches are provably unaffected (`test_stop_failure_skips_only_descendants`), multi-level chains
+  fully skip (`test_stop_failure_skips_transitive_descendants_multi_level`), and a merge point fed
+  by both a failed branch and an independent one is skipped regardless of the independent upstream's
+  state (`test_merge_point_downstream_of_stop_failure_is_skipped_even_with_independent_upstream`) —
+  an explicit design call not spelled out in the original decision: this engine skips eagerly the
+  instant the failure is known, rather than waiting for every upstream of a merge node to reach a
+  terminal state first (Airflow's default trigger-rule behavior). Proven safe here because a
+  descendant can only be reachable this way if the failed node is genuinely one of its ancestors, so
+  it could never have already been dispatched — but it does mean a "diamond" merge node is skipped
+  without waiting on its still-running independent branch to finish (that branch keeps running to
+  completion on its own; its output/step_run is simply never consumed). Skipped steps get a real
+  `step_runs` row with `status='skipped'` (schema already supported this status since the
+  `0001_baseline` migration; nothing previously wrote it) via a new `skipped` kwarg on
+  `_write_step_run` (default `False`, so the wave path's calls are unaffected).
+- [x] Ancestors-only context — each step's context snapshot built from only its transitive-ancestor
   outputs, computed from the graph (a new construction helper, not a tweak of `_expose_step_outputs`).
-- [ ] Retries unaffected in shape, just invoked per-node instead of per-wave.
-- [ ] Stretch (not required to close M2): decide whether to leave Jinja's default `Undefined`
-  (silently blank for an undeclared step reference) or add a DAG-build-time lint for it.
-- [ ] Resolve the disabled-step-referenced-by-an-edge policy flagged above.
+  — **done**: `dag.py`'s `_step_output_entry`/`_step_output_vars` are deliberate duplicates of
+  `runner._expose_step_outputs`'s logic (returning values instead of mutating a shared dict) so the
+  wave path's function is never touched; `_build_node_context` merges only a node's precomputed
+  ancestor set's outputs. Scope call beyond the original wording: "ancestors-only" was applied to
+  **both** `{{ steps.X.* }}` *and* flattened `output_variables` (e.g. a custom var set via
+  `output_variables`) — the latter wasn't explicitly named in the original decision, but it's the
+  same category of "step output" and leaving it globally visible would have quietly broken the
+  stated principle ("the graph drawn is the graph that actually matters"). Proven by
+  `test_context_only_exposes_transitive_ancestors` (an independent sibling's output is invisible)
+  and `test_context_step_output_entry_visible_to_descendant`.
+- [x] Retries unaffected in shape, just invoked per-node instead of per-wave. — **done**: `_run_node`
+  calls the exact same `_get_retry_config`/`_run_step_with_retry` pair as both wave-mode code paths,
+  imported unchanged from `runner.py`.
+- [ ] Stretch (not required to close M2, left open): decide whether to leave Jinja's default
+  `Undefined` (silently blank for an undeclared step reference) or add a DAG-build-time lint for it.
+  Not addressed — genuinely optional per the original scoping.
+- [x] Resolve the disabled-step-referenced-by-an-edge policy flagged in Milestone 1. — **done**:
+  "skip-and-satisfy" — `run_dag` drops any edge where either endpoint isn't among the loaded
+  (enabled) steps, logging a warning with the count. A downstream step that only depended on a
+  disabled upstream is therefore never blocked waiting for it. Covered by
+  `test_edge_referencing_missing_step_is_dropped_not_fatal`.
+
+**Tests**: `tests/test_dag_engine.py` (14 unit tests against `run_dag` directly — no DB, `_write_step_run`
+mocked) plus `tests/test_runner_dag_gate.py` (2 real-DB integration tests proving the gate itself:
+a pipeline with `StepDependency` rows routes to `run_dag` with the right edges; one with none stays
+on the wave path, `run_dag` never called). Full backend suite: 2081 passed, 0 regressions. Ruff clean.
 
 ### Milestone 3 — Canvas: real edge-drawing wired to the M1 API (roadmap-level)
 
