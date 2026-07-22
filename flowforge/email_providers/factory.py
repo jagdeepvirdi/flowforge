@@ -7,7 +7,8 @@ plugin-vs-built-in dispatch split in _build_provider() below) and why the
 class is resolved by dotted path rather than imported eagerly.
 """
 import importlib
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from flowforge.email_providers.base import EmailProvider
 from flowforge.registry import IntegrationSpec, Registry

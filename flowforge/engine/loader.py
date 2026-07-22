@@ -14,9 +14,9 @@ import inspect
 import logging
 import os
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
 
 from flowforge.crypto import decrypt_value
 from flowforge.db.models import Pipeline, db

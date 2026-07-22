@@ -14,7 +14,8 @@ scanner. Such classes must define a `from_config(cls, cfg: dict)` classmethod
 — see get_connection() below for the two dispatch paths.
 """
 import importlib
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from flowforge.connections.base import BaseConnection
 from flowforge.registry import IntegrationSpec, Registry
