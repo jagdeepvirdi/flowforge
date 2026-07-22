@@ -210,6 +210,8 @@ In the web UI:
 
 Steps can be edited either as a list (drag to reorder) or as a visual canvas — toggle between the two with the list/grid icons above the step list. The canvas lays steps out left-to-right in the order they'll actually run, grouping steps that share a `parallel_group` into the same column since those run concurrently. Drag a node to reorder it or move it into/out of a group column, click a node to edit its config in a side panel, and duplicate/delete from the node's hover actions.
 
+You can also drag from one node's handle to another to draw a real dependency edge between two steps, switching that pipeline to non-linear (DAG) execution — see [`docs/FAQ.md`](FAQ.md#what-changes-when-a-pipeline-has-real-step-dependencies-dag-mode) for exactly what changes (branch-scoped failure handling, ancestors-only step context). Pipelines with no drawn edges are unaffected.
+
 ![Pipeline canvas view showing a db query step, a parallel "notify" group with a report and email step, then a drive upload step](screenshots/pipeline-canvas.png)
 
 Or import a pipeline YAML exported from another instance:

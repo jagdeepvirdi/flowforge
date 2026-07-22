@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — 2026-07-22
+
+- **Step-level DAG dependencies** — the pipeline canvas (shipped 2026-07-09, Option A) now supports
+  drawing real dependency edges between steps by dragging from one node's handle to another, wired
+  through a new `ff_step_dependencies` table and `GET`/`POST`/`DELETE
+  /api/pipelines/{id}/step-dependencies` API (self-reference, cross-pipeline, duplicate, and cycle
+  attempts all rejected server-side, with cycle detection reused as the same visited-set/stack
+  traversal pattern as the existing pipeline-to-pipeline dependency check). Once a pipeline has at
+  least one edge, its execution routes through a new topological DAG engine
+  ([`flowforge/engine/dag.py`](flowforge/engine/dag.py)) instead of the original sequential/
+  parallel-wave engine — steps dispatch as soon as their upstream dependencies complete rather than
+  in synchronized batches, `on_error: stop` only skips a failed step's transitive descendants
+  (independent branches keep running to completion instead of the whole pipeline halting), and
+  `{{ steps.X.* }}` context is scoped to a step's transitive ancestors rather than every step
+  completed so far. A pipeline with zero drawn edges keeps running through the exact original wave
+  engine, byte-for-byte unchanged — `StepDependency.exists_for_pipeline()` is the only gate, and
+  there's no migration or partial-opt-in state. The canvas itself switches to rendering only real
+  edges (in the accent color) once any exist for a pipeline, dropping the synthetic wave-layout
+  edges for that pipeline. See [`docs/FAQ.md`](docs/FAQ.md) for the full behavior writeup.
+  ([`flowforge/engine/dag.py`](flowforge/engine/dag.py), [`flowforge/db/models.py`](flowforge/db/models.py) (`StepDependency`), [`flowforge/api/routes/steps.py`](flowforge/api/routes/steps.py), [`frontend/src/lib/stepDeps.ts`](frontend/src/lib/stepDeps.ts), [`frontend/src/components/pipeline/canvas/`](frontend/src/components/pipeline/canvas/))
+
 ### Fixed — 2026-07-10
 
 - **`bulk_load` with `load_mode: replace` lost data when loading more than one file per run** — the `TRUNCATE` fired inside each file's load call rather than once per step run, so with N files in one run, file 2's truncate wiped out file 1's just-inserted rows, and so on; only the last file's rows survived even though the step reported success with the full `records_loaded` total summed across all files (each file's `TRUNCATE` + insert individually "succeeded", so nothing raised and every file was still archived). `BulkLoadStep.run()` now only passes the configured `load_mode` to the first file in the batch and forces `append` for every file after it in the same run, across all three load paths (PostgreSQL `COPY`, Oracle `SQL*Loader`, Python fallback) since the fix lives in the per-file dispatch loop, not the individual loaders. ([`flowforge/steps/bulk_load.py`](flowforge/steps/bulk_load.py))

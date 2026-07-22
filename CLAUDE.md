@@ -718,12 +718,14 @@ See Claude Design handoff. Key tokens:
 ---
 
 ## Non-Goals
-> Multi-user auth, Slack/Teams notifications, S3/Azure Blob upload, and a visual pipeline canvas —
-> originally listed here as deferred to v2 — have since shipped; see [ROADMAP.md](ROADMAP.md) and
-> [docs/TASKS.md](docs/TASKS.md) for current status, which is authoritative over this file.
+> Multi-user auth, Slack/Teams notifications, S3/Azure Blob upload, a visual pipeline canvas, and
+> arbitrary step-to-step DAG editing — all originally listed here as deferred to v2/v3 — have since
+> shipped; see [ROADMAP.md](ROADMAP.md) and [docs/TASKS.md](docs/TASKS.md) for current status, which
+> is authoritative over this file. Drawing a real dependency edge between two steps on the pipeline
+> canvas (`docs/TASKS.md` Phase 14.2, "Option B") routes that pipeline's execution through a
+> topological DAG engine instead of the default sequential/parallel-wave engine — branch-scoped
+> `on_error: stop` (only a failed step's descendants halt) and ancestors-only `{{ steps.* }}` context
+> visibility. A pipeline with zero drawn edges is completely unaffected.
 
-- No arbitrary step-to-step DAG editing (freeform edge-drawing) — the canvas view (Phase 14) visualizes
-  and edits the existing sequential + parallel-group model; true Airflow-style branching would require
-  a runner rewrite, tracked as Option B in `docs/TASKS.md`
 - No Airflow DAG import
 - No cloud SaaS version

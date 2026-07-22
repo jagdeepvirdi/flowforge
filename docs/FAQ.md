@@ -27,12 +27,38 @@ order they'll actually execute, with `parallel_group` steps grouped into one col
 to reorder, drag a node into/out of a group column, click a node to edit it in a side panel, and
 add/duplicate/delete from the canvas. Screenshot: [`docs/screenshots/pipeline-canvas.png`](screenshots/pipeline-canvas.png).
 
-Shipped 2026-07-09 (TASKS.md Phase 14, Option A). It does **not** support drawing arbitrary
-dependency edges between steps (that's Option B, unbuilt — see [Roadmap](../ROADMAP.md)); the
-canvas visualizes the existing sequential + parallel-group execution model, it doesn't add a new one.
+Shipped 2026-07-09 (TASKS.md Phase 14, Option A). You can also drag from one node's handle to
+another to draw a real dependency edge between two steps — shipped 2026-07-22 (Phase 14.2, Option
+B; see the next question for what that changes about execution). The edge persists immediately (no
+Save needed) and renders in the accent color, distinct from the neutral synthetic layout edges. Once
+a pipeline has at least one real edge, the canvas shows only real edges — the synthetic wave-layout
+edges disappear for that pipeline.
 
 Code: `frontend/src/components/pipeline/canvas/`, `frontend/src/lib/pipelineWaves.ts`,
-`frontend/src/lib/pipelineReorder.ts`.
+`frontend/src/lib/pipelineReorder.ts`, `frontend/src/lib/stepDeps.ts`.
+
+### What changes when a pipeline has real step dependencies (DAG mode)?
+
+Drawing at least one edge switches that pipeline's execution from the default sequential/
+parallel-wave engine (`_build_execution_waves`) to a topological DAG engine
+(`flowforge/engine/dag.py::run_dag`) — steps dispatch as soon as their upstream dependencies
+complete, rather than in synchronized batches. Two behaviors differ from wave mode:
+
+- **`on_error: stop` is branch-scoped.** In wave mode, a `stop` failure halts every later step in
+  the pipeline. In DAG mode, it only skips that step's *transitive descendants* — an independent
+  branch with no path from the failed step keeps running to completion. Skipped steps still get a
+  real `step_runs` row with `status: skipped`, so they're visible in Run History, not silently
+  missing.
+- **`{{ steps.X.* }}` is ancestors-only.** In wave mode every completed step is visible to every
+  later one. In DAG mode a step only sees output from steps it's actually downstream of — a sibling
+  branch's output renders as blank (Jinja's default `Undefined`) rather than being available.
+
+A pipeline with zero drawn edges is completely unaffected — it keeps running through the exact
+existing wave engine, byte-for-byte. There's no migration step and no way to "half-opt-in"; the
+`StepDependency.exists_for_pipeline()` check on the pipeline's edges is the only switch.
+
+Code: `flowforge/engine/runner.py` (the dual-path gate in `run_pipeline`), `flowforge/engine/dag.py`.
+Tests: `tests/test_dag_engine.py`, `tests/test_runner_dag_gate.py`, `tests/test_dag_integration.py`.
 
 ### What happens if a step fails inside a parallel group?
 
@@ -81,6 +107,11 @@ Docs: `docs/getting-started.md` ("API / Webhook Triggers"), `docs/security.md` (
 ---
 
 ## Pipeline Dependencies
+
+*Not to be confused with the step-level dependencies drawn on the canvas (see "Where can I see the
+visual pipeline canvas?" above) — these are two separate mechanisms. This section is about whole
+**pipelines** triggering other **pipelines**; the canvas edges are about **steps** within one
+pipeline changing that one pipeline's execution order.*
 
 ### What is "Upstream Dependencies"?
 

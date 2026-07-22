@@ -3,7 +3,7 @@
 > **Source of truth:** [`docs/TASKS.md`](docs/TASKS.md) is the authoritative, continuously-updated
 > tracker of what's actually shipped (verified against the code, with dates). This file is a
 > high-level summary derived from it for newcomers — if the two ever disagree, trust TASKS.md
-> and treat this file as stale until updated. Last reconciled: 2026-07-09.
+> and treat this file as stale until updated. Last reconciled: 2026-07-22.
 
 ## Shipped
 
@@ -31,6 +31,7 @@ for exact commits/detail).
 | Prometheus metrics endpoint (`/api/metrics`) | ✅ |
 | Celery Flower monitoring dashboard | ✅ |
 | Visual pipeline canvas (list/graph toggle, drag-to-reorder & group, execution-order-accurate layout) | ✅ *(2026-07-09)* |
+| Step-level DAG dependencies (draw real edges on the canvas; branch-scoped `on_error: stop`, ancestors-only `{{ steps.* }}` context; wave engine untouched when no edges exist) | ✅ *(2026-07-22)* |
 
 This is well past what the original "v1.0 / v2.0 / v3.0" gating implied — v2.0 and v3.0
 backlog items shipped ahead of the v1.0 GTM checklist being finished. Version-numbered
@@ -48,10 +49,6 @@ milestones below are kept as loose, informal buckets, not release gates.
 
 ## Not yet built
 
-- **Arbitrary step-to-step DAG editing** — the canvas view shipped 2026-07-09 (TASKS.md Phase
-  14, Option A) covers visualizing/editing the existing sequential + parallel-group model, but
-  true Airflow-style freeform dependency edges and branching (Option B) would require rewriting
-  the runner's execution model; scoped as a separate, larger initiative in TASKS.md Phase 14.2.
 - Fuzzing registered with OSS-Fuzz (Hypothesis tests exist but aren't recognized by Scorecard)
 - Cosign-signed releases
 

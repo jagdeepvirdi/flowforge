@@ -1962,6 +1962,46 @@ flowforge worker --concurrency 4
 
 ------------------------------$
 
+## 40. Visual Pipeline Canvas & Step-Level DAG Dependencies
+
+### 40a. Canvas layout (Option A)
+
+1. Open a pipeline with at least 3 steps, two of them sharing the same `parallel_group`
+2. Toggle the grid icon above the step list
+
+- [ ] Steps render as nodes left-to-right in actual execution-wave order; the two `parallel_group` steps appear stacked in the same column
+- [ ] Dragging a node reorders it, or moves it into/out of the group column; toggling back to the list view reflects the change
+- [ ] Clicking a node opens its config in a side panel; add/duplicate/delete work from the node's hover actions
+
+### 40b. Drawing a real step dependency (DAG mode)
+
+1. In the canvas view, drag from one step node's handle to another step node's handle
+2. Reload the page (no Save click needed first)
+
+- [ ] The new edge renders in the accent color, visually distinct from the neutral synthetic layout edges
+- [ ] The edge still shows after reload (persisted via `POST /api/pipelines/{id}/step-dependencies`, not just client-side state)
+- [ ] Once any real edge exists for the pipeline, only real edges render — the synthetic wave-layout edges disappear for that pipeline
+
+### 40c. Cycle / self-connect rejection
+
+1. With an existing A → B edge, try to draw B → A
+
+- [ ] Rejected with an inline error banner (not a silent failure); no edge is created
+2. Try connecting a step to itself
+
+- [ ] Rejected client-side before any API call is made
+
+### 40d. Branch-scoped failure in DAG mode
+
+1. Build a small DAG: A → B, with A's `on_error` set to `stop`; add an independent step C with no edges to A or B
+2. Make step A fail (e.g. point a `db_query` step at a nonexistent table) and run the pipeline
+3. Open Run Detail
+
+- [ ] Step A shows `failed`, step B shows `skipped`, step C shows `success` — C is not held up by A's failure
+- [ ] This differs from a plain sequential/parallel-group pipeline, where a `stop` failure halts every later step regardless of relation to the failed one
+
+------------------------------$
+
 ## Notes
 
 | Date | Tester | Section | Result | Notes |

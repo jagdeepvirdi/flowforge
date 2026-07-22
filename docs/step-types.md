@@ -1,6 +1,6 @@
 # Step Types Reference
 
-Every pipeline step has a `step_type` that determines what it does and what config fields it accepts. Steps run in order; each step's outputs are available to subsequent steps via `{{ steps.<name>.* }}` variables.
+Every pipeline step has a `step_type` that determines what it does and what config fields it accepts. Steps run in order; each step's outputs are available to subsequent steps via `{{ steps.<name>.* }}` variables. (This is the default sequential/parallel-group behavior. If the pipeline has real step-level dependency edges drawn on the canvas, execution instead follows the DAG they define — `on_error: stop` only halts a failed step's descendants, and `{{ steps.<name>.* }}` is only visible to that step's transitive ancestors, not every step run so far. See [`docs/FAQ.md`](FAQ.md) for details.)
 
 ---
 
