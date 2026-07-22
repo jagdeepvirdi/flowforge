@@ -466,15 +466,42 @@ Scope: `PipelineCanvas.tsx`, `StepNode.tsx`, `layout.ts`, new API client functio
   (`toRealFlowEdges`, `canConnectSteps`) and `layout.ts`'s new `layoutRealEdges`. Full frontend
   suite: 172 passed (was 154), `tsc --noEmit` clean, `npm run build` clean, eslint clean.
 
-### Milestone 4 — Test matrix and regression preservation (roadmap-level)
+### Milestone 4 — Test matrix and regression preservation — done 2026-07-22
 
-- [ ] New: partial-branch failures (stop halts only descendants, sibling branch completes), concurrent
+- [x] New: partial-branch failures (stop halts only descendants, sibling branch completes), concurrent
   execution of independent branches (real overlap, not just same-`parallel_group`), `{{ steps.* }}`
-  resolution across non-linear branches (only ancestors visible, not siblings).
-- [ ] Preserve unmodified: all `test_build_waves_*` and existing `on_error`/context tests — if any fail
-  after M2 lands, that's a signal the dual-path gate leaked into the old path.
-- [ ] Adapt via new tests (not edits): DAG-mode counterparts of the "stop halts everything" tests,
-  asserting the new branch-scoped semantics instead.
+  resolution across non-linear branches (only ancestors visible, not siblings). — **done**: new
+  `tests/test_dag_integration.py` (4 tests), deliberately complementing rather than duplicating M2's
+  existing coverage — `test_dag_engine.py`'s 12 unit tests exercise `run_dag()` directly with
+  `_write_step_run` mocked (no DB), and `test_runner_dag_gate.py`'s 2 tests prove only the
+  engine-selection gate itself. This file instead drives the real `runner.run_pipeline` entry point
+  against a real Postgres test DB with real `StepDependency` rows, and asserts against the actual
+  persisted `StepRun`/`PipelineRun` rows rather than in-memory return values:
+  `test_partial_branch_failure_writes_correct_step_run_statuses` and
+  `test_partial_branch_failure_skips_multi_level_descendants_only` (branch-scoped stop, single- and
+  multi-level descendant sets, verified via real `status='skipped'`/`'failed'`/`'success'` `StepRun`
+  rows); `test_independent_branches_real_overlap_recorded_in_db` (two independent roots' real
+  `started_at`/`finished_at` timestamps, read back from the DB, must overlap — stronger proof than
+  M2's wall-clock-elapsed unit test, since it confirms concurrency survives all the way to what gets
+  persisted); `test_context_ancestors_only_resolves_correctly_through_jinja` (a sibling's
+  `output_variables` render as empty string through the real `engine.context.render()` Jinja path,
+  not just raw dict access, while an ancestor's `{{ steps.X.* }}` entry and flattened var both
+  resolve correctly). One real bug caught and fixed in the test itself while writing the concurrency
+  test: `StepDependency.exists_for_pipeline` gates on whether the *pipeline* has any edge at all, not
+  whether the specific pair under test does — an initial version with zero edges between the two
+  "independent" steps silently fell back to the wave engine (sequential) instead of exercising the
+  DAG engine at all; fixed by adding an unrelated `x -> y` edge elsewhere in the same pipeline so the
+  gate activates while `a`/`b` remain genuine independent DAG roots.
+- [x] Preserve unmodified: all `test_build_waves_*` and existing `on_error`/context tests — if any fail
+  after M2 lands, that's a signal the dual-path gate leaked into the old path. — **done**: none of
+  `test_runner.py`, `test_runner_extended.py`, `test_loader_unit.py` touched. Full backend suite:
+  2085 passed (2081 baseline + 4 new), 0 regressions, ruff clean.
+- [x] Adapt via new tests (not edits): DAG-mode counterparts of the "stop halts everything" tests,
+  asserting the new branch-scoped semantics instead. — **done**:
+  `test_partial_branch_failure_writes_correct_step_run_statuses` is the explicit DAG-mode counterpart
+  of `test_runner.py::test_on_error_stop_halts_pipeline` (wave mode: a stop-failure halts every
+  remaining step, so the independent step is never even attempted) — same shape, opposite assertion:
+  the independent step completes and gets a real `'success'` `StepRun` row.
 
 ---
 
