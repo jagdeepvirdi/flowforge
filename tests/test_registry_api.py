@@ -62,12 +62,15 @@ def test_requires_auth(client):
 
 
 def test_installed_false_when_module_missing(client, headers):
-    resp = client.get('/api/registry/connections', headers=headers)
+    # Don't rely on oracledb actually being installed in the environment running
+    # this test — control both the "present" and "missing" states explicitly so
+    # the assertion holds regardless of the dev/CI venv's installed packages.
+    with patch('importlib.util.find_spec', return_value=object()):
+        resp = client.get('/api/registry/connections', headers=headers)
     rows = {r['key']: r for r in resp.get_json()}
     with patch('importlib.util.find_spec', return_value=None):
         resp2 = client.get('/api/registry/connections', headers=headers)
     rows2 = {r['key']: r for r in resp2.get_json()}
-    # oracledb is installed in this dev venv, so it flips from installed to not
     assert rows['oracle']['installed'] is True
     assert rows2['oracle']['installed'] is False
 
