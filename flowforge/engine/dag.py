@@ -21,7 +21,7 @@ from collections import defaultdict, deque
 from datetime import UTC, datetime
 from typing import Any
 
-from flowforge.engine.runner import (
+from flowforge.engine.step_exec import (
     _CONTEXT_META_KEYS,
     PipelineResult,
     _get_retry_config,

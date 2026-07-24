@@ -291,11 +291,21 @@ else is real but not on fire.*
   there is currently no `services/` directory anywhere; routes build queries inline and mix HTTP
   concerns with business logic (`pipelines.py` at 774 lines is the worst offender: routing,
   `_validate_cron`, `_pipeline_dict` serialization, and `_has_path` cycle detection all in one file).
-- [ ] Resolve the live circular dependency between `flowforge/engine/dag.py` and
-  `flowforge/engine/runner.py` at the module level instead of papering over it with lazy
-  function-body imports (66 counted across the package via `grep -rn "^    from flowforge"`,
-  concentrated exactly where you'd expect a layering problem: `runner.py:240,270,284`,
-  `loader.py`, `bulk_load.py`, `scheduler.py`).
+- [x] **Resolve the live circular dependency between `flowforge/engine/dag.py` and
+  `flowforge/engine/runner.py`** *(2026-07-24)* — `dag.py` imported `PipelineResult`,
+  `_CONTEXT_META_KEYS`, `_get_retry_config`, `_run_step_with_retry`, `_write_step_run` from
+  `runner.py` at module level, while `runner.py` could only import `dag.run_dag` lazily inside a
+  function body to avoid the resulting cycle. Fixed by extracting those 5 symbols — the actual
+  shared single-step-execution primitives both the wave engine and DAG engine build on — into a new
+  `flowforge/engine/step_exec.py`, which neither `dag.py` nor `runner.py` needs to import from each
+  other for anymore. Verified both `dag`-first and `runner`-first import order work identically
+  (previously order-sensitive), both modules' `PipelineResult` are now the literal same class
+  (`is` identity check), and every existing `patch('flowforge.engine.runner._write_step_run', ...)`
+  -style test mock still works via the re-export in `__init__`. Full suite (2120 tests) unchanged.
+  Note: the remaining ~65 lazy function-body imports in the package (`loader.py`, `bulk_load.py`,
+  `scheduler.py`, etc.) are mostly legitimate — deferring the Flask/DB layer until actually needed
+  for testability, not papering over other live cycles — this item was specifically about the one
+  confirmed real circular dependency, not a sweep of every lazy import in the codebase.
 - [x] **Fix the concurrency semaphore's multi-worker blind spot** *(2026-07-24)* —
   `flowforge/engine/concurrency.py` falls back to a per-process `threading.Semaphore(5)` without
   Redis, meaning N Gunicorn workers give you N×5 effective concurrent runs, not 5. Fixed: `create_app()`
