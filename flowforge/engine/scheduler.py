@@ -45,11 +45,27 @@ def start_scheduler(app) -> None:
     _register_cleanup_job()
     _register_sync_job()
 
-    logger.info("Scheduler started. Press Ctrl+C to stop.")
-    try:
-        _scheduler.start()
-    except (KeyboardInterrupt, SystemExit):
-        logger.info("Scheduler stopped.")
+    from flowforge.engine import leader
+
+    def _run() -> None:
+        logger.info("Scheduler started. Press Ctrl+C to stop.")
+        try:
+            _scheduler.start()
+        except (KeyboardInterrupt, SystemExit):
+            logger.info("Scheduler stopped.")
+
+    if leader.ha_enabled():
+        logger.info(
+            "HA: FLOWFORGE_REDIS_URL is set — using distributed leader election so only one "
+            "scheduler replica fires jobs at a time."
+        )
+        leader.run_with_leadership(_run)
+    else:
+        logger.warning(
+            "HA: FLOWFORGE_REDIS_URL is not set — no leader election is possible. Do not run "
+            "more than one scheduler replica, or the same cron job will fire once per replica."
+        )
+        _run()
 
 
 def _sync_pipeline_jobs() -> None:

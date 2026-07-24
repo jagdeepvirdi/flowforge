@@ -328,10 +328,20 @@ else is real but not on fire.*
   on Redis errors is deliberate and load-tested (`tests/test_concurrency_failure_injection.py`), so
   rather than flipping the default, added an opt-in `FLOWFORGE_CONCURRENCY_FAIL_CLOSED=true` env var
   for operators who'd rather deny new runs than risk extra DB load during a Redis outage (2 new tests).
-- [ ] Add leader-election or a distributed lock to `flowforge/engine/scheduler.py`'s
-  `BlockingScheduler` — scaling the `scheduler` service past 1 replica (or running multiple app
-  instances behind a load balancer without isolating the scheduler) causes every replica to
-  independently fire and execute the same cron job, with no guard beyond the concurrency ceiling.
+- [x] **Add leader-election or a distributed lock to `flowforge/engine/scheduler.py`'s
+  `BlockingScheduler`** *(2026-07-24)* — added `flowforge/engine/leader.py`: with
+  `FLOWFORGE_REDIS_URL` set, `start_scheduler()` now routes `_scheduler.start()` through
+  `leader.run_with_leadership()`, which blocks until this replica wins a Redis lock
+  (`SET NX PX`, 30s TTL) and only then calls into the scheduler; a background thread renews the
+  lock every 10s via a Lua script that checks token ownership before extending it. If renewal
+  ever fails (Redis unreachable, or another replica's clock/timing won the lock instead), the
+  process calls `os._exit(1)` immediately rather than risk two schedulers firing the same cron
+  job — the process manager (Docker/systemd/k8s) is expected to restart it, at which point it
+  re-enters the election. Without `FLOWFORGE_REDIS_URL`, election is skipped entirely (same
+  convention as `concurrency.py`'s fallback) and a startup `WARNING` says not to run more than
+  one replica — HA isn't possible without a shared coordination point. 14 new tests in
+  `tests/test_leader_election.py` plus 2 in `tests/test_scheduler.py` covering the wiring; full
+  suite (2134 tests) passes unchanged.
 - [x] **Stream/chunk large data instead of full in-memory loads** *(2026-07-24, partial — scoped down,
   see below)* — added `BaseConnection.execute_query_with_columns_chunked()` (concrete default:
   falls back to the eager path, so every connection type keeps working) with real streaming

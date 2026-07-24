@@ -351,3 +351,66 @@ def test_postgres_url_credentials_not_logged(caplog):
 
     for msg in caplog.messages:
         assert secret_password not in msg, f"Password leaked in log: {msg}"
+
+
+# ── HA leader election wiring ──────────────────────────────────────────────
+
+def test_start_scheduler_skips_leader_election_without_redis_url(caplog):
+    """No FLOWFORGE_REDIS_URL: _scheduler.start() is called directly, no election."""
+    import logging
+
+    from flowforge.engine.scheduler import start_scheduler
+
+    mock_app = MagicMock()
+    mock_app.app_context.return_value.__enter__ = MagicMock(return_value=None)
+    mock_app.app_context.return_value.__exit__ = MagicMock(return_value=False)
+
+    def fake_sched(**kwargs):
+        s = MagicMock()
+        s.start.side_effect = KeyboardInterrupt
+        return s
+
+    env = {k: v for k, v in __import__('os').environ.items()
+           if k not in ('FLOWFORGE_DB_URL', 'FLOWFORGE_REDIS_URL')}
+    with patch.dict('os.environ', env, clear=True), \
+         patch('flowforge.engine.scheduler.BlockingScheduler', side_effect=fake_sched), \
+         patch('flowforge.engine.scheduler._sync_pipeline_jobs'), \
+         patch('flowforge.engine.scheduler._register_cleanup_job'), \
+         patch('flowforge.engine.scheduler._register_sync_job'), \
+         patch('flowforge.engine.leader.run_with_leadership') as mock_run_with_leadership, \
+         caplog.at_level(logging.WARNING, logger='flowforge.engine.scheduler'):
+        try:
+            start_scheduler(mock_app)
+        except (KeyboardInterrupt, SystemExit):
+            pass
+
+    mock_run_with_leadership.assert_not_called()
+    assert any('no leader election' in m.lower() for m in caplog.messages)
+
+
+def test_start_scheduler_uses_leader_election_with_redis_url(caplog):
+    """FLOWFORGE_REDIS_URL set: the scheduler start is routed through run_with_leadership."""
+    import logging
+
+    from flowforge.engine.scheduler import start_scheduler
+
+    mock_app = MagicMock()
+    mock_app.app_context.return_value.__enter__ = MagicMock(return_value=None)
+    mock_app.app_context.return_value.__exit__ = MagicMock(return_value=False)
+
+    def fake_sched(**kwargs):
+        s = MagicMock()
+        s.start.side_effect = KeyboardInterrupt
+        return s
+
+    with patch.dict('os.environ', {'FLOWFORGE_REDIS_URL': 'redis://localhost:6379/0'}), \
+         patch('flowforge.engine.scheduler.BlockingScheduler', side_effect=fake_sched), \
+         patch('flowforge.engine.scheduler._sync_pipeline_jobs'), \
+         patch('flowforge.engine.scheduler._register_cleanup_job'), \
+         patch('flowforge.engine.scheduler._register_sync_job'), \
+         patch('flowforge.engine.leader.run_with_leadership') as mock_run_with_leadership, \
+         caplog.at_level(logging.INFO, logger='flowforge.engine.scheduler'):
+        start_scheduler(mock_app)
+
+    mock_run_with_leadership.assert_called_once()
+    assert any('leader election' in m.lower() for m in caplog.messages)
