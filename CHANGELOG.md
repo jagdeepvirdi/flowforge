@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-07-24
+
+### Added — 2026-07-24
+
+- **Redis-backed leader election for the scheduler daemon** — with `FLOWFORGE_REDIS_URL` set,
+  `start_scheduler()` now only fires cron jobs after winning a distributed lock (renewed on a
+  timer); losing the lock exits the process immediately rather than risk two scheduler replicas
+  firing the same job. Without Redis, election is skipped and a startup warning says not to run
+  more than one replica. ([`flowforge/engine/leader.py`](flowforge/engine/leader.py))
+
+### Changed — 2026-07-24
+
+- **Service layer extracted from the pipelines API route** — `routes/pipelines.py` mixed HTTP
+  glue with multi-step DB-mutating business logic (cron validation, create/update/clone/promote,
+  dependency-cycle detection, webhook tokens). Moved into `pipeline_service.py`, with the
+  dict-serialization helpers consolidated into `serializers.py`; routes now only do request
+  parsing, authz checks, and `jsonify`. No behavior change. ([`flowforge/api/pipeline_service.py`](flowforge/api/pipeline_service.py))
+- **`flowforge/engine/runner.py` split into focused modules** — wave-building/execution,
+  run-record bookkeeping, and external notifications moved into `waves.py`, `run_records.py`,
+  `notifications.py`, and `dependency_trigger.py`; `runner.py` now only holds the top-level
+  `run_pipeline()` orchestration. No behavior change.
+- **Frontend hooks layer** — stateful logic pulled out of the monolithic `Settings.tsx` and
+  `ReportEdit.tsx` pages into `frontend/src/hooks/` (`useMfa`, `useRetentionSettings`,
+  `useChangePassword`, `useReportConfigForm`, `useReportPreviewTools`) and every card component
+  moved into its own file under `components/settings/` and `components/report/`. Both pages are
+  now thin composition shells. No behavior change.
+
 ### Added — 2026-07-22
 
 - **Step-level DAG dependencies** — the pipeline canvas (shipped 2026-07-09, Option A) now supports
@@ -504,7 +531,8 @@ below — see those entries for the full feature breakdown.
 - `flowforge-io[pdf]` — `weasyprint`
 - `flowforge-io[dev]` — `pytest`, `pytest-mock`, `responses`, `pytest-cov`
 
-[Unreleased]: https://github.com/jagdeepvirdi/flowforge/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/jagdeepvirdi/flowforge/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/jagdeepvirdi/flowforge/compare/v1.1.0...v1.3.0
 [1.0.0]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.5...v1.0.0
 [1.2.0]: https://github.com/jagdeepvirdi/flowforge/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.5...v1.1.0

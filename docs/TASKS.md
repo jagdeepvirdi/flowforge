@@ -410,12 +410,20 @@ else is real but not on fire.*
   `vite build`, and a manual Playwright pass against the real dev stack (login → all 5 Settings
   tabs → MFA card → admin Retention save → create/save a real report end-to-end → delete it) —
   zero console errors.
-- [ ] Close the release-cadence gap — only 2 tags exist (`v1.0.0`, `v1.1.0`), `pyproject.toml` is
-  still pinned at `1.1.0` while `CHANGELOG.md`'s `[Unreleased]` section already documents the entire
-  shipped DAG engine (dated 2026-07-22) plus ~7 weeks of other work, and there's a dangling
-  `[1.2.0]: ...compare/v1.1.0...v1.2.0` changelog link with no corresponding tag. Cut a real
-  `v1.2.0` release; the `release.yml`/`publish.yml` tooling is already correctly built (SLSA
-  provenance, PyPI OIDC) — it's just not being used.
+- [x] **Close the release-cadence gap** *(2026-07-24)* — `pyproject.toml` bumped `1.1.0` → `1.3.0`
+  (also fixed `flowforge/__init__.py`'s `__version__`, separately stale at `0.1.0` — unused
+  elsewhere in the app, but worth being accurate now that it's touched). **Not** tagged `v1.2.0`:
+  `CHANGELOG.md` already has an unrelated, unused `## [1.2.0]` section (pre-launch "multi-user
+  roles" content, folded into the `v1.0.0` tag, whose own `compare/v1.1.0...v1.2.0` link is the
+  dangling one this item originally flagged) — reusing that label for today's real release would
+  put two different `## [1.2.0]` sections in the file. Decided with the user: skip straight to
+  `v1.3.0` rather than rewrite historical changelog content; the old `[1.2.0]` section and its
+  dangling link are left as-is (a known, now-documented quirk, not a live gap). `CHANGELOG.md`'s
+  `[Unreleased]` section converted to `## [1.3.0] — 2026-07-24`, with today's four refactors
+  (service layer, leader election, runner.py split, frontend hooks layer) added under it alongside
+  the already-documented DAG engine work. `release.yml`/`publish.yml` (SLSA provenance, PyPI OIDC)
+  fire automatically once `git tag v1.3.0` is pushed — not pushed yet, pending the user's go-ahead
+  (tagging/publishing is a one-way, externally-visible action).
 - [x] **Make `.github/workflows/secrets-scan.yml` a blocking gate** *(2026-07-24)* — removed
   `continue-on-error: true` from the TruffleHog step. Note: this is a one-line change I could verify
   parses as valid YAML but couldn't execute (no local GitHub Actions runner) — worth watching the
