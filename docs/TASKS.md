@@ -270,9 +270,23 @@ else is real but not on fire.*
 
 ## High Priority (refactoring & scalability)
 
-- [ ] Split `flowforge/db/models.py` (468 lines, 23 unrelated models — auth, pipelines, audit,
-  bulk-load, SSH all in one file) into domain modules (`models/auth.py`, `models/pipelines.py`,
-  `models/audit.py`, etc.) re-exported from a package `__init__.py` so imports elsewhere don't churn.
+- [x] **Split `flowforge/db/models.py` into domain modules** *(2026-07-24)* — was 468 lines, 22
+  unrelated models in one file. Now a package: `_shared.py` (the single `db = SQLAlchemy()`
+  instance, `_uuid`/`_utcnow`, cross-domain constants), `audit.py`, `auth.py` (User, ProjectMember,
+  TokenBlocklist, PasswordResetToken), `projects.py`, `connections.py` (DbConnection, SSHConnection),
+  `email.py` (EmailProvider, EmailConfig, RecipientGroup), `reports.py`, `bulk_load.py`,
+  `pipelines.py` (Pipeline, PipelineStep, PipelineVariable, PipelineDependency, StepDependency,
+  PipelineRun, StepRun, WebhookToken), `settings.py`, all re-exported from `__init__.py` — every one
+  of the 69 existing `from flowforge.db.models import X` call sites across the codebase needed zero
+  changes. Safe because every `relationship(...)`/`ForeignKey(...)` in this codebase was already
+  string-based (SQLAlchemy resolves those against its own mapper registry, not Python import order),
+  so domain modules don't import each other and there's no new circular-import risk between them —
+  they just all need to be imported once, which `__init__.py` does. Verified three ways: (1)
+  `sqlalchemy.orm.configure_mappers()` resolves every relationship with no errors, (2) `alembic
+  revision --autogenerate` against the migrated test DB shows zero *new* drift beyond pre-existing
+  index-naming mismatches confirmed identical against the original single-file version via `git
+  show`, (3) full test suite (2120 tests, including the migration-heavy `apply_migrations` fixture)
+  passes unchanged.
 - [ ] Introduce a service/repository layer between `flowforge/api/routes/*.py` and SQLAlchemy —
   there is currently no `services/` directory anywhere; routes build queries inline and mix HTTP
   concerns with business logic (`pipelines.py` at 774 lines is the worst offender: routing,
