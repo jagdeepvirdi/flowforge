@@ -67,18 +67,15 @@ def create_app(config: dict | None = None) -> Flask:
     # AES-256 encryption key — used exclusively by flowforge/crypto.py
     app.config['SECRET_KEY'] = os.environ.get('FLOWFORGE_SECRET_KEY', '')  # NOSONAR
 
-    # JWT signing secret — separate from the encryption key (SEC-2)
-    # Falls back to SECRET_KEY for backward compatibility; set FLOWFORGE_JWT_SECRET in production.
+    # JWT signing secret — separate from the encryption key (SEC-2).
+    # SEC-01: no fallback to SECRET_KEY outside TESTING — reusing the AES encryption
+    # key to also sign JWTs is its own secret-hygiene issue, so FLOWFORGE_JWT_SECRET
+    # must be set explicitly in every real deployment; _validate_secret() below turns
+    # an unset value into a hard boot failure instead of a silently-reused key. TESTING
+    # keeps the fallback so tests that only configure SECRET_KEY keep working.
     jwt_secret = os.environ.get('FLOWFORGE_JWT_SECRET', '')
-    if not jwt_secret:
+    if not jwt_secret and (config or {}).get('TESTING'):
         jwt_secret = app.config['SECRET_KEY']
-        if jwt_secret and not (config or {}).get('TESTING'):
-            import warnings
-            warnings.warn(
-                'FLOWFORGE_JWT_SECRET is not set — falling back to FLOWFORGE_SECRET_KEY for JWT '
-                'signing. Set a separate FLOWFORGE_JWT_SECRET in production.',
-                stacklevel=2,
-            )
     app.config['JWT_SECRET'] = jwt_secret
     app.config['JWT_ALGORITHM'] = 'HS256'
     app.config['JWT_EXPIRY_HOURS'] = 24

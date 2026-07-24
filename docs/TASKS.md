@@ -104,9 +104,28 @@ entries.*
   to `pyproject.toml` (`celery[redis]>=5.6`, matching the pin in `requirements.txt`) and included it in the `all` extra —
   previously celery wasn't installable via any documented extra at all. Verified via a fault-injected `ModuleNotFoundError`
   on `celery` import during `create_app()`; existing redis/celery app-init and launcher/concurrency tests still pass.
-- [ ] **SEC-01**: Require `FLOWFORGE_JWT_SECRET` in non-testing environments; remove fallback to `SECRET_KEY` (`flowforge/api/auth.py`)
+- [x] **SEC-01**: Require `FLOWFORGE_JWT_SECRET` in non-testing environments; remove fallback to `SECRET_KEY` (`flowforge/api/auth.py`) *(2026-07-25)* —
+  `flowforge/api/app.py` silently reused `SECRET_KEY` (the AES encryption key) as the JWT signing key whenever
+  `FLOWFORGE_JWT_SECRET` was unset, only emitting a `warnings.warn` outside `TESTING` — production could boot indefinitely
+  with two supposedly-independent secrets actually being the same value. `flowforge/api/auth.py:_secret()` had its own
+  identical `current_app.config.get('JWT_SECRET') or current_app.config['SECRET_KEY']` fallback, so even patching app.py
+  alone would've left a second silent reuse path. Fixed both: `create_app()` now only falls back to `SECRET_KEY` when
+  `TESTING` is set (so `_validate_secret('FLOWFORGE_JWT_SECRET', ...)` — already boot-time-enforced since the earlier
+  Phase 13 critical fix — now genuinely fails closed in real deployments instead of the fallback quietly satisfying it);
+  `_secret()` now reads `JWT_SECRET` directly, no fallback. Updated `docs/deployment.md`'s env var reference table.
+  Verified: a fault-injected non-TESTING boot with `FLOWFORGE_JWT_SECRET` unset now raises `RuntimeError` (was: silent
+  boot); full test suite (2134 tests) passes unchanged since `conftest.py` always sets both secrets via env.
 - [ ] **PERF-01**: Eliminate N+1 query cascade in `/api/pipelines` serializer via joinedload (`flowforge/api/routes/pipelines.py`)
-- [ ] **SEC-02**: Add deprecation warning and strict validation for blocklist-based env variable template exposure (`flowforge/engine/context.py`)
+- [x] **SEC-02**: Add deprecation warning and strict validation for blocklist-based env variable template exposure
+  (`flowforge/engine/context.py`) *(2026-07-25)* — `_SafeEnv`'s blocklist mode (active whenever `FLOWFORGE_TEMPLATE_ENV_VARS`
+  is unset) let templates read any env var except a hardcoded list — inherently unable to keep up with the next
+  credential-shaped var a future integration adds (the exact class of gap the 2026-07-06 name-pattern fix already
+  patched once). Fixed: blocklist mode now logs a one-time-per-process `DEPRECATED` warning recommending allowlist mode
+  (throttled via a module-level flag so `context.build()`, called on every pipeline step, doesn't spam it per run).
+  Also added allowlist-mode validation: if `FLOWFORGE_TEMPLATE_ENV_VARS` explicitly lists a credential-shaped name, it's
+  still exposed (allowlist is opt-in and explicit — see `test_safe_env_allowlist_credential_explicitly_listed`), but a
+  warning now flags the likely misconfiguration. Updated `docs/security.md`. Verified both warnings fire correctly via a
+  standalone script; full test suite (2134 tests) passes unchanged.
 - [ ] **MAINT-01**: Abstract database-specific drivers (psycopg2 vs cx_Oracle vs PyMySQL) behind a unified DB abstraction layer rather than checking engine strings inside step runners (`flowforge/steps/bulk_load.py`)
 - [ ] **MAINT-02**: Introduce OpenAPI/Swagger schema generator or TypeScript API client generator to sync backend Flask responses with frontend Zustand/React Query state definitions (`frontend/src/lib/api.ts`)
 - [ ] **PERF-02**: Implement Redis-backed distributed concurrency locks & rate limiting to replace in-memory process-local semaphores (`flowforge/engine/concurrency.py`)

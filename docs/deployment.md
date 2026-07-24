@@ -377,7 +377,7 @@ docker compose exec app flowforge db upgrade
 |---|---|---|
 | `FLOWFORGE_DB_URL` | Yes | PostgreSQL DSN for FlowForge's config database |
 | `FLOWFORGE_SECRET_KEY` | Yes | AES-256 key for credential encryption — never change after first run |
-| `FLOWFORGE_JWT_SECRET` | Yes (prod) | JWT signing secret — falls back to `SECRET_KEY` with a warning if unset |
+| `FLOWFORGE_JWT_SECRET` | Yes | JWT signing secret, distinct from `SECRET_KEY` — the app refuses to boot if unset (outside `TESTING`) |
 | `FLOWFORGE_USERNAME` | Yes | Admin login username |
 | `FLOWFORGE_PASSWORD` | Yes | Admin login password, bcrypt-hashed |
 | `FLOWFORGE_PORT` | No | API port (default: `5000`) |

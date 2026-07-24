@@ -147,8 +147,8 @@ The file handler retains 5 rotated backups (~50 MB total). For long-term retenti
 Pipeline step configs use Jinja2 templates for variable substitution. FlowForge uses **`SandboxedEnvironment`** — arbitrary Python execution (`__import__`, attribute access to internals) is blocked.
 
 **Env var access** in templates is controlled by `FLOWFORGE_TEMPLATE_ENV_VARS`:
-- If set (e.g. `FLOWFORGE_TEMPLATE_ENV_VARS=REPORT_DIR,DB_SCHEMA`), only the listed variables are accessible via `{{ env.VAR_NAME }}`.
-- If unset, all env vars are accessible except a hardcoded blocklist (`FLOWFORGE_SECRET_KEY`, `FLOWFORGE_JWT_SECRET`, `*_CLIENT_SECRET`, `*_PASSWORD`, etc.).
+- If set (e.g. `FLOWFORGE_TEMPLATE_ENV_VARS=REPORT_DIR,DB_SCHEMA`), only the listed variables are accessible via `{{ env.VAR_NAME }}`. If a listed name looks credential-shaped (matches the same keyword check used by blocklist mode), a warning is logged — the var is still exposed, since allowlist mode is explicit and opt-in.
+- If unset (**deprecated**), all env vars are accessible except a hardcoded blocklist (`FLOWFORGE_SECRET_KEY`, `FLOWFORGE_JWT_SECRET`, `*_CLIENT_SECRET`, `*_PASSWORD`, etc.) — logged once per process as a deprecation warning, since a blocklist can never be exhaustive against the next credential-shaped env var a future integration adds. Migrate to allowlist mode.
 
 ---
 

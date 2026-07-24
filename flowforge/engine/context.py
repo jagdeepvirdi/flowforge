@@ -48,6 +48,13 @@ from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
+# SEC-02: blocklist mode (see _SafeEnv) can never be exhaustive against new
+# credential-shaped env vars, so its use is deprecated in favor of an explicit
+# allowlist. Logged once per process, not once per _SafeEnv() construction —
+# build() constructs a new _SafeEnv on every pipeline step, which would
+# otherwise spam this warning on every run of every pipeline.
+_blocklist_mode_warned = False
+
 _BUILT_IN_VAR_KEYS = frozenset({
     'current_date', 'current_month', 'current_year',
     'yesterday', 'week_start', 'week_end',
@@ -113,20 +120,57 @@ class _SafeEnv:
         Only the listed variable names are accessible; all others return ''.
         Example: FLOWFORGE_TEMPLATE_ENV_VARS=DB_HOST,REPORT_DIR,APP_ENV
 
-    Blocklist mode (default, backward-compatible):
+    Blocklist mode (deprecated, backward-compatible):
         When FLOWFORGE_TEMPLATE_ENV_VARS is not set, any env var is accessible
         EXCEPT those in _ENV_BLOCKLIST (known credential names) or whose name
-        looks like a credential (see _looks_like_credential_name).
-        This mode is provided for existing deployments; migrating to allowlist
-        mode is strongly recommended.
+        looks like a credential (see _looks_like_credential_name). A blocklist
+        can never be exhaustive against the next credential-shaped env var a
+        future integration adds, so this mode logs a one-time deprecation
+        warning and remains only for existing deployments — migrate to
+        allowlist mode.
     """
 
     def __init__(self) -> None:
         raw = os.environ.get('FLOWFORGE_TEMPLATE_ENV_VARS', '').strip()
-        self._allowlist: frozenset[str] | None = (
-            frozenset(v.strip() for v in raw.split(',') if v.strip())
-            if raw else None
+        if raw:
+            self._allowlist: frozenset[str] | None = frozenset(
+                v.strip() for v in raw.split(',') if v.strip()
+            )
+            self._validate_allowlist(self._allowlist)
+        else:
+            self._allowlist = None
+            self._warn_blocklist_mode_deprecated()
+
+    @staticmethod
+    def _warn_blocklist_mode_deprecated() -> None:
+        global _blocklist_mode_warned
+        if _blocklist_mode_warned:
+            return
+        _blocklist_mode_warned = True
+        logger.warning(
+            'DEPRECATED: FLOWFORGE_TEMPLATE_ENV_VARS is not set, so pipeline templates can '
+            'read any environment variable except a hardcoded credential blocklist. This '
+            'blocklist can never be exhaustive against new credential-shaped env vars added '
+            'by future integrations. Set FLOWFORGE_TEMPLATE_ENV_VARS to an explicit '
+            'comma-separated allowlist (e.g. FLOWFORGE_TEMPLATE_ENV_VARS=DB_HOST,REPORT_DIR) '
+            'instead — blocklist mode may be removed in a future release.'
         )
+
+    @staticmethod
+    def _validate_allowlist(allowlist: frozenset[str]) -> None:
+        """Strict validation: flag (but do not block) credential-shaped names an
+        operator explicitly allowlisted. Allowlist mode is opt-in and explicit —
+        an explicitly-listed var is still exposed — this only surfaces likely
+        misconfiguration (e.g. a name copy-pasted from _ENV_BLOCKLIST by mistake).
+        """
+        suspicious = sorted(name for name in allowlist if _looks_like_credential_name(name))
+        if suspicious:
+            logger.warning(
+                'FLOWFORGE_TEMPLATE_ENV_VARS explicitly allowlists credential-shaped '
+                'variable name(s), which will be exposed to pipeline templates verbatim: %s. '
+                'Confirm this is intentional.',
+                ', '.join(suspicious),
+            )
 
     def _allowed(self, key: str) -> bool:
         if self._allowlist is not None:

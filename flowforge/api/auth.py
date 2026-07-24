@@ -15,8 +15,12 @@ def _algorithm() -> str:
 
 
 def _secret() -> str:
-    # SEC-2: use JWT_SECRET (separate from the AES encryption key)
-    return current_app.config.get('JWT_SECRET') or current_app.config['SECRET_KEY']
+    # SEC-2: use JWT_SECRET (separate from the AES encryption key).
+    # SEC-01: no fallback to SECRET_KEY here — create_app() requires
+    # FLOWFORGE_JWT_SECRET to be set (outside TESTING) and validates its length
+    # at boot, so JWT_SECRET is always a valid, distinct secret by the time a
+    # request reaches this function.
+    return current_app.config['JWT_SECRET']
 
 
 def _expiry_hours() -> int:
