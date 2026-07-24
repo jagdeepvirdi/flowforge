@@ -689,7 +689,7 @@ def test_python_fallback_chunk_failure_increments_failed(tmp_path):
     cur.executemany.side_effect = Exception('constraint violation')
     with patch('flowforge.steps.bulk_load._open_raw_connection', return_value=conn):
         loaded, failed, summary = _load_python_fallback(
-            {'_db_type': 'other'}, csv_file, ',', 1, 0, 'tbl', 'append', []
+            {'_db_type': 'mysql'}, csv_file, ',', 1, 0, 'tbl', 'append', []
         )
     assert failed == 2  # both rows in the failed chunk
     assert loaded == 0
@@ -704,7 +704,7 @@ def test_python_fallback_chunk_failure_logs_error(tmp_path):
     cur.executemany.side_effect = Exception('FK violation')
     with patch('flowforge.steps.bulk_load._open_raw_connection', return_value=conn):
         _, _, summary = _load_python_fallback(
-            {'_db_type': 'other'}, csv_file, ',', 1, 0, 'tbl', 'append', []
+            {'_db_type': 'mysql'}, csv_file, ',', 1, 0, 'tbl', 'append', []
         )
     assert 'failed' in summary.lower() or 'Chunk' in summary
 

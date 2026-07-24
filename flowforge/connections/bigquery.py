@@ -87,7 +87,8 @@ class BigQueryConnection(BaseConnection):
             total += job.num_dml_affected_rows or 0
         return total
 
-    def make_placeholders(self, n: int) -> str:
+    @staticmethod
+    def make_placeholders(n: int) -> str:
         return ', '.join(f'@p{i}' for i in range(n))
 
     def test(self) -> tuple[bool, int]:

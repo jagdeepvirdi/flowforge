@@ -107,7 +107,8 @@ class OracleConnection(BaseConnection):
         self._conn.commit()
         return count
 
-    def make_placeholders(self, n: int) -> str:
+    @staticmethod
+    def make_placeholders(n: int) -> str:
         return ', '.join([f':{i + 1}' for i in range(n)])
 
     def test(self) -> tuple[bool, int]:

@@ -130,6 +130,52 @@ _register(
 BUILTIN_DB_TYPES = frozenset(connections_registry.list())
 
 
+def connection_class_for(db_type: str) -> Any:
+    """Resolve a db_type string to its BaseConnection subclass — the registry
+    lookup + dotted-path import, without a config dict or a live connection.
+
+    MAINT-01: split out of get_connection() so callers that need the class
+    itself (e.g. a stateless classmethod like make_placeholders(), or building
+    a connection from a config dict obtained via a path other than a
+    db_connections row lookup — see flowforge/steps/bulk_load.py) can reuse
+    this one dispatch instead of re-deriving db_type -> class themselves.
+    """
+    if db_type not in connections_registry:
+        raise ValueError(f"Unsupported db_type: {db_type}")
+    entry = connections_registry.get(db_type)
+    if isinstance(entry, tuple):
+        dotted_path, _kwargs_fn = entry
+        module_path, class_name = dotted_path.rsplit('.', 1)
+        return getattr(importlib.import_module(module_path), class_name)
+    return entry  # plugin-registered: already the class
+
+
+def build_connection(db_type: str, cfg: dict) -> BaseConnection:
+    """Instantiate a BaseConnection subclass from an already-decrypted config dict.
+
+    MAINT-01: the dispatch-and-construct half of get_connection(), split out for
+    callers that already have (db_type, cfg) via a path other than a
+    db_connections row lookup — e.g. bulk_load.py's raw-connection path, which
+    resolves its connection_id -> decrypted cfg earlier for other reasons
+    (building the Oracle SQL*Loader .par file) and previously hand-rolled a
+    second, narrower (postgresql/oracle-only) driver dispatch instead of
+    reusing this one.
+    """
+    cls = connection_class_for(db_type)
+    entry = connections_registry.get(db_type)
+    if isinstance(entry, tuple):
+        _dotted_path, kwargs_fn = entry
+        return cls(**kwargs_fn(cfg))
+
+    # Plugin-registered connection: `entry` (== `cls`) is the class itself.
+    if not hasattr(cls, 'from_config'):
+        raise ValueError(
+            f"Plugin connection '{db_type}' ({cls.__name__}) must define a "
+            "from_config(cls, cfg) classmethod"
+        )
+    return cls.from_config(cfg)
+
+
 def get_connection(connection_id: str) -> BaseConnection:
     """Return the appropriate BaseConnection subclass for a db_connections row."""
     from flowforge.crypto import decrypt_config
@@ -143,18 +189,4 @@ def get_connection(connection_id: str) -> BaseConnection:
         raise ValueError(f"Unsupported db_type: {row.db_type}")
 
     cfg = decrypt_config(row.config)
-    entry = connections_registry.get(row.db_type)
-
-    if isinstance(entry, tuple):
-        dotted_path, kwargs_fn = entry
-        module_path, class_name = dotted_path.rsplit('.', 1)
-        cls: Any = getattr(importlib.import_module(module_path), class_name)
-        return cls(**kwargs_fn(cfg))
-
-    # Plugin-registered connection: `entry` is the class itself.
-    if not hasattr(entry, 'from_config'):
-        raise ValueError(
-            f"Plugin connection '{row.db_type}' ({entry.__name__}) must define a "
-            "from_config(cls, cfg) classmethod"
-        )
-    return entry.from_config(cfg)
+    return build_connection(row.db_type, cfg)

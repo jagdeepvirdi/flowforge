@@ -40,8 +40,14 @@ def _base_cfg(src_dir: str, target: str = 'public.test_tbl') -> dict:
 
 
 def _pg_conn_cfg() -> dict:
-    """Fake resolved connection config that triggers the Python fallback path."""
-    return {'_db_type': 'other'}  # not 'postgresql' → always uses Python fallback
+    """Fake resolved connection config that triggers the Python fallback path.
+
+    'mysql' (not 'postgresql'/'oracle') routes to the fallback per
+    _dispatch_single_file, and is a real registered db_type — needed since
+    _make_placeholders() (MAINT-01) resolves it via the connections registry,
+    unlike the arbitrary 'other' sentinel this used to be.
+    """
+    return {'_db_type': 'mysql'}
 
 
 def _mock_db_conn():

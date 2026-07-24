@@ -77,7 +77,8 @@ class ODBCConnection(BaseConnection):
         cur.close()
         return count
 
-    def make_placeholders(self, n: int) -> str:
+    @staticmethod
+    def make_placeholders(n: int) -> str:
         return ', '.join(['?'] * n)
 
     def test(self) -> tuple[bool, int]:

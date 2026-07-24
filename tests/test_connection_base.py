@@ -58,3 +58,24 @@ def test_default_chunked_zero_rows():
     cols, row_iter = conn.execute_query_with_columns_chunked('SELECT 1 WHERE 1=0')
     assert cols == ['id']
     assert list(row_iter) == []
+
+
+# ── raw_connection (MAINT-01) ────────────────────────────────────────────────
+
+def test_raw_connection_returns_self_conn_when_present():
+    """Concrete subclasses that store a DB-API connection as self._conn — every
+    built-in one except BigQuery — get it back via the base class's default."""
+    conn = _make_minimal_connection([], [])
+    conn._conn = 'sentinel-dbapi-connection'
+    assert conn.raw_connection == 'sentinel-dbapi-connection'
+
+
+def test_raw_connection_raises_clearly_when_absent():
+    """A connection type with no self._conn (e.g. BigQueryConnection, which wraps
+    a client object instead) gets a clear NotImplementedError instead of an
+    unrelated AttributeError from whatever the caller does with `None`."""
+    import pytest
+
+    conn = _make_minimal_connection([], [])
+    with pytest.raises(NotImplementedError, match='_MinimalConnection'):
+        conn.raw_connection

@@ -37,14 +37,33 @@ class BaseConnection(ABC):
     @abstractmethod
     def execute_many(self, sql: str, rows: list[tuple]) -> int: ...
 
+    @staticmethod
     @abstractmethod
-    def make_placeholders(self, n: int) -> str: ...
+    def make_placeholders(n: int) -> str: ...
 
     @abstractmethod
     def test(self) -> tuple[bool, int]: ...
 
     @abstractmethod
     def close(self) -> None: ...
+
+    @property
+    def raw_connection(self) -> Any:
+        """Underlying DB-API connection object, for callers that need cursor-level
+        control beyond execute_write/execute_many/execute_query — e.g. COPY FROM
+        STDIN, or a SAVEPOINT-based transaction that must not auto-commit between
+        statements (see flowforge/steps/bulk_load.py). Concrete subclasses built on
+        a traditional DB-API connection store it as self._conn; connections built
+        on a client library without cursor-level DB-API semantics (e.g. BigQuery)
+        don't, and callers needing raw access get a clear error instead of an
+        unrelated AttributeError.
+        """
+        conn = getattr(self, '_conn', None)
+        if conn is None:
+            raise NotImplementedError(
+                f'{type(self).__name__} does not expose a raw DB-API connection.'
+            )
+        return conn
 
     def __enter__(self) -> 'BaseConnection':
         return self

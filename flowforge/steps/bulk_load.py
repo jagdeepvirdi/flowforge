@@ -4,6 +4,20 @@ Execution paths (in order of preference):
   1. Oracle + use_sqlloader=true → subprocess sqlldr + auto-generated .ctl file
   2. PostgreSQL → psycopg2 copy_expert (COPY FROM STDIN)
   3. Python fallback (any DB) → chunked executemany, no external tools required
+
+MAINT-01: path 3 and the dry-run preview insert path (_dry_run_insert_rows) build
+their own raw DB-API connection and INSERT statement rather than going through
+flowforge.connections.factory.get_connection()'s BaseConnection wrapper — COPY
+FROM STDIN and SQL*Loader are genuinely PostgreSQL/Oracle-specific bulk tools with
+no equivalent abstraction possible, but the raw-connection paths have no such
+excuse. They now delegate db_type -> connection-class dispatch to
+flowforge.connections.factory (connection_class_for / build_connection) instead
+of a second, narrower (postgresql/oracle-only) hand-rolled copy of the same
+dispatch, and use each connection type's own make_placeholders() instead of a
+hardcoded '%s' (wrong for Oracle/MSSQL/ODBC). postgresql/oracle still open a
+direct, non-pooled connection here rather than going through those classes' own
+connection pools — a long-running bulk load holding a slot from a pool shared
+with unrelated concurrent pipeline steps would starve them.
 """
 import csv
 import io
@@ -284,6 +298,19 @@ def _resolve_connection(connection_id: str) -> dict:
     return config
 
 
+#: db_types whose flowforge.connections.* class opens an ad-hoc (non-pooled)
+#: driver connection per instantiation — see each class's __init__. Safe to
+#: delegate to build_connection().raw_connection below with no behavior change,
+#: since that's exactly what these classes already do. postgresql/oracle are
+#: deliberately NOT included: those classes pool connections (ThreadedConnectionPool
+#: / oracledb.create_pool), and a long-running bulk load (streaming COPY, or many
+#: chunked executemany calls over a large file) holding a slot from that small,
+#: shared pool for its whole duration would starve unrelated concurrent pipeline
+#: steps that need the same pool. Their branches below open a direct, ad-hoc
+#: connection instead, same as always.
+_NON_POOLED_DB_TYPES = frozenset({'mysql', 'mssql', 'odbc', 'snowflake'})
+
+
 def _open_raw_connection(conn_cfg: dict):
     db_type = conn_cfg.get('_db_type', 'postgresql')
     if db_type == 'postgresql':
@@ -303,6 +330,15 @@ def _open_raw_connection(conn_cfg: dict):
             password=conn_cfg.get('password', ''),
             dsn=f"{conn_cfg.get('host', 'localhost')}:{conn_cfg.get('port', 1521)}/{service}",
         )
+    if db_type in _NON_POOLED_DB_TYPES:
+        # MAINT-01: previously bulk_load hand-rolled its own postgresql/oracle-only
+        # driver dispatch here, silently raising for every other connection type the
+        # rest of the app already supports (flowforge/connections/factory.py) — even
+        # though the module docstring promises a "Python fallback (any DB)" path.
+        # Delegates to the same registry-driven dispatch instead of a third copy of
+        # per-driver config-field mapping.
+        from flowforge.connections.factory import build_connection
+        return build_connection(db_type, conn_cfg).raw_connection
     raise ValueError(f'Unsupported db_type for bulk_load: {db_type}')
 
 
@@ -316,6 +352,23 @@ def _col_map_dict(column_mapping) -> dict[str, str]:
     if isinstance(column_mapping, dict):
         return column_mapping
     return {}
+
+
+def _make_placeholders(conn_cfg: dict, n: int) -> str:
+    """This connection's SQL parameter-placeholder syntax for n values —
+    '%s' for PostgreSQL/MySQL/Snowflake, ':1, :2' for Oracle, '?' for
+    MSSQL/ODBC — looked up from the connections registry, no live connection
+    needed since make_placeholders() is a stateless staticmethod on every
+    BaseConnection subclass.
+
+    MAINT-01: this file previously hardcoded '%s' everywhere a placeholder was
+    needed, which is Postgres-specific syntax — silently wrong (invalid SQL,
+    not a type-coercion issue that would surface as a clean error) for Oracle,
+    MSSQL, and ODBC connections using the Python-fallback / dry-run paths.
+    """
+    from flowforge.connections.factory import connection_class_for
+    db_type = conn_cfg.get('_db_type', 'postgresql')
+    return connection_class_for(db_type).make_placeholders(n)
 
 
 # ─── Python fallback (any DB) ─────────────────────────────────────────────────
@@ -348,7 +401,7 @@ def _load_python_fallback(
             cur.execute(f'TRUNCATE TABLE {target_table}')  # nosec B608
             db_conn.commit()
 
-        placeholders = ', '.join(['%s'] * len(cols))
+        placeholders = _make_placeholders(conn_cfg, len(cols))
         col_names    = ', '.join(cols)
         sql = f'INSERT INTO {target_table} ({col_names}) VALUES ({placeholders})'  # nosec B608
 
@@ -614,7 +667,7 @@ def _dry_run_insert_rows(
     for col in columns:
         validate_identifier(col, 'column name')
 
-    placeholders = ', '.join(['%s'] * len(columns))
+    placeholders = _make_placeholders(conn_cfg, len(columns))
     col_names = ', '.join(columns)
     sql = f'INSERT INTO {target_table} ({col_names}) VALUES ({placeholders})'  # nosec B608
 

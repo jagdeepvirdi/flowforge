@@ -63,7 +63,8 @@ class SnowflakeConnection(BaseConnection):
         self._conn.commit()
         return count
 
-    def make_placeholders(self, n: int) -> str:
+    @staticmethod
+    def make_placeholders(n: int) -> str:
         return ', '.join(['%s'] * n)
 
     def test(self) -> tuple[bool, int]:

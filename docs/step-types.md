@@ -241,7 +241,9 @@ config:
 | Database | Method |
 |---|---|
 | PostgreSQL | `COPY FROM STDIN` (fast path) |
-| Any other | Chunked `executemany` Python fallback |
+| Oracle, with "Use SQL\*Loader" enabled | `sqlldr` subprocess + auto-generated `.ctl` file (fast path) |
+| Oracle (no SQL\*Loader), MySQL, MSSQL, ODBC, Snowflake | Chunked `executemany` Python fallback |
+| BigQuery, Redshift | Not supported by `bulk_load` — use the `data_load` step instead |
 
 **Dry-run insert testing ("Attempt insert" checkbox, Test File in the UI):** the base preview
 only checks file discovery, header parsing, and that the CSV's columns exist on the target

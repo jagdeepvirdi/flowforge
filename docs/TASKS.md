@@ -137,7 +137,48 @@ entries.*
   still exposed (allowlist is opt-in and explicit — see `test_safe_env_allowlist_credential_explicitly_listed`), but a
   warning now flags the likely misconfiguration. Updated `docs/security.md`. Verified both warnings fire correctly via a
   standalone script; full test suite (2134 tests) passes unchanged.
-- [ ] **MAINT-01**: Abstract database-specific drivers (psycopg2 vs cx_Oracle vs PyMySQL) behind a unified DB abstraction layer rather than checking engine strings inside step runners (`flowforge/steps/bulk_load.py`)
+- [x] **MAINT-01**: Abstract database-specific drivers (psycopg2 vs cx_Oracle vs PyMySQL) behind a unified DB
+  abstraction layer rather than checking engine strings inside step runners (`flowforge/steps/bulk_load.py`)
+  *(2026-07-25)* — investigation found the unified abstraction already exists and is already used correctly
+  elsewhere: `flowforge/connections/factory.py`'s registry + `BaseConnection` (`execute_many`/`make_placeholders`),
+  as demonstrated by the newer `data_load` step (`flowforge/steps/data_load.py`). `bulk_load.py`'s Python-fallback
+  (`_load_python_fallback`) and dry-run preview (`_dry_run_insert_rows`) paths never adopted it — they hand-rolled a
+  second, narrower (postgresql/oracle-only) `psycopg2`/`oracledb` dispatch in `_open_raw_connection()` and
+  **hardcoded `%s` placeholders**, which is Postgres-specific bind-variable syntax. Verified this was a live
+  correctness bug, not just a style issue: oracledb uses `:1,:2`, MSSQL/ODBC use `?` — every Oracle-without-SQL\*Loader
+  or MSSQL/ODBC load through the Python fallback would have built an INSERT with the wrong bind-variable syntax and
+  failed against a real database. Fixed:
+  - `flowforge/connections/factory.py`: split `get_connection()` into `connection_class_for(db_type)` (pure registry
+    lookup, no config/DB needed) and `build_connection(db_type, cfg)` (dispatch + construct from an already-decrypted
+    config), both reused internally by `get_connection()` unchanged — verified via the existing factory test suite.
+  - `flowforge/connections/base.py`: `make_placeholders` is now `@staticmethod` on the ABC and all 7 subclasses (none
+    referenced `self`, confirmed by inspection) so it's callable via the class alone, no live connection required.
+    Added a concrete `raw_connection` property (returns `self._conn`, or a clear `NotImplementedError` for connection
+    types like BigQuery that wrap a client object instead of a DB-API connection) for callers needing cursor-level
+    control beyond the higher-level methods.
+  - `bulk_load.py`: `_make_placeholders(conn_cfg, n)` now resolves the correct placeholder syntax via
+    `connection_class_for()` instead of hardcoding `%s`. `_open_raw_connection()` now delegates to
+    `build_connection(db_type, conn_cfg).raw_connection` for `mysql`/`mssql`/`odbc`/`snowflake` — extending the "Python
+    fallback (any DB)" promise the module docstring already made but didn't keep — instead of raising
+    `ValueError('Unsupported db_type for bulk_load: ...')` for every type except postgresql/oracle.
+  - **Deliberately left unchanged**: `postgresql`/`oracle` in `_open_raw_connection()` still open a direct, ad-hoc
+    (non-pooled) connection exactly as before, rather than routing through those two types' `flowforge/connections/*.py`
+    classes — which pool connections (`ThreadedConnectionPool` / `oracledb.create_pool()`). A long-running bulk load
+    (streaming `COPY`, or many chunked `executemany` calls over a large file) holding a slot from that small, shared
+    pool for its whole duration would starve unrelated concurrent pipeline steps needing the same pool. Multiple
+    existing tests (`test_oracle_bulk_load.py`) also pin the exact "plain `oracledb.connect()`, not pooled" behavior.
+    `COPY FROM STDIN` (PostgreSQL) and SQL\*Loader (Oracle) remain genuinely engine-specific fast paths — no
+    unification is possible there; that's not the anti-pattern this item targeted. BigQuery/Redshift remain
+    unsupported by `bulk_load` (BigQuery has no raw DB-API connection to expose at all; Redshift's connection pools
+    via inherited `PostgreSQLConnection`, same pooling concern as postgresql) — both are already reachable through
+    the more general `data_load` step instead.
+  - Added `tests/test_bulk_load_maint01.py` (placeholder-syntax-per-db_type coverage, plus the concrete regression
+    proof — asserts the actual SQL built for an Oracle Python-fallback load uses `:1, :2`, not `%s` — and new
+    `_open_raw_connection` coverage for mysql/mssql/odbc/snowflake) and `raw_connection` property tests in
+    `tests/test_connection_base.py`. Fixed two pre-existing test fixtures using a fake `_db_type: 'other'` sentinel
+    (meant only to route past the `postgresql` special case) that broke once placeholder resolution started actually
+    validating `_db_type` against the registry — switched to `'mysql'`, a real registered type. Updated
+    `docs/step-types.md`'s bulk_load load-path table. Full test suite (2155 tests) passes.
 - [ ] **MAINT-02**: Introduce OpenAPI/Swagger schema generator or TypeScript API client generator to sync backend Flask responses with frontend Zustand/React Query state definitions (`frontend/src/lib/api.ts`)
 - [x] **PERF-02**: Implement Redis-backed distributed concurrency locks & rate limiting to replace in-memory
   process-local semaphores (`flowforge/engine/concurrency.py`) *(2026-07-25)* — the distributed concurrency counter
