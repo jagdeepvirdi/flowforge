@@ -391,9 +391,25 @@ else is real but not on fire.*
   because existing tests patch/import them as `flowforge.engine.runner.<name>` — same convention
   already used for `step_exec.py`'s re-exports. `ruff check` clean; full suite (2134 tests) passes
   unchanged.
-- [ ] Add a `frontend/src/hooks/` layer (currently doesn't exist) and break up the monolithic page
-  components — `Settings.tsx` (737 lines, 25 `useState`/`useEffect`/`useQuery`/`fetch` call sites)
-  and `ReportEdit.tsx` (675 lines, 21) mix data-fetching, form state, and rendering inline.
+- [x] **Add a `frontend/src/hooks/` layer and break up the monolithic page components**
+  *(2026-07-24)* — new `frontend/src/hooks/`: `useMfa`, `useRetentionSettings`,
+  `useChangePassword` (state/query/mutation logic pulled out of `Settings.tsx`'s inline card
+  components), `useReportConfigForm`, `useReportPreviewTools` (form + data-fetching vs.
+  AI-tooling state pulled out of `ReportEdit.tsx`, split along the same seam the two hooks
+  already had — a single shared `error`/`setError` passed from the form hook into the preview
+  hook, matching the original single error banner). Every card that used to be a function
+  declared inline in `Settings.tsx` now lives in its own file under
+  `frontend/src/components/settings/` (`ChangePasswordCard`, `MfaCard`, `GoogleOAuthCard`,
+  `Microsoft365Card`, `AiOllamaCard`, `RetentionCard`, `YamlCard`, `DocsCard`, plus
+  `common.tsx` for the shared `StatusBadge`/`CodeBlock`/`InlineCode`); `ColumnFormattingCard`
+  moved out of `ReportEdit.tsx` into `frontend/src/components/report/`. `Settings.tsx` went
+  737 → 90 lines (now just the tab shell), `ReportEdit.tsx` went 675 → 370 (page layout +
+  wiring, no state logic). No behavior change — pure mechanical extraction. Verified via `tsc
+  --noEmit` (clean), `eslint` (0 errors, same pre-existing `watch()` warning pattern already
+  present in `EmailEdit.tsx`), the full Vitest suite (172 tests, unchanged), a production
+  `vite build`, and a manual Playwright pass against the real dev stack (login → all 5 Settings
+  tabs → MFA card → admin Retention save → create/save a real report end-to-end → delete it) —
+  zero console errors.
 - [ ] Close the release-cadence gap — only 2 tags exist (`v1.0.0`, `v1.1.0`), `pyproject.toml` is
   still pinned at `1.1.0` while `CHANGELOG.md`'s `[Unreleased]` section already documents the entire
   shipped DAG engine (dated 2026-07-22) plus ~7 weeks of other work, and there's a dangling
