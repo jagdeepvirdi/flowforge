@@ -422,8 +422,20 @@ else is real but not on fire.*
   `[Unreleased]` section converted to `## [1.3.0] — 2026-07-24`, with today's four refactors
   (service layer, leader election, runner.py split, frontend hooks layer) added under it alongside
   the already-documented DAG engine work. `release.yml`/`publish.yml` (SLSA provenance, PyPI OIDC)
-  fire automatically once `git tag v1.3.0` is pushed — not pushed yet, pending the user's go-ahead
-  (tagging/publishing is a one-way, externally-visible action).
+  fired on push — user confirmed, tag pushed, both workflows green, package live on PyPI. This was
+  also the first time these ~12 already-committed-but-never-pushed local commits actually ran
+  through GitHub's CI (they'd only ever been tested on this dev machine, Windows) — that surfaced
+  one real, pre-existing bug: `tests/test_plugin_loader.py`'s
+  `test_world_or_group_writable_always_false_on_windows` built `Path('x')` *after* monkeypatching
+  `os.name` to `'nt'`, which is silently a no-op on Windows (already `'nt'` natively) but on Linux
+  CI made `pathlib.Path()` itself try to instantiate a real `WindowsPath` and raise
+  `NotImplementedError` — which then also crashed pytest's own failure-reporting code (also calls
+  `Path()`), aborting the whole session with a cascading `INTERNALERROR` instead of a normal test
+  failure. Root-caused by reproducing the exact crash in a Linux Docker container mirroring CI's
+  postgres/env setup (not guessable from the Windows-only local runs that had passed every time);
+  fixed by building the `Path` before the monkeypatch. Two follow-up commits after the tag push
+  (a `ruff` import-sort miss in the same file, then this real fix) before `master`'s CI went fully
+  green (CI, CodeQL, Secrets Scan, OpenSSF Scorecard all passing on `7968521`).
 - [x] **Make `.github/workflows/secrets-scan.yml` a blocking gate** *(2026-07-24)* — removed
   `continue-on-error: true` from the TruffleHog step. Note: this is a one-line change I could verify
   parses as valid YAML but couldn't execute (no local GitHub Actions runner) — worth watching the
