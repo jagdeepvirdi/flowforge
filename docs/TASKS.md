@@ -173,3 +173,38 @@ entries.*
 
 - [ ] Add a one-click deploy option (Railway/Render/Fly.io) to lower adoption friction beyond `docker compose up`.
 
+---
+
+---
+
+# Phase 12 — Known Product Limitations (2026-07-24)
+
+*Surfaced while auditing `docs/USE_CASE.md`'s "Limitations to Be Honest About" table for staleness.
+Most of these are deliberate design decisions, not bugs — listed here for visibility and to keep
+`docs/USE_CASE.md` and this file honest about the same set of constraints, not as a commitment to
+build any of them out.*
+
+## Genuinely open (candidate future work)
+
+- [ ] No conditional/branching step execution — can't gate a step on a prior step's output (e.g.
+  "only send email if row count > 0") beyond DAG failure propagation (`on_error: stop`/`continue`).
+  Current workaround: always run the step, filter in the query. Unlike the items below, this one
+  isn't an intentional non-goal — just not built yet.
+
+## Accepted design tradeoffs (not planned)
+
+- No true multi-tenant isolation beyond project-level workspace scoping (`ff_project_members`) —
+  by design; see [`docs/threat-model.md`](threat-model.md#out-of-scope)
+- Self-hosted only, no managed/cloud SaaS offering — explicit non-goal, see `CLAUDE.md` Non-Goals
+- No Airflow DAG import — explicit non-goal, see `CLAUDE.md` Non-Goals
+- FlowForge does not terminate TLS itself — deploy behind Nginx/ALB by design, see
+  [`docs/deployment.md`](deployment.md)
+- PDF reports require the optional `weasyprint` extra (`pip install flowforge[pdf]`) rather than
+  shipping in the default install — keeps the base install light for the Excel/CSV/JSON-only case
+
+## Already tracked elsewhere (not duplicated here)
+
+- Supply-chain security posture (OpenSSF Scorecard 6.5/10 target 8.0, no OSS-Fuzz registration, no
+  cosign-signed releases) — see "Medium priority" above and `ROADMAP.md`'s "In progress" / "Not yet
+  built" sections
+

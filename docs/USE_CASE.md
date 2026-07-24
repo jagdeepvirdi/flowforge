@@ -136,6 +136,12 @@ For any company migrating from Oracle to PostgreSQL, FlowForge is uniquely posit
 | Limitation | Implication |
 |---|---|
 | No conditional branching | Can't say "only send email if row count > 0" — workaround: always send, filter in query |
+| No true multi-tenant isolation | Project scoping (`ff_project_members`) segments teams within one shared deployment/database, not hard tenant isolation — no per-project encryption key, network isolation, or resource quota. Don't run one FlowForge instance as a shared backend for mutually-untrusting external customers |
+| Self-hosted only | No managed/cloud SaaS offering — you own the server, the PostgreSQL instance, upgrades, and backups. If that's unwanted overhead, a SaaS tool (Zapier/Make) fits better despite the cost |
+| No Airflow DAG import | Migrating off Airflow means recreating pipelines by hand in FlowForge, not an automated conversion |
+| Doesn't terminate TLS itself | Needs a reverse proxy (Nginx) or load balancer in front for HTTPS — not a drop-in HTTPS-out-of-the-box service |
+| PDF reports need an optional dependency | `weasyprint` isn't installed by default (`pip install flowforge[pdf]`) — Excel/CSV/JSON reports work with no extra install |
+| Supply-chain security posture still maturing | OpenSSF Scorecard is 6.5/10 (target 8.0) as a solo-maintained project — no OSS-Fuzz registration or cosign-signed releases yet; see `ROADMAP.md` "In progress" / "Not yet built" for the specific gaps |
 
 ---
 
