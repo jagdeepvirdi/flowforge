@@ -243,6 +243,18 @@ entries.*
   (asserting on `app.config['RATELIMIT_STORAGE_URI']` rather than the live singleton — see test file comment for why).
   Updated `docs/RUNBOOK.md`. Full test suite (2138 tests) passes.
 
+## Follow-ups surfaced while closing out the V2.0 Audit Action Items (2026-07-25)
+
+- [ ] **react-router-dom 6.x → 7.x major bump** — `npm audit` flags `react-router` `6.0.0-7.17.0` (installed:
+  `^6.24.0`) for two moderate-severity advisories: open redirect via backslash in `<Link>`/`useNavigate`
+  ([GHSA-wrjc-x8rr-h8h6](https://github.com/advisories/GHSA-wrjc-x8rr-h8h6)) and arbitrary constructor injection via
+  `deserializeErrors()` in SSR hydration ([GHSA-337j-9hxr-rhxg](https://github.com/advisories/GHSA-337j-9hxr-rhxg)).
+  A same-major patch isn't available — the fix requires bumping past 7.17.0, i.e. a real v6→v7 migration (router API
+  changes, `<Routes>`/loader/action patterns) — so it wasn't done as part of the MAINT-02 CI-unblock fix, which was
+  scoped to non-breaking patches only. Doesn't block CI today (`--audit-level=high` doesn't gate on moderate), but
+  should get a deliberate migration pass: read the [v7 upgrade guide](https://reactrouter.com/upgrading/v6), audit
+  `frontend/src/` for affected APIs, migrate, then re-run `npm audit` to confirm both advisories clear.
+
 ## Phase 5 — Go-To-Market (P1 — Visibility)
 
 *These do not block the GitHub release tag but should happen within the first week of release.*
