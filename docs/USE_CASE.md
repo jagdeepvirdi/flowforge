@@ -105,7 +105,7 @@ FlowForge replaces that entirely — with scheduling, run history, and zero infr
 You get: a UI to configure everything, run history with step-level logs, scheduling without editing crontab, email/Drive built in, and no Python required. The "script person" can leave and someone else can maintain it.
 
 ### vs. Apache Airflow
-Airflow is built for data engineers writing Python DAGs. FlowForge is built for SQL people. Airflow requires a cluster (Celery workers, Redis, PostgreSQL, Flower). FlowForge runs on one server with `docker compose up`. Setup is minutes vs. hours.
+Airflow is built for data engineers writing Python DAGs. FlowForge is built for SQL people. Airflow requires a cluster (Celery workers, Redis, PostgreSQL, Flower) just to get started. FlowForge runs on one server with `docker compose up` — the same Celery/Redis/Flower stack exists in FlowForge too, but only as an opt-in for horizontal scaling (`flowforge worker`, `FLOWFORGE_REDIS_URL`); a default install never touches it. Setup is minutes vs. hours.
 
 ### vs. Prefect / Dagster
 Same issue — code-first, Python-first, engineer-first. Great tools for the right audience. FlowForge's audience doesn't write Python flows.
@@ -148,7 +148,11 @@ FlowForge runs comfortably on a single small server or VM for:
 - Up to ~20 simultaneous runs
 - Report files up to ~500MB (larger → auto-uploaded to Drive)
 
-For anything beyond this, see the High-Concurrency track in `TASKS.md`.
+Beyond single-server scale, FlowForge already ships a horizontal-scaling path: `flowforge worker`
+dispatches pipeline runs to Celery workers instead of in-process threads, backed by a
+Redis-distributed concurrency lock (`FLOWFORGE_REDIS_URL`) that holds `FLOWFORGE_MAX_CONCURRENT_RUNS`
+correctly across multiple Gunicorn/Celery processes — see `docs/deployment.md` and `docs/RUNBOOK.md`
+for setup.
 
 ---
 

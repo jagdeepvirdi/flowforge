@@ -2002,6 +2002,196 @@ flowforge worker --concurrency 4
 
 ------------------------------$
 
+## 41. SSH Command Step (ssh_command)
+
+*(Requires an accessible SSH server — same setup as §16's Docker SFTP container works, or any host you have credentials for. Create an **SSH Connection** first: Connections → Add Connection → SSH.)*
+
+### 41a. Basic command execution
+
+1. Create a pipeline: `SSH Command Test`
+2. Add an **SSH Command** step:
+
+   | Field | Value |
+   |---|---|
+   | SSH connection | Your SSH connection |
+   | Command | `echo hello from {{ pipeline_name }}` |
+   | Capture output | Ticked |
+
+3. Run the pipeline
+
+- [ ] Step succeeds
+- [ ] Step log shows `STDOUT: hello from SSH Command Test` (variable resolved, not literal `{{ pipeline_name }}`)
+- [ ] Log includes `Exit status: 0`
+
+### 41b. Capture stdout into a pipeline variable
+
+1. Edit the step: set **Output variable** to `script_result`, command to `echo captured-value`
+2. Add a downstream **Email** step with body `<p>{{ script_result }}</p>`
+3. Run the pipeline
+
+- [ ] Email received containing `captured-value` (not the literal `{{ script_result }}`)
+
+### 41c. Save output to file and attach to email
+
+1. Tick **Save output**, set **Output filename** to `ssh_output_{{ current_date }}.log`
+2. Add a downstream **Email** step with attachment `{{ steps.<step_name>.output_path }}`
+3. Run the pipeline
+
+- [ ] Email received with the `.log` file attached
+- [ ] File contents match the command's stdout
+
+### 41d. Non-zero exit fails the step
+
+1. Set command to `exit 1`
+2. Run the pipeline
+
+- [ ] Step fails with `Command failed with exit status 1`
+- [ ] `output_path` is still set if **Save output** was ticked (log file available even on failure)
+
+### 41e. Unknown host key rejected by default
+
+1. Point the SSH connection at a host not in the FlowForge server's `known_hosts`
+2. Run the step (with `FLOWFORGE_SSH_ALLOW_UNKNOWN_HOSTS` unset or `false`)
+
+- [ ] Step fails with a host-key/SSH error, not a silent connect
+- [ ] Setting `FLOWFORGE_SSH_ALLOW_UNKNOWN_HOSTS=true` and restarting allows the connection through
+
+------------------------------$
+
+## 42. Database Health Check Step (db_health_check)
+
+*(Run against each DB type you have available — PostgreSQL is required for the rest of this guide, so at minimum test that one.)*
+
+### 42a. PostgreSQL health check
+
+1. Create a pipeline: `DB Health Check Test`
+2. Add a **Database Health Check** step:
+
+   | Field | Value |
+   |---|---|
+   | Connection | `FlowForge DB` |
+   | Format | `Excel` |
+
+3. Run the pipeline
+
+- [ ] Step succeeds
+- [ ] Step log shows `PostgreSQL Health Check`, `Active Sessions: N`, and a Cache Hit Ratio line
+- [ ] Generated Excel file has one sheet per section (Sessions, Cache Performance, and Replication Lag if replicas exist)
+
+### 42b. CSV format
+
+1. Change **Format** to `CSV`, re-run
+
+- [ ] CSV file generated instead of Excel, same sections as text
+
+### 42c. Oracle / MySQL health check (if a connection is configured)
+
+1. Repeat 42a against an Oracle or MySQL connection
+
+- [ ] Oracle: log shows Active User Sessions, Buffer Cache Hit Ratio, and any tablespaces over 80% usage (section omitted if none)
+- [ ] MySQL: log shows Connected Threads
+
+### 42d. Unsupported connection type
+
+1. Point the step at a connection type other than PostgreSQL/Oracle/MySQL (e.g. Snowflake)
+
+- [ ] Step fails with a clear `unsupported database type` error, not a crash
+
+### 42e. Attach to email
+
+1. Add a downstream **Email** step with attachment `{{ steps.<step_name>.output_path }}`
+2. Run the pipeline
+
+- [ ] Email received with the health report attached
+
+------------------------------$
+
+## 43. SSH Server Health Check Step (ssh_health_check)
+
+*(Requires an accessible Linux SSH host — the metric commands, e.g. `free -m`, `df -h`, assume Linux.)*
+
+### 43a. All metrics (default)
+
+1. Create a pipeline: `SSH Health Check Test`
+2. Add an **SSH Health Check** step pointing at your SSH connection, leaving **Metrics** unset (all four collected by default)
+3. Run the pipeline
+
+- [ ] Step succeeds
+- [ ] Excel file has 4 sheets: Load Average, Memory (MB), Disk Usage, Top Processes (CPU)
+- [ ] Step log lists a row count per sheet
+
+### 43b. Select specific metrics
+
+1. Set **Metrics** to only `load_average` and `disk_usage`
+2. Run the pipeline
+
+- [ ] Report contains only those 2 sheets, not all 4
+
+### 43c. Partial metric failure is tolerated
+
+1. Point the connection at a host that lacks one of the commands (e.g. a minimal container without `ps`)
+2. Run the pipeline
+
+- [ ] Step still succeeds with the remaining metrics collected
+- [ ] A warning is logged for the failed metric, not a step failure
+
+### 43d. All metrics fail
+
+1. Point at a host where none of the metric commands work (or an SSH connection that can authenticate but has a broken shell)
+
+- [ ] Step fails with `no metrics could be collected`
+
+------------------------------$
+
+## 44. Script / Data Report Step (data_report)
+
+Turns a pipeline variable (from `ssh_command`'s `output_var` or elsewhere) into a formatted report file — see the SSH → Excel example in `docs/step-types.md`'s `data_report` section.
+
+### 44a. CSV variable → Excel report
+
+1. Create a pipeline: `Data Report Test`
+2. Add an **SSH Command** step (or any step that sets a pipeline variable) producing a CSV string with a header row, e.g. command:
+   ```
+   printf "plan,cnt\nbasic,6\npremium,7\n"
+   ```
+   with **Output variable** set to `plan_csv`
+3. Add a **Data Report** step:
+
+   | Field | Value |
+   |---|---|
+   | Data variable | `plan_csv` |
+   | Data format | `CSV` |
+   | Output format | `Excel` |
+   | Output filename | `plan_report_{{ current_date }}.xlsx` |
+   | Sheet name | `Plans` |
+
+4. Run the pipeline
+
+- [ ] Step succeeds
+- [ ] Generated Excel file has a `Plans` sheet with columns `plan`, `cnt` and 2 data rows
+
+### 44b. JSON variable → PDF report
+
+1. Set an upstream variable to a JSON array string, e.g. `[{"plan":"basic","cnt":6},{"plan":"premium","cnt":7}]`
+2. Set **Data format** to `JSON`, **Output format** to `PDF`, **Title** to `Plan Report`
+
+- [ ] PDF generated with a title and a table matching the JSON objects' keys/values
+
+### 44c. Empty variable
+
+1. Point **Data variable** at a variable that resolves to an empty string
+
+- [ ] Step succeeds (not fails) with log "No data found in variable; skipping report generation"
+- [ ] No output file created, `output_path` empty
+
+### 44d. Column override
+
+1. Set **Columns** to a custom list, e.g. `["Plan Name", "Count"]`, using the same 2-column CSV data from 44a
+
+- [ ] Generated report's header row shows `Plan Name`, `Count` instead of the original `plan`, `cnt`
+
+------------------------------$
+
 ## Notes
 
 | Date | Tester | Section | Result | Notes |
