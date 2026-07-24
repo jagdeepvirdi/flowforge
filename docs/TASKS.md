@@ -435,7 +435,8 @@ else is real but not on fire.*
   postgres/env setup (not guessable from the Windows-only local runs that had passed every time);
   fixed by building the `Path` before the monkeypatch. Two follow-up commits after the tag push
   (a `ruff` import-sort miss in the same file, then this real fix) before `master`'s CI went fully
-  green (CI, CodeQL, Secrets Scan, OpenSSF Scorecard all passing on `7968521`).
+  green (CI, CodeQL, Secrets Scan, OpenSSF Scorecard all passing on `7968521`, confirmed still
+  green on `615b2d7` — the last commit of this session).
 - [x] **Make `.github/workflows/secrets-scan.yml` a blocking gate** *(2026-07-24)* — removed
   `continue-on-error: true` from the TruffleHog step. Note: this is a one-line change I could verify
   parses as valid YAML but couldn't execute (no local GitHub Actions runner) — worth watching the
