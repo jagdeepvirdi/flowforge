@@ -376,9 +376,21 @@ else is real but not on fire.*
   `chart_config`, `ai_query`, `anomaly_narrative` — the cost-DoS vector via paid Claude/Gemini
   fallback) and to `reports.py`'s `preview_report` (arbitrary stored SQL execution). Matches the
   existing `pipelines.py` pattern exactly (`from flowforge.api.app import limiter`).
-- [ ] Break up `flowforge/engine/runner.py` (586 lines: orchestration, retry logic, variable
-  exposure, wave-building, webhook firing, and the `_notify_devbrain` external integration all in
-  one module) into focused modules.
+- [x] **Break up `flowforge/engine/runner.py`** *(2026-07-24)* — retry logic already lived in
+  `step_exec.py` from the earlier dag.py/runner.py circular-dependency fix; this pass split the
+  rest. New modules: `waves.py` (wave-building + wave execution — `_build_execution_waves`,
+  `_run_sequential_step` [newly extracted from `run_pipeline`'s inline sequential-step branch,
+  for symmetry with the already-factored-out `_run_parallel_wave`], `_run_parallel_wave`,
+  `_expose_step_outputs`, `_build_vars_log`, `_handle_failed_step`), `run_records.py`
+  (`_create_run_record`, `_finish_run_record`, `_get_last_success_ts`), `notifications.py`
+  (`_fire_failure_webhook`, `_notify_devbrain`), `dependency_trigger.py`
+  (`_trigger_downstream_pipelines`). `runner.py` now only holds `run_pipeline()` (158 lines) and
+  imports everything else. No behavior change — pure mechanical extraction, same call order, same
+  return values. `_write_step_run`/`_expose_step_outputs`/`_handle_failed_step` are re-exported
+  (unused, `# noqa: F401`) from `runner.py` even though their call sites moved into `waves.py`,
+  because existing tests patch/import them as `flowforge.engine.runner.<name>` — same convention
+  already used for `step_exec.py`'s re-exports. `ruff check` clean; full suite (2134 tests) passes
+  unchanged.
 - [ ] Add a `frontend/src/hooks/` layer (currently doesn't exist) and break up the monolithic page
   components — `Settings.tsx` (737 lines, 25 `useState`/`useEffect`/`useQuery`/`fetch` call sites)
   and `ReportEdit.tsx` (675 lines, 21) mix data-fetching, form state, and rendering inline.
