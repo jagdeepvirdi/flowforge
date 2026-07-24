@@ -265,16 +265,21 @@ def test_world_or_group_writable_false_on_stat_error(monkeypatch):
 
 def test_world_or_group_writable_always_false_on_windows(monkeypatch):
     """The Windows short-circuit: even an obviously-writable mode is ignored,
-    because os.stat() on Windows doesn't reflect real ACL-based permissions."""
-    import stat
-    from unittest.mock import MagicMock, patch
+    because os.stat() on Windows doesn't reflect real ACL-based permissions.
 
+    The Path is built *before* os.name is patched to 'nt' — pathlib.Path()
+    dispatches to a concrete WindowsPath/PosixPath based on os.name at
+    construction time, so building it afterward makes a real (non-Windows)
+    CI runner try to instantiate an actual WindowsPath and raise
+    NotImplementedError. No pathlib.Path.stat patch either (unlike the POSIX
+    variants above) — the function returns on the os.name check before ever
+    calling path.stat().
+    """
     from flowforge.engine import loader as loader_mod
 
+    fake_path = Path('x')
     monkeypatch.setattr(loader_mod.os, 'name', 'nt')
-    fake_stat = MagicMock(st_mode=stat.S_IFREG | 0o666)
-    with patch('pathlib.Path.stat', return_value=fake_stat):
-        assert loader_mod._world_or_group_writable(Path('x')) is False
+    assert loader_mod._world_or_group_writable(fake_path) is False
 
 
 def test_world_writable_plugin_file_is_refused(monkeypatch, tmp_path, caplog):
