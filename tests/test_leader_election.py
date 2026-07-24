@@ -4,7 +4,6 @@ from unittest.mock import MagicMock, patch
 
 import flowforge.engine.leader as leader_mod
 
-
 # ── ha_enabled ──────────────────────────────────────────────────────────────
 
 def test_ha_enabled_true_when_redis_url_set(monkeypatch):
