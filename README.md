@@ -66,7 +66,7 @@ Designed for solo developers, data analysts, and small teams who need lightweigh
 - **Visual cron builder**: frequency presets, live expression preview, next-5-runs display
 - **Hot reload**: schedule changes sync to the scheduler automatically every 60 seconds
 - **Celery / Redis task queue** (optional): when `FLOWFORGE_REDIS_URL` is set, pipeline runs are dispatched as Celery tasks; falls back to background threads without Redis
-- **Distributed concurrency lock**: Redis-backed run-limit lock so multiple API/worker instances can be scaled horizontally without over-running a pipeline
+- **Distributed concurrency lock & rate limiting**: Redis-backed run-limit lock and API rate limits so multiple API/worker instances can be scaled horizontally without over-running a pipeline or under-enforcing a rate limit (each otherwise falls back to a per-process limit — correct for a single worker only)
 - **Graceful shutdown**: SIGTERM handler drains in-flight runs before exit
 
 ### Observability & Production Ops
@@ -180,7 +180,7 @@ Custom step types, database connections, and email providers can also be added v
 git clone https://github.com/jagdeepvirdi/flowforge.git
 cd flowforge
 cp .env.example .env
-# Edit .env — set FLOWFORGE_SECRET_KEY and FLOWFORGE_PASSWORD at minimum
+# Edit .env — set FLOWFORGE_SECRET_KEY, FLOWFORGE_JWT_SECRET, and FLOWFORGE_PASSWORD at minimum
 docker compose up
 ```
 
@@ -218,6 +218,8 @@ pip install -e ".[azure_blob]"    # Azure Blob Storage upload
 pip install -e ".[sftp]"          # SFTP transfer step (paramiko)
 pip install -e ".[sso]"           # SSO: Google, Microsoft, SAML 2.0
 pip install -e ".[claude]"        # ai_analyze step via Claude API
+pip install -e ".[celery]"        # Celery task queue (FLOWFORGE_REDIS_URL) — pulls in redis too
+pip install -e ".[redis]"         # Redis-backed concurrency limit + rate limiting, no Celery task queue
 pip install -e ".[all]"           # Everything above
 ```
 
@@ -227,7 +229,7 @@ pip install -e ".[all]"           # Everything above
 
 ```bash
 cp .env.example .env
-# Set FLOWFORGE_DB_URL, FLOWFORGE_SECRET_KEY, and FLOWFORGE_PASSWORD at minimum
+# Set FLOWFORGE_DB_URL, FLOWFORGE_SECRET_KEY, FLOWFORGE_JWT_SECRET, and FLOWFORGE_PASSWORD at minimum
 ```
 
 #### 4. Initialize the database and create the admin user
@@ -387,7 +389,9 @@ flowforge/
 │       │                    #   RunHistory, Settings, Users, BulkLoads, Projects, Login, AuditLog
 │       ├── components/      # pipeline/, email/, report/, runs/, shared/
 │       └── lib/             # api.ts, auth.ts, types.ts, store.ts
-├── docs/                    # Guides and runbook
+│                            #   lib/generated/ — OpenAPI-generated types (see docs/openapi/)
+├── docs/
+│   └── openapi/             # Hand-authored OpenAPI specs (source of truth for lib/generated/)
 ├── tests/                   # pytest suite (1,800+ tests)
 ├── .github/workflows/       # GitHub Actions CI
 ├── docker-compose.yml       # API + frontend + PostgreSQL + scheduler + Redis + worker

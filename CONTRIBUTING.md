@@ -95,6 +95,7 @@ cp .env.example .env
 # Edit .env — minimum required:
 #   FLOWFORGE_DB_URL=postgresql://flowforge:flowforge@localhost:5432/flowforge
 #   FLOWFORGE_SECRET_KEY=<run: python -c "import secrets; print(secrets.token_hex(32))">
+#   FLOWFORGE_JWT_SECRET=<run the same command again — must differ from FLOWFORGE_SECRET_KEY>
 #   FLOWFORGE_USERNAME=admin
 #   FLOWFORGE_PASSWORD=<bcrypt hash>
 ```
@@ -112,6 +113,17 @@ cd frontend
 npm install
 cd ..
 ```
+
+If you edit [`docs/openapi/pipelines.yaml`](docs/openapi/pipelines.yaml) (the API contract for the
+`pipelines`/`runs` backend routes), regenerate the matching TypeScript types and commit the result:
+
+```bash
+cd frontend
+npm run generate:api-types
+```
+
+`frontend/src/__tests__/apiTypesSync.test.ts` fails CI if the spec and the committed generated file
+(`frontend/src/lib/generated/pipelines.ts`) drift apart.
 
 ### 6. Start the dev servers
 

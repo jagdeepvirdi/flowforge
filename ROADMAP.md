@@ -3,7 +3,7 @@
 > **Source of truth:** [`docs/TASKS.md`](docs/TASKS.md) is the authoritative, continuously-updated
 > tracker of what's actually shipped (verified against the code, with dates). This file is a
 > high-level summary derived from it for newcomers — if the two ever disagree, trust TASKS.md
-> and treat this file as stale until updated. Last reconciled: 2026-07-22.
+> and treat this file as stale until updated. Last reconciled: 2026-07-25.
 
 ## Shipped
 

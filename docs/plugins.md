@@ -154,13 +154,30 @@ class MyConnection(BaseConnection):
     # ... implement the rest of BaseConnection's abstract methods:
     # execute_procedure, execute_query, execute_query_with_columns,
     # execute_write, execute_many, make_placeholders, test, close ...
+
+    @staticmethod
+    def make_placeholders(n: int) -> str:
+        return ', '.join(['%s'] * n)   # or ':1, :2', '?, ?', etc. — your driver's bind syntax
 ```
+
+`make_placeholders` must be a `@staticmethod` (matching every built-in connection
+class) — some callers resolve it from the class itself, without an instance, to
+get a connection type's placeholder syntax without opening a connection.
 
 If the class is registered but has no `from_config` classmethod, building a
 connection of that type raises a clear `ValueError` at the point of use (not
 at plugin-load time — a plugin with a bug in `from_config` should still load
 and register, so the error surfaces as close as possible to the actual
 misuse rather than silently disabling the whole plugin file).
+
+`BaseConnection` also provides a concrete `raw_connection` property for free —
+if your `__init__` stores the underlying driver connection object as
+`self._conn` (as every built-in connection class does), callers that need
+cursor-level control beyond `execute_write`/`execute_many` (e.g. a bulk
+`COPY`-style fast path) can reach it via `conn.raw_connection`. Connection types
+with no traditional DB-API connection to expose (e.g. one built on a client SDK)
+can leave `self._conn` unset — accessing `raw_connection` then raises a clear
+`NotImplementedError` instead of `execute_*`-only callers ever needing it.
 
 ---
 

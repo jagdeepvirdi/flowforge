@@ -3,8 +3,11 @@
 FlowForge talks to your data through a `db_connections` row (config UI: **Connections Manager**),
 which any `db_procedure` / `db_query` step references by `connection_id`. All connection classes
 implement the same `BaseConnection` interface (`flowforge/connections/base.py`) — `execute_procedure`,
-`execute_query`, `execute_write`, `execute_many`, `test`, `close` — so pipeline steps don't know or
-care which database type they're talking to.
+`execute_query`, `execute_write`, `execute_many`, `make_placeholders`, `test`, `close` — so pipeline
+steps don't know or care which database type they're talking to. `raw_connection` (a concrete
+property, not abstract) exposes the underlying DB-API connection for the rare caller that needs
+cursor-level control beyond those methods — see `flowforge/steps/bulk_load.py`'s Python-fallback and
+PostgreSQL `COPY` paths.
 
 ## Supported Types
 

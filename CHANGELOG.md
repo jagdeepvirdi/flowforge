@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+*V2.0 Audit Action Items — see [`docs/TASKS.md`](docs/TASKS.md) for full detail on each item.*
+
+### Added — 2026-07-25
+
+- **OpenAPI-generated TypeScript types for `pipelines`/`runs`** — [`docs/openapi/pipelines.yaml`](docs/openapi/pipelines.yaml)
+  is a hand-authored OpenAPI 3.0 spec, traced against the actual `serializers.py`/`validators.py`/
+  `pipeline_service.py` code, for the `pipelines.py` and `runs.py` route files. `npm run generate:api-types`
+  (`openapi-typescript`) regenerates [`frontend/src/lib/generated/pipelines.ts`](frontend/src/lib/generated/pipelines.ts)
+  from it; a new test (`frontend/src/__tests__/apiTypesSync.test.ts`) regenerates on every run and diffs against the
+  committed file, failing on drift. 9 of `types.ts`'s hand-written interfaces for these two route files are now
+  aliases to the generated schema; `createPipeline`/`updatePipeline` take the generated request types. The other 21
+  backend route files aren't covered yet — this is a proof of the mechanism on one vertical slice, not full coverage.
+- **`redis` install extra** — `pip install "flowforge[redis]"` installs the `redis` Python package standalone, for
+  deployments that want `FLOWFORGE_REDIS_URL`'s distributed concurrency limit and rate limiting without running a
+  Celery task queue. Previously `redis` was only reachable via `flowforge[celery]`.
+- **`celery` install extra** — `pip install "flowforge[celery]"` (`celery[redis]`), and added to `flowforge[all]`.
+  Previously Celery had no dedicated extra at all despite `flowforge worker`/`FLOWFORGE_REDIS_URL` depending on it.
+
+### Changed — 2026-07-25
+
+- **`FLOWFORGE_JWT_SECRET` no longer falls back to `FLOWFORGE_SECRET_KEY`** — outside `TESTING`, an unset JWT secret
+  now fails app boot with a clear `RuntimeError` instead of silently reusing the AES encryption key to also sign
+  JWTs (previously only a `warnings.warn`). Both `flowforge/api/app.py` and `flowforge/api/auth.py` had independent
+  fallback paths; both removed. **Action required for existing deployments that never set `FLOWFORGE_JWT_SECRET`
+  separately from `FLOWFORGE_SECRET_KEY`**: generate one (`python -c "import secrets; print(secrets.token_hex(32))"`)
+  before upgrading, or the app will refuse to start.
+- **`FLOWFORGE_TEMPLATE_ENV_VARS` blocklist mode (the default when unset) is now deprecated** — logs a one-time
+  deprecation warning recommending the allowlist mode; a blocklist can never be exhaustive against the next
+  credential-shaped env var a future integration adds. An explicit allowlist that lists a credential-shaped name now
+  also logs a (non-blocking) misconfiguration warning.
+- **`GET /api/pipelines` eager-loads steps/variables/dependencies** — previously N+1: up to 6 extra queries per
+  pipeline row. Now a fixed number of queries regardless of page size (`selectinload`, not `joinedload` — the latter
+  would multiply rows when joining more than one collection in a single query).
+- **API rate limits are now Redis-backed when `FLOWFORGE_REDIS_URL` is set** — previously only the distributed
+  concurrency counter used Redis; the Flask-Limiter rate limiter defaulted to per-process in-memory counters
+  regardless, silently multiplying the effective limit by `GUNICORN_WORKERS` in a multi-worker deployment, same as
+  the concurrency counter's pre-existing fix. Both now share one Redis instance.
+- **`bulk_load`'s Python-fallback and dry-run preview paths route database dispatch through the shared connections
+  registry** (`flowforge/connections/factory.py`) instead of a second, hand-rolled PostgreSQL/Oracle-only dispatch —
+  extends real support to MySQL/MSSQL/ODBC/Snowflake, which the module's "Python fallback (any DB)" docstring always
+  claimed but didn't deliver for.
+
+### Fixed — 2026-07-25
+
+- **`bulk_load`'s Python-fallback and dry-run preview INSERTs hardcoded `%s` placeholders** — Postgres-specific
+  bind-variable syntax, silently invalid for Oracle (`:1,:2`), MSSQL, and ODBC (`?`). Every Oracle-without-SQL\*Loader
+  or MSSQL/ODBC load through the fallback would have built a SQL statement the driver rejects. Placeholders are now
+  resolved per connection type.
+- **`FLOWFORGE_REDIS_URL` set without `celery` installed crashed app startup with a bare `ModuleNotFoundError`**
+  *(2026-07-24)* — `flowforge/celery_app.py` unconditionally imported `celery` at module level; `create_app()`
+  imports this module whenever the env var is set. Now raises the same error with an actionable
+  `pip install "flowforge[celery]"` message, matching the existing pattern used for other optional connectors.
+
+### Security — 2026-07-25
+
+- See **Changed** above: `FLOWFORGE_JWT_SECRET` no longer silently reuses `FLOWFORGE_SECRET_KEY`, and the pipeline
+  template env-var blocklist mode is deprecated in favor of an explicit allowlist.
+
 ## [1.3.0] — 2026-07-24
 
 ### Added — 2026-07-24
