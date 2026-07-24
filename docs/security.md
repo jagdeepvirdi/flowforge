@@ -58,19 +58,53 @@ Expired blocklist entries are pruned daily by the scheduler cleanup job.
 
 ---
 
+## Multi-Factor Authentication (MFA)
+
+FlowForge supports TOTP-based MFA (RFC 6238, via `pyotp`), opt-in per user (`flowforge/api/routes/mfa.py`).
+
+| Property | Value |
+|---|---|
+| Enrollment | `POST /api/auth/mfa/enroll` generates a secret + provisioning URI; `POST /api/auth/mfa/confirm` activates it only after a valid TOTP code is entered |
+| Login flow | An MFA-enabled user's `POST /api/auth/login` returns a short-lived MFA **challenge token**, not a session JWT. `POST /api/auth/mfa/verify` (TOTP code) or `POST /api/auth/mfa/verify-backup` (backup code) exchanges the challenge token for a full JWT |
+| Backup codes | 10 single-use codes generated at enrollment (`XXXX-XXXX` format), returned once, stored AES-256-GCM encrypted; each is consumed on use |
+| Secret storage | `ff_users.mfa_secret` — AES-256-GCM encrypted, same key as connection/provider credentials |
+| Disabling MFA | `POST /api/auth/mfa/disable` requires re-entering the account password — an active session alone is not sufficient |
+
+MFA enrollment and disable events are written to the audit log (`MFA_ENABLED`, `MFA_DISABLED`, `MFA_BACKUP_CODE_USED`).
+
+---
+
+## Single Sign-On (SSO)
+
+FlowForge supports three SSO paths, all via email-based account linking (`flowforge/api/routes/sso.py`):
+
+| Provider | Flow | Config |
+|---|---|---|
+| Google | OAuth2 authorization code | `GOOGLE_SSO_CLIENT_ID`, `GOOGLE_SSO_CLIENT_SECRET` |
+| Microsoft | OAuth2 via MSAL | `MICROSOFT_SSO_TENANT_ID`, `MICROSOFT_SSO_CLIENT_ID`, `MICROSOFT_SSO_CLIENT_SECRET` |
+| SAML 2.0 (enterprise IdP — Okta, Azure AD, PingFederate) | SP-initiated redirect + signed assertion POST to an ACS endpoint | `SAML_SP_ENTITY_ID`, `SAML_IDP_ENTITY_ID`, `SAML_IDP_SSO_URL`, `SAML_IDP_X509_CERT` |
+
+Each provider is disabled (`501`) unless its env vars are set. A CSRF `state` token is generated per login attempt and consumed exactly once on callback. New users can be auto-provisioned on first SSO login (`_auto_create()`) or must already exist, depending on configuration — no password is ever set for an SSO-only account.
+
+---
+
 ## Access Control
 
 ### Roles
 
 | Role | Capabilities |
 |---|---|
-| `admin` | Full access — pipelines, reports, email configs, connections, user management |
+| `admin` | Full access — pipelines, reports, email configs, connections, user management; bypasses project scoping |
 | `editor` | Create and edit pipelines, reports, email configs, recipient groups, connections; cannot manage users |
 | `viewer` | Read-only — view pipelines, run history, reports; cannot create, edit, run, or delete anything |
 
+### Project Scoping
+
+Beyond role, non-admin users are scoped to the **projects** they're a member of (`ff_project_members`). An `editor` or `viewer` can only see and act on pipelines, reports, email configs, and recipient groups that belong to a project they've been added to — not every resource in the deployment. New users and project creators are auto-added to the relevant project. Admins see and act on every project regardless of membership. This is workspace-level segmentation within one shared deployment/database, not hard multi-tenancy — see [`threat-model.md`](threat-model.md#out-of-scope) for the distinction.
+
 ### Enforcement
 
-- **API layer**: the `@require_role(role)` decorator on every write route reads `g.current_user_role` (injected by `require_auth` JWT middleware) and returns `403 Forbidden` for insufficient roles.
+- **API layer**: the `@require_role(role)` decorator on every write route reads `g.current_user_role` (injected by `require_auth` JWT middleware) and returns `403 Forbidden` for insufficient roles. Project-scoped routes additionally check `ff_project_members` before returning or mutating a resource.
 - **Frontend layer**: write controls (Create, Edit, Delete, Run, Clone buttons) are hidden for `viewer` and non-`admin` roles via the `useCurrentUser()` hook.
 
 Both layers are required — the API is the authoritative enforcement point; the frontend gating is UX convenience only.

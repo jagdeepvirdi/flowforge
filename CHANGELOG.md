@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   there's no migration or partial-opt-in state. The canvas itself switches to rendering only real
   edges (in the accent color) once any exist for a pipeline, dropping the synthetic wave-layout
   edges for that pipeline. See [`docs/FAQ.md`](docs/FAQ.md) for the full behavior writeup.
-  ([`flowforge/engine/dag.py`](flowforge/engine/dag.py), [`flowforge/db/models.py`](flowforge/db/models.py) (`StepDependency`), [`flowforge/api/routes/steps.py`](flowforge/api/routes/steps.py), [`frontend/src/lib/stepDeps.ts`](frontend/src/lib/stepDeps.ts), [`frontend/src/components/pipeline/canvas/`](frontend/src/components/pipeline/canvas/))
+  ([`flowforge/engine/dag.py`](flowforge/engine/dag.py), [`flowforge/db/models.py`](flowforge/db/models.py) (`StepDependency`), [`flowforge/api/routes/steps.py`](flowforge/api/routes/steps.py), [`frontend/src/components/pipeline/canvas/stepDeps.ts`](frontend/src/components/pipeline/canvas/stepDeps.ts), [`frontend/src/components/pipeline/canvas/`](frontend/src/components/pipeline/canvas/))
 
 ### Fixed — 2026-07-10
 

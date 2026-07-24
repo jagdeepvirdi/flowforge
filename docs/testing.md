@@ -101,6 +101,11 @@ What the test runner does:
 3. Seeds a `testadmin` user
 4. Runs all test files in `tests\` (skipping `tests\manual\`)
 
+Notable suites worth knowing by name (not exhaustive — see `tests\` for the full list):
+- `test_dag_engine.py`, `test_dag_integration.py`, `test_runner_dag_gate.py` — the step-level DAG
+  matrix (Phase 14 Option B): topological execution, cycle rejection, branch-scoped `on_error: stop`,
+  ancestors-only `{{ steps.* }}` context, and the wave-engine/DAG-engine gate itself.
+
 ---
 
 ## Layer 3 — Frontend Unit Tests (Vitest)
@@ -117,12 +122,28 @@ Watch mode (re-runs on file change):
 npm run test:watch
 ```
 
-Test files: `frontend\src\__tests__\*.test.tsx`
+Test files: `frontend\src\__tests__\*.test.{ts,tsx}`
 - `Login.test.tsx`
 - `Dashboard.test.tsx`
 - `Pipelines.test.tsx`
 - `Connections.test.tsx`
 - `TopBarSearch.test.tsx`
+- `AuditLog.test.tsx`
+- `BulkLoadEdit.test.tsx`
+- `BulkLoads.test.tsx`
+- `HelpDrawer.test.tsx`
+- `MailFieldsSmtp.test.tsx`
+- `Reports.test.tsx`
+- `RunHistory.test.tsx`
+- `Settings.test.tsx`
+- `StepEditor.test.tsx`
+- `StepTrendsPanel.test.tsx`
+- `TriggersCard.test.tsx`
+- `Users.test.tsx`
+- `api.test.ts`
+- `PipelineCanvas.test.tsx` — canvas rendering, edge display
+- `canvasLayout.test.ts`, `pipelineWaves.test.ts`, `pipelineReorder.test.ts`, `resolveDrop.test.ts` — canvas layout/drag logic
+- `stepDeps.test.ts` — step-dependency edge helpers (DAG feature, see Phase 14 Option B)
 
 ---
 
@@ -173,6 +194,7 @@ E2E test files in `frontend\e2e\`:
 - `dashboard.spec.ts` — dashboard page
 - `pipelines.spec.ts` — pipeline list
 - `pipeline-journey.spec.ts` — full create → run → verify journey
+- `pipeline-canvas.spec.ts` — canvas view, drag-to-reorder, step-dependency edges
 - `connections.spec.ts` — connections page
 - `auth.spec.ts` — login / logout
 - `login.spec.ts` — login form validation

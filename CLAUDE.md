@@ -35,6 +35,10 @@ The existing code has working implementations of: email sending (Gmail), Google 
 - **Database (User data)**: PostgreSQL + Oracle (equal support, pluggable)
 - **ORM**: SQLAlchemy (FlowForge internal tables only)
 - **Scheduler**: APScheduler with PostgreSQL job store
+- **Async execution (optional)**: Celery + Redis — `flowforge worker` runs pipeline execution on a
+  Celery worker instead of the default in-process threading, when `FLOWFORGE_REDIS_URL` is set;
+  Flower available for worker monitoring. See `flowforge/celery_app.py`, `flowforge/tasks.py`,
+  `docker-compose.yml`. Purely additive — a deployment with no Redis configured is unaffected.
 - **Templating**: Jinja2 (email bodies, report titles, variable resolution)
 
 ### Email Providers

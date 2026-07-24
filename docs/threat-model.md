@@ -88,6 +88,9 @@ This document describes the trust boundaries, assets, assumed threats, and mitig
 - Role check decorator applied to all admin routes (`@require_role('admin')`)
 - RBAC enforcement is in `auth.py` middleware, not individual route handlers
 - Role stored in JWT payload — cannot be changed without re-authentication
+- Non-admin users are further scoped by `ff_project_members` project membership — a non-admin
+  cannot see or edit a pipeline, report, email config, or recipient group in a project they don't
+  belong to, even with a valid editor/viewer JWT; admins bypass project scoping everywhere
 
 ### T5 — Supply chain compromise
 
@@ -119,6 +122,27 @@ This document describes the trust boundaries, assets, assumed threats, and mitig
 - Optional AES-256-GCM encryption at rest via `FLOWFORGE_ENCRYPT_OUTPUT=true`
 - Download endpoints (`/api/runs/{id}/download/{filename}`) require authentication and validate that the file belongs to a run the user can access
 
+### T8 — MFA bypass / account takeover
+
+**Scenario:** An attacker who has obtained a user's password attempts to bypass the second authentication factor, or to strip MFA from the account entirely.
+
+**Mitigations:**
+- MFA (TOTP, RFC 6238, via `pyotp`) is opt-in per user; enrollment requires confirming a valid TOTP code before it activates (`flowforge/api/routes/mfa.py`)
+- Login for an MFA-enabled user returns a short-lived MFA challenge token, not a full session JWT — a full JWT is only issued after `/auth/mfa/verify` confirms a valid TOTP code or a single-use backup code
+- 10 one-time backup codes are generated at enrollment and stored AES-256-GCM encrypted; each is consumed on use
+- Disabling MFA requires re-entering the account password, not just an active session
+- SSO (Google OAuth2 / Microsoft MSAL / SAML 2.0) is a separate, email-based account-linking path with its own mitigations — see [`security.md`](security.md)
+
+### T9 — Remote command injection via `ssh_command`
+
+**Scenario:** The `ssh_command` step executes an operator-authored command string on a remote SSH host with no sandboxing of what that command can do.
+
+**Mitigations:**
+- `ssh_command` is a deliberately powerful step type; only users with pipeline-edit access (editor/admin role, and project membership where project scoping applies) can add or modify one
+- The command string is authored by an administrator/editor at config time, not derived from untrusted runtime input; `{{ variable }}` interpolation into the command goes through the same sandboxed Jinja2 environment as T1
+- SSH connection credentials (`ff_ssh_connections.config`) are AES-256-GCM encrypted, same as DB and email credentials (see Assets table)
+- As with DB credentials (T6), the SSH user configured for a connection should be scoped to only what the pipeline's commands need — FlowForge does not restrict or sandbox what the remote command executes once the connection is authenticated
+
 ---
 
 ## Security Invariants
@@ -139,4 +163,8 @@ The following properties must hold in all code paths:
 - Physical security of the host server
 - Security of the end-user's browser or OS
 - Security of third-party external services (Gmail, Google Drive, etc.) — FlowForge trusts their APIs
-- Multi-tenant isolation (v1 is single-tenant; multi-user RBAC limits access within one deployment)
+- True multi-tenant isolation (separate deployments/DBs per customer). Project-level access
+  (`ff_project_members`) scopes non-admin users to the pipelines/reports/emails/recipient groups in
+  projects they belong to, but this is team-workspace segmentation within one shared deployment and
+  database, not hard multi-tenant isolation — admins bypass project scoping everywhere, and there is
+  no per-project encryption key, network isolation, or resource quota

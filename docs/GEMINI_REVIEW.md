@@ -1,5 +1,12 @@
 # FlowForge — Gemini "Brutal" Review (May 2026)
 
+> **Note:** This is a frozen point-in-time review, not a living reference — see [`ROADMAP.md`](../ROADMAP.md)
+> and [`docs/TASKS.md`](TASKS.md) for current status. Every item in this review's "Action Plan for
+> Phase 2: The Path to 9.0+" below has since shipped: Visual DAG Builder (2026-07-09 canvas +
+> 2026-07-22 step-dependency edges), SSO/SAML + MFA, project-level isolation (`ff_project_members`),
+> a User Management UI, a Playwright E2E suite (`frontend/e2e/*.spec.ts`), and a `/api/metrics`
+> endpoint. The persistent-PostgreSQL-jobstore item was already true when this review was written.
+
 ## Executive Summary
 FlowForge has evolved from a "scripts-in-a-trenchcoat" project into a semi-serious orchestrator. It is technically competent and now architecturally robust. You've fixed the embarrassing security holes (SQL injection, JWT revocation), cleaned up the frontend technical debt, and implemented a proper task queue.
 

@@ -11,7 +11,8 @@ All documentation files in this directory and what they contain.
 | [getting-started.md](getting-started.md) | Full setup walkthrough: prerequisites, install, `.env` config, first pipeline, CLI reference, Gmail/Drive OAuth2 setup, OneDrive setup, AI features (Ollama/Claude/Gemini), scheduler diagnostics |
 | [deployment.md](deployment.md) | Production deployment guide: Docker Compose (recommended) and bare-metal Gunicorn + Nginx + systemd on Ubuntu/Debian, TLS with Let's Encrypt, upgrade procedure |
 | [step-types.md](step-types.md) | Complete config reference for every step type: `db_procedure`, `db_query`, `report`, `email`, `data_load`, `bulk_load`, `drive_upload`, `onedrive_upload`, `s3_upload`, `azure_blob_upload`, `ai_analyze`, `ssh_command`, `db_health_check`, `ssh_health_check`, `data_report`, `sftp_transfer`, `notification` — with JSONB examples, field tables, output variable docs, and full Jinja2 variable reference |
-| [email-providers.md](email-providers.md) | Setup guides for all three email providers: SMTP (with presets for Outlook, Yahoo, SendGrid), Microsoft 365 (Azure AD app registration + admin consent + token refresh), Gmail (OAuth2 via `flowforge setup gmail`) |
+| [email-providers.md](email-providers.md) | Setup guides for all six email providers: SMTP (with presets for Outlook, Yahoo), Microsoft 365 (Azure AD app registration + admin consent + token refresh), Gmail (OAuth2 via `flowforge setup gmail`), SendGrid, Amazon SES, Mailgun |
+| [connections.md](connections.md) | Database connection types reference: PostgreSQL, Oracle, MySQL/MariaDB, MSSQL, generic ODBC, Redshift, Snowflake, BigQuery — config fields, credential encryption, least-privilege guidance, plugin connections |
 | [gmail-oauth2-setup.md](gmail-oauth2-setup.md) | Step-by-step Gmail OAuth2 credential setup in Google Cloud Console — screenshots and common errors |
 | [microsoft365-oauth2-setup.md](microsoft365-oauth2-setup.md) | Step-by-step Microsoft 365 setup in Azure AD — app registration, API permissions, client secret, `.env` config, and common errors |
 | [running-the-server.md](running-the-server.md) | How to run FlowForge in dev and prod modes, manage the scheduler process, use `flowforge.ps1` / `flowforge.sh`, troubleshoot common startup errors |
@@ -56,7 +57,7 @@ All documentation files in this directory and what they contain.
 | File | Purpose |
 |---|---|
 | [CODEBASE_REVIEW.md](CODEBASE_REVIEW.md) | Brutally honest scored review of the entire codebase. Covers architecture, code quality, database, security, tests, frontend, DevOps. Includes score history, market comparison, V1.0 readiness verdict, top marketing features, and new issues to fix |
-| [GEMINI_REVIEW.md](GEMINI_REVIEW.md) | Independent codebase review by Gemini — alternative perspective on the same codebase |
+| [GEMINI_REVIEW.md](GEMINI_REVIEW.md) | Independent codebase review by Gemini (May 2026) — frozen point-in-time snapshot; its "Path to 9.0+" action plan has since fully shipped, see the doc's own header note and `ROADMAP.md` for current status |
 
 ---
 
@@ -80,4 +81,4 @@ All documentation files in this directory and what they contain.
 
 ---
 
-*Last updated: 2026-07-09*
+*Last updated: 2026-07-24*
