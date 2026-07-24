@@ -90,6 +90,38 @@ def test_csv_returns_output_path(tmp_path):
     assert returned == out
 
 
+def test_csv_accepts_a_generator_not_just_a_list(tmp_path):
+    """rows can be a streaming source (e.g. a live DB cursor) — generate()
+    must not require len(rows) or random access."""
+    import csv as _csv
+
+    from flowforge.reports.csv_report import generate
+
+    out = tmp_path / 'report.csv'
+    generate((row for row in ROWS), COLUMNS, out)
+
+    with out.open(newline='', encoding='utf-8-sig') as f:
+        written = list(_csv.reader(f))
+    assert len(written) == len(ROWS) + 1  # header + data
+
+
+def test_csv_generator_and_list_produce_identical_output(tmp_path):
+    import csv as _csv
+
+    from flowforge.reports.csv_report import generate
+
+    out_list = tmp_path / 'from_list.csv'
+    out_gen  = tmp_path / 'from_gen.csv'
+    generate(ROWS, COLUMNS, out_list)
+    generate((row for row in ROWS), COLUMNS, out_gen)
+
+    with out_list.open(newline='', encoding='utf-8-sig') as f:
+        list_content = list(_csv.reader(f))
+    with out_gen.open(newline='', encoding='utf-8-sig') as f:
+        gen_content = list(_csv.reader(f))
+    assert list_content == gen_content
+
+
 # ── Excel ─────────────────────────────────────────────────────────────────────
 
 pytest.importorskip('openpyxl', reason='openpyxl not installed')

@@ -47,6 +47,76 @@ def test_pool_created_with_connect_timeout():
     assert kwargs.get('connect_timeout') == 5
 
 
+class TestPostgreSQLChunkedStreaming:
+    """execute_query_with_columns_chunked uses a named (server-side) cursor.
+
+    Its description is only populated after the first fetch (a real psycopg2
+    quirk, confirmed against a live Postgres) — these tests pin that behavior
+    with a mock cursor whose `.description` mimics it exactly.
+    """
+
+    def _build_streaming(self, rows, description_before=None, description_after=None):
+        mock_pool = MagicMock()
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+
+        remaining = list(rows)
+
+        def fake_fetchone():
+            mock_cursor.description = description_after
+            return remaining.pop(0) if remaining else None
+
+        mock_cursor.description = description_before
+        mock_cursor.fetchone.side_effect = fake_fetchone
+        mock_cursor.__iter__ = lambda self: iter(remaining)
+        mock_conn.cursor.return_value = mock_cursor
+        mock_pool.getconn.return_value = mock_conn
+
+        with patch('psycopg2.pool.ThreadedConnectionPool', return_value=mock_pool):
+            from flowforge.connections.postgres import PostgreSQLConnection
+            c = PostgreSQLConnection(host='h', database='d', user='u', password='p')
+
+        return c, mock_conn, mock_cursor
+
+    def test_uses_named_cursor_with_itersize(self):
+        c, mock_conn, _ = self._build_streaming(
+            [(1, 'a')], description_after=[('id',), ('name',)],
+        )
+        c.execute_query_with_columns_chunked('SELECT 1', chunk_size=250)
+        _, kwargs = mock_conn.cursor.call_args
+        assert 'name' in kwargs and kwargs['name']
+        assert mock_conn.cursor.return_value.itersize == 250
+
+    def test_columns_available_despite_none_description_before_fetch(self):
+        """Regression test: description is None right after execute() on a
+        named cursor — reading it before the peek fetchone() would silently
+        return an empty column list."""
+        c, _, _ = self._build_streaming(
+            [(1, 'a'), (2, 'b')],
+            description_before=None,
+            description_after=[('id',), ('name',)],
+        )
+        columns, row_iter = c.execute_query_with_columns_chunked('SELECT 1')
+        assert columns == ['id', 'name']
+        assert list(row_iter) == [(1, 'a'), (2, 'b')]
+
+    def test_zero_rows_still_returns_columns(self):
+        c, _, _ = self._build_streaming(
+            [], description_before=None, description_after=[('id',)],
+        )
+        columns, row_iter = c.execute_query_with_columns_chunked('SELECT 1 WHERE 1=0')
+        assert columns == ['id']
+        assert list(row_iter) == []
+
+    def test_cursor_closed_after_streaming(self):
+        c, _, mock_cursor = self._build_streaming(
+            [(1,)], description_after=[('id',)],
+        )
+        _, row_iter = c.execute_query_with_columns_chunked('SELECT 1')
+        list(row_iter)  # fully drain
+        mock_cursor.close.assert_called_once()
+
+
 class TestPostgreSQLExecuteProcedure:
 
     def test_builds_call_sql(self):

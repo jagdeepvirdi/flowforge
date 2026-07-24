@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 from typing import Any
 
 
@@ -11,6 +12,24 @@ class BaseConnection(ABC):
 
     @abstractmethod
     def execute_query_with_columns(self, sql: str, params: tuple = ()) -> tuple[list[tuple], list[str]]: ...
+
+    def execute_query_with_columns_chunked(
+        self, sql: str, params: tuple = (), chunk_size: int = 5000,
+    ) -> tuple[list[str], Iterator[tuple]]:
+        """Like execute_query_with_columns, but the row iterator is meant to be
+        consumed lazily instead of fully materialized — for report generation
+        and other paths where a multi-million-row result would otherwise be
+        held entirely in memory before the first byte is written out.
+
+        Concrete default: not actually streaming (falls back to the regular
+        fetch-everything-then-iterate path) — correct for every connection
+        type, but doesn't reduce memory usage. postgres.py (named server-side
+        cursor) and oracle.py (batch cursor iteration instead of fetchall())
+        override this with a real streaming implementation; every other
+        connection type inherits this default until it gets one too.
+        """
+        rows, columns = self.execute_query_with_columns(sql, params)
+        return columns, iter(rows)
 
     @abstractmethod
     def execute_write(self, sql: str, params: tuple = ()) -> int: ...

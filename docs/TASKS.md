@@ -294,13 +294,30 @@ else is real but not on fire.*
   `BlockingScheduler` — scaling the `scheduler` service past 1 replica (or running multiple app
   instances behind a load balancer without isolating the scheduler) causes every replica to
   independently fire and execute the same cron job, with no guard beyond the concurrency ceiling.
-- [ ] Stream/chunk large data instead of full in-memory loads: `postgres.py`/`oracle.py`'s
-  `execute_query` methods use `cur.fetchall()` with no server-side cursor despite `arraysize=1000`
-  being set (arraysize only tunes internal batching, not streaming to the caller);
-  `reports/excel_report.py` and `csv_report.py` fully materialize `rows: list[tuple]` before
-  writing; `bulk_load.py`/`data_load.py` load entire source files into memory (`list(csv.reader())`,
-  `readlines()`) before any chunking — only the INSERT side is chunked. A multi-million-row query or
-  multi-GB CSV will OOM a worker well before any user-count concern.
+- [x] **Stream/chunk large data instead of full in-memory loads** *(2026-07-24, partial — scoped down,
+  see below)* — added `BaseConnection.execute_query_with_columns_chunked()` (concrete default:
+  falls back to the eager path, so every connection type keeps working) with real streaming
+  overrides in `postgres.py` (named/server-side cursor — a regular cursor pulls the whole result to
+  the client on `execute()` regardless of `fetchall()`, so only a named cursor actually avoids
+  holding a multi-million-row result in memory) and `oracle.py` (iterating the cursor directly
+  batches via `arraysize` without needing a special cursor type). `csv_report.py`'s `generate()` now
+  accepts any iterable and writes row-by-row instead of requiring a materialized list; `report.py`'s
+  CSV branch wires DB → CSV end-to-end through the new streaming path, keeping the connection open
+  for the duration of the write instead of closing it right after an eager fetch. Found and fixed a
+  real bug along the way: psycopg2 named cursors report `.description` as `None` until the *first
+  fetch* — reading columns immediately after `execute()` (as the naive version of this fix did)
+  silently returned an empty column list, caught by `tests/test_report_e2e.py`'s real-Postgres tests
+  (a pure-mock test suite would not have caught this). 16 new tests across
+  `test_postgres_unit.py`/`test_oracle.py`/`test_connection_base.py`/`test_report_generators.py`.
+  **Explicitly out of scope for this pass** (each needs its own dedicated, carefully-tested effort,
+  not a rushed inclusion here): Excel/PDF/JSON report formats still materialize `rows` fully —
+  Excel in particular would need `openpyxl`'s `write_only=True` mode, which has real interaction
+  with the already-shipped column-formatting feature (`docs/manual-testing-guide.md` §36) that needs
+  careful verification, not a blind conversion. `bulk_load.py`/`data_load.py` still read entire
+  source files into memory before chunking on the insert side — footer-row stripping in particular
+  needs a bounded sliding-window buffer (not a naive one-pass stream) to preserve exact
+  header/footer-trim behavior across 3 load paths (Python fallback, Postgres COPY, SQL*Loader) in
+  an already-867-line file with heavy existing test coverage worth not destabilizing casually.
 - [x] **Add connect timeouts to the connection-pool creation paths** *(2026-07-24)* — added
   `connect_timeout=5` to `postgres.py`'s `ThreadedConnectionPool` and `tcp_connect_timeout=5` to
   `oracle.py`'s `create_pool` and to the `test-raw` endpoint's `oracledb.connect()` call (the one

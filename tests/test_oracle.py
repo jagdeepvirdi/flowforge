@@ -314,6 +314,60 @@ def test_execute_query_with_columns_sets_arraysize(mock_oracledb):
     assert fake_cursor.arraysize == 1000
 
 
+# ── execute_query_with_columns_chunked ──────────────────────────────────────────
+
+def test_chunked_sets_arraysize_to_chunk_size(mock_oracledb):
+    conn, _, fake_conn = _make_conn(mock_oracledb)
+    fake_cursor = _make_cursor(fake_conn)
+    fake_cursor.description = [('ID', None)]
+    fake_cursor.__iter__ = lambda self: iter([])
+    conn.execute_query_with_columns_chunked('SELECT id FROM t', chunk_size=250)
+    assert fake_cursor.arraysize == 250
+
+
+def test_chunked_returns_columns_immediately_no_fetch_needed(mock_oracledb):
+    """Unlike Postgres's named-cursor quirk, Oracle's description is populated
+    right after execute() — no peek fetch required."""
+    conn, _, fake_conn = _make_conn(mock_oracledb)
+    fake_cursor = _make_cursor(fake_conn)
+    fake_cursor.description = [('ID', None), ('NAME', None)]
+    fake_cursor.__iter__ = lambda self: iter([(1, 'Alice'), (2, 'Bob')])
+    columns, row_iter = conn.execute_query_with_columns_chunked('SELECT id, name FROM t')
+    assert columns == ['ID', 'NAME']
+    assert list(row_iter) == [(1, 'Alice'), (2, 'Bob')]
+
+
+def test_chunked_reads_lob_columns_per_row(mock_oracledb):
+    conn, _, fake_conn = _make_conn(mock_oracledb)
+    fake_cursor = _make_cursor(fake_conn)
+    lob = MagicMock()
+    lob.read.return_value = 'streamed clob'
+    fake_cursor.description = [('CLOB_COL', None)]
+    fake_cursor.__iter__ = lambda self: iter([(lob,)])
+    _, row_iter = conn.execute_query_with_columns_chunked('SELECT clob_col FROM t')
+    assert list(row_iter) == [('streamed clob',)]
+
+
+def test_chunked_closes_cursor_after_streaming(mock_oracledb):
+    conn, _, fake_conn = _make_conn(mock_oracledb)
+    fake_cursor = _make_cursor(fake_conn)
+    fake_cursor.description = [('ID', None)]
+    fake_cursor.__iter__ = lambda self: iter([(1,)])
+    _, row_iter = conn.execute_query_with_columns_chunked('SELECT id FROM t')
+    list(row_iter)  # fully drain
+    fake_cursor.close.assert_called_once()
+
+
+def test_chunked_zero_rows(mock_oracledb):
+    conn, _, fake_conn = _make_conn(mock_oracledb)
+    fake_cursor = _make_cursor(fake_conn)
+    fake_cursor.description = [('ID', None)]
+    fake_cursor.__iter__ = lambda self: iter([])
+    columns, row_iter = conn.execute_query_with_columns_chunked('SELECT id FROM t WHERE 1=0')
+    assert columns == ['ID']
+    assert list(row_iter) == []
+
+
 # ── execute_write ─────────────────────────────────────────────────────────────
 
 def test_execute_write_returns_rowcount(mock_oracledb):

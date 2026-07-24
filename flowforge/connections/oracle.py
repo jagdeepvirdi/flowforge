@@ -1,5 +1,6 @@
 import logging
 import time
+from collections.abc import Iterator
 from typing import Any
 
 from flowforge.connections.base import BaseConnection
@@ -71,6 +72,26 @@ class OracleConnection(BaseConnection):
             tuple(col.read() if hasattr(col, "read") else col for col in row)
             for row in rows
         ], columns
+
+    def execute_query_with_columns_chunked(
+        self, sql: str, params: tuple = (), chunk_size: int = 1000,
+    ) -> tuple[list[str], Iterator[tuple]]:
+        """Real streaming: iterating an oracledb cursor directly (rather than
+        calling fetchall()) already fetches in arraysize-sized batches from the
+        server without materializing the whole result client-side."""
+        cur = self._conn.cursor()
+        cur.arraysize = chunk_size
+        cur.execute(sql, params)
+        columns = [desc[0] for desc in cur.description] if cur.description else []
+        return columns, self._stream_and_close(cur)
+
+    @staticmethod
+    def _stream_and_close(cur) -> Iterator[tuple]:
+        try:
+            for row in cur:
+                yield tuple(col.read() if hasattr(col, "read") else col for col in row)
+        finally:
+            cur.close()
 
     def execute_write(self, sql: str, params: tuple = ()) -> int:
         with self._conn.cursor() as cur:

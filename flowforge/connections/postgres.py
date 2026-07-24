@@ -1,5 +1,7 @@
 import logging
 import time
+import uuid
+from collections.abc import Iterator
 from typing import Any
 
 from psycopg2 import pool
@@ -46,6 +48,35 @@ class PostgreSQLConnection(BaseConnection):
             cur.execute(sql, params)
             columns = [desc[0] for desc in cur.description] if cur.description else []
             return cur.fetchall(), columns
+
+    def execute_query_with_columns_chunked(
+        self, sql: str, params: tuple = (), chunk_size: int = 5000,
+    ) -> tuple[list[str], Iterator[tuple]]:
+        """Real streaming via a named (server-side) cursor — a regular psycopg2
+        cursor pulls the entire result set to the client on execute() regardless
+        of whether fetchall() is called, so only a named cursor actually avoids
+        holding a multi-million-row result in memory at once.
+
+        Quirk: a named cursor's `.description` is None until the first fetch —
+        psycopg2 defers the DECLARE CURSOR / column metadata until then — so a
+        fetchone() peek is needed before columns can be read, even on a query
+        that returns zero rows (fetchone() still populates description there).
+        """
+        cur = self._conn.cursor(name=f'ff_stream_{uuid.uuid4().hex}')
+        cur.itersize = chunk_size
+        cur.execute(sql, params)
+        first_row = cur.fetchone()
+        columns = [desc[0] for desc in cur.description] if cur.description else []
+        return columns, self._stream_and_close(cur, first_row)
+
+    @staticmethod
+    def _stream_and_close(cur, first_row: tuple | None) -> Iterator[tuple]:
+        try:
+            if first_row is not None:
+                yield first_row
+            yield from cur
+        finally:
+            cur.close()
 
     def execute_write(self, sql: str, params: tuple = ()) -> int:
         with self._conn.cursor() as cur:

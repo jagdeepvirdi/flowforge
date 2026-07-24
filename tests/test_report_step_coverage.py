@@ -39,7 +39,10 @@ def _make_conn(rows=None, columns=None):
     conn = MagicMock()
     conn.__enter__ = lambda s: s
     conn.__exit__ = MagicMock(return_value=False)
-    conn.execute_query_with_columns.return_value = (rows or [], columns or [])
+    rows = rows or []
+    columns = columns or []
+    conn.execute_query_with_columns.return_value = (rows, columns)
+    conn.execute_query_with_columns_chunked.return_value = (columns, iter(rows))
     return conn
 
 
