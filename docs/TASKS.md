@@ -93,11 +93,23 @@ entries.*
 
 ---
 
-# V2.0 — TASKS
+## V2.0 Audit Action Items (2026-07-24 Security & Architecture Review)
 
-*Post-release hardening. Starts after v1.0 ships.*
-
----
+- [x] **ARCH-01**: Fix Celery `ModuleNotFoundError` during app initialization when Celery is not installed (`flowforge/celery_app.py`) *(2026-07-24)* —
+  `flowforge/celery_app.py` unconditionally did `from celery import Celery, Task` at module level; `create_app()` imports this
+  module whenever `FLOWFORGE_REDIS_URL` is set (`flowforge/api/app.py:124-126`), so a deployment that sets the Redis URL without
+  installing celery crashed app startup with a bare `ModuleNotFoundError: No module named 'celery'`. Fixed: the import is now
+  wrapped and re-raises `ModuleNotFoundError` with an actionable message (`pip install "flowforge[celery]"`), matching the
+  existing optional-dependency error pattern in `flowforge/api/routes/connections.py`. Also added the missing `celery` extra
+  to `pyproject.toml` (`celery[redis]>=5.6`, matching the pin in `requirements.txt`) and included it in the `all` extra —
+  previously celery wasn't installable via any documented extra at all. Verified via a fault-injected `ModuleNotFoundError`
+  on `celery` import during `create_app()`; existing redis/celery app-init and launcher/concurrency tests still pass.
+- [ ] **SEC-01**: Require `FLOWFORGE_JWT_SECRET` in non-testing environments; remove fallback to `SECRET_KEY` (`flowforge/api/auth.py`)
+- [ ] **PERF-01**: Eliminate N+1 query cascade in `/api/pipelines` serializer via joinedload (`flowforge/api/routes/pipelines.py`)
+- [ ] **SEC-02**: Add deprecation warning and strict validation for blocklist-based env variable template exposure (`flowforge/engine/context.py`)
+- [ ] **MAINT-01**: Abstract database-specific drivers (psycopg2 vs cx_Oracle vs PyMySQL) behind a unified DB abstraction layer rather than checking engine strings inside step runners (`flowforge/steps/bulk_load.py`)
+- [ ] **MAINT-02**: Introduce OpenAPI/Swagger schema generator or TypeScript API client generator to sync backend Flask responses with frontend Zustand/React Query state definitions (`frontend/src/lib/api.ts`)
+- [ ] **PERF-02**: Implement Redis-backed distributed concurrency locks & rate limiting to replace in-memory process-local semaphores (`flowforge/engine/concurrency.py`)
 
 ## Phase 5 — Go-To-Market (P1 — Visibility)
 

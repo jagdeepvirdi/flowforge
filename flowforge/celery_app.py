@@ -8,7 +8,13 @@ Or via the CLI:
 """
 import os
 
-from celery import Celery, Task
+try:
+    from celery import Celery, Task
+except ModuleNotFoundError as e:
+    raise ModuleNotFoundError(
+        'FLOWFORGE_REDIS_URL is set, which enables Celery-based async execution, '
+        'but celery is not installed. Run: pip install "flowforge[celery]"'
+    ) from e
 
 # Module-level Flask app reference.  Set by init_celery() in the web-server
 # process; lazily created by _get_app() in worker processes.
