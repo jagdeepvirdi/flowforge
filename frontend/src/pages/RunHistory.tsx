@@ -262,7 +262,7 @@ export default function RunHistory() {
                       {r.triggered_by}
                     </span>
                   </td>
-                  <td className="mono text-text-3 text-[11.5px]">{new Date(r.started_at).toLocaleString()}</td>
+                  <td className="mono text-text-3 text-[11.5px]">{r.started_at ? new Date(r.started_at).toLocaleString() : '—'}</td>
                   <td className="mono text-[11.5px]">{fmtDur(r.duration_ms)}</td>
                   <td>
                     <Link to={`/runs/${r.id}`} className="btn btn-sm btn-ghost btn-icon">

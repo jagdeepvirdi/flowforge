@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:report": "playwright show-report e2e/playwright-report"
+    "test:e2e:report": "playwright show-report e2e/playwright-report",
+    "generate:api-types": "openapi-typescript ../docs/openapi/pipelines.yaml -o src/lib/generated/pipelines.ts"
   },
   "dependencies": {
     "@codemirror/lang-sql": "^6.8.0",
@@ -43,6 +44,7 @@
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
     "@types/dagre": "^0.7.54",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.9.1",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.17",
@@ -55,11 +57,18 @@
     "dotenv": "^17.4.2",
     "eslint": "^8.57.0",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "js-yaml": "^5.2.2",
     "jsdom": "^29.1.1",
+    "openapi-typescript": "^7.13.0",
     "postcss": "^8.5.16",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
     "vite": "^8.1.3",
     "vitest": "^4.1.8"
+  },
+  "overrides": {
+    "openapi-typescript": {
+      "typescript": "$typescript"
+    }
   }
 }

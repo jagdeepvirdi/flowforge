@@ -1,0 +1,894 @@
+openapi: 3.0.3
+info:
+  title: FlowForge API — pipelines & runs
+  version: 1.0.0
+  description: >
+    Hand-authored OpenAPI contract for the pipeline and run-history endpoints
+    (flowforge/api/routes/pipelines.py, flowforge/api/routes/runs.py).
+
+    MAINT-02 vertical slice: this is the source of truth for these two route
+    files' request/response shapes. frontend/src/lib/generated/pipelines.ts is
+    generated from this file via `npm run generate:api-types` (openapi-typescript)
+    — do not hand-edit the generated file. `npm run check:api-types` regenerates
+    into a temp file and diffs it against the committed one, failing if this
+    spec and the generated types have drifted apart.
+
+    Scope: only pipelines.py and runs.py are covered. The other 21 backend route
+    files (connections, reports, emails, users, ...) are not yet under contract —
+    see docs/TASKS.md's MAINT-02 entry for the expansion plan.
+servers:
+  - url: /api
+
+security:
+  - bearerAuth: []
+
+paths:
+  /pipelines:
+    get:
+      operationId: listPipelines
+      summary: List pipelines (paginated, optionally scoped to a project)
+      parameters:
+        - name: project_id
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          description: Capped at 500 server-side.
+          schema: { type: integer, default: 500 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Pipeline' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+    post:
+      operationId: createPipeline
+      summary: Create a pipeline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PipelineCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pipeline' }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+
+  /pipelines/cron-next:
+    get:
+      operationId: cronNext
+      summary: Preview the next N run times for a cron expression
+      parameters:
+        - name: expr
+          in: query
+          required: true
+          schema: { type: string }
+        - name: n
+          in: query
+          description: Capped at 10 server-side.
+          schema: { type: integer, default: 5 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [next_runs]
+                properties:
+                  next_runs:
+                    type: array
+                    items: { type: string, format: date-time }
+        '400': { $ref: '#/components/responses/Error' }
+
+  /pipelines/{pipelineId}:
+    parameters:
+      - $ref: '#/components/parameters/pipelineId'
+    get:
+      operationId: getPipeline
+      summary: Get a pipeline by id
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pipeline' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/Error' }
+    put:
+      operationId: updatePipeline
+      summary: Update a pipeline (partial — only provided fields are changed)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PipelineUpdate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pipeline' }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      operationId: deletePipeline
+      summary: Delete a pipeline (cascades to its steps, variables, runs, etc.)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeletedResponse' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/Error' }
+
+  /pipelines/{pipelineId}/promote:
+    parameters:
+      - $ref: '#/components/parameters/pipelineId'
+    post:
+      operationId: promotePipeline
+      summary: Copy a pipeline into a different project (dev → staging → prod)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_project_id]
+              properties:
+                target_project_id: { type: string }
+                name_suffix: { type: string }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [pipeline, warnings]
+                properties:
+                  pipeline: { $ref: '#/components/schemas/Pipeline' }
+                  warnings:
+                    type: array
+                    items: { type: string }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/Error' }
+
+  /pipelines/{pipelineId}/clone:
+    parameters:
+      - $ref: '#/components/parameters/pipelineId'
+    post:
+      operationId: clonePipeline
+      summary: Duplicate a pipeline within the same project (starts disabled, no schedule)
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pipeline' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/Error' }
+
+  /pipelines/{pipelineId}/export:
+    parameters:
+      - $ref: '#/components/parameters/pipelineId'
+    get:
+      operationId: exportPipeline
+      summary: Export a pipeline as a re-importable YAML document
+      responses:
+        '200':
+          description: OK
+          content:
+            application/x-yaml:
+              schema: { type: string }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/Error' }
+
+  /pipelines/import:
+    post:
+      operationId: importPipeline
+      summary: Create a pipeline from an exported YAML document
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                yaml_content: { type: string }
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pipeline' }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+
+  /pipelines/{pipelineId}/run:
+    parameters:
+      - $ref: '#/components/parameters/pipelineId'
+    post:
+      operationId: runPipeline
+      summary: Trigger an immediate run (rate-limited — 10 per minute)
+      responses:
+        '202':
+          description: Accepted — run dispatched
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RunDispatched' }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /pipelines/{pipelineId}/runs:
+    parameters:
+      - $ref: '#/components/parameters/pipelineId'
+    get:
+      operationId: getPipelineRuns
+      summary: List the most recent 50 runs of this pipeline
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PipelineRun' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/Error' }
+
+  /pipelines/{pipelineId}/trigger:
+    parameters:
+      - $ref: '#/components/parameters/pipelineId'
+    post:
+      operationId: triggerViaWebhook
+      summary: >
+        Public webhook trigger — no JWT; authenticated by a per-pipeline token
+        query parameter. Rate-limited (30 per minute).
+      security: []
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '202':
+          description: Accepted — run dispatched
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RunDispatched' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+
+  /pipelines/{pipelineId}/webhook-tokens:
+    parameters:
+      - $ref: '#/components/parameters/pipelineId'
+    get:
+      operationId: listWebhookTokens
+      summary: List webhook tokens for a pipeline (hashes only — raw tokens are never stored)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/WebhookToken' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/Error' }
+    post:
+      operationId: createWebhookToken
+      summary: Create a webhook token (raw token is returned once, in this response only)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label: { type: string, maxLength: 100 }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WebhookToken' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/Error' }
+
+  /pipelines/{pipelineId}/webhook-tokens/{tokenId}:
+    parameters:
+      - $ref: '#/components/parameters/pipelineId'
+      - name: tokenId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      operationId: revokeWebhookToken
+      summary: Revoke (delete) a webhook token
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeletedResponse' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/Error' }
+
+  /pipelines/{pipelineId}/dependencies:
+    parameters:
+      - $ref: '#/components/parameters/pipelineId'
+    get:
+      operationId: getPipelineDependencies
+      summary: List this pipeline's upstream and downstream pipeline-level dependencies
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [upstream, downstream]
+                properties:
+                  upstream:
+                    type: array
+                    items: { $ref: '#/components/schemas/PipelineDep' }
+                  downstream:
+                    type: array
+                    items: { $ref: '#/components/schemas/PipelineDep' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/Error' }
+    post:
+      operationId: addPipelineDependency
+      summary: Add an upstream dependency (this pipeline runs after upstream_id succeeds)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [upstream_id]
+              properties:
+                upstream_id: { type: string }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [dep_id, upstream_id, downstream_id]
+                properties:
+                  dep_id: { type: string }
+                  upstream_id: { type: string }
+                  downstream_id: { type: string }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/Error' }
+
+  /pipelines/{pipelineId}/dependencies/{depId}:
+    parameters:
+      - $ref: '#/components/parameters/pipelineId'
+      - name: depId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      operationId: removePipelineDependency
+      summary: Remove a pipeline-level dependency edge
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeletedResponse' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/Error' }
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      summary: Last 14 runs for every pipeline in one call (polled every few seconds by the dashboard)
+      parameters:
+        - name: project_id
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [pipeline_runs]
+                properties:
+                  pipeline_runs:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items: { $ref: '#/components/schemas/PipelineRun' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+
+  /runs:
+    get:
+      operationId: listRuns
+      summary: List pipeline runs (paginated, filterable)
+      parameters:
+        - name: pipeline_id
+          in: query
+          schema: { type: string }
+        - name: project_id
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/RunStatus' }
+        - name: limit
+          in: query
+          description: Capped at 500 server-side.
+          schema: { type: integer, default: 100 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PipelineRun' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+
+  /runs/export:
+    get:
+      operationId: exportRuns
+      summary: Export run history as CSV (capped at 10,000 rows)
+      parameters:
+        - name: format
+          in: query
+          description: Only 'csv' is supported.
+          schema: { type: string, default: csv }
+        - name: pipeline_id
+          in: query
+          schema: { type: string }
+        - name: project_id
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/RunStatus' }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 10000 }
+      responses:
+        '200':
+          description: OK
+          content:
+            text/csv:
+              schema: { type: string }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+
+  /runs/{runId}:
+    parameters:
+      - $ref: '#/components/parameters/runId'
+    get:
+      operationId: getRun
+      summary: Get a run by id, including its step runs
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PipelineRun' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/Error' }
+
+  /runs/{runId}/anomalies:
+    parameters:
+      - $ref: '#/components/parameters/runId'
+    get:
+      operationId: getRunAnomalies
+      summary: Statistical anomalies (>2σ vs the last 30 successful runs) for each step in this run
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/StepAnomaly' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/Error' }
+
+  /runs/{runId}/diff:
+    parameters:
+      - $ref: '#/components/parameters/runId'
+    get:
+      operationId: getRunDiff
+      summary: Compare this run's step metrics vs the pipeline's previous successful run
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RunDiff' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/Error' }
+
+  /runs/{runId}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/runId'
+    post:
+      operationId: cancelRun
+      summary: Cancel a running or pending run
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, run_id]
+                properties:
+                  message: { type: string }
+                  run_id: { type: string }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+
+  /step-runs/trends:
+    get:
+      operationId: getStepRunTrends
+      summary: Per-day duration/rows/failure trends over a rolling window (default 30 days, max 180)
+      parameters:
+        - name: project_id
+          in: query
+          schema: { type: string }
+        - name: pipeline_id
+          in: query
+          schema: { type: string }
+        - name: step_type
+          in: query
+          schema: { type: string }
+        - name: days
+          in: query
+          schema: { type: integer, default: 30 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StepTrends' }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+
+  /step-runs/{stepRunId}/download:
+    parameters:
+      - name: stepRunId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: downloadStepOutput
+      summary: Download a step's generated output file
+      responses:
+        '200':
+          description: OK
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    pipelineId:
+      name: pipelineId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    runId:
+      name: runId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    AccessDenied:
+      description: Access denied to this project
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+
+    DeletedResponse:
+      type: object
+      required: [deleted]
+      properties:
+        deleted: { type: string }
+
+    RunStatus:
+      type: string
+      enum: [running, success, failed, cancelled]
+
+    RunDispatched:
+      type: object
+      required: [run_id, status, pipeline_name]
+      properties:
+        run_id: { type: string }
+        status: { type: string }
+        pipeline_name: { type: string }
+
+    PipelineStep:
+      type: object
+      required: [id, step_order, name, step_type, config, on_error, enabled, parallel_group]
+      properties:
+        id: { type: string }
+        step_order: { type: integer }
+        name: { type: string }
+        step_type: { type: string }
+        config: { type: object, additionalProperties: true }
+        on_error: { type: string, enum: [stop, continue] }
+        enabled: { type: boolean }
+        parallel_group: { type: string, nullable: true }
+
+    PipelineVariable:
+      type: object
+      required: [id, var_key, var_value, is_secret]
+      properties:
+        id: { type: string }
+        var_key: { type: string, maxLength: 100 }
+        # '***' when is_secret is true — the real value is never returned by the API.
+        var_value: { type: string }
+        is_secret: { type: boolean }
+
+    PipelineVariableInput:
+      type: object
+      required: [var_key, var_value]
+      properties:
+        var_key: { type: string, maxLength: 100 }
+        var_value: { type: string }
+        is_secret: { type: boolean, default: false }
+
+    PipelineDep:
+      type: object
+      required: [dep_id, pipeline_id, pipeline_name]
+      properties:
+        dep_id: { type: string }
+        pipeline_id: { type: string }
+        pipeline_name: { type: string }
+
+    Pipeline:
+      type: object
+      required:
+        [id, name, description, schedule, next_run, enabled, timeout_minutes,
+         on_failure_webhook_url, project_id, created_at, updated_at,
+         steps, variables, upstream_deps, downstream_deps]
+      properties:
+        id: { type: string }
+        name: { type: string, maxLength: 255 }
+        description: { type: string, nullable: true, maxLength: 2000 }
+        schedule: { type: string, nullable: true, maxLength: 100, description: Cron expression }
+        next_run: { type: string, format: date-time, nullable: true }
+        enabled: { type: boolean }
+        timeout_minutes: { type: integer }
+        on_failure_webhook_url: { type: string, nullable: true }
+        project_id: { type: string, nullable: true }
+        created_at: { type: string, format: date-time, nullable: true }
+        updated_at: { type: string, format: date-time, nullable: true }
+        steps:
+          type: array
+          items: { $ref: '#/components/schemas/PipelineStep' }
+        variables:
+          type: array
+          items: { $ref: '#/components/schemas/PipelineVariable' }
+        upstream_deps:
+          type: array
+          items: { $ref: '#/components/schemas/PipelineDep' }
+        downstream_deps:
+          type: array
+          items: { $ref: '#/components/schemas/PipelineDep' }
+
+    PipelineCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, maxLength: 255 }
+        description: { type: string, maxLength: 2000 }
+        schedule: { type: string, nullable: true, maxLength: 100 }
+        enabled: { type: boolean, default: true }
+        timeout_minutes: { type: integer, default: 60 }
+        on_failure_webhook_url: { type: string, nullable: true }
+        project_id: { type: string, description: Defaults to the caller's default project if omitted. }
+        variables:
+          type: array
+          items: { $ref: '#/components/schemas/PipelineVariableInput' }
+
+    PipelineUpdate:
+      type: object
+      description: All fields optional — only keys present in the body are changed.
+      properties:
+        name: { type: string, maxLength: 255 }
+        description: { type: string, maxLength: 2000 }
+        schedule: { type: string, nullable: true, maxLength: 100 }
+        enabled: { type: boolean }
+        timeout_minutes: { type: integer }
+        on_failure_webhook_url: { type: string, nullable: true }
+        project_id: { type: string }
+        variables:
+          type: array
+          items: { $ref: '#/components/schemas/PipelineVariableInput' }
+          description: Replaces the full variable set when present.
+
+    WebhookToken:
+      type: object
+      required: [id, pipeline_id, label, enabled, last_used_at, created_at]
+      properties:
+        id: { type: string }
+        pipeline_id: { type: string }
+        label: { type: string, maxLength: 100 }
+        enabled: { type: boolean }
+        last_used_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time, nullable: true }
+        token:
+          type: string
+          description: Raw token — present only in the response from the create call, never stored or returned again.
+
+    StepRun:
+      type: object
+      required:
+        [id, step_name, step_type, step_order, status, started_at, finished_at,
+         duration_ms, rows_affected, output_path, drive_url, email_sent_to, logs, error_message]
+      properties:
+        id: { type: string }
+        step_name: { type: string }
+        step_type: { type: string }
+        step_order: { type: integer }
+        status: { type: string, enum: [running, success, failed, skipped] }
+        started_at: { type: string, format: date-time, nullable: true }
+        finished_at: { type: string, format: date-time, nullable: true }
+        duration_ms: { type: integer, nullable: true }
+        rows_affected: { type: integer, nullable: true }
+        output_path: { type: string, nullable: true }
+        drive_url: { type: string, nullable: true }
+        email_sent_to:
+          type: array
+          items: { type: string }
+        logs: { type: string, nullable: true }
+        error_message: { type: string, nullable: true }
+
+    PipelineRun:
+      type: object
+      required:
+        [id, pipeline_id, pipeline_name, status, started_at, finished_at,
+         duration_ms, triggered_by, error_step, error_message]
+      properties:
+        id: { type: string }
+        pipeline_id: { type: string, nullable: true, description: Null once the source pipeline has been deleted. }
+        pipeline_name: { type: string }
+        status: { $ref: '#/components/schemas/RunStatus' }
+        started_at: { type: string, format: date-time, nullable: true }
+        finished_at: { type: string, format: date-time, nullable: true }
+        duration_ms: { type: integer, nullable: true }
+        triggered_by: { type: string, nullable: true, enum: [scheduler, cli, web_ui, api, null] }
+        error_step: { type: string, nullable: true }
+        error_message: { type: string, nullable: true }
+        step_runs:
+          type: array
+          items: { $ref: '#/components/schemas/StepRun' }
+          description: Present only on GET /runs/{runId} (include_steps=True).
+
+    StepAnomaly:
+      type: object
+      required: [step_id, step_name, rows_anomaly, duration_anomaly]
+      properties:
+        step_id: { type: string }
+        step_name: { type: string }
+        rows_anomaly: { $ref: '#/components/schemas/AnomalyDetail' }
+        duration_anomaly: { $ref: '#/components/schemas/AnomalyDetail' }
+
+    AnomalyDetail:
+      type: object
+      nullable: true
+      required: [value, mean, std, z_score, pct_diff]
+      properties:
+        value: { type: number }
+        mean: { type: number }
+        std: { type: number }
+        z_score: { type: number }
+        pct_diff: { type: number }
+
+    StepDiff:
+      type: object
+      required:
+        [step_name, step_type, step_order, is_new_step, rows_current, rows_prev, rows_delta,
+         duration_current, duration_prev, duration_delta_pct, size_current, size_prev, size_delta]
+      properties:
+        step_name: { type: string }
+        step_type: { type: string }
+        step_order: { type: integer }
+        is_new_step: { type: boolean }
+        rows_current: { type: integer, nullable: true }
+        rows_prev: { type: integer, nullable: true }
+        rows_delta: { type: integer, nullable: true }
+        duration_current: { type: integer, nullable: true }
+        duration_prev: { type: integer, nullable: true }
+        duration_delta_pct: { type: number, nullable: true }
+        size_current: { type: integer, nullable: true }
+        size_prev: { type: integer, nullable: true }
+        size_delta: { type: integer, nullable: true }
+
+    RunDiff:
+      type: object
+      required: [prev_run_id, steps]
+      properties:
+        prev_run_id: { type: string, nullable: true }
+        steps:
+          type: array
+          items: { $ref: '#/components/schemas/StepDiff' }
+
+    StepTrendPoint:
+      type: object
+      required:
+        [date, run_count, success_count, failure_count,
+         avg_duration_ms, p95_duration_ms, avg_rows_affected]
+      properties:
+        date: { type: string, format: date }
+        run_count: { type: integer }
+        success_count: { type: integer }
+        failure_count: { type: integer }
+        avg_duration_ms: { type: number, nullable: true }
+        p95_duration_ms: { type: number, nullable: true }
+        avg_rows_affected: { type: number, nullable: true }
+
+    StepTrends:
+      type: object
+      required: [window_days, step_type, pipeline_id, available_step_types, series]
+      properties:
+        window_days: { type: integer }
+        step_type: { type: string, nullable: true }
+        pipeline_id: { type: string, nullable: true }
+        available_step_types:
+          type: array
+          items: { type: string }
+        series:
+          type: array
+          items: { $ref: '#/components/schemas/StepTrendPoint' }

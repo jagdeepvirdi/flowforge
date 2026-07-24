@@ -18,7 +18,8 @@ function fmtDur(ms: number | null): string {
   return `${Math.floor(ms / 60_000)}m ${Math.floor((ms % 60_000) / 1000)}s`
 }
 
-function fmtRel(iso: string): string {
+function fmtRel(iso: string | null): string {
+  if (!iso) return '—'
   const diff = Date.now() - new Date(iso).getTime()
   const m = Math.floor(diff / 60_000)
   if (m < 1) return 'just now'
@@ -164,7 +165,7 @@ export default function Dashboard() {
   })
 
   const today = new Date().toDateString()
-  const runsToday    = recentRuns.filter(r => new Date(r.started_at).toDateString() === today)
+  const runsToday    = recentRuns.filter(r => r.started_at && new Date(r.started_at).toDateString() === today)
   const successToday = runsToday.filter(r => r.status === 'success').length
   const failedToday  = runsToday.filter(r => r.status === 'failed')
   const scheduled    = pipelines.filter(p => p.enabled && p.schedule).length

@@ -179,7 +179,53 @@ entries.*
     (meant only to route past the `postgresql` special case) that broke once placeholder resolution started actually
     validating `_db_type` against the registry — switched to `'mysql'`, a real registered type. Updated
     `docs/step-types.md`'s bulk_load load-path table. Full test suite (2155 tests) passes.
-- [ ] **MAINT-02**: Introduce OpenAPI/Swagger schema generator or TypeScript API client generator to sync backend Flask responses with frontend Zustand/React Query state definitions (`frontend/src/lib/api.ts`)
+- [x] **MAINT-02**: Introduce OpenAPI/Swagger schema generator or TypeScript API client generator to sync backend
+  Flask responses with frontend Zustand/React Query state definitions (`frontend/src/lib/api.ts`) *(2026-07-25)* —
+  scoped to one vertical slice (user-selected option, given the full 23-route-file surface would be a large, risky
+  rewrite of an already-shipped app): `pipelines.py` + `runs.py`, proven end-to-end rather than left as scaffolding.
+  - `docs/openapi/pipelines.yaml`: hand-authored OpenAPI 3.0 spec, written against the actual
+    `serializers.py`/`validators.py`/`pipeline_service.py` code (not aspirational) — every response schema traced to
+    the exact dict a route returns.
+  - `frontend/src/lib/generated/pipelines.ts`: generated via `openapi-typescript` (new devDependency). `npm run
+    generate:api-types` (added to `frontend/package.json`) regenerates it from the spec.
+  - `frontend/src/__tests__/apiTypesSync.test.ts`: regenerates from the spec on every test run and diffs against the
+    committed generated file — fails if someone edits the spec (or the generated file) without regenerating and
+    committing the result. Verified it actually catches drift: temporarily added a field to the spec, confirmed the
+    test failed with a clear diff, reverted, confirmed it passed again.
+  - `frontend/src/lib/types.ts`: 9 of the hand-written interfaces this file re-exported for pipelines/runs
+    (`PipelineDep`, `WebhookToken`, `PipelineRun`, `StepRun`, `StepDiff`, `RunDiff`, `StepTrendPoint`, `StepTrends`,
+    `StepAnomaly`/`AnomalyMetric`) are now type aliases to the generated schema, under the same exported names — every
+    existing component importing them from `./types` is unaffected. **`Pipeline`, `PipelineStep`, and
+    `PipelineVariable` were deliberately NOT aliased**: `PipelineStep` is reused for two genuinely different response
+    shapes (the embedded-in-Pipeline shape this spec covers has no `pipeline_id`; `steps.py`'s standalone
+    `GET/POST .../steps` endpoints — out of scope — return the same object *with* `pipeline_id`), and
+    `PipelineVariable`/`Pipeline` are used for both response reads and request writes with different optionality
+    (a freshly-typed variable in a create form has no `id` yet). Aliasing those to the response-only generated shape
+    would have silently broken real call sites; verified this isn't hypothetical by grepping actual usage before
+    deciding.
+  - `frontend/src/lib/api.ts`: `createPipeline`/`updatePipeline`'s request parameter now types as the generated
+    `PipelineCreate`/`PipelineUpdate` (replacing a loose `Partial<Pipeline>` that permitted response-only fields like
+    `id`/`created_at`/`steps` a caller can't actually set) — verified against the real call site in
+    `PipelineEdit.tsx`, which already constructs variables without an `id`, matching `PipelineVariableInput` exactly.
+    `runPipeline` now returns the generated `RunDispatched` schema. Other pipeline/run functions already returned
+    `import('./types').X` where `X` is now generated-backed, so needed no import-path change.
+  - **Found and fixed a real drift bug in the process**: the hand-written `PipelineRun.started_at`/`StepRun.started_at`
+    were typed as non-nullable `string`, but `serializers.py`'s `run_dict()`/`step_run_dict()` both do
+    `r.started_at.isoformat() if r.started_at else None` — genuinely nullable. Generating from an accurate spec
+    surfaced 6 real `new Date(x.started_at)`-on-possibly-null call sites across
+    `Dashboard.tsx`/`RunDetail.tsx`/`RunHistory.tsx`/`Layout.tsx` that `tsc` had never caught; fixed each with a
+    null-guard (matching the existing pattern already used for `finished_at`/`next_run` in the same files).
+  - **Also fixed, incidentally**: adding `openapi-typescript` initially required `npm install --legacy-peer-deps`
+    (TypeScript 6.0.3 vs. its `^5.x` peer range) — that flag silently broke `@testing-library/dom` resolution
+    project-wide, which was masking as 36 pre-existing-looking `tsc`/vitest failures. Replaced with a scoped
+    `overrides` entry in `frontend/package.json` (`openapi-typescript.typescript` pinned to the root `typescript`
+    version) so a plain `npm install` resolves cleanly — `tsc --noEmit` is 0 errors and all 173 frontend tests
+    (172 existing + the new drift-check) pass, versus 36 failures before this fix.
+  - **Not covered** (explicit scope boundary, not an oversight): the other 21 backend route files
+    (`connections.py`, `reports.py`, `emails.py`, `users.py`, `steps.py`, ...) and their corresponding hand-written
+    types in `types.ts`/`api.ts` remain un-generated. Expanding coverage means repeating this same process per route
+    file — write/verify the OpenAPI paths against the actual route + serializer code, regenerate, alias only the
+    response-only types in `types.ts`, verify with `tsc`/vitest, fix any drift bugs surfaced.
 - [x] **PERF-02**: Implement Redis-backed distributed concurrency locks & rate limiting to replace in-memory
   process-local semaphores (`flowforge/engine/concurrency.py`) *(2026-07-25)* — the distributed concurrency counter
   (Redis sorted set, fail-open/fail-closed via `FLOWFORGE_CONCURRENCY_FAIL_CLOSED`) already existed in this file; the

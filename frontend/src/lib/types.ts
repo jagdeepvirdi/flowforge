@@ -1,3 +1,11 @@
+// MAINT-02: pipeline/run response types below are generated from
+// docs/openapi/pipelines.yaml (the source of truth for those two route files)
+// rather than hand-written — see frontend/src/lib/generated/pipelines.ts and
+// `npm run generate:api-types`. Request-shaped types (variables/steps accepted
+// on create/update) and types used by routes outside that spec's scope stay
+// hand-written here.
+import type { components } from './generated/pipelines'
+
 export type Role = 'admin' | 'editor' | 'viewer'
 
 export interface CurrentUser {
@@ -70,11 +78,7 @@ export interface PipelineStep {
   parallel_group: string | null
 }
 
-export interface PipelineDep {
-  dep_id: string
-  pipeline_id: string
-  pipeline_name: string
-}
+export type PipelineDep = components['schemas']['PipelineDep']
 
 /** Step-level dependency edge within one pipeline (Phase 14 Option B). */
 export interface StepDep {
@@ -90,46 +94,9 @@ export interface PipelineVariable {
   is_secret: boolean
 }
 
-export interface WebhookToken {
-  id: string
-  pipeline_id: string
-  label: string
-  enabled: boolean
-  last_used_at: string | null
-  created_at: string
-  token?: string   // raw token — only present on creation response
-}
-
-export interface PipelineRun {
-  id: string
-  pipeline_id: string | null   // null when the pipeline has been deleted
-  pipeline_name: string
-  status: PipelineStatus
-  started_at: string
-  finished_at: string | null
-  duration_ms: number | null
-  triggered_by: string
-  error_step: string | null
-  error_message: string | null
-  step_runs?: StepRun[]
-}
-
-export interface StepRun {
-  id: string
-  step_name: string
-  step_type: string
-  step_order: number
-  status: 'success' | 'failed' | 'running' | 'skipped'
-  started_at: string
-  finished_at: string | null
-  duration_ms: number | null
-  rows_affected: number | null
-  output_path: string | null
-  drive_url: string | null
-  email_sent_to: string[]
-  logs: string | null
-  error_message: string | null
-}
+export type WebhookToken = components['schemas']['WebhookToken']
+export type PipelineRun = components['schemas']['PipelineRun']
+export type StepRun = components['schemas']['StepRun']
 
 export interface ColumnConditionalRule {
   operator: 'lt' | 'lte' | 'gt' | 'gte' | 'eq' | 'ne'
@@ -163,44 +130,10 @@ export interface ReportConfig {
   updated_at: string
 }
 
-export interface StepDiff {
-  step_name: string
-  step_type: string
-  step_order: number
-  is_new_step: boolean
-  rows_current: number | null
-  rows_prev: number | null
-  rows_delta: number | null
-  duration_current: number | null
-  duration_prev: number | null
-  duration_delta_pct: number | null
-  size_current: number | null
-  size_prev: number | null
-  size_delta: number | null
-}
-
-export interface RunDiff {
-  prev_run_id: string | null
-  steps: StepDiff[]
-}
-
-export interface StepTrendPoint {
-  date: string
-  run_count: number
-  success_count: number
-  failure_count: number
-  avg_duration_ms: number | null
-  p95_duration_ms: number | null
-  avg_rows_affected: number | null
-}
-
-export interface StepTrends {
-  window_days: number
-  step_type: string | null
-  pipeline_id: string | null
-  available_step_types: string[]
-  series: StepTrendPoint[]
-}
+export type StepDiff = components['schemas']['StepDiff']
+export type RunDiff = components['schemas']['RunDiff']
+export type StepTrendPoint = components['schemas']['StepTrendPoint']
+export type StepTrends = components['schemas']['StepTrends']
 
 export interface EmailConfig {
   id: string
@@ -264,20 +197,8 @@ export interface BulkLoadConfig {
   updated_at: string
 }
 
-export interface AnomalyMetric {
-  value: number
-  mean: number
-  std: number
-  z_score: number
-  pct_diff: number
-}
-
-export interface StepAnomaly {
-  step_id: string
-  step_name: string
-  rows_anomaly: AnomalyMetric | null
-  duration_anomaly: AnomalyMetric | null
-}
+export type AnomalyMetric = NonNullable<components['schemas']['AnomalyDetail']>
+export type StepAnomaly = components['schemas']['StepAnomaly']
 
 export interface RecipientGroup {
   id: string

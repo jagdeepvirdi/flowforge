@@ -55,7 +55,7 @@ export default function Layout() {
     queryKey: ['runs-today'],
     queryFn: () => getRuns({ limit: 200 }),
     refetchInterval: 30000,
-    select: runs => runs.filter(r => new Date(r.started_at).toDateString() === new Date().toDateString()),
+    select: runs => runs.filter(r => r.started_at && new Date(r.started_at).toDateString() === new Date().toDateString()),
   })
   const runsCount    = todayRuns.length
   const successCount = todayRuns.filter(r => r.status === 'success').length

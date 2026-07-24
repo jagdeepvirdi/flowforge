@@ -1,6 +1,19 @@
 import { useAuth } from './auth'
+import type { components } from './generated/pipelines'
 
 const BASE = '/api'
+
+// MAINT-02: request-shaped types for the pipelines.py create/update endpoints,
+// generated from docs/openapi/pipelines.yaml (`npm run generate:api-types`).
+// More accurate than the previous Partial<Pipeline> — that allowed (but the
+// backend ignores) response-only fields like id/created_at/steps, and required
+// PipelineVariable's response `id` field even though a freshly-typed variable
+// in the form doesn't have one yet. Response types stay on `./types`'s Pipeline
+// (see that file for why: it's also embedded with a step/variable shape that
+// intentionally differs from steps.py's standalone endpoints, which aren't
+// covered by this spec).
+type PipelineCreate = components['schemas']['PipelineCreate']
+type PipelineUpdate = components['schemas']['PipelineUpdate']
 
 async function request<T>(
   method: string,
@@ -89,13 +102,13 @@ export const getPipelines    = (params?: { project_id?: string }) => {
 }
 export const getCronNext     = (expr: string) => get<{ next_runs: string[] }>(`/pipelines/cron-next?expr=${encodeURIComponent(expr)}`)
 export const getPipeline     = (id: string) => get<import('./types').Pipeline>(`/pipelines/${id}`)
-export const createPipeline  = (data: Partial<import('./types').Pipeline>) => post<import('./types').Pipeline>('/pipelines', data)
-export const updatePipeline  = (id: string, data: Partial<import('./types').Pipeline>) => put<import('./types').Pipeline>(`/pipelines/${id}`, data)
+export const createPipeline  = (data: PipelineCreate) => post<import('./types').Pipeline>('/pipelines', data)
+export const updatePipeline  = (id: string, data: PipelineUpdate) => put<import('./types').Pipeline>(`/pipelines/${id}`, data)
 export const deletePipeline  = (id: string) => del<{ deleted: string }>(`/pipelines/${id}`)
 export const clonePipeline    = (id: string) => post<import('./types').Pipeline>(`/pipelines/${id}/clone`)
 export const promotePipeline  = (id: string, target_project_id: string, name_suffix?: string) =>
   post<{ pipeline: import('./types').Pipeline; warnings: string[] }>(`/pipelines/${id}/promote`, { target_project_id, name_suffix })
-export const runPipeline      = (id: string) => post<{ run_id: string; status: string; pipeline_name: string }>(`/pipelines/${id}/run`)
+export const runPipeline      = (id: string) => post<components['schemas']['RunDispatched']>(`/pipelines/${id}/run`)
 export const exportPipeline   = async (id: string): Promise<Blob> => {
   const token = useAuth.getState().token
   const res = await fetch(`${BASE}/pipelines/${id}/export`, {

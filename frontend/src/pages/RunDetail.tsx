@@ -159,7 +159,7 @@ function StepInfoTab({ s }: { s: StepRun }) {
       <div>Type: <span className="text-text-2">{s.step_type}</span></div>
       <div>Order: <span className="text-text-2">#{s.step_order}</span></div>
       <div>Status: <span className="text-text-2">{s.status}</span></div>
-      <div>Started: <span className="text-text-2">{new Date(s.started_at).toLocaleTimeString()}</span></div>
+      <div>Started: <span className="text-text-2">{s.started_at ? new Date(s.started_at).toLocaleTimeString() : '—'}</span></div>
       {s.finished_at && <div>Finished: <span className="text-text-2">{new Date(s.finished_at).toLocaleTimeString()}</span></div>}
       {s.duration_ms != null && <div>Duration: <span className="text-text-2">{s.duration_ms}ms</span></div>}
     </div>
@@ -540,7 +540,7 @@ export default function RunDetail() {
             <div className="flex items-center gap-3.5 text-xs text-text-muted flex-wrap">
               <span className="mono">{run.id}</span>
               <span>·</span>
-              <span>Started <span className="text-text-2">{new Date(run.started_at).toLocaleString()}</span></span>
+              <span>Started <span className="text-text-2">{run.started_at ? new Date(run.started_at).toLocaleString() : '—'}</span></span>
               <span>·</span>
               <span>Triggered by <span className="text-text-2">{run.triggered_by}</span></span>
             </div>
@@ -552,7 +552,7 @@ export default function RunDetail() {
           {[
             { label: 'Duration',  value: fmtDur(run.duration_ms),       mono: true },
             { label: 'Steps',     value: `${steps.filter(s => s.status === 'success').length} / ${steps.length}`, mono: true },
-            { label: 'Started',   value: new Date(run.started_at).toLocaleTimeString(), mono: true },
+            { label: 'Started',   value: run.started_at ? new Date(run.started_at).toLocaleTimeString() : '—', mono: true },
             { label: 'Trigger',   value: run.triggered_by,              mono: false },
           ].map(s => (
             <div key={s.label} className="card py-3.5 px-4">
