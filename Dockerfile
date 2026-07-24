@@ -7,7 +7,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # ── Stage 2: Python runtime ────────────────────────────────────────────────────
-FROM python:3.11-slim@sha256:a3ab0b966bc4e91546a033e22093cb840908979487a9fc0e6e38295747e49ac0
+FROM python:3.14-slim@sha256:cea0e6040540fb2b965b6e7fb5ffa00871e632eef63719f0ea54bca189ce14a6
 WORKDIR /app
 
 # Non-root user the process actually runs as (see USER below) — created early so
