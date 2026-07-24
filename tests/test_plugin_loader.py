@@ -1,5 +1,6 @@
 """Tests for flowforge/engine/loader.py — community plugin step type loading."""
 import textwrap
+from pathlib import Path
 
 import pytest
 
@@ -224,3 +225,96 @@ def test_plugin_step_type_usable_via_api(client, headers, monkeypatch, tmp_path)
         assert step_resp.status_code == 201
     finally:
         client.delete(f'/api/pipelines/{pipeline_id}', headers=headers)
+
+
+# ── World/group-writable plugin trust boundary ──────────────────────────────
+
+def test_world_or_group_writable_true_for_writable_mode(monkeypatch):
+    import stat
+    from unittest.mock import MagicMock, patch
+
+    from flowforge.engine import loader as loader_mod
+
+    monkeypatch.setattr(loader_mod.os, 'name', 'posix')  # exercise the POSIX branch on any host OS
+    fake_stat = MagicMock(st_mode=stat.S_IFREG | 0o644 | stat.S_IWOTH)
+    with patch('pathlib.Path.stat', return_value=fake_stat):
+        assert loader_mod._world_or_group_writable(Path('x')) is True
+
+
+def test_world_or_group_writable_false_for_owner_only_mode(monkeypatch):
+    import stat
+    from unittest.mock import MagicMock, patch
+
+    from flowforge.engine import loader as loader_mod
+
+    monkeypatch.setattr(loader_mod.os, 'name', 'posix')
+    fake_stat = MagicMock(st_mode=stat.S_IFREG | 0o600)
+    with patch('pathlib.Path.stat', return_value=fake_stat):
+        assert loader_mod._world_or_group_writable(Path('x')) is False
+
+
+def test_world_or_group_writable_false_on_stat_error(monkeypatch):
+    from unittest.mock import patch
+
+    from flowforge.engine import loader as loader_mod
+
+    monkeypatch.setattr(loader_mod.os, 'name', 'posix')
+    with patch('pathlib.Path.stat', side_effect=OSError('gone')):
+        assert loader_mod._world_or_group_writable(Path('x')) is False
+
+
+def test_world_or_group_writable_always_false_on_windows(monkeypatch):
+    """The Windows short-circuit: even an obviously-writable mode is ignored,
+    because os.stat() on Windows doesn't reflect real ACL-based permissions."""
+    import stat
+    from unittest.mock import MagicMock, patch
+
+    from flowforge.engine import loader as loader_mod
+
+    monkeypatch.setattr(loader_mod.os, 'name', 'nt')
+    fake_stat = MagicMock(st_mode=stat.S_IFREG | 0o666)
+    with patch('pathlib.Path.stat', return_value=fake_stat):
+        assert loader_mod._world_or_group_writable(Path('x')) is False
+
+
+def test_world_writable_plugin_file_is_refused(monkeypatch, tmp_path, caplog):
+    _write_plugin(tmp_path, 'sketchy_plugin.py', """
+        from flowforge.steps.base import BaseStep, StepResult
+
+        class SketchyStep(BaseStep):
+            step_type = 'sketchy_step'
+
+            def run(self, context):
+                return StepResult(success=True)
+    """)
+    monkeypatch.setenv('FLOWFORGE_PLUGIN_DIR', str(tmp_path))
+
+    from flowforge.engine import loader as loader_mod
+
+    real_check = loader_mod._world_or_group_writable
+    def fake_check(path):
+        if path.name == 'sketchy_plugin.py':
+            return True
+        return real_check(path)
+
+    monkeypatch.setattr(loader_mod, '_world_or_group_writable', fake_check)
+
+    import logging
+    with caplog.at_level(logging.ERROR):
+        types = loader_mod.get_step_types()
+
+    assert 'sketchy_step' not in types
+    assert any('refusing to load plugin file' in r.message for r in caplog.records)
+
+
+def test_group_writable_plugin_dir_logs_warning(monkeypatch, tmp_path, caplog):
+    monkeypatch.setenv('FLOWFORGE_PLUGIN_DIR', str(tmp_path))
+
+    from flowforge.engine import loader as loader_mod
+    monkeypatch.setattr(loader_mod, '_world_or_group_writable', lambda path: path == tmp_path)
+
+    import logging
+    with caplog.at_level(logging.WARNING):
+        loader_mod.get_step_types()
+
+    assert any('group- or world-writable' in r.message for r in caplog.records)

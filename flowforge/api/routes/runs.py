@@ -9,6 +9,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from flask import Blueprint, Response, jsonify, request, send_file
+from sqlalchemy import func
+from sqlalchemy.orm import aliased
 
 from flowforge.api.auth import require_auth, require_role
 from flowforge.api.project_access import accessible_project_ids, can_access_project, is_admin
@@ -84,18 +86,32 @@ def dashboard_summary():
     if not pipeline_ids:
         return jsonify({'pipeline_runs': {}})
 
-    all_runs = (
-        db.session.query(PipelineRun)
+    # Rank runs per-pipeline in SQL (window function) so only the last
+    # _DASHBOARD_BARS rows per pipeline ever leave the database — this endpoint
+    # is polled every few seconds by every open dashboard tab, so it must not
+    # scale with total run-history size.
+    row_number = (
+        func.row_number()
+        .over(partition_by=PipelineRun.pipeline_id, order_by=PipelineRun.started_at.desc())
+        .label('rn')
+    )
+    ranked = (
+        db.session.query(PipelineRun, row_number)
         .filter(PipelineRun.pipeline_id.in_(pipeline_ids))
-        .order_by(PipelineRun.pipeline_id, PipelineRun.started_at.desc())
+        .subquery()
+    )
+    RankedRun = aliased(PipelineRun, ranked)
+
+    runs = (
+        db.session.query(RankedRun)
+        .filter(ranked.c.rn <= _DASHBOARD_BARS)
+        .order_by(ranked.c.pipeline_id, ranked.c.rn)
         .all()
     )
 
     grouped: dict[str, list] = defaultdict(list)
-    for r in all_runs:
-        pid = r.pipeline_id
-        if len(grouped[pid]) < _DASHBOARD_BARS:
-            grouped[pid].append(run_dict(r))
+    for r in runs:
+        grouped[r.pipeline_id].append(run_dict(r))
 
     return jsonify({'pipeline_runs': dict(grouped)})
 

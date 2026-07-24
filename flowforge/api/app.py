@@ -17,6 +17,28 @@ limiter = Limiter(key_func=get_remote_address, default_limits=[])
 
 # ── constants ──
 _NOT_FOUND = 'Not found'
+_MIN_SECRET_LENGTH = 32  # matches the documented 64-hex-char (32-byte) FLOWFORGE_SECRET_KEY
+
+
+def _validate_secret(env_var_name: str, value: str) -> None:
+    """Refuse to boot with an unset or too-short secret.
+
+    Without this, an empty FLOWFORGE_JWT_SECRET/FLOWFORGE_SECRET_KEY doesn't fail loudly —
+    it silently produces JWTs signed with an empty-string key, forgeable by anyone who
+    knows the algorithm (HS256, set two lines below where JWT_SECRET is assigned). The
+    length floor also rejects every realistic human-typed placeholder ('changeme',
+    'password', 'secret', etc. are all under 32 chars) without an entropy heuristic that
+    would flag the test suite's own intentionally-simple dummy keys (conftest.py uses
+    'a' * 64 / 'b' * 64 — 32+ chars, but low-entropy by design for readability).
+    """
+    hint = 'Generate one with: python -c "import secrets; print(secrets.token_hex(32))"'
+    if not value:
+        raise RuntimeError(f"{env_var_name} is not set. {hint}")
+    if len(value) < _MIN_SECRET_LENGTH:
+        raise RuntimeError(
+            f"{env_var_name} is too short ({len(value)} chars, need at least "
+            f"{_MIN_SECRET_LENGTH}). {hint}"
+        )
 
 _DIST = Path(__file__).parent.parent.parent / 'frontend' / 'dist'
 _DOCS = Path(__file__).parent.parent.parent / 'docs'
@@ -63,6 +85,15 @@ def create_app(config: dict | None = None) -> Flask:
 
     if config:
         app.config.update(config)
+
+    _validate_secret('FLOWFORGE_SECRET_KEY', app.config['SECRET_KEY'])
+    _validate_secret('FLOWFORGE_JWT_SECRET', app.config['JWT_SECRET'])
+
+    # Eagerly validate the encryption key's exact format (32-byte hex or raw) at boot —
+    # flowforge.crypto._key() otherwise only raises the first time something is
+    # encrypted/decrypted, which can be long after startup looked successful.
+    from flowforge import crypto
+    crypto._key()  # noqa: SLF001 — deliberate boot-time check of the same private helper crypto.py uses internally
 
     # ProxyFix — unwraps X-Forwarded-For so the rate limiter sees the real client IP (SEC-3)
     # Set FLOWFORGE_TRUSTED_PROXIES=1 when running behind nginx/Traefik/ALB/etc.

@@ -35,6 +35,25 @@ def test_list_pipelines(client, headers):
     assert isinstance(resp.get_json(), list)
 
 
+def test_list_pipelines_respects_limit(client, headers, pipeline_id):
+    resp = client.get('/api/pipelines?limit=1', headers=headers)
+    assert resp.status_code == 200
+    assert len(resp.get_json()) <= 1
+
+
+def test_list_pipelines_limit_is_capped_at_500(client, headers):
+    resp = client.get('/api/pipelines?limit=999999', headers=headers)
+    assert resp.status_code == 200
+    assert len(resp.get_json()) <= 500
+
+
+def test_list_pipelines_offset_skips_results(client, headers, pipeline_id):
+    all_names = [p['name'] for p in client.get('/api/pipelines?limit=500', headers=headers).get_json()]
+    offset_names = [p['name'] for p in
+                     client.get('/api/pipelines?limit=500&offset=1', headers=headers).get_json()]
+    assert offset_names == all_names[1:]
+
+
 def test_create_pipeline(client, headers):
     resp = client.post('/api/pipelines', json=PIPELINE_PAYLOAD, headers=headers)
     assert resp.status_code == 201

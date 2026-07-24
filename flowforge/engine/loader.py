@@ -13,6 +13,7 @@ import importlib.util
 import inspect
 import logging
 import os
+import stat
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -123,6 +124,24 @@ def _register_plugin_class(obj: type, categories: list[_PluginCategory], source:
     return False
 
 
+def _world_or_group_writable(path: Path) -> bool:
+    """True if group or other has write permission on `path`.
+
+    POSIX only. Always False on Windows — os.stat() there doesn't model real
+    per-owner/group/other permissions (NTFS ACLs do that instead), so st_mode's
+    group/other write bits are typically reported as set for every file
+    regardless of actual access control, which would make this check produce
+    nothing but false positives.
+    """
+    if os.name != 'posix':
+        return False
+    try:
+        mode = path.stat().st_mode
+    except OSError:
+        return False
+    return bool(mode & (stat.S_IWGRP | stat.S_IWOTH))
+
+
 def _load_directory_plugins(categories: list[_PluginCategory]) -> None:
     """Scan FLOWFORGE_PLUGIN_DIR (default ./plugins) for *.py files and register any
     recognized plugin class they define (see _plugin_categories), keyed by that
@@ -131,13 +150,37 @@ def _load_directory_plugins(categories: list[_PluginCategory]) -> None:
     A plugin file that fails to import, or that defines no usable plugin class,
     is logged and skipped — it never blocks startup or other plugins. See
     docs/plugins.md for the authoring contract.
+
+    Trust boundary: this executes arbitrary Python with full process privileges.
+    It's documented as admin-only, but that's only as strong as the directory's
+    actual filesystem permissions — so both the directory and each file are
+    checked for group/other write access before anything is exec'd, and a
+    writable-by-anyone-else file is refused rather than silently loaded.
     """
     plugin_dir = Path(os.environ.get('FLOWFORGE_PLUGIN_DIR', './plugins'))
     if not plugin_dir.is_dir():
         return
 
+    if _world_or_group_writable(plugin_dir):
+        logger.warning(
+            "SECURITY: FLOWFORGE_PLUGIN_DIR (%s) is group- or world-writable. "
+            "Any local user who can write to this directory can get arbitrary "
+            "code executed with FlowForge's process privileges on next plugin "
+            "scan. Restrict its permissions (e.g. `chmod 750`) to the FlowForge "
+            "service user only.",
+            plugin_dir,
+        )
+
     for py_file in sorted(plugin_dir.glob('*.py')):
         if py_file.stem.startswith('_'):
+            continue
+        if _world_or_group_writable(py_file):
+            logger.error(
+                "SECURITY: refusing to load plugin file %s — it is group- or "
+                "world-writable, so it can't be trusted as admin-authored code. "
+                "Restrict its permissions (e.g. `chmod 640`) and restart.",
+                py_file,
+            )
             continue
         module_name = f'flowforge_plugin_{py_file.stem}'
         try:

@@ -78,6 +78,53 @@ def test_dashboard_summary_with_project_id_filter(client, headers):
     assert data['pipeline_runs'] == {}
 
 
+def test_dashboard_summary_caps_at_14_runs_per_pipeline_in_sql(app, client, headers):
+    """The 14-per-pipeline cap must happen in the SQL query (window function),
+    not by fetching every run and truncating in Python — this endpoint is
+    polled every few seconds by every open dashboard tab."""
+    import uuid
+    from datetime import UTC, datetime, timedelta
+
+    from flowforge.db.models import PipelineRun, db
+
+    create = client.post('/api/pipelines', json={'name': '__dash_cap__', 'enabled': True},
+                          headers=headers)
+    pid = create.get_json()['id']
+    try:
+        with app.app_context():
+            base = datetime.now(UTC)
+            run_ids = []
+            for i in range(20):
+                run = PipelineRun(
+                    id=str(uuid.uuid4()),
+                    pipeline_id=pid,
+                    pipeline_name='__dash_cap__',
+                    status='success',
+                    started_at=base - timedelta(minutes=i),
+                    finished_at=base - timedelta(minutes=i) + timedelta(seconds=1),
+                    duration_ms=1000,
+                    triggered_by='web_ui',
+                )
+                db.session.add(run)
+                run_ids.append(run.id)
+            db.session.commit()
+
+        resp = client.get('/api/dashboard/summary', headers=headers)
+        assert resp.status_code == 200
+        runs = resp.get_json()['pipeline_runs'][pid]
+
+        assert len(runs) == 14
+        # Most recent first, and it's specifically the 14 most recent (not an
+        # arbitrary/unordered subset) — confirms ORDER BY happens before the cap.
+        assert runs[0]['id'] == run_ids[0]
+        assert runs[-1]['id'] == run_ids[13]
+    finally:
+        with app.app_context():
+            db.session.query(PipelineRun).filter(PipelineRun.pipeline_id == pid).delete()
+            db.session.commit()
+        client.delete(f'/api/pipelines/{pid}', headers=headers)
+
+
 def test_export_runs_as_csv(client, headers):
     resp = client.get('/api/runs/export?format=csv', headers=headers)
     assert resp.status_code == 200

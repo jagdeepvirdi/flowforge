@@ -223,33 +223,50 @@ else is real but not on fire.*
 
 ## Critical (fix immediately / showstoppers)
 
-- [ ] **`SECRET_KEY`/`JWT_SECRET` have no startup validation and can silently be empty** —
+- [x] **`SECRET_KEY`/`JWT_SECRET` have no startup validation and can silently be empty** *(2026-07-24)* —
   `flowforge/api/app.py:46-60` reads both via `os.environ.get(..., '')`; `JWT_SECRET` falls back to
   `SECRET_KEY`, and if both are unset the app boots fine and signs HS256 JWTs with an empty key,
-  making every session token forgeable by anyone who knows the algorithm (same file). Fix: make
-  `create_app()` refuse to start (raise, not just log) if either secret is unset, empty, below a
-  minimum length (32 bytes), or matches an obvious placeholder (`changeme`, `secret`, `password`,
-  etc.). `flowforge/crypto.py:14-25` already has the length check for the encryption key — it just
-  needs to run eagerly at boot instead of lazily on first `encrypt()`/`decrypt()` call.
-- [ ] **Docker image runs as root** — `Dockerfile` has no `USER` directive. Add a non-root user and
-  `USER` line; verify file permissions on `output/`, `logs/`, etc. still work under it.
-- [ ] **Weak defaults in `docker-compose.yml` that a lazy deployer will never change** —
-  `POSTGRES_PASSWORD` defaults to `flowforge` if unset (line ~10); `FLOWER_BASIC_AUTH` defaults to
-  `admin:changeme` (line ~99) on a port exposed to the host. Fail loudly (compose `${VAR:?error}`
-  syntax) instead of silently defaulting for both.
-- [ ] **`/dashboard/summary` runs an unbounded query, polled every 3-5s per open tab** —
-  `flowforge/api/routes/runs.py:64-99` queries *every* `PipelineRun` row for every accessible
-  pipeline with no `LIMIT`, then truncates to 14/pipeline in Python. On any deployment with real run
-  history (no retention configured, or just months of use) this becomes a full-table scan pulled
-  into memory every few seconds per open dashboard tab. Push the per-pipeline-14-rows truncation
-  into the SQL query (window function or per-pipeline subquery + `LIMIT`), not Python.
-- [ ] **`/pipelines` list endpoint has no pagination** — `flowforge/api/routes/pipelines.py:161-170`
-  returns every pipeline in a project unbounded, unlike `/runs` and `/audit-logs` which both
-  paginate correctly. Add the same `limit`/`offset` pattern.
-- [ ] **Plugin loader has no runtime trust enforcement** — `flowforge/engine/loader.py:126-160`
-  `exec_module`s any `.py` file in `FLOWFORGE_PLUGIN_DIR` with full process privileges; the
-  admin-only trust boundary is documented only in a docstring, not enforced in code. At minimum,
-  check the directory isn't world/group-writable before loading from it, and log loudly if it is.
+  making every session token forgeable by anyone who knows the algorithm (same file). Fixed:
+  `create_app()` now calls `_validate_secret()` on both (raises `RuntimeError`, not just a log) if
+  either is unset or under 32 characters — the length floor alone rejects every realistic
+  human-typed placeholder (`changeme`, `secret`, `password` are all under 32 chars) without an
+  entropy heuristic, which would've flagged the test suite's own intentionally-simple dummy keys
+  (`'a' * 64`). Also made `flowforge/crypto.py`'s existing 32-byte format check run eagerly at boot
+  (`crypto._key()` called directly in `create_app()`) instead of only on first
+  `encrypt()`/`decrypt()`. 4 new tests in `tests/test_app_coverage.py`; full suite (2099 tests) still
+  green.
+- [x] **Docker image runs as root** *(2026-07-24)* — `Dockerfile` now creates a non-root
+  `flowforge` user/group (uid/gid 1000) and switches to it via `USER flowforge` after `output/` and
+  `logs/` are created and `chown -R`'d. Verified: image builds, `whoami`/`id` report the non-root
+  user, `output/` is writable, gunicorn boots cleanly with all 4 workers and `/api/health` responds
+  `{"status":"ok"}` under the new user.
+- [x] **Weak defaults in `docker-compose.yml` that a lazy deployer will never change** *(2026-07-24)* —
+  `POSTGRES_PASSWORD` and `FLOWER_BASIC_AUTH` now use compose's `${VAR:?message}` required-variable
+  syntax instead of `${VAR:-weak-default}`, so `docker compose up` refuses to start with a clear
+  error if either is unset, rather than silently defaulting to `flowforge` / `admin:changeme`.
+  Verified via `docker compose config` both failing (unset) and succeeding (set). `.env.example`
+  comments updated to say REQUIRED. This repo's own local `.env` didn't have either set — confirms
+  the gap was real, not hypothetical.
+- [x] **`/dashboard/summary` runs an unbounded query, polled every 3-5s per open tab** *(2026-07-24)* —
+  `flowforge/api/routes/runs.py`'s `dashboard_summary()` now ranks runs per-pipeline in SQL with a
+  `ROW_NUMBER() OVER (PARTITION BY pipeline_id ORDER BY started_at DESC)` window function
+  (`sqlalchemy.orm.aliased` on the ranked subquery) and filters `rn <= 14` in the database, instead
+  of fetching every `PipelineRun` row for every accessible pipeline and truncating to 14/pipeline in
+  Python. New test creates 20 runs for one pipeline and confirms exactly the 14 most recent come
+  back, most-recent-first.
+- [x] **`/pipelines` list endpoint has no pagination** *(2026-07-24)* — added the same `limit`
+  (capped at 500, matching `/runs`) / `offset` pattern used elsewhere; still returns a bare JSON
+  array (no response-shape change) so the frontend's existing `getPipelines()` call needed no
+  changes. 3 new tests cover the cap, an explicit small limit, and offset skipping.
+- [x] **Plugin loader has no runtime trust enforcement** *(2026-07-24)* — added
+  `_world_or_group_writable()` (POSIX-only; Windows' `os.stat()` doesn't model real per-owner
+  permissions so the check always returns `False` there rather than false-positiving on every file).
+  `_load_directory_plugins()` now logs a loud `SECURITY:` warning if `FLOWFORGE_PLUGIN_DIR` itself is
+  group/world-writable, and **refuses to load** (logs an error, skips) any individual `.py` file
+  that is group/world-writable, rather than only documenting the admin-only trust boundary in a
+  docstring. 7 new tests, including a Windows-specific regression test (an obviously-writable mode
+  bit is still ignored on `os.name == 'nt'`) since the naive version of this check broke every
+  plugin-loader test on this dev machine before being scoped to POSIX.
 
 ## High Priority (refactoring & scalability)
 

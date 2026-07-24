@@ -132,3 +132,51 @@ def test_jwt_fallback_warning_emitted_without_jwt_secret():
                         'RATELIMIT_ENABLED': False})
         # May or may not emit depending on whether FLOWFORGE_SECRET_KEY is set
         # The important thing is that no exception is raised
+
+
+# ── Boot-time secret validation ─────────────────────────────────────────────
+
+def _db_url():
+    return os.environ.get(
+        'FLOWFORGE_DB_URL', 'postgresql://flowforge:testpass@localhost:5432/flowforge_test'
+    )
+
+
+def test_boot_fails_with_empty_secret_key():
+    import pytest
+
+    from flowforge.api.app import create_app
+    with pytest.raises(RuntimeError, match='FLOWFORGE_SECRET_KEY is not set'):
+        create_app({'TESTING': True, 'SQLALCHEMY_DATABASE_URI': _db_url(),
+                    'SECRET_KEY': '', 'JWT_SECRET': 'b' * 64,
+                    'RATELIMIT_ENABLED': False})
+
+
+def test_boot_fails_with_short_secret_key():
+    import pytest
+
+    from flowforge.api.app import create_app
+    with pytest.raises(RuntimeError, match='too short'):
+        create_app({'TESTING': True, 'SQLALCHEMY_DATABASE_URI': _db_url(),
+                    'SECRET_KEY': 'changeme', 'JWT_SECRET': 'b' * 64,
+                    'RATELIMIT_ENABLED': False})
+
+
+def test_boot_fails_with_empty_jwt_secret_even_with_valid_secret_key():
+    # A valid SECRET_KEY does not excuse an explicitly-empty JWT_SECRET — this is
+    # the exact scenario that used to sign JWTs with an empty-string key.
+    import pytest
+
+    from flowforge.api.app import create_app
+    with pytest.raises(RuntimeError, match='FLOWFORGE_JWT_SECRET is not set'):
+        create_app({'TESTING': True, 'SQLALCHEMY_DATABASE_URI': _db_url(),
+                    'SECRET_KEY': 'a' * 64, 'JWT_SECRET': '',
+                    'RATELIMIT_ENABLED': False})
+
+
+def test_boot_succeeds_with_valid_secrets():
+    from flowforge.api.app import create_app
+    app = create_app({'TESTING': True, 'SQLALCHEMY_DATABASE_URI': _db_url(),
+                       'SECRET_KEY': 'a' * 64, 'JWT_SECRET': 'b' * 64,
+                       'RATELIMIT_ENABLED': False})
+    assert app is not None

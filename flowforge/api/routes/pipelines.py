@@ -167,6 +167,13 @@ def list_pipelines():
         if not can_access_project(project_id):
             return jsonify(ACCESS_DENIED), 403
         query = query.filter(Pipeline.project_id == project_id)
+
+    # Capped like /runs and /audit-logs — was previously unbounded, returning
+    # every pipeline in a project with no LIMIT.
+    limit  = min(int(request.args.get('limit', 500)), 500)
+    offset = max(int(request.args.get('offset', 0)), 0)
+    query = query.offset(offset).limit(limit)
+
     return jsonify([_pipeline_dict(p) for p in query.all()])
 
 

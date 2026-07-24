@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_DB: flowforge
       POSTGRES_USER: flowforge
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-flowforge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env -- see .env.example}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -34,7 +34,7 @@ services:
       - path: .env
         required: false
     environment:
-      FLOWFORGE_DB_URL: postgresql://flowforge:${POSTGRES_PASSWORD:-flowforge}@db:5432/flowforge
+      FLOWFORGE_DB_URL: postgresql://flowforge:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env -- see .env.example}@db:5432/flowforge
       FLOWFORGE_REDIS_URL: redis://redis:6379/0
     depends_on:
       db:
@@ -58,7 +58,7 @@ services:
       - path: .env
         required: false
     environment:
-      FLOWFORGE_DB_URL: postgresql://flowforge:${POSTGRES_PASSWORD:-flowforge}@db:5432/flowforge
+      FLOWFORGE_DB_URL: postgresql://flowforge:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env -- see .env.example}@db:5432/flowforge
       FLOWFORGE_REDIS_URL: redis://redis:6379/0
     depends_on:
       app:
@@ -74,7 +74,7 @@ services:
       - path: .env
         required: false
     environment:
-      FLOWFORGE_DB_URL: postgresql://flowforge:${POSTGRES_PASSWORD:-flowforge}@db:5432/flowforge
+      FLOWFORGE_DB_URL: postgresql://flowforge:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env -- see .env.example}@db:5432/flowforge
       FLOWFORGE_REDIS_URL: redis://redis:6379/0
     depends_on:
       db:
@@ -96,8 +96,8 @@ services:
         required: false
     environment:
       CELERY_BROKER_URL: redis://redis:6379/0
-      FLOWER_BASIC_AUTH: ${FLOWER_BASIC_AUTH:-admin:changeme}
-      FLOWFORGE_DB_URL: postgresql://flowforge:${POSTGRES_PASSWORD:-flowforge}@db:5432/flowforge
+      FLOWER_BASIC_AUTH: ${FLOWER_BASIC_AUTH:?set FLOWER_BASIC_AUTH (user:pass) in .env -- see .env.example}
+      FLOWFORGE_DB_URL: postgresql://flowforge:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env -- see .env.example}@db:5432/flowforge
       FLOWFORGE_REDIS_URL: redis://redis:6379/0
     depends_on:
       redis:
