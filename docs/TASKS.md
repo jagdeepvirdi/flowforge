@@ -287,10 +287,24 @@ else is real but not on fire.*
   index-naming mismatches confirmed identical against the original single-file version via `git
   show`, (3) full test suite (2120 tests, including the migration-heavy `apply_migrations` fixture)
   passes unchanged.
-- [ ] Introduce a service/repository layer between `flowforge/api/routes/*.py` and SQLAlchemy —
-  there is currently no `services/` directory anywhere; routes build queries inline and mix HTTP
-  concerns with business logic (`pipelines.py` at 774 lines is the worst offender: routing,
-  `_validate_cron`, `_pipeline_dict` serialization, and `_has_path` cycle detection all in one file).
+- [x] **Introduce a service/repository layer between `flowforge/api/routes/*.py` and SQLAlchemy**
+  *(2026-07-24, scoped to `pipelines.py` — the file this item named as the worst offender)* —
+  added `flowforge/api/pipeline_service.py` (cron validation, create/update/clone/promote/import
+  business logic, dependency-cycle detection, webhook token creation — all the multi-step
+  DB-mutating logic that was previously inlined in route bodies) following the same flat-module
+  convention already established by `project_access.py`/`validators.py` (no new package needed for
+  one domain). Moved `_pipeline_dict`/`_webhook_token_dict` into `serializers.py` alongside the
+  existing `run_dict`/`step_run_dict` — that file is specifically the home for pure model→dict
+  serialization, and a new `pipeline_export_dict()` was added there too for the YAML export
+  endpoint's doc-building, which was previously inlined in the route. `routes/pipelines.py` now
+  only does Blueprint wiring, request parsing, `can_access_project` authz checks, and
+  `jsonify(...)` responses — trivial single-statement `db.session.get()`/`delete()`/`commit()`
+  calls that exist purely to produce a 404/403 before any business logic runs were left in routes
+  deliberately, not moved. File went from 781 → 412 lines; no behavior change (same status codes,
+  JSON shapes, validation order). Full test suite (2120 tests) passes unchanged; no other module
+  imported the moved private helpers by path, so this was safe to do without touching call sites
+  elsewhere. Remaining route files (`runs.py`, `reports.py`, etc.) are unaffected — out of scope
+  for this pass, per the item's own framing.
 - [x] **Resolve the live circular dependency between `flowforge/engine/dag.py` and
   `flowforge/engine/runner.py`** *(2026-07-24)* — `dag.py` imported `PipelineResult`,
   `_CONTEXT_META_KEYS`, `_get_retry_config`, `_run_step_with_retry`, `_write_step_run` from
