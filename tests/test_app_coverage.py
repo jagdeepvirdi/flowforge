@@ -222,3 +222,48 @@ def test_no_warning_when_multi_worker_with_redis(monkeypatch, caplog):
                     'SECRET_KEY': 'a' * 64, 'JWT_SECRET': 'b' * 64,
                     'RATELIMIT_ENABLED': False})
     assert not any('CAPACITY' in r.message for r in caplog.records)
+
+
+# ── PERF-02: rate limiter storage backend ───────────────────────────────────
+#
+# These check app.config['RATELIMIT_STORAGE_URI'] — the value create_app() computes
+# and hands to flask-limiter — rather than the live `limiter.storage` object.
+# `limiter` is a module-level singleton shared with the session-scoped `app`/`client`
+# fixtures used across the whole test suite; flask-limiter only builds `_storage` when
+# RATELIMIT_ENABLED is true (see flask_limiter._extension.Limiter.init_app), and
+# leaving it enabled here would make the shared `client` fixture start enforcing real
+# rate limits (e.g. the `10 per minute` cap on triggering a run) for every other test
+# that runs afterward in the same session. Confirmed manually that FLOWFORGE_REDIS_URL
+# does resolve to a real `limits.storage.redis.RedisStorage` end-to-end when the
+# limiter is actually enabled (see PERF-02 task notes).
+
+def test_rate_limit_storage_uri_set_from_redis_url(monkeypatch):
+    """FLOWFORGE_REDIS_URL must route flask-limiter's counters through Redis —
+    otherwise each Gunicorn worker enforces the rate limit independently
+    (see the CAPACITY warning above), silently multiplying the real limit."""
+    monkeypatch.setenv('FLOWFORGE_REDIS_URL', 'redis://localhost:6379/0')
+    from flowforge.api.app import create_app
+    app = create_app({'TESTING': True, 'SQLALCHEMY_DATABASE_URI': _db_url(),
+                       'SECRET_KEY': 'a' * 64, 'JWT_SECRET': 'b' * 64,
+                       'RATELIMIT_ENABLED': False})
+    assert app.config.get('RATELIMIT_STORAGE_URI') == 'redis://localhost:6379/0'
+
+
+def test_rate_limit_storage_uri_unset_without_redis(monkeypatch):
+    monkeypatch.delenv('FLOWFORGE_REDIS_URL', raising=False)
+    from flowforge.api.app import create_app
+    app = create_app({'TESTING': True, 'SQLALCHEMY_DATABASE_URI': _db_url(),
+                       'SECRET_KEY': 'a' * 64, 'JWT_SECRET': 'b' * 64,
+                       'RATELIMIT_ENABLED': False})
+    assert app.config.get('RATELIMIT_STORAGE_URI') is None
+
+
+def test_rate_limit_storage_uri_explicit_override_wins(monkeypatch):
+    """An explicitly configured RATELIMIT_STORAGE_URI wins over the FLOWFORGE_REDIS_URL
+    default (create_app() uses setdefault, not a hard override)."""
+    monkeypatch.setenv('FLOWFORGE_REDIS_URL', 'redis://localhost:6379/0')
+    from flowforge.api.app import create_app
+    app = create_app({'TESTING': True, 'SQLALCHEMY_DATABASE_URI': _db_url(),
+                       'SECRET_KEY': 'a' * 64, 'JWT_SECRET': 'b' * 64,
+                       'RATELIMIT_ENABLED': False, 'RATELIMIT_STORAGE_URI': 'memory://'})
+    assert app.config.get('RATELIMIT_STORAGE_URI') == 'memory://'

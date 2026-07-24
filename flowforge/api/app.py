@@ -98,14 +98,17 @@ def create_app(config: dict | None = None) -> Flask:
     # N x the configured limit, not the limit. GUNICORN_WORKERS is set as a real
     # env var (not just a shell CLI default) whenever .env.example's documented
     # value flows through — see Dockerfile / docs/RUNBOOK.md's systemd units.
+    # PERF-02: the API rate limiter has the identical failure mode — flask-limiter
+    # defaults to in-memory counters, which reset independently per worker — so it
+    # shares this warning and the same FLOWFORGE_REDIS_URL fix below.
     gunicorn_workers = int(os.environ.get('GUNICORN_WORKERS', '1') or '1')
     if gunicorn_workers > 1 and not os.environ.get('FLOWFORGE_REDIS_URL'):
         app.logger.warning(
             'CAPACITY: GUNICORN_WORKERS=%d with no FLOWFORGE_REDIS_URL configured — '
-            'FLOWFORGE_MAX_CONCURRENT_RUNS is enforced per-process, so the real '
-            'deployment-wide concurrency ceiling is up to %d x the configured limit, '
-            'not the limit itself. Set FLOWFORGE_REDIS_URL for a distributed counter '
-            'that holds the limit across all workers.',
+            'FLOWFORGE_MAX_CONCURRENT_RUNS and API rate limits are both enforced '
+            'per-process, so the real deployment-wide ceiling for each is up to %d x the '
+            'configured limit, not the limit itself. Set FLOWFORGE_REDIS_URL for '
+            'Redis-backed counters that hold both limits across all workers.',
             gunicorn_workers, gunicorn_workers,
         )
 
@@ -114,6 +117,17 @@ def create_app(config: dict | None = None) -> Flask:
     num_proxies = int(os.environ.get('FLOWFORGE_TRUSTED_PROXIES', '0'))
     if num_proxies > 0:
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=num_proxies, x_proto=num_proxies, x_host=num_proxies)
+
+    # PERF-02: route rate-limit counters through the same Redis instance used for the
+    # distributed concurrency counter (engine/concurrency.py) and leader election
+    # (engine/leader.py), instead of flask-limiter's per-process in-memory default.
+    # Config, not the Limiter() constructor, because FLOWFORGE_REDIS_URL is only known
+    # at create_app() time — the module-level `limiter` above is constructed at import
+    # time, before any env var has been read. A test-provided RATELIMIT_STORAGE_URI in
+    # `config` (applied above) wins via setdefault.
+    redis_url = os.environ.get('FLOWFORGE_REDIS_URL', '')
+    if redis_url:
+        app.config.setdefault('RATELIMIT_STORAGE_URI', redis_url)
 
     db.init_app(app)
     limiter.init_app(app)

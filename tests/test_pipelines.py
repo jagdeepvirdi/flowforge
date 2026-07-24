@@ -54,6 +54,70 @@ def test_list_pipelines_offset_skips_results(client, headers, pipeline_id):
     assert offset_names == all_names[1:]
 
 
+def test_list_pipelines_does_not_n_plus_one(client, headers, app):
+    """Regression test for PERF-01.
+
+    serializers.pipeline_dict() walks each pipeline's steps, variables,
+    upstream_deps, and downstream_deps (each dependency also reads its linked
+    Pipeline's .name). Left unguarded, GET /api/pipelines issues one query per
+    relationship *per pipeline row*; with eager loading it must issue at most
+    one query per relationship for the whole page, regardless of row count.
+    """
+    import uuid
+
+    from sqlalchemy import event
+
+    from flowforge.db.models import db
+
+    created_ids = []
+    try:
+        for i in range(6):
+            resp = client.post('/api/pipelines', json={
+                'name': f'perf01-nplus1-{i}-{uuid.uuid4()}',
+                'variables': [{'var_key': 'v', 'var_value': str(i), 'is_secret': False}],
+            }, headers=headers)
+            assert resp.status_code == 201, resp.get_json()
+            pid = resp.get_json()['id']
+            created_ids.append(pid)
+            step_resp = client.post(f'/api/pipelines/{pid}/steps', json=STEP_PAYLOAD, headers=headers)
+            assert step_resp.status_code == 201, step_resp.get_json()
+
+        for downstream, upstream in zip(created_ids[1:], created_ids[:-1]):
+            dep_resp = client.post(f'/api/pipelines/{downstream}/dependencies',
+                                    json={'upstream_id': upstream}, headers=headers)
+            assert dep_resp.status_code == 201, dep_resp.get_json()
+
+        with app.app_context():
+            engine = db.engine
+
+        statements = []
+
+        def _capture(conn, cursor, statement, parameters, context, executemany):
+            statements.append(statement)
+
+        event.listen(engine, 'before_cursor_execute', _capture)
+        try:
+            resp = client.get('/api/pipelines?limit=500', headers=headers)
+        finally:
+            event.remove(engine, 'before_cursor_execute', _capture)
+
+        assert resp.status_code == 200
+
+        def _count(table):
+            return sum(1 for s in statements if table in s)
+
+        # selectinload issues one `WHERE pipeline_id IN (...)` (or equivalent)
+        # query per relationship for the whole page — not one per pipeline row.
+        assert _count('ff_pipeline_steps') <= 1, statements
+        assert _count('ff_pipeline_variables') <= 1, statements
+        # ff_pipeline_dependencies is queried twice: once for upstream_deps,
+        # once for downstream_deps (distinct FK directions on the same table).
+        assert _count('ff_pipeline_dependencies') <= 2, statements
+    finally:
+        for pid in created_ids:
+            client.delete(f'/api/pipelines/{pid}', headers=headers)
+
+
 def test_create_pipeline(client, headers):
     resp = client.post('/api/pipelines', json=PIPELINE_PAYLOAD, headers=headers)
     assert resp.status_code == 201

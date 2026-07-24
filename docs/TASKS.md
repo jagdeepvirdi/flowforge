@@ -115,7 +115,18 @@ entries.*
   `_secret()` now reads `JWT_SECRET` directly, no fallback. Updated `docs/deployment.md`'s env var reference table.
   Verified: a fault-injected non-TESTING boot with `FLOWFORGE_JWT_SECRET` unset now raises `RuntimeError` (was: silent
   boot); full test suite (2134 tests) passes unchanged since `conftest.py` always sets both secrets via env.
-- [ ] **PERF-01**: Eliminate N+1 query cascade in `/api/pipelines` serializer via joinedload (`flowforge/api/routes/pipelines.py`)
+- [x] **PERF-01**: Eliminate N+1 query cascade in `/api/pipelines` serializer via joinedload (`flowforge/api/routes/pipelines.py`)
+  *(2026-07-25)* — `serializers.pipeline_dict()` walks each pipeline's `steps`, `variables`, `upstream_deps`, and
+  `downstream_deps` (each dependency also reads its linked `Pipeline.name`), all lazy-loaded relationships — unguarded,
+  `GET /api/pipelines` issued up to 6 extra queries *per pipeline row*. Fixed: `list_pipelines()` now applies
+  `selectinload` for all four relationships (nesting a second `selectinload` for the dependency→Pipeline hop). Used
+  `selectinload`, not literal `joinedload` as originally worded — `joinedload`s LEFT JOIN semantics multiply rows when
+  more than one one-to-many collection is joined in the same query (the classic collection-joinedload "cartesian
+  explosion"); `selectinload` issues one extra `WHERE id IN (...)`-style query per relationship for the whole page
+  instead, so query count no longer scales with row count. Added `test_list_pipelines_does_not_n_plus_one` (asserts
+  `ff_pipeline_steps`/`ff_pipeline_variables` are queried at most once and `ff_pipeline_dependencies` at most twice for
+  a page of 6 pipelines each with a step/variable/dependency) — confirmed it fails without the fix (6 queries per
+  table) and passes with it. Full test suite (2138 tests) passes.
 - [x] **SEC-02**: Add deprecation warning and strict validation for blocklist-based env variable template exposure
   (`flowforge/engine/context.py`) *(2026-07-25)* — `_SafeEnv`'s blocklist mode (active whenever `FLOWFORGE_TEMPLATE_ENV_VARS`
   is unset) let templates read any env var except a hardcoded list — inherently unable to keep up with the next
@@ -128,7 +139,22 @@ entries.*
   standalone script; full test suite (2134 tests) passes unchanged.
 - [ ] **MAINT-01**: Abstract database-specific drivers (psycopg2 vs cx_Oracle vs PyMySQL) behind a unified DB abstraction layer rather than checking engine strings inside step runners (`flowforge/steps/bulk_load.py`)
 - [ ] **MAINT-02**: Introduce OpenAPI/Swagger schema generator or TypeScript API client generator to sync backend Flask responses with frontend Zustand/React Query state definitions (`frontend/src/lib/api.ts`)
-- [ ] **PERF-02**: Implement Redis-backed distributed concurrency locks & rate limiting to replace in-memory process-local semaphores (`flowforge/engine/concurrency.py`)
+- [x] **PERF-02**: Implement Redis-backed distributed concurrency locks & rate limiting to replace in-memory
+  process-local semaphores (`flowforge/engine/concurrency.py`) *(2026-07-25)* — the distributed concurrency counter
+  (Redis sorted set, fail-open/fail-closed via `FLOWFORGE_CONCURRENCY_FAIL_CLOSED`) already existed in this file; the
+  gap was the API rate limiter (`flowforge/api/app.py`'s `limiter`, Flask-Limiter), which had no `storage_uri`
+  configured and so defaulted to per-process in-memory counters — the identical multi-worker failure mode already
+  flagged for the concurrency semaphore (`GUNICORN_WORKERS × limit`, not the configured limit), just not fixed for
+  rate limiting yet. Fixed: `create_app()` now sets `RATELIMIT_STORAGE_URI` from `FLOWFORGE_REDIS_URL` (via
+  `setdefault`, so an explicit `RATELIMIT_STORAGE_URI` still wins) before `limiter.init_app(app)`, reusing the same
+  Redis instance as the concurrency counter and leader election. Extended the existing `CAPACITY:` startup warning to
+  cover both. Also added a standalone `redis` extra to `pyproject.toml` (concurrency/leader-election/rate-limiting all
+  depend on the `redis` package independent of Celery; previously only reachable via the `celery` extra). Verified
+  end-to-end with a real local Redis that `limiter.storage` resolves to `limits.storage.redis.RedisStorage` when
+  `FLOWFORGE_REDIS_URL` is set, and `limits.storage.memory.MemoryStorage` otherwise; added
+  `test_rate_limit_storage_uri_set_from_redis_url` / `..._unset_without_redis` / `..._explicit_override_wins`
+  (asserting on `app.config['RATELIMIT_STORAGE_URI']` rather than the live singleton — see test file comment for why).
+  Updated `docs/RUNBOOK.md`. Full test suite (2138 tests) passes.
 
 ## Phase 5 — Go-To-Market (P1 — Visibility)
 

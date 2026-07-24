@@ -86,6 +86,14 @@ sftp = [
 mssql = [
     "pyodbc>=5.0",
 ]
+# Redis-backed distributed concurrency counter (engine/concurrency.py), leader
+# election (engine/leader.py), and API rate limiting (api/app.py) — all three
+# activate on FLOWFORGE_REDIS_URL independent of Celery. `celery` below already
+# pulls this in via celery[redis]; this extra is for FLOWFORGE_REDIS_URL users
+# who don't want the Celery task queue.
+redis = [
+    "redis>=5.0",
+]
 celery = [
     "celery[redis]>=5.6",
 ]

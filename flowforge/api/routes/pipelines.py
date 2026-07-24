@@ -1,6 +1,7 @@
 from datetime import UTC
 
 from flask import Blueprint, jsonify, request
+from sqlalchemy.orm import selectinload
 
 from flowforge import audit
 from flowforge.api import pipeline_service, serializers
@@ -32,6 +33,21 @@ def list_pipelines():
     limit  = min(int(request.args.get('limit', 500)), 500)
     offset = max(int(request.args.get('offset', 0)), 0)
     query = query.offset(offset).limit(limit)
+
+    # PERF-01: serializers.pipeline_dict() walks steps/variables/upstream_deps/
+    # downstream_deps (plus each dependency's linked Pipeline for its .name) per
+    # pipeline. Left unguarded that's an N+1 cascade — up to 6 extra queries per
+    # row on a list endpoint. selectinload issues one extra `WHERE id IN (...)`
+    # query per relationship for the whole page instead, so the query count stays
+    # fixed regardless of page size. (Not joinedload: LEFT JOINing multiple
+    # one-to-many collections in a single query multiplies rows — the classic
+    # collection-joinedload "cartesian explosion" — selectinload avoids that.)
+    query = query.options(
+        selectinload(Pipeline.steps),
+        selectinload(Pipeline.variables),
+        selectinload(Pipeline.upstream_deps).selectinload(PipelineDependency.upstream),
+        selectinload(Pipeline.downstream_deps).selectinload(PipelineDependency.downstream),
+    )
 
     return jsonify([serializers.pipeline_dict(p) for p in query.all()])
 
