@@ -3,6 +3,7 @@ import logging
 from flask import Blueprint, jsonify, request
 
 import flowforge.audit as audit
+from flowforge.api.app import limiter
 from flowforge.api.auth import require_auth, require_role
 from flowforge.api.project_access import ACCESS_DENIED, can_access_project, scope_query
 from flowforge.api.validators import validate_report
@@ -177,6 +178,7 @@ def clone_report_config(config_id):
 
 @bp.post('/report-configs/<uuid:config_id>/preview')
 @require_auth
+@limiter.limit('20 per minute')
 def preview_report(config_id):
     """Run the report query and return the first 20 rows for UI preview."""
     config = db.session.get(ReportConfig, str(config_id))

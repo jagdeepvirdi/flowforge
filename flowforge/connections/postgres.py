@@ -21,7 +21,8 @@ class PostgreSQLConnection(BaseConnection):
         key = (host, port, database, user, password)
         if key not in _pools:
             _pools[key] = pool.ThreadedConnectionPool(
-                1, 5, host=host, port=port, database=database, user=user, password=password
+                1, 5, host=host, port=port, database=database, user=user, password=password,
+                connect_timeout=5,
             )
             logger.debug("Created connection pool for %s:%s/%s", host, port, database)
         self._pool = _pools[key]

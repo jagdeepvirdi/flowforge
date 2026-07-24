@@ -54,6 +54,20 @@ def _redis_url() -> str:
     return os.environ.get('FLOWFORGE_REDIS_URL', '')
 
 
+def _fail_open_on_redis_error() -> bool:
+    """Default true (existing, load-tested behavior — see the module docstring
+    and tests/test_concurrency_failure_injection.py): a Redis outage shouldn't
+    block every pipeline run deployment-wide. Set
+    FLOWFORGE_CONCURRENCY_FAIL_CLOSED=true to instead deny new runs while
+    Redis is unreachable, trading availability for a hard concurrency
+    guarantee during exactly the kind of infra incident that also tends to
+    stress the database.
+    """
+    return os.environ.get('FLOWFORGE_CONCURRENCY_FAIL_CLOSED', '').strip().lower() not in (
+        'true', '1', 'yes', 'on',
+    )
+
+
 def try_acquire() -> str | None:
     """Reserve a concurrency slot. Returns an opaque token to pass to release(),
     or None if the deployment is already at FLOWFORGE_MAX_CONCURRENT_RUNS."""
@@ -143,9 +157,21 @@ def _try_acquire_redis(redis_url: str) -> str | None:
         )
         return token if acquired == 1 else None
     except Exception:
-        # Fail-open: a Redis outage shouldn't block pipeline execution entirely.
-        logger.exception("Redis concurrency check failed for %s — allowing run through", redis_url)
-        return _REDIS_DOWN_TOKEN
+        if _fail_open_on_redis_error():
+            # Fail-open (default): a Redis outage shouldn't block pipeline execution entirely.
+            logger.exception(
+                "CAPACITY: Redis concurrency check failed for %s — allowing run through "
+                "unmetered (fail-open). Set FLOWFORGE_CONCURRENCY_FAIL_CLOSED=true to deny "
+                "new runs instead during a Redis outage.",
+                redis_url,
+            )
+            return _REDIS_DOWN_TOKEN
+        logger.exception(
+            "CAPACITY: Redis concurrency check failed for %s — denying run "
+            "(FLOWFORGE_CONCURRENCY_FAIL_CLOSED=true).",
+            redis_url,
+        )
+        return None
 
 
 def _release_redis(redis_url: str, token: str) -> None:

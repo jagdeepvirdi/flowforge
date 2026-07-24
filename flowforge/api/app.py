@@ -95,6 +95,23 @@ def create_app(config: dict | None = None) -> Flask:
     from flowforge import crypto
     crypto._key()  # noqa: SLF001 — deliberate boot-time check of the same private helper crypto.py uses internally
 
+    # CAPACITY: without Redis, FLOWFORGE_MAX_CONCURRENT_RUNS is enforced by a
+    # threading.Semaphore local to this one process (see engine/concurrency.py) —
+    # correct for a single Gunicorn worker, but N workers silently give you
+    # N x the configured limit, not the limit. GUNICORN_WORKERS is set as a real
+    # env var (not just a shell CLI default) whenever .env.example's documented
+    # value flows through — see Dockerfile / docs/RUNBOOK.md's systemd units.
+    gunicorn_workers = int(os.environ.get('GUNICORN_WORKERS', '1') or '1')
+    if gunicorn_workers > 1 and not os.environ.get('FLOWFORGE_REDIS_URL'):
+        app.logger.warning(
+            'CAPACITY: GUNICORN_WORKERS=%d with no FLOWFORGE_REDIS_URL configured — '
+            'FLOWFORGE_MAX_CONCURRENT_RUNS is enforced per-process, so the real '
+            'deployment-wide concurrency ceiling is up to %d x the configured limit, '
+            'not the limit itself. Set FLOWFORGE_REDIS_URL for a distributed counter '
+            'that holds the limit across all workers.',
+            gunicorn_workers, gunicorn_workers,
+        )
+
     # ProxyFix — unwraps X-Forwarded-For so the rate limiter sees the real client IP (SEC-3)
     # Set FLOWFORGE_TRUSTED_PROXIES=1 when running behind nginx/Traefik/ALB/etc.
     num_proxies = int(os.environ.get('FLOWFORGE_TRUSTED_PROXIES', '0'))

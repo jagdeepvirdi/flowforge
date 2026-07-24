@@ -34,6 +34,7 @@ class OracleConnection(BaseConnection):
                 min=1,
                 max=5,
                 increment=1,
+                tcp_connect_timeout=5,
             )
             logger.debug("Created Oracle pool for %s:%s/%s", host, port, service_name)
         self._pool = _pools[key]

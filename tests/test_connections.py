@@ -136,6 +136,7 @@ def test_test_raw_oracle_success(client, headers):
         assert resp.status_code == 200
         assert resp.get_json()['success'] is True
         mock_oracledb.connect.assert_called_once()
+        assert mock_oracledb.connect.call_args.kwargs.get('tcp_connect_timeout') == 5
 
 def test_test_raw_oracle_missing_module(client, headers):
     with patch.dict('sys.modules', {'oracledb': None}):

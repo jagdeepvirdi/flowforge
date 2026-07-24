@@ -180,3 +180,45 @@ def test_boot_succeeds_with_valid_secrets():
                        'SECRET_KEY': 'a' * 64, 'JWT_SECRET': 'b' * 64,
                        'RATELIMIT_ENABLED': False})
     assert app is not None
+
+
+# ── Multi-worker-without-Redis capacity warning ─────────────────────────────
+
+def test_warns_when_multi_worker_without_redis(monkeypatch, caplog):
+    import logging
+
+    monkeypatch.setenv('GUNICORN_WORKERS', '4')
+    monkeypatch.delenv('FLOWFORGE_REDIS_URL', raising=False)
+    from flowforge.api.app import create_app
+    with caplog.at_level(logging.WARNING):
+        create_app({'TESTING': True, 'SQLALCHEMY_DATABASE_URI': _db_url(),
+                    'SECRET_KEY': 'a' * 64, 'JWT_SECRET': 'b' * 64,
+                    'RATELIMIT_ENABLED': False})
+    assert any('CAPACITY' in r.message and 'GUNICORN_WORKERS=4' in r.message
+               for r in caplog.records)
+
+
+def test_no_warning_when_single_worker(monkeypatch, caplog):
+    import logging
+
+    monkeypatch.setenv('GUNICORN_WORKERS', '1')
+    monkeypatch.delenv('FLOWFORGE_REDIS_URL', raising=False)
+    from flowforge.api.app import create_app
+    with caplog.at_level(logging.WARNING):
+        create_app({'TESTING': True, 'SQLALCHEMY_DATABASE_URI': _db_url(),
+                    'SECRET_KEY': 'a' * 64, 'JWT_SECRET': 'b' * 64,
+                    'RATELIMIT_ENABLED': False})
+    assert not any('CAPACITY' in r.message for r in caplog.records)
+
+
+def test_no_warning_when_multi_worker_with_redis(monkeypatch, caplog):
+    import logging
+
+    monkeypatch.setenv('GUNICORN_WORKERS', '4')
+    monkeypatch.setenv('FLOWFORGE_REDIS_URL', 'redis://localhost:6379/0')
+    from flowforge.api.app import create_app
+    with caplog.at_level(logging.WARNING):
+        create_app({'TESTING': True, 'SQLALCHEMY_DATABASE_URI': _db_url(),
+                    'SECRET_KEY': 'a' * 64, 'JWT_SECRET': 'b' * 64,
+                    'RATELIMIT_ENABLED': False})
+    assert not any('CAPACITY' in r.message for r in caplog.records)

@@ -36,6 +36,17 @@ def _build():
     return c, mock_conn, mock_cursor
 
 
+def test_pool_created_with_connect_timeout():
+    """Without a connect_timeout, opening a pool against a dead host hangs for
+    the OS-level TCP timeout (minutes) instead of failing fast."""
+    with patch('psycopg2.pool.ThreadedConnectionPool', return_value=MagicMock()) as mock_pool_cls:
+        from flowforge.connections.postgres import PostgreSQLConnection
+        PostgreSQLConnection(host='h', database='d', user='u', password='p')
+
+    _, kwargs = mock_pool_cls.call_args
+    assert kwargs.get('connect_timeout') == 5
+
+
 class TestPostgreSQLExecuteProcedure:
 
     def test_builds_call_sql(self):

@@ -282,14 +282,14 @@ else is real but not on fire.*
   function-body imports (66 counted across the package via `grep -rn "^    from flowforge"`,
   concentrated exactly where you'd expect a layering problem: `runner.py:240,270,284`,
   `loader.py`, `bulk_load.py`, `scheduler.py`).
-- [ ] Fix the concurrency semaphore's multi-worker blind spot — `flowforge/engine/concurrency.py`
-  falls back to a per-process `threading.Semaphore(5)` without Redis, meaning N Gunicorn workers
-  give you N×5 effective concurrent runs, not 5. The shipped `docker-compose.yml` sets
-  `FLOWFORGE_REDIS_URL` by default so this only bites bare-metal/no-Redis deployments — but it
-  should at least log a loud startup warning when running multi-worker without Redis configured.
-  Separately, reconsider `_try_acquire_redis`'s fail-open behavior on Redis errors
-  (`concurrency.py:129-148`) — failing open removes the concurrency cap entirely during exactly the
-  kind of infra hiccup that also stresses the DB.
+- [x] **Fix the concurrency semaphore's multi-worker blind spot** *(2026-07-24)* —
+  `flowforge/engine/concurrency.py` falls back to a per-process `threading.Semaphore(5)` without
+  Redis, meaning N Gunicorn workers give you N×5 effective concurrent runs, not 5. Fixed: `create_app()`
+  now logs a `CAPACITY:` warning at startup when `GUNICORN_WORKERS > 1` and `FLOWFORGE_REDIS_URL` is
+  unset (3 new tests cover warn/no-warn cases). Separately, `_try_acquire_redis`'s fail-open behavior
+  on Redis errors is deliberate and load-tested (`tests/test_concurrency_failure_injection.py`), so
+  rather than flipping the default, added an opt-in `FLOWFORGE_CONCURRENCY_FAIL_CLOSED=true` env var
+  for operators who'd rather deny new runs than risk extra DB load during a Redis outage (2 new tests).
 - [ ] Add leader-election or a distributed lock to `flowforge/engine/scheduler.py`'s
   `BlockingScheduler` — scaling the `scheduler` service past 1 replica (or running multiple app
   instances behind a load balancer without isolating the scheduler) causes every replica to
@@ -301,17 +301,16 @@ else is real but not on fire.*
   writing; `bulk_load.py`/`data_load.py` load entire source files into memory (`list(csv.reader())`,
   `readlines()`) before any chunking — only the INSERT side is chunked. A multi-million-row query or
   multi-GB CSV will OOM a worker well before any user-count concern.
-- [ ] Add connect timeouts to the connection-pool creation paths in `flowforge/connections/postgres.py`
-  and `oracle.py` — testing or opening a connection against a dead/blackholed host currently hangs
-  for the OS-level TCP timeout (minutes), not the 5s timeout that the ad-hoc `test-raw` path already
-  sets correctly. Oracle's `test-raw` branch (`connections.py:148-152`) is missing a timeout param
-  entirely.
-- [ ] Extend rate limiting beyond the 3 current `@limiter.limit` sites (login, `trigger_run`,
-  webhook trigger). `flowforge/api/routes/ai.py`'s four endpoints (`data_profile`, `chart_config`,
-  `ai_query`, `anomaly_narrative`) are `@require_auth`-only and fall back to paid
-  Claude/Gemini calls when Ollama is unreachable — a cost-DoS vector for any authenticated viewer.
-  `reports.py`'s `preview_report` (runs arbitrary stored SQL, string-concatenated `LIMIT 20`, no
-  query timeout) is equally unlimited.
+- [x] **Add connect timeouts to the connection-pool creation paths** *(2026-07-24)* — added
+  `connect_timeout=5` to `postgres.py`'s `ThreadedConnectionPool` and `tcp_connect_timeout=5` to
+  `oracle.py`'s `create_pool` and to the `test-raw` endpoint's `oracledb.connect()` call (the one
+  branch that had no timeout at all, unlike every other `db_type` in that function). 3 new tests
+  assert the kwarg is actually passed through.
+- [x] **Extend rate limiting beyond the 3 current `@limiter.limit` sites** *(2026-07-24)* — added
+  `@limiter.limit('20 per minute')` to all 4 `flowforge/api/routes/ai.py` endpoints (`data_profile`,
+  `chart_config`, `ai_query`, `anomaly_narrative` — the cost-DoS vector via paid Claude/Gemini
+  fallback) and to `reports.py`'s `preview_report` (arbitrary stored SQL execution). Matches the
+  existing `pipelines.py` pattern exactly (`from flowforge.api.app import limiter`).
 - [ ] Break up `flowforge/engine/runner.py` (586 lines: orchestration, retry logic, variable
   exposure, wave-building, webhook firing, and the `_notify_devbrain` external integration all in
   one module) into focused modules.
@@ -324,9 +323,11 @@ else is real but not on fire.*
   `[1.2.0]: ...compare/v1.1.0...v1.2.0` changelog link with no corresponding tag. Cut a real
   `v1.2.0` release; the `release.yml`/`publish.yml` tooling is already correctly built (SLSA
   provenance, PyPI OIDC) — it's just not being used.
-- [ ] Make `.github/workflows/secrets-scan.yml` a blocking gate — it currently runs with
-  `continue-on-error: true`, so a real secret leak wouldn't actually stop a merge; right now it's
-  advisory, not a gate.
+- [x] **Make `.github/workflows/secrets-scan.yml` a blocking gate** *(2026-07-24)* — removed
+  `continue-on-error: true` from the TruffleHog step. Note: this is a one-line change I could verify
+  parses as valid YAML but couldn't execute (no local GitHub Actions runner) — worth watching the
+  next PR's checks to confirm nothing in this repo's history trips `--only-verified` now that it's
+  blocking.
 
 ## Nice-to-Have (polish & optimization)
 

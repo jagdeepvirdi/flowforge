@@ -138,6 +138,16 @@ def test_create_pool_min_max_increment(mock_oracledb):
     assert kwargs['increment'] == 1
 
 
+def test_create_pool_sets_tcp_connect_timeout(mock_oracledb):
+    """Without a timeout, opening a pool against a dead host hangs for the
+    OS-level TCP timeout (minutes) instead of failing fast."""
+    fake_oracledb, _pool, _conn = mock_oracledb
+    from flowforge.connections.oracle import OracleConnection
+    OracleConnection('host', 1521, 'svc', 'user', 'pass')
+    kwargs = fake_oracledb.create_pool.call_args.kwargs
+    assert kwargs['tcp_connect_timeout'] == 5
+
+
 def test_autocommit_disabled_on_acquire(mock_oracledb):
     """Acquired connection must have autocommit = False."""
     _fake, _pool, fake_conn = mock_oracledb

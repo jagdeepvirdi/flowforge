@@ -149,6 +149,7 @@ def test_connection_raw():
                 user=user,
                 password=password,
                 dsn=f"{host}:{port}/{service_name}",
+                tcp_connect_timeout=5,
             )
             with conn.cursor() as cur:
                 cur.execute("SELECT 1 FROM DUAL")

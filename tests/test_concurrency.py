@@ -102,6 +102,27 @@ def test_redis_unreachable_fails_open(monkeypatch):
     assert token is not None
 
 
+def test_redis_unreachable_denies_when_fail_closed(monkeypatch):
+    """FLOWFORGE_CONCURRENCY_FAIL_CLOSED=true opts out of the default fail-open
+    behavior — a Redis outage should deny new runs instead of letting them
+    through unmetered."""
+    monkeypatch.setenv('FLOWFORGE_REDIS_URL', 'redis://localhost:6379/0')
+    monkeypatch.setenv('FLOWFORGE_CONCURRENCY_FAIL_CLOSED', 'true')
+    client = MagicMock()
+    client.eval.side_effect = ConnectionError('boom')
+    redis_mod = ModuleType('redis')
+    redis_mod.from_url = MagicMock(return_value=client)
+    monkeypatch.setitem(sys.modules, 'redis', redis_mod)
+    from flowforge.engine.concurrency import try_acquire
+    assert try_acquire() is None
+
+
+def test_fail_closed_env_var_is_off_by_default(monkeypatch):
+    from flowforge.engine.concurrency import _fail_open_on_redis_error
+    monkeypatch.delenv('FLOWFORGE_CONCURRENCY_FAIL_CLOSED', raising=False)
+    assert _fail_open_on_redis_error() is True
+
+
 def test_redis_release_calls_zrem(monkeypatch):
     monkeypatch.setenv('FLOWFORGE_REDIS_URL', 'redis://localhost:6379/0')
     redis_mod, client = _mock_redis_module(1)

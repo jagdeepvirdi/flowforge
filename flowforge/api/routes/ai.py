@@ -10,6 +10,7 @@ import urllib.request
 
 from flask import Blueprint, jsonify, request
 
+from flowforge.api.app import limiter
 from flowforge.api.auth import require_auth
 from flowforge.steps.ai_analyze import _call_claude, _call_gemini
 
@@ -92,6 +93,7 @@ def _generate_text(prompt: str, model: str, *, json_mode: bool = True, timeout: 
 
 @bp.post('/ai/data-profile')
 @require_auth
+@limiter.limit('20 per minute')
 def data_profile():
     """Summarise a sample dataset: value ranges, nulls, outliers, key suspicion."""
     data = request.get_json() or {}
@@ -133,6 +135,7 @@ def data_profile():
 
 @bp.post('/ai/chart-config')
 @require_auth
+@limiter.limit('20 per minute')
 def chart_config():
     """Ask Ollama to suggest the best chart type and axes for a column/row sample."""
     data = request.get_json() or {}
@@ -192,6 +195,7 @@ def chart_config():
 
 @bp.post('/ai/query')
 @require_auth
+@limiter.limit('20 per minute')
 def ai_query():
     """General-purpose AI text endpoint for SQL tasks (explain, optimize, diagnose)."""
     data = request.get_json() or {}
@@ -240,6 +244,7 @@ def ai_query():
 
 @bp.post('/ai/anomaly-narrative')
 @require_auth
+@limiter.limit('20 per minute')
 def anomaly_narrative():
     """Generate a one-sentence plain-English explanation for a detected run anomaly."""
     data      = request.get_json() or {}
