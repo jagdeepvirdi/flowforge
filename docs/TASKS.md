@@ -208,3 +208,135 @@ build any of them out.*
   cosign-signed releases) — see "Medium priority" above and `ROADMAP.md`'s "In progress" / "Not yet
   built" sections
 
+---
+
+---
+
+# Phase 13 — Architect/VC Audit Hit-List (2026-07-24)
+
+*From a brutal, evidence-based architecture/security/performance/market-readiness audit run against
+the actual code (not docs) across four independent passes. Every item below cites the file/behavior
+that was actually verified — this is not a generic checklist. Scores from the same audit: Architecture
+6/10, Code Quality 7/10, Security 3/10, Test Coverage 6/10, Scalability 5/10, DevOps/CI 8/10, Moat 3/10,
+Documentation 8/10 — overall 6/10. The one showstopper is the JWT/secret-key item below; everything
+else is real but not on fire.*
+
+## Critical (fix immediately / showstoppers)
+
+- [ ] **`SECRET_KEY`/`JWT_SECRET` have no startup validation and can silently be empty** —
+  `flowforge/api/app.py:46-60` reads both via `os.environ.get(..., '')`; `JWT_SECRET` falls back to
+  `SECRET_KEY`, and if both are unset the app boots fine and signs HS256 JWTs with an empty key,
+  making every session token forgeable by anyone who knows the algorithm (same file). Fix: make
+  `create_app()` refuse to start (raise, not just log) if either secret is unset, empty, below a
+  minimum length (32 bytes), or matches an obvious placeholder (`changeme`, `secret`, `password`,
+  etc.). `flowforge/crypto.py:14-25` already has the length check for the encryption key — it just
+  needs to run eagerly at boot instead of lazily on first `encrypt()`/`decrypt()` call.
+- [ ] **Docker image runs as root** — `Dockerfile` has no `USER` directive. Add a non-root user and
+  `USER` line; verify file permissions on `output/`, `logs/`, etc. still work under it.
+- [ ] **Weak defaults in `docker-compose.yml` that a lazy deployer will never change** —
+  `POSTGRES_PASSWORD` defaults to `flowforge` if unset (line ~10); `FLOWER_BASIC_AUTH` defaults to
+  `admin:changeme` (line ~99) on a port exposed to the host. Fail loudly (compose `${VAR:?error}`
+  syntax) instead of silently defaulting for both.
+- [ ] **`/dashboard/summary` runs an unbounded query, polled every 3-5s per open tab** —
+  `flowforge/api/routes/runs.py:64-99` queries *every* `PipelineRun` row for every accessible
+  pipeline with no `LIMIT`, then truncates to 14/pipeline in Python. On any deployment with real run
+  history (no retention configured, or just months of use) this becomes a full-table scan pulled
+  into memory every few seconds per open dashboard tab. Push the per-pipeline-14-rows truncation
+  into the SQL query (window function or per-pipeline subquery + `LIMIT`), not Python.
+- [ ] **`/pipelines` list endpoint has no pagination** — `flowforge/api/routes/pipelines.py:161-170`
+  returns every pipeline in a project unbounded, unlike `/runs` and `/audit-logs` which both
+  paginate correctly. Add the same `limit`/`offset` pattern.
+- [ ] **Plugin loader has no runtime trust enforcement** — `flowforge/engine/loader.py:126-160`
+  `exec_module`s any `.py` file in `FLOWFORGE_PLUGIN_DIR` with full process privileges; the
+  admin-only trust boundary is documented only in a docstring, not enforced in code. At minimum,
+  check the directory isn't world/group-writable before loading from it, and log loudly if it is.
+
+## High Priority (refactoring & scalability)
+
+- [ ] Split `flowforge/db/models.py` (468 lines, 23 unrelated models — auth, pipelines, audit,
+  bulk-load, SSH all in one file) into domain modules (`models/auth.py`, `models/pipelines.py`,
+  `models/audit.py`, etc.) re-exported from a package `__init__.py` so imports elsewhere don't churn.
+- [ ] Introduce a service/repository layer between `flowforge/api/routes/*.py` and SQLAlchemy —
+  there is currently no `services/` directory anywhere; routes build queries inline and mix HTTP
+  concerns with business logic (`pipelines.py` at 774 lines is the worst offender: routing,
+  `_validate_cron`, `_pipeline_dict` serialization, and `_has_path` cycle detection all in one file).
+- [ ] Resolve the live circular dependency between `flowforge/engine/dag.py` and
+  `flowforge/engine/runner.py` at the module level instead of papering over it with lazy
+  function-body imports (66 counted across the package via `grep -rn "^    from flowforge"`,
+  concentrated exactly where you'd expect a layering problem: `runner.py:240,270,284`,
+  `loader.py`, `bulk_load.py`, `scheduler.py`).
+- [ ] Fix the concurrency semaphore's multi-worker blind spot — `flowforge/engine/concurrency.py`
+  falls back to a per-process `threading.Semaphore(5)` without Redis, meaning N Gunicorn workers
+  give you N×5 effective concurrent runs, not 5. The shipped `docker-compose.yml` sets
+  `FLOWFORGE_REDIS_URL` by default so this only bites bare-metal/no-Redis deployments — but it
+  should at least log a loud startup warning when running multi-worker without Redis configured.
+  Separately, reconsider `_try_acquire_redis`'s fail-open behavior on Redis errors
+  (`concurrency.py:129-148`) — failing open removes the concurrency cap entirely during exactly the
+  kind of infra hiccup that also stresses the DB.
+- [ ] Add leader-election or a distributed lock to `flowforge/engine/scheduler.py`'s
+  `BlockingScheduler` — scaling the `scheduler` service past 1 replica (or running multiple app
+  instances behind a load balancer without isolating the scheduler) causes every replica to
+  independently fire and execute the same cron job, with no guard beyond the concurrency ceiling.
+- [ ] Stream/chunk large data instead of full in-memory loads: `postgres.py`/`oracle.py`'s
+  `execute_query` methods use `cur.fetchall()` with no server-side cursor despite `arraysize=1000`
+  being set (arraysize only tunes internal batching, not streaming to the caller);
+  `reports/excel_report.py` and `csv_report.py` fully materialize `rows: list[tuple]` before
+  writing; `bulk_load.py`/`data_load.py` load entire source files into memory (`list(csv.reader())`,
+  `readlines()`) before any chunking — only the INSERT side is chunked. A multi-million-row query or
+  multi-GB CSV will OOM a worker well before any user-count concern.
+- [ ] Add connect timeouts to the connection-pool creation paths in `flowforge/connections/postgres.py`
+  and `oracle.py` — testing or opening a connection against a dead/blackholed host currently hangs
+  for the OS-level TCP timeout (minutes), not the 5s timeout that the ad-hoc `test-raw` path already
+  sets correctly. Oracle's `test-raw` branch (`connections.py:148-152`) is missing a timeout param
+  entirely.
+- [ ] Extend rate limiting beyond the 3 current `@limiter.limit` sites (login, `trigger_run`,
+  webhook trigger). `flowforge/api/routes/ai.py`'s four endpoints (`data_profile`, `chart_config`,
+  `ai_query`, `anomaly_narrative`) are `@require_auth`-only and fall back to paid
+  Claude/Gemini calls when Ollama is unreachable — a cost-DoS vector for any authenticated viewer.
+  `reports.py`'s `preview_report` (runs arbitrary stored SQL, string-concatenated `LIMIT 20`, no
+  query timeout) is equally unlimited.
+- [ ] Break up `flowforge/engine/runner.py` (586 lines: orchestration, retry logic, variable
+  exposure, wave-building, webhook firing, and the `_notify_devbrain` external integration all in
+  one module) into focused modules.
+- [ ] Add a `frontend/src/hooks/` layer (currently doesn't exist) and break up the monolithic page
+  components — `Settings.tsx` (737 lines, 25 `useState`/`useEffect`/`useQuery`/`fetch` call sites)
+  and `ReportEdit.tsx` (675 lines, 21) mix data-fetching, form state, and rendering inline.
+- [ ] Close the release-cadence gap — only 2 tags exist (`v1.0.0`, `v1.1.0`), `pyproject.toml` is
+  still pinned at `1.1.0` while `CHANGELOG.md`'s `[Unreleased]` section already documents the entire
+  shipped DAG engine (dated 2026-07-22) plus ~7 weeks of other work, and there's a dangling
+  `[1.2.0]: ...compare/v1.1.0...v1.2.0` changelog link with no corresponding tag. Cut a real
+  `v1.2.0` release; the `release.yml`/`publish.yml` tooling is already correctly built (SLSA
+  provenance, PyPI OIDC) — it's just not being used.
+- [ ] Make `.github/workflows/secrets-scan.yml` a blocking gate — it currently runs with
+  `continue-on-error: true`, so a real secret leak wouldn't actually stop a merge; right now it's
+  advisory, not a gate.
+
+## Nice-to-Have (polish & optimization)
+
+- [ ] Add true unit tests with mocking for core business logic (`engine/runner.py`, `engine/dag.py`,
+  `engine/context.py`) alongside the existing suite — every test file checked (`test_pipelines.py`,
+  `test_runs.py`, `test_runs_api.py`, etc.) is 100% integration-style against a real Postgres with
+  zero `@patch`/`MagicMock` usage; safe for refactors but slow to iterate on and can't isolate
+  business-logic correctness from the DB/HTTP layer.
+- [ ] Add production error-tracking (Sentry or equivalent) — logging itself is legitimate (113
+  `logging`/`getLogger` call sites, not print-statement soup), but there's zero error-tracking SDK
+  anywhere, so production debugging is log-files-only.
+- [ ] Add a dependency/license audit tool to CI (e.g. `pip-licenses`) plus a `NOTICE` file — the
+  current MIT-compatibility check (no GPL-family packages found) was a manual one-time grep, not an
+  enforced, repeatable gate. Do this before any commercial relicensing conversation.
+- [ ] Build genuine Airflow/cron migration tooling — zero evidence this exists today beyond
+  FlowForge's own YAML export/import; this is the most plausible real differentiator given the
+  existing "Oracle advantage" / migration-bridge positioning in `docs/USE_CASE.md`, rather than more
+  enterprise-checkbox features.
+- [ ] Evaluate a managed/hosted tier reusing the existing `docker-compose.yml` service topology —
+  low engineering lift given the multi-service (db/redis/app/scheduler/worker) shape already exists;
+  this is the more realistic commercial moat than the core engine itself, which is honestly
+  replicable in a few weeks by a competent team (topological DAG + Jinja2 templating + integration
+  adapters — no proprietary technology).
+- [ ] Add a plugin marketplace/discovery layer on top of the existing plugin system (`docs/plugins.md`)
+  — the load mechanism exists, there's no registry/discovery UX around it.
+- [ ] Close the gap between "no YAML required" marketing and actual first-run friction — a bare
+  dashboard is genuinely one `docker compose up` away, but a real first pipeline with email requires
+  5+ manual steps across Google Cloud Console or Azure AD (OAuth app registration, consent screens,
+  client secrets) before the "no-code" promise is actually true end-to-end.
+
