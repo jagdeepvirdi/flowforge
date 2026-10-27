@@ -35,7 +35,7 @@ class StepResult:
     rows: list[dict] = field(default_factory=list)
     table_html: str = ''
     kv_html: str = ''
-    # ai_analyze output field — also injected into top-level context via output_variables
+    # legacy ai_analyze output field, kept so old run history still renders
     ai_summary: str = ''
 
 

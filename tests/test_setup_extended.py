@@ -73,20 +73,6 @@ def test_setup_status_m365_not_configured_by_default(client, headers, monkeypatc
     assert resp.get_json()['microsoft365']['configured'] is False
 
 
-def test_setup_status_ai_enabled_by_default(client, headers, monkeypatch):
-    monkeypatch.delenv('FLOWFORGE_AI_ENABLED', raising=False)
-    resp = client.get('/api/setup/status', headers=headers)
-    assert resp.status_code == 200
-    assert resp.get_json()['ai']['enabled'] is True
-
-
-def test_setup_status_ai_disabled(client, headers, monkeypatch):
-    monkeypatch.setenv('FLOWFORGE_AI_ENABLED', 'false')
-    resp = client.get('/api/setup/status', headers=headers)
-    assert resp.status_code == 200
-    assert resp.get_json()['ai']['enabled'] is False
-
-
 def test_setup_status_retention_defaults(client, headers, monkeypatch):
     monkeypatch.delenv('FLOWFORGE_RUN_RETENTION_DAYS', raising=False)
     monkeypatch.delenv('FLOWFORGE_AUDIT_RETENTION_DAYS', raising=False)
@@ -105,42 +91,6 @@ def test_setup_status_retention_custom(client, headers, monkeypatch):
     retention = resp.get_json()['retention']
     assert retention['run_days'] == 30
     assert retention['audit_days'] == 60
-
-
-def test_setup_status_ollama_url_in_response(client, headers, monkeypatch):
-    monkeypatch.setenv('OLLAMA_URL', 'http://custom-ollama:11434')
-    resp = client.get('/api/setup/status', headers=headers)
-    assert resp.get_json()['ai']['ollama_url'] == 'http://custom-ollama:11434'
-
-
-def test_setup_status_claude_not_configured_by_default(client, headers, monkeypatch):
-    monkeypatch.delenv('ANTHROPIC_API_KEY', raising=False)
-    resp = client.get('/api/setup/status', headers=headers)
-    assert resp.get_json()['ai']['claude']['configured'] is False
-
-
-def test_setup_status_claude_configured_when_env_set(client, headers, monkeypatch):
-    monkeypatch.setenv('ANTHROPIC_API_KEY', 'sk-ant-test')
-    resp = client.get('/api/setup/status', headers=headers)
-    assert resp.get_json()['ai']['claude']['configured'] is True
-
-
-def test_setup_status_gemini_not_configured_by_default(client, headers, monkeypatch):
-    monkeypatch.delenv('GEMINI_API_KEY', raising=False)
-    resp = client.get('/api/setup/status', headers=headers)
-    assert resp.get_json()['ai']['gemini']['configured'] is False
-
-
-def test_setup_status_gemini_configured_when_env_set(client, headers, monkeypatch):
-    monkeypatch.setenv('GEMINI_API_KEY', 'test-key')
-    resp = client.get('/api/setup/status', headers=headers)
-    assert resp.get_json()['ai']['gemini']['configured'] is True
-
-
-def test_setup_status_gemini_model_in_response(client, headers, monkeypatch):
-    monkeypatch.setenv('GEMINI_QUERY_MODEL', 'gemini-2.5-pro')
-    resp = client.get('/api/setup/status', headers=headers)
-    assert resp.get_json()['ai']['gemini']['model'] == 'gemini-2.5-pro'
 
 
 def test_setup_status_requires_auth(client):

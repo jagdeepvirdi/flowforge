@@ -4,6 +4,7 @@ import os
 from flask import Blueprint, jsonify, request
 
 from flowforge.api.auth import login, require_auth
+from flowforge.brain import brain_enabled
 from flowforge.engine.settings import get_audit_retention_days, get_run_retention_days
 
 bp = Blueprint('setup', __name__)
@@ -42,11 +43,6 @@ def auth_refresh():
     return jsonify({'token': generate_token(user)})
 
 
-def _ai_enabled() -> bool:
-    val = os.environ.get('FLOWFORGE_AI_ENABLED', 'true').lower().strip()
-    return val not in ('false', '0', 'no', 'off')
-
-
 @bp.get('/setup/status')
 @require_auth
 def setup_status():
@@ -68,16 +64,8 @@ def setup_status():
             'sender': os.environ.get('MICROSOFT_SENDER_EMAIL', ''),
         },
         'ai': {
-            'enabled': _ai_enabled(),
-            'ollama_url': os.environ.get('OLLAMA_URL', 'http://localhost:11434'),
-            'model': os.environ.get('OLLAMA_QUERY_MODEL', 'llama3.2:3b'),
-            'claude': {
-                'configured': _all('ANTHROPIC_API_KEY'),
-            },
-            'gemini': {
-                'configured': _all('GEMINI_API_KEY'),
-                'model': os.environ.get('GEMINI_QUERY_MODEL', 'gemini-2.5-flash'),
-            },
+            'enabled': brain_enabled(),
+            'brain_url_configured': _all('FLOWFORGE_BRAIN_URL'),
         },
         'retention': {
             'run_days': get_run_retention_days(),
