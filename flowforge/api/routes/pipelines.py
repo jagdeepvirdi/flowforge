@@ -244,6 +244,10 @@ def import_pipeline():
     if not isinstance(doc, dict) or not doc.get('name'):
         return jsonify({'error': 'YAML must be a mapping with a name field'}), 400
 
+    err = validate_pipeline(doc)
+    if err:
+        return jsonify({'error': err}), 400
+
     target_project_id = pipeline_service.default_project_id()
     if not can_access_project(target_project_id):
         return jsonify(ACCESS_DENIED), 403

@@ -352,7 +352,7 @@ def test_retry_negative_count_treated_as_zero():
 def test_fire_failure_webhook_posts_json():
     from flowforge.engine.runner import _fire_failure_webhook
     payload = {'pipeline_name': 'Test', 'error_message': 'boom'}
-    with patch('urllib.request.urlopen') as mock_open:
+    with patch('flowforge.net_guard.safe_urlopen') as mock_open:
         mock_open.return_value.__enter__ = lambda s: s
         mock_open.return_value.__exit__ = MagicMock(return_value=False)
         _fire_failure_webhook('http://example.com/hook', payload)
@@ -366,7 +366,7 @@ def test_fire_failure_webhook_posts_json():
 
 def test_fire_failure_webhook_content_type_header():
     from flowforge.engine.runner import _fire_failure_webhook
-    with patch('urllib.request.urlopen') as mock_open:
+    with patch('flowforge.net_guard.safe_urlopen') as mock_open:
         mock_open.return_value.__enter__ = lambda s: s
         mock_open.return_value.__exit__ = MagicMock(return_value=False)
         _fire_failure_webhook('http://example.com/hook', {})
@@ -376,14 +376,14 @@ def test_fire_failure_webhook_content_type_header():
 
 def test_fire_failure_webhook_empty_url_does_nothing():
     from flowforge.engine.runner import _fire_failure_webhook
-    with patch('urllib.request.urlopen') as mock_open:
+    with patch('flowforge.net_guard.safe_urlopen') as mock_open:
         _fire_failure_webhook('', {'pipeline_name': 'Test'})
     mock_open.assert_not_called()
 
 
 def test_fire_failure_webhook_none_url_does_nothing():
     from flowforge.engine.runner import _fire_failure_webhook
-    with patch('urllib.request.urlopen') as mock_open:
+    with patch('flowforge.net_guard.safe_urlopen') as mock_open:
         _fire_failure_webhook(None, {})
     mock_open.assert_not_called()
 
@@ -391,7 +391,7 @@ def test_fire_failure_webhook_none_url_does_nothing():
 def test_fire_failure_webhook_error_does_not_propagate():
     """Network errors in the webhook must not raise."""
     from flowforge.engine.runner import _fire_failure_webhook
-    with patch('urllib.request.urlopen', side_effect=Exception('network error')):
+    with patch('flowforge.net_guard.safe_urlopen', side_effect=Exception('network error')):
         _fire_failure_webhook('http://example.com/hook', {})  # must not raise
 
 

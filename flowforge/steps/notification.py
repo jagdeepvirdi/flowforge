@@ -58,7 +58,7 @@ class NotificationStep(BaseStep):
         if not webhook_url:
             return StepResult(success=False, error='webhook_url is required for Slack notifications')
 
-        from flowforge.net_guard import UnsafeUrlError, assert_public_url
+        from flowforge.net_guard import UnsafeUrlError, assert_public_url, safe_urlopen
         try:
             assert_public_url(webhook_url)
         except UnsafeUrlError as e:
@@ -70,7 +70,7 @@ class NotificationStep(BaseStep):
         body = json.dumps({'text': message}).encode()
         req  = urllib.request.Request(webhook_url, data=body, headers={'Content-Type': 'application/json'}, method='POST')
         try:
-            with urllib.request.urlopen(req, timeout=10):  # nosec B310
+            with safe_urlopen(req, timeout=10):
                 pass
         except urllib.error.HTTPError as e:
             resp_body = e.read().decode()[:200]
@@ -85,7 +85,7 @@ class NotificationStep(BaseStep):
         if not webhook_url:
             return StepResult(success=False, error='webhook_url is required for Teams notifications')
 
-        from flowforge.net_guard import UnsafeUrlError, assert_public_url
+        from flowforge.net_guard import UnsafeUrlError, assert_public_url, safe_urlopen
         try:
             assert_public_url(webhook_url)
         except UnsafeUrlError as e:
@@ -110,7 +110,7 @@ class NotificationStep(BaseStep):
         body = json.dumps(payload).encode()
         req  = urllib.request.Request(webhook_url, data=body, headers={'Content-Type': 'application/json'}, method='POST')
         try:
-            with urllib.request.urlopen(req, timeout=10):  # nosec B310
+            with safe_urlopen(req, timeout=10):
                 pass
         except urllib.error.HTTPError as e:
             resp_body = e.read().decode()[:200]
@@ -135,6 +135,8 @@ class NotificationStep(BaseStep):
         import urllib.parse
         import urllib.request
 
+        from flowforge.net_guard import safe_urlopen
+
         text = f'<b>{title}</b>\n\n{message}' if title and parse_mode == 'HTML' else (
             f'*{title}*\n\n{message}' if title else message
         )
@@ -143,7 +145,7 @@ class NotificationStep(BaseStep):
         body = json.dumps({'chat_id': chat_id, 'text': text, 'parse_mode': parse_mode}).encode()
         req  = urllib.request.Request(url, data=body, headers={'Content-Type': 'application/json'}, method='POST')
         try:
-            with urllib.request.urlopen(req, timeout=10):  # nosec B310
+            with safe_urlopen(req, timeout=10):
                 pass
         except urllib.error.HTTPError as e:
             resp_body = e.read().decode()[:200]

@@ -505,21 +505,21 @@ def test_get_last_success_ts_returns_empty_on_exception():
 
 def test_fire_failure_webhook_empty_url_noop():
     from flowforge.engine.runner import _fire_failure_webhook
-    with patch('urllib.request.urlopen') as mock_open:
+    with patch('flowforge.net_guard.safe_urlopen') as mock_open:
         _fire_failure_webhook('', {'key': 'val'})
     mock_open.assert_not_called()
 
 
 def test_fire_failure_webhook_none_url_noop():
     from flowforge.engine.runner import _fire_failure_webhook
-    with patch('urllib.request.urlopen') as mock_open:
+    with patch('flowforge.net_guard.safe_urlopen') as mock_open:
         _fire_failure_webhook(None, {})
     mock_open.assert_not_called()
 
 
 def test_fire_failure_webhook_posts_to_url():
     from flowforge.engine.runner import _fire_failure_webhook
-    with patch('urllib.request.urlopen') as mock_open:
+    with patch('flowforge.net_guard.safe_urlopen') as mock_open:
         mock_open.return_value.__enter__ = lambda s: s
         mock_open.return_value.__exit__ = MagicMock(return_value=False)
         _fire_failure_webhook('http://example.com/hook', {'pipeline_name': 'Test'})
@@ -528,7 +528,7 @@ def test_fire_failure_webhook_posts_to_url():
 
 def test_fire_failure_webhook_swallows_exception():
     from flowforge.engine.runner import _fire_failure_webhook
-    with patch('urllib.request.urlopen', side_effect=Exception('network error')):
+    with patch('flowforge.net_guard.safe_urlopen', side_effect=Exception('network error')):
         # Must not raise
         _fire_failure_webhook('http://example.com/hook', {})
 
