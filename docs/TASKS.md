@@ -20,7 +20,7 @@ Latest code-review score table: **7.8 / 10 (2026-05-25)** — stale; the later 2
 scored 6/10 overall (Security 3/10 at the time; its Critical items have since all shipped). Re-score
 after the §1–§3 items below land.
 
-**Open items: 58** — §0 AI decoupling (11) · §1 Blockers (12) · §2 Product polish (7) · §3 Engineering quality (7) · §4 Supply chain & OSS health (7) · §5 Docs hygiene (2) · §6 Go-to-market (6) · §7 Strategic (6)
+**Open items: 65** — §0 AI decoupling (11) · §0a Telecom RA MVP (5) · §1 Blockers (12) · §2 Product polish (7) · §3 Engineering quality (7) · §4 Supply chain & OSS health (7) · §5 Docs hygiene (2) · §6 Go-to-market (6) · §7 Strategic (8)
 
 Items tagged *(derived)* were not open checkboxes before: they come from "explicitly out of scope" notes
 in the now-archived completed items, promoted here so they aren't lost.
@@ -47,6 +47,22 @@ launch** (published posts and planned PH copy advertise "local AI"; record the d
 - [ ] **A8 Ship** — version decision (v2.0.0 vs 1.4.0 + BREAKING), PR with CI green.
 - [ ] **Decide before A3:** check your DB for saved `ai_analyze` steps (they will fail after the scrub) — query in the plan §7.3.
 - [ ] **Phase B (blocked)** — define Brain's API contract (auth, TLS, size caps, redaction, errors, versioning), then implement `brain_enabled()` health check and forwarding. Not scheduled.
+
+---
+
+## 0a. Telecom RA MVP — build order *(adopted 2026-10-27 from [TELECOM_PIVOT_ROADMAP.md](TELECOM_PIVOT_ROADMAP.md) with Claude's amendments)*
+
+**First proof-of-concept: orphaned subscriptions** (HLR/HSS vs. billing vs. CRM), audited **in place** in the operator's
+databases; FlowForge schedules and monitors the SQL and collects aggregates. Sequence: design-partner discovery
+(§7, runs in parallel throughout) → §0 Brain scrub **∥** conditional execution (§2) → reconciliation step → PII
+tokenization → audit template → compliance-claim verification → Brain scaffold (last; Phase B above). Reasoning and
+the points where Claude disagrees with the roadmap are in the roadmap document. Effort figures are unvalidated estimates for one full-time developer.
+
+- [ ] **Reconciliation step** *(≈ 1–2 weeks; the missing telecom primitive)* — compare keyed aggregates or key sets across **two connections** with tolerances and a capped sample of offending keys. A single `db_query` cannot join CRM, billing and HLR because they live in different systems, and `data_load` reads whole files into memory, so staging a full subscriber base is not safe. Define "orphaned" precisely first (active-unbilled, billed-unprovisioned, status mismatch, in-flight provisioning windows). Depends on conditional execution (§2) for threshold alerting.
+- [ ] **PII tokenization/masking step** *(≈ 1 week)* — keyed HMAC with a per-deployment secret, **or** tokenization with a local lookup table (so Core can map findings back to subscribers). A plain/shared-salt hash of MSISDN/IMSI is brute-forceable and must not be called "irreversible". Also scrub free-text fields and cap the payload. Must exist and be reviewed before any data is sent to a Brain.
+- [ ] **Orphaned-subscription audit template + seeded demo dataset** *(≈ 1 week)* — run end to end on the design partner's data or a synthetic equivalent; this is the PoC evidence.
+- [ ] **Verify audit-log immutability** *(≈ 0.5 day)* — the roadmap lists "immutable audit logs" as already built. It is append-only in application code only; confirm whether the DB blocks UPDATE/DELETE (the retention job deletes old rows) and add revoked privileges / trigger / hash chain if not. Until then do not use the word "immutable" in docs or sales material.
+- [ ] **Compliance-floor evidence** *(≈ 1–2 weeks, parallelizable)* — data-flow diagram (what leaves the network, over which path), retention and data-residency statement, key-management description, pen-test plan. Plus the existing items: react-router 7, the two SonarCloud findings. A telco security review asks for these before it looks at features.
 
 ---
 
@@ -145,7 +161,9 @@ launch** (published posts and planned PH copy advertise "local AI"; record the d
 
 *Product-direction questions from the architect/VC audits. Don't build these on autopilot.*
 
-- [ ] **Telecom RA pivot: pick the MVP use case and design partner** *(2026-10-27)* — [`ARCHITECTURE.md` §7](../ARCHITECTURE.md#7-telecom-revenue-assurance-mapping) shows building blocks exist but no telecom feature does. Prerequisites already on this list: conditional steps (threshold alerting), streaming for large files (CDR volumes), cross-DB comparison. Decide which leakage type to prove first (dropped CDRs vs. orphaned subscriptions), whether MIT-open-source core + enterprise offering is the model, and revisit the "solo devs / small teams" positioning in `CLAUDE.md`.
+- [ ] **Telecom RA pivot: find the design partner** *(2026-10-27; MVP use case decided = orphaned subscriptions, see §0a)* — [`ARCHITECTURE.md` §7](../ARCHITECTURE.md#7-telecom-revenue-assurance-mapping) shows building blocks exist but no telecom feature does. Prerequisites already on this list: conditional steps (threshold alerting), streaming for large files (CDR volumes), cross-DB comparison. Decide which leakage type to prove first (dropped CDRs vs. orphaned subscriptions), whether MIT-open-source core + enterprise offering is the model, and revisit the "solo devs / small teams" positioning in `CLAUDE.md`.
+- [ ] **Decide repo naming and the licensing/delivery model** *(2026-10-27)* — this repo is `flowforge`; the roadmap says `flowforge-core`. An MIT core plus a proprietary Telecom RA Pack + Brain needs a delivery mechanism (private repo / package index) and a contributor policy (CLA); the MIT core also means anyone can build the pack, so the moat is audit templates proven on real data and the partner relationship. Hold the decision until a partner has seen reconciliation output.
+- [ ] **Decide the Brain network path for telco deployments** *(2026-10-27)* — a cloud Brain requires operator browsers and Core to reach it, which many telco networks forbid. Proxy UI→Brain traffic through Core (contradicts the direct-UI decision in `ARCHITECTURE.md`) or require direct reachability; also decide the on-premises open-weight mode and build an evaluation set before promising it. Note "air-gapped" is not an accurate description of Core's relationship to the Brain; use "no LLM code or keys in Core, only sanitized evidence leaves".
 - [ ] **Get at least one real external user or design partner** before adding more enterprise-checkbox features (SSO/SAML/MFA/GDPR tooling currently serves zero non-author users).
 - [ ] **Airflow/cron migration tooling** — nothing exists beyond FlowForge's own YAML export/import; the most plausible real differentiator given the "Oracle advantage" / migration-bridge positioning in `docs/USE_CASE.md`.
 - [ ] **Plugin marketplace/discovery layer** on the existing plugin system (`docs/plugins.md`) — the load mechanism exists; no registry/discovery UX.

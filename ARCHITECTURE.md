@@ -66,6 +66,11 @@ So we separate them completely:
 **Dependency direction is one-way:** Core may *send* evidence to Brain and *remember a case id*. Brain never
 reads Core's databases, and Core never imports, embeds, or waits on Brain.
 
+**Wording matters: Core is not "air-gapped" from the Brain.** Core sends sanitized evidence to it and the browser
+talks to it directly. The accurate statement is: *Core contains no LLM code or provider keys, and only sanitized,
+minimized evidence ever leaves the customer network.* Use that wording in customer-facing material; a telco security
+review will inspect the actual network paths ([§11](#11-deployment-topology)).
+
 ---
 
 ## 3. The Muscle — FlowForge Core
@@ -103,6 +108,11 @@ independently, and can be absent without breaking anything in Core.
 **Stack [Proposed]:** FastAPI (Python); Google Gemini through Vertex AI or AI Studio. The **model is
 configuration, not code** — the original vision named Gemini 1.5 Pro; confirm that model is still available on
 the chosen platform before building, and pin whatever is current in Brain's own config.
+
+**Model-agnostic by design [Proposed].** Two deployment modes are planned: a cloud model (Gemini on Vertex AI) and,
+for strict on-premises sites, a customer-hosted open-weight model (e.g. Llama 3). Brain therefore needs its own
+provider interface so the model is swappable per deployment. Open-weight models are materially weaker at
+structured-JSON RCA, so an evaluation set must exist before the on-premises mode is promised to a customer.
 
 **Responsibilities:**
 - **Root-cause analysis (RCA):** given an evidence package (e.g. "5,000 dropped sessions" represented as grouped
@@ -205,7 +215,7 @@ feature unless marked "Building blocks exist"; it is the direction, not a featur
 |---|---|---|---|
 | **Dropped / lost CDRs** (switch vs. mediation vs. billing counts) | High-volume file/DB ingestion, count + sum reconciliation across stages | Building blocks exist: `bulk_load`, `data_load`, `sftp_transfer`, `db_query` | Streaming/chunked large-file handling for all formats (only CSV streams end-to-end); CDR format parsers; reconciliation as a first-class step with tolerances |
 | **Misrated tariffs** | Re-rate usage against the rate plan, diff vs. billed amount | Building blocks exist: SQL steps, run diff | Rating-engine-style SQL libraries, tariff reference data management |
-| **Orphaned subscriptions** (HLR/network active, billing inactive or vice-versa) | Cross-system status comparison | Building blocks exist: multi-connection SQL, staging loads | Cross-database comparison step; scheduled discrepancy snapshots |
+| **Orphaned subscriptions** (HLR/network active, billing inactive or vice-versa) — **chosen first proof-of-concept** ([`docs/TELECOM_PIVOT_ROADMAP.md`](docs/TELECOM_PIVOT_ROADMAP.md)) | Cross-system status comparison over CRM, billing and HLR/HSS, which normally sit in **different databases** (one `db_query` runs against one connection) | Building blocks exist: multi-connection SQL, staging loads (`data_load` reads whole files into memory, so it is not safe for a full subscriber base) | **Reconciliation step** — compare keyed aggregates / key sets across two connections with tolerances and a capped sample of offending keys; precise definition of "orphaned" and in-flight provisioning windows; scheduled discrepancy snapshots |
 | **Threshold alerting** ("only alert if leakage > X") | Conditional execution | Failure propagation only | **Conditional/branching steps — not built** (tracked in `docs/TASKS.md`) |
 | **Leakage KPIs / $ impact** | Money-valued findings, trends, dashboards | Run history, charts | Leakage case model, value attribution, KPI dashboard |
 | **Case management** | Assign, track, close findings | None | Not started |
@@ -244,15 +254,20 @@ code review comment.
 
 ## 9. Security & privacy
 
-- **Anonymize in Core, before egress** — deterministic, testable, auditable. Tokenize or hash subscriber
-  identifiers (MSISDN, IMSI, IMEI), mask IPs and free-text fields, drop everything not on an explicit
-  per-signature allowlist. Prefer **aggregates and grouped signatures over raw rows**: send counts + a capped
+- **Anonymize in Core, before egress** — deterministic, testable, auditable. Tokenize subscriber identifiers
+  (MSISDN, IMSI, IMEI), mask IPs and free-text fields, drop everything not on an explicit per-signature allowlist.
+  **A plain or shared-salt hash is not sufficient**: the phone-number space is small enough to brute-force in minutes.
+  Use a **keyed HMAC with a per-deployment secret held in Core**, or **tokenization** (random token + a local
+  lookup table). Tokenization also lets Core map the Brain's findings back to real subscribers locally, which a
+  one-way hash cannot. Scrub free text (error messages, names embedded in descriptions) too. Prefer **aggregates and grouped signatures over raw rows**: send counts + a capped
   sample, never a raw 5,000-row dump.
 - **Data minimization & caps:** maximum lines and bytes per package; configurable per deployment.
 - **Transport & auth:** TLS (or mTLS) between Core and Brain; service-to-service credential for Core→Brain;
   short-lived audience-scoped tokens for UI→Brain; no long-lived secrets in the browser.
 - **Audit:** every evidence submission is recorded in Core's audit log (who/what/when/size/`case_id`), never the
-  content itself.
+  content itself. **Do not describe the audit log as "immutable" yet**: it is append-only in application code, but
+  DB-level protection against UPDATE/DELETE has not been verified and the retention job deletes old rows. Verify
+  (revoked privileges / trigger / hash chain) before making that claim to a buyer.
 - **Untrusted input:** logs are attacker-influenced text. Brain must treat them as data (prompt-injection
   aware), enforce a JSON output schema, give the model **no tools** and no network, and never follow
   instructions found in logs.
@@ -287,6 +302,9 @@ code review comment.
   store). Can be deployed in a different network zone/region than Core.
 - **Network:** UI → Core and UI → Brain are separate origins (CORS configured on Brain); Core → Brain uses a
   service credential; Brain has **no inbound path from customer data systems** and no outbound path to them.
+  **Caveat for telco networks:** with a cloud-hosted Brain, operators' *browsers* must reach it and Core must reach
+  it outbound, and many telco networks forbid both. Proxying UI traffic through Core would solve the browser path
+  but contradicts the direct UI→Brain decision above, so this is an explicit open question (below), not a detail.
 - **Config in Core:** `FLOWFORGE_BRAIN_URL` (enables the integration; empty = detached) and a service credential
   for Core→Brain submissions. No AI-provider settings exist in Core.
 
@@ -316,4 +334,16 @@ rather than kept (Core then has no AI routes at all). The detached/attached swit
 2. Token model for UI→Brain (§5.3) and who owns Core's signing-key rotation.
 3. Anonymization rules per telecom data class, and whether a customer-hosted model endpoint is required.
 4. Whether pipelines may also call Brain through a generic HTTP step, or only through the evidence-job path.
-5. Positioning/licensing: MIT open-source core vs. an enterprise telecom offering.
+5. Positioning/licensing: MIT open-source core vs. an enterprise telecom offering (see
+   [`docs/TELECOM_PIVOT_ROADMAP.md`](docs/TELECOM_PIVOT_ROADMAP.md) §5 and the `[claude]` comments there: delivery
+   mechanism for a proprietary pack, CLA, and whether running the Brain for customers is a hosted tier).
+6. Cloud Brain vs. telco network policy: proxy UI→Brain traffic through Core, or require browsers to reach the Brain
+   directly? Decide per deployment mode.
+7. Repository naming: this repo is `flowforge`; the pivot roadmap says `flowforge-core`. Rename or keep one name
+   everywhere.
+
+**Planned order of work** (adopted from the pivot roadmap with Claude's amendments; details and effort in
+[`docs/TELECOM_PIVOT_ROADMAP.md`](docs/TELECOM_PIVOT_ROADMAP.md) and [`docs/TASKS.md`](docs/TASKS.md) §0a):
+design-partner discovery (in parallel throughout) → Brain scrub ∥ conditional execution → reconciliation step →
+PII tokenization step → orphaned-subscription audit template → compliance-claim verification → Brain scaffold.
+The Brain comes last because it only adds value once the detection layer produces trustworthy findings.
