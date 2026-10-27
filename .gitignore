@@ -75,3 +75,6 @@ docs/ports-in-use.csv
 code/
 
 LAUNCH_STRATEGY.md
+
+# Legacy AI logic extracted for the private flowforge-brain repo (docs/BRAIN_DECOUPLING_PLAN.md §5)
+extracted_ai_logic.md
