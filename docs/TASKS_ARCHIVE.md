@@ -3,6 +3,401 @@
 
 ---
 
+## Session — 2026-10-27 (Security re-audit: SSRF fixes) 🟢 *(COMPLETE)*
+
+- [x] **SSRF: pipeline failure webhook had no guard** *(2026-10-27)* — `engine/notifications.py:_fire_failure_webhook` POSTed the editor-configurable `on_failure_webhook_url` with plain `urlopen` and nothing validated it at save time, so an editor could aim the server at loopback/RFC1918/`169.254.169.254` (and `file://` was not rejected). Fixed: `validators.validate_webhook_url` (via `validate_pipeline`) now rejects non-http(s) schemes, missing hostnames and literal private/loopback/link-local IPs on create, update **and** YAML import (400); the send path validates all resolved addresses and logs only the host (webhook URLs embed secret tokens).
+- [x] **SSRF guard bypassable via redirects and DNS rebinding** *(2026-10-27)* — every outbound call used default `urlopen`, which follows 301/302/303, so a public URL redirecting to an internal address defeated `assert_public_url`; the check-then-fetch-by-name also left a rebinding window. New `net_guard.safe_urlopen` refuses all redirects (a 3xx surfaces as `HTTPError`) and connects to the exact IP it validated (TLS verification/SNI still use the original hostname); with an HTTP(S) proxy configured, pinning is skipped but validation and redirect refusal still apply (documented — enforce destination policy at the proxy). Slack/Teams/Telegram steps and the failure webhook use it. The step's 200-char error-body echo was kept: with redirects off and public-only pinned IPs it can no longer carry internal responses. DevBrain's notify hook and the legacy AI client were left on plain `urlopen` — admin-env URLs, and DevBrain is commonly `localhost`.
+- Verified with `tests/test_safe_urlopen.py` (new; real local HTTP server proves redirect refusal and IP pinning, plus save-time and API tests), updated mocks in `test_notification_step.py`/`test_runner*.py`; full backend suite 2,195 passed; `ruff` and the CI `bandit` command clean; `# nosec B310` suppressions 8 → 4.
+- [x] **Dependency advisories that turned CI red** *(2026-10-27)* — CI's `pip-audit` (24 vulnerabilities: 13 in PyJWT incl. HS256-empty-key/DER-key-as-HMAC forgery classes, cryptography PKCS#7 oracle, 6 in tornado, 3 in urllib3) and `npm audit --audit-level=high` (9 high) were failing on `master`'s own dependencies, so every Dependabot PR failed too. FlowForge itself uses PyJWT with a fixed HS256 algorithm and the app secret (no `PyJWK`/`PyJWKClient`), so the worst PyJWT advisories were likely not reachable, but the gate was red. Backend: regenerated the hash-pinned lockfiles with `pip-compile` in a Linux/Python 3.11 container (matching CI) with `--upgrade-package` for only the affected packages, then merged just those blocks into the original files (a plain recompile on a fresh output file silently upgraded 33 unrelated packages, including SQLAlchemy 2.0→2.1 and redis 5→6, and was discarded). Result — runtime: cryptography 50.0.2, PyJWT 2.15.1, tornado 6.6, werkzeug 3.1.9; dev adds urllib3 2.8.0, certifi 2026.10.23, filelock 4.2.4. `pip-audit` on both files: no known vulnerabilities; `pip install --require-hashes` succeeds; full backend suite on Linux Python 3.11 against the locked deps: 2,192 passed, 2 skipped, 1 environment-only failure (`test_get_connection` asserts host `localhost`; the container reached the DB as `host.docker.internal`). Frontend: `npm audit fix` (vite, undici, brace-expansion, js-yaml, nanoid, browserslist, source-map-js, @redocly/openapi-core, …) plus `zod` 3.25 → 4.6.7 (major; `@hookform/resolvers` 5.4 supports it): `npm audit` now shows 0 high/critical (5 moderate left: react-router pair + vitest chain), `tsc` clean, eslint 0 errors, vitest 173/173, `vite build` ok. **Not yet committed or pushed.**
+
+---
+
+## Session — 2026-10-27 (completed V2.0 Audit items + Phase 13 audit fixes moved out of TASKS.md) 🟢 *(COMPLETE)*
+
+#### V2.0 Audit Action Items (2026-07-24 Security & Architecture Review)
+
+- [x] **ARCH-01**: Fix Celery `ModuleNotFoundError` during app initialization when Celery is not installed (`flowforge/celery_app.py`) *(2026-07-24)* —
+  `flowforge/celery_app.py` unconditionally did `from celery import Celery, Task` at module level; `create_app()` imports this
+  module whenever `FLOWFORGE_REDIS_URL` is set (`flowforge/api/app.py:124-126`), so a deployment that sets the Redis URL without
+  installing celery crashed app startup with a bare `ModuleNotFoundError: No module named 'celery'`. Fixed: the import is now
+  wrapped and re-raises `ModuleNotFoundError` with an actionable message (`pip install "flowforge[celery]"`), matching the
+  existing optional-dependency error pattern in `flowforge/api/routes/connections.py`. Also added the missing `celery` extra
+  to `pyproject.toml` (`celery[redis]>=5.6`, matching the pin in `requirements.txt`) and included it in the `all` extra —
+  previously celery wasn't installable via any documented extra at all. Verified via a fault-injected `ModuleNotFoundError`
+  on `celery` import during `create_app()`; existing redis/celery app-init and launcher/concurrency tests still pass.
+- [x] **SEC-01**: Require `FLOWFORGE_JWT_SECRET` in non-testing environments; remove fallback to `SECRET_KEY` (`flowforge/api/auth.py`) *(2026-07-25)* —
+  `flowforge/api/app.py` silently reused `SECRET_KEY` (the AES encryption key) as the JWT signing key whenever
+  `FLOWFORGE_JWT_SECRET` was unset, only emitting a `warnings.warn` outside `TESTING` — production could boot indefinitely
+  with two supposedly-independent secrets actually being the same value. `flowforge/api/auth.py:_secret()` had its own
+  identical `current_app.config.get('JWT_SECRET') or current_app.config['SECRET_KEY']` fallback, so even patching app.py
+  alone would've left a second silent reuse path. Fixed both: `create_app()` now only falls back to `SECRET_KEY` when
+  `TESTING` is set (so `_validate_secret('FLOWFORGE_JWT_SECRET', ...)` — already boot-time-enforced since the earlier
+  Phase 13 critical fix — now genuinely fails closed in real deployments instead of the fallback quietly satisfying it);
+  `_secret()` now reads `JWT_SECRET` directly, no fallback. Updated `docs/deployment.md`'s env var reference table.
+  Verified: a fault-injected non-TESTING boot with `FLOWFORGE_JWT_SECRET` unset now raises `RuntimeError` (was: silent
+  boot); full test suite (2134 tests) passes unchanged since `conftest.py` always sets both secrets via env.
+- [x] **PERF-01**: Eliminate N+1 query cascade in `/api/pipelines` serializer via joinedload (`flowforge/api/routes/pipelines.py`)
+  *(2026-07-25)* — `serializers.pipeline_dict()` walks each pipeline's `steps`, `variables`, `upstream_deps`, and
+  `downstream_deps` (each dependency also reads its linked `Pipeline.name`), all lazy-loaded relationships — unguarded,
+  `GET /api/pipelines` issued up to 6 extra queries *per pipeline row*. Fixed: `list_pipelines()` now applies
+  `selectinload` for all four relationships (nesting a second `selectinload` for the dependency→Pipeline hop). Used
+  `selectinload`, not literal `joinedload` as originally worded — `joinedload`s LEFT JOIN semantics multiply rows when
+  more than one one-to-many collection is joined in the same query (the classic collection-joinedload "cartesian
+  explosion"); `selectinload` issues one extra `WHERE id IN (...)`-style query per relationship for the whole page
+  instead, so query count no longer scales with row count. Added `test_list_pipelines_does_not_n_plus_one` (asserts
+  `ff_pipeline_steps`/`ff_pipeline_variables` are queried at most once and `ff_pipeline_dependencies` at most twice for
+  a page of 6 pipelines each with a step/variable/dependency) — confirmed it fails without the fix (6 queries per
+  table) and passes with it. Full test suite (2138 tests) passes.
+- [x] **SEC-02**: Add deprecation warning and strict validation for blocklist-based env variable template exposure
+  (`flowforge/engine/context.py`) *(2026-07-25)* — `_SafeEnv`'s blocklist mode (active whenever `FLOWFORGE_TEMPLATE_ENV_VARS`
+  is unset) let templates read any env var except a hardcoded list — inherently unable to keep up with the next
+  credential-shaped var a future integration adds (the exact class of gap the 2026-07-06 name-pattern fix already
+  patched once). Fixed: blocklist mode now logs a one-time-per-process `DEPRECATED` warning recommending allowlist mode
+  (throttled via a module-level flag so `context.build()`, called on every pipeline step, doesn't spam it per run).
+  Also added allowlist-mode validation: if `FLOWFORGE_TEMPLATE_ENV_VARS` explicitly lists a credential-shaped name, it's
+  still exposed (allowlist is opt-in and explicit — see `test_safe_env_allowlist_credential_explicitly_listed`), but a
+  warning now flags the likely misconfiguration. Updated `docs/security.md`. Verified both warnings fire correctly via a
+  standalone script; full test suite (2134 tests) passes unchanged.
+- [x] **MAINT-01**: Abstract database-specific drivers (psycopg2 vs cx_Oracle vs PyMySQL) behind a unified DB
+  abstraction layer rather than checking engine strings inside step runners (`flowforge/steps/bulk_load.py`)
+  *(2026-07-25)* — investigation found the unified abstraction already exists and is already used correctly
+  elsewhere: `flowforge/connections/factory.py`'s registry + `BaseConnection` (`execute_many`/`make_placeholders`),
+  as demonstrated by the newer `data_load` step (`flowforge/steps/data_load.py`). `bulk_load.py`'s Python-fallback
+  (`_load_python_fallback`) and dry-run preview (`_dry_run_insert_rows`) paths never adopted it — they hand-rolled a
+  second, narrower (postgresql/oracle-only) `psycopg2`/`oracledb` dispatch in `_open_raw_connection()` and
+  **hardcoded `%s` placeholders**, which is Postgres-specific bind-variable syntax. Verified this was a live
+  correctness bug, not just a style issue: oracledb uses `:1,:2`, MSSQL/ODBC use `?` — every Oracle-without-SQL\*Loader
+  or MSSQL/ODBC load through the Python fallback would have built an INSERT with the wrong bind-variable syntax and
+  failed against a real database. Fixed:
+  - `flowforge/connections/factory.py`: split `get_connection()` into `connection_class_for(db_type)` (pure registry
+    lookup, no config/DB needed) and `build_connection(db_type, cfg)` (dispatch + construct from an already-decrypted
+    config), both reused internally by `get_connection()` unchanged — verified via the existing factory test suite.
+  - `flowforge/connections/base.py`: `make_placeholders` is now `@staticmethod` on the ABC and all 7 subclasses (none
+    referenced `self`, confirmed by inspection) so it's callable via the class alone, no live connection required.
+    Added a concrete `raw_connection` property (returns `self._conn`, or a clear `NotImplementedError` for connection
+    types like BigQuery that wrap a client object instead of a DB-API connection) for callers needing cursor-level
+    control beyond the higher-level methods.
+  - `bulk_load.py`: `_make_placeholders(conn_cfg, n)` now resolves the correct placeholder syntax via
+    `connection_class_for()` instead of hardcoding `%s`. `_open_raw_connection()` now delegates to
+    `build_connection(db_type, conn_cfg).raw_connection` for `mysql`/`mssql`/`odbc`/`snowflake` — extending the "Python
+    fallback (any DB)" promise the module docstring already made but didn't keep — instead of raising
+    `ValueError('Unsupported db_type for bulk_load: ...')` for every type except postgresql/oracle.
+  - **Deliberately left unchanged**: `postgresql`/`oracle` in `_open_raw_connection()` still open a direct, ad-hoc
+    (non-pooled) connection exactly as before, rather than routing through those two types' `flowforge/connections/*.py`
+    classes — which pool connections (`ThreadedConnectionPool` / `oracledb.create_pool()`). A long-running bulk load
+    (streaming `COPY`, or many chunked `executemany` calls over a large file) holding a slot from that small, shared
+    pool for its whole duration would starve unrelated concurrent pipeline steps needing the same pool. Multiple
+    existing tests (`test_oracle_bulk_load.py`) also pin the exact "plain `oracledb.connect()`, not pooled" behavior.
+    `COPY FROM STDIN` (PostgreSQL) and SQL\*Loader (Oracle) remain genuinely engine-specific fast paths — no
+    unification is possible there; that's not the anti-pattern this item targeted. BigQuery/Redshift remain
+    unsupported by `bulk_load` (BigQuery has no raw DB-API connection to expose at all; Redshift's connection pools
+    via inherited `PostgreSQLConnection`, same pooling concern as postgresql) — both are already reachable through
+    the more general `data_load` step instead.
+  - Added `tests/test_bulk_load_maint01.py` (placeholder-syntax-per-db_type coverage, plus the concrete regression
+    proof — asserts the actual SQL built for an Oracle Python-fallback load uses `:1, :2`, not `%s` — and new
+    `_open_raw_connection` coverage for mysql/mssql/odbc/snowflake) and `raw_connection` property tests in
+    `tests/test_connection_base.py`. Fixed two pre-existing test fixtures using a fake `_db_type: 'other'` sentinel
+    (meant only to route past the `postgresql` special case) that broke once placeholder resolution started actually
+    validating `_db_type` against the registry — switched to `'mysql'`, a real registered type. Updated
+    `docs/step-types.md`'s bulk_load load-path table. Full test suite (2155 tests) passes.
+- [x] **MAINT-02**: Introduce OpenAPI/Swagger schema generator or TypeScript API client generator to sync backend
+  Flask responses with frontend Zustand/React Query state definitions (`frontend/src/lib/api.ts`) *(2026-07-25)* —
+  scoped to one vertical slice (user-selected option, given the full 23-route-file surface would be a large, risky
+  rewrite of an already-shipped app): `pipelines.py` + `runs.py`, proven end-to-end rather than left as scaffolding.
+  - `docs/openapi/pipelines.yaml`: hand-authored OpenAPI 3.0 spec, written against the actual
+    `serializers.py`/`validators.py`/`pipeline_service.py` code (not aspirational) — every response schema traced to
+    the exact dict a route returns.
+  - `frontend/src/lib/generated/pipelines.ts`: generated via `openapi-typescript` (new devDependency). `npm run
+    generate:api-types` (added to `frontend/package.json`) regenerates it from the spec.
+  - `frontend/src/__tests__/apiTypesSync.test.ts`: regenerates from the spec on every test run and diffs against the
+    committed generated file — fails if someone edits the spec (or the generated file) without regenerating and
+    committing the result. Verified it actually catches drift: temporarily added a field to the spec, confirmed the
+    test failed with a clear diff, reverted, confirmed it passed again.
+  - `frontend/src/lib/types.ts`: 9 of the hand-written interfaces this file re-exported for pipelines/runs
+    (`PipelineDep`, `WebhookToken`, `PipelineRun`, `StepRun`, `StepDiff`, `RunDiff`, `StepTrendPoint`, `StepTrends`,
+    `StepAnomaly`/`AnomalyMetric`) are now type aliases to the generated schema, under the same exported names — every
+    existing component importing them from `./types` is unaffected. **`Pipeline`, `PipelineStep`, and
+    `PipelineVariable` were deliberately NOT aliased**: `PipelineStep` is reused for two genuinely different response
+    shapes (the embedded-in-Pipeline shape this spec covers has no `pipeline_id`; `steps.py`'s standalone
+    `GET/POST .../steps` endpoints — out of scope — return the same object *with* `pipeline_id`), and
+    `PipelineVariable`/`Pipeline` are used for both response reads and request writes with different optionality
+    (a freshly-typed variable in a create form has no `id` yet). Aliasing those to the response-only generated shape
+    would have silently broken real call sites; verified this isn't hypothetical by grepping actual usage before
+    deciding.
+  - `frontend/src/lib/api.ts`: `createPipeline`/`updatePipeline`'s request parameter now types as the generated
+    `PipelineCreate`/`PipelineUpdate` (replacing a loose `Partial<Pipeline>` that permitted response-only fields like
+    `id`/`created_at`/`steps` a caller can't actually set) — verified against the real call site in
+    `PipelineEdit.tsx`, which already constructs variables without an `id`, matching `PipelineVariableInput` exactly.
+    `runPipeline` now returns the generated `RunDispatched` schema. Other pipeline/run functions already returned
+    `import('./types').X` where `X` is now generated-backed, so needed no import-path change.
+  - **Found and fixed a real drift bug in the process**: the hand-written `PipelineRun.started_at`/`StepRun.started_at`
+    were typed as non-nullable `string`, but `serializers.py`'s `run_dict()`/`step_run_dict()` both do
+    `r.started_at.isoformat() if r.started_at else None` — genuinely nullable. Generating from an accurate spec
+    surfaced 6 real `new Date(x.started_at)`-on-possibly-null call sites across
+    `Dashboard.tsx`/`RunDetail.tsx`/`RunHistory.tsx`/`Layout.tsx` that `tsc` had never caught; fixed each with a
+    null-guard (matching the existing pattern already used for `finished_at`/`next_run` in the same files).
+  - **Also fixed, incidentally**: adding `openapi-typescript` initially required `npm install --legacy-peer-deps`
+    (TypeScript 6.0.3 vs. its `^5.x` peer range) — that flag silently broke `@testing-library/dom` resolution
+    project-wide, which was masking as 36 pre-existing-looking `tsc`/vitest failures. Replaced with a scoped
+    `overrides` entry in `frontend/package.json` (`openapi-typescript.typescript` pinned to the root `typescript`
+    version) so a plain `npm install` resolves cleanly — `tsc --noEmit` is 0 errors and all 173 frontend tests
+    (172 existing + the new drift-check) pass, versus 36 failures before this fix.
+  - **Not covered** (explicit scope boundary, not an oversight): the other 21 backend route files
+    (`connections.py`, `reports.py`, `emails.py`, `users.py`, `steps.py`, ...) and their corresponding hand-written
+    types in `types.ts`/`api.ts` remain un-generated. Expanding coverage means repeating this same process per route
+    file — write/verify the OpenAPI paths against the actual route + serializer code, regenerate, alias only the
+    response-only types in `types.ts`, verify with `tsc`/vitest, fix any drift bugs surfaced.
+- [x] **PERF-02**: Implement Redis-backed distributed concurrency locks & rate limiting to replace in-memory
+  process-local semaphores (`flowforge/engine/concurrency.py`) *(2026-07-25)* — the distributed concurrency counter
+  (Redis sorted set, fail-open/fail-closed via `FLOWFORGE_CONCURRENCY_FAIL_CLOSED`) already existed in this file; the
+  gap was the API rate limiter (`flowforge/api/app.py`'s `limiter`, Flask-Limiter), which had no `storage_uri`
+  configured and so defaulted to per-process in-memory counters — the identical multi-worker failure mode already
+  flagged for the concurrency semaphore (`GUNICORN_WORKERS × limit`, not the configured limit), just not fixed for
+  rate limiting yet. Fixed: `create_app()` now sets `RATELIMIT_STORAGE_URI` from `FLOWFORGE_REDIS_URL` (via
+  `setdefault`, so an explicit `RATELIMIT_STORAGE_URI` still wins) before `limiter.init_app(app)`, reusing the same
+  Redis instance as the concurrency counter and leader election. Extended the existing `CAPACITY:` startup warning to
+  cover both. Also added a standalone `redis` extra to `pyproject.toml` (concurrency/leader-election/rate-limiting all
+  depend on the `redis` package independent of Celery; previously only reachable via the `celery` extra). Verified
+  end-to-end with a real local Redis that `limiter.storage` resolves to `limits.storage.redis.RedisStorage` when
+  `FLOWFORGE_REDIS_URL` is set, and `limits.storage.memory.MemoryStorage` otherwise; added
+  `test_rate_limit_storage_uri_set_from_redis_url` / `..._unset_without_redis` / `..._explicit_override_wins`
+  (asserting on `app.config['RATELIMIT_STORAGE_URI']` rather than the live singleton — see test file comment for why).
+  Updated `docs/RUNBOOK.md`. Full test suite (2138 tests) passes.
+
+### Phase 13 — Architect/VC Audit Hit-List (2026-07-24)
+
+*From a brutal, evidence-based architecture/security/performance/market-readiness audit run against
+the actual code (not docs) across four independent passes. Every item below cites the file/behavior
+that was actually verified — this is not a generic checklist. Scores from the same audit: Architecture
+6/10, Code Quality 7/10, Security 3/10, Test Coverage 6/10, Scalability 5/10, DevOps/CI 8/10, Moat 3/10,
+Documentation 8/10 — overall 6/10. The one showstopper is the JWT/secret-key item below; everything
+else is real but not on fire.*
+
+#### Critical (fix immediately / showstoppers)
+
+- [x] **`SECRET_KEY`/`JWT_SECRET` have no startup validation and can silently be empty** *(2026-07-24)* —
+  `flowforge/api/app.py:46-60` reads both via `os.environ.get(..., '')`; `JWT_SECRET` falls back to
+  `SECRET_KEY`, and if both are unset the app boots fine and signs HS256 JWTs with an empty key,
+  making every session token forgeable by anyone who knows the algorithm (same file). Fixed:
+  `create_app()` now calls `_validate_secret()` on both (raises `RuntimeError`, not just a log) if
+  either is unset or under 32 characters — the length floor alone rejects every realistic
+  human-typed placeholder (`changeme`, `secret`, `password` are all under 32 chars) without an
+  entropy heuristic, which would've flagged the test suite's own intentionally-simple dummy keys
+  (`'a' * 64`). Also made `flowforge/crypto.py`'s existing 32-byte format check run eagerly at boot
+  (`crypto._key()` called directly in `create_app()`) instead of only on first
+  `encrypt()`/`decrypt()`. 4 new tests in `tests/test_app_coverage.py`; full suite (2099 tests) still
+  green.
+- [x] **Docker image runs as root** *(2026-07-24)* — `Dockerfile` now creates a non-root
+  `flowforge` user/group (uid/gid 1000) and switches to it via `USER flowforge` after `output/` and
+  `logs/` are created and `chown -R`'d. Verified: image builds, `whoami`/`id` report the non-root
+  user, `output/` is writable, gunicorn boots cleanly with all 4 workers and `/api/health` responds
+  `{"status":"ok"}` under the new user.
+- [x] **Weak defaults in `docker-compose.yml` that a lazy deployer will never change** *(2026-07-24)* —
+  `POSTGRES_PASSWORD` and `FLOWER_BASIC_AUTH` now use compose's `${VAR:?message}` required-variable
+  syntax instead of `${VAR:-weak-default}`, so `docker compose up` refuses to start with a clear
+  error if either is unset, rather than silently defaulting to `flowforge` / `admin:changeme`.
+  Verified via `docker compose config` both failing (unset) and succeeding (set). `.env.example`
+  comments updated to say REQUIRED. This repo's own local `.env` didn't have either set — confirms
+  the gap was real, not hypothetical.
+- [x] **`/dashboard/summary` runs an unbounded query, polled every 3-5s per open tab** *(2026-07-24)* —
+  `flowforge/api/routes/runs.py`'s `dashboard_summary()` now ranks runs per-pipeline in SQL with a
+  `ROW_NUMBER() OVER (PARTITION BY pipeline_id ORDER BY started_at DESC)` window function
+  (`sqlalchemy.orm.aliased` on the ranked subquery) and filters `rn <= 14` in the database, instead
+  of fetching every `PipelineRun` row for every accessible pipeline and truncating to 14/pipeline in
+  Python. New test creates 20 runs for one pipeline and confirms exactly the 14 most recent come
+  back, most-recent-first.
+- [x] **`/pipelines` list endpoint has no pagination** *(2026-07-24)* — added the same `limit`
+  (capped at 500, matching `/runs`) / `offset` pattern used elsewhere; still returns a bare JSON
+  array (no response-shape change) so the frontend's existing `getPipelines()` call needed no
+  changes. 3 new tests cover the cap, an explicit small limit, and offset skipping.
+- [x] **Plugin loader has no runtime trust enforcement** *(2026-07-24)* — added
+  `_world_or_group_writable()` (POSIX-only; Windows' `os.stat()` doesn't model real per-owner
+  permissions so the check always returns `False` there rather than false-positiving on every file).
+  `_load_directory_plugins()` now logs a loud `SECURITY:` warning if `FLOWFORGE_PLUGIN_DIR` itself is
+  group/world-writable, and **refuses to load** (logs an error, skips) any individual `.py` file
+  that is group/world-writable, rather than only documenting the admin-only trust boundary in a
+  docstring. 7 new tests, including a Windows-specific regression test (an obviously-writable mode
+  bit is still ignored on `os.name == 'nt'`) since the naive version of this check broke every
+  plugin-loader test on this dev machine before being scoped to POSIX.
+
+#### High Priority (refactoring & scalability)
+
+- [x] **Split `flowforge/db/models.py` into domain modules** *(2026-07-24)* — was 468 lines, 22
+  unrelated models in one file. Now a package: `_shared.py` (the single `db = SQLAlchemy()`
+  instance, `_uuid`/`_utcnow`, cross-domain constants), `audit.py`, `auth.py` (User, ProjectMember,
+  TokenBlocklist, PasswordResetToken), `projects.py`, `connections.py` (DbConnection, SSHConnection),
+  `email.py` (EmailProvider, EmailConfig, RecipientGroup), `reports.py`, `bulk_load.py`,
+  `pipelines.py` (Pipeline, PipelineStep, PipelineVariable, PipelineDependency, StepDependency,
+  PipelineRun, StepRun, WebhookToken), `settings.py`, all re-exported from `__init__.py` — every one
+  of the 69 existing `from flowforge.db.models import X` call sites across the codebase needed zero
+  changes. Safe because every `relationship(...)`/`ForeignKey(...)` in this codebase was already
+  string-based (SQLAlchemy resolves those against its own mapper registry, not Python import order),
+  so domain modules don't import each other and there's no new circular-import risk between them —
+  they just all need to be imported once, which `__init__.py` does. Verified three ways: (1)
+  `sqlalchemy.orm.configure_mappers()` resolves every relationship with no errors, (2) `alembic
+  revision --autogenerate` against the migrated test DB shows zero *new* drift beyond pre-existing
+  index-naming mismatches confirmed identical against the original single-file version via `git
+  show`, (3) full test suite (2120 tests, including the migration-heavy `apply_migrations` fixture)
+  passes unchanged.
+- [x] **Introduce a service/repository layer between `flowforge/api/routes/*.py` and SQLAlchemy**
+  *(2026-07-24, scoped to `pipelines.py` — the file this item named as the worst offender)* —
+  added `flowforge/api/pipeline_service.py` (cron validation, create/update/clone/promote/import
+  business logic, dependency-cycle detection, webhook token creation — all the multi-step
+  DB-mutating logic that was previously inlined in route bodies) following the same flat-module
+  convention already established by `project_access.py`/`validators.py` (no new package needed for
+  one domain). Moved `_pipeline_dict`/`_webhook_token_dict` into `serializers.py` alongside the
+  existing `run_dict`/`step_run_dict` — that file is specifically the home for pure model→dict
+  serialization, and a new `pipeline_export_dict()` was added there too for the YAML export
+  endpoint's doc-building, which was previously inlined in the route. `routes/pipelines.py` now
+  only does Blueprint wiring, request parsing, `can_access_project` authz checks, and
+  `jsonify(...)` responses — trivial single-statement `db.session.get()`/`delete()`/`commit()`
+  calls that exist purely to produce a 404/403 before any business logic runs were left in routes
+  deliberately, not moved. File went from 781 → 412 lines; no behavior change (same status codes,
+  JSON shapes, validation order). Full test suite (2120 tests) passes unchanged; no other module
+  imported the moved private helpers by path, so this was safe to do without touching call sites
+  elsewhere. Remaining route files (`runs.py`, `reports.py`, etc.) are unaffected — out of scope
+  for this pass, per the item's own framing.
+- [x] **Resolve the live circular dependency between `flowforge/engine/dag.py` and
+  `flowforge/engine/runner.py`** *(2026-07-24)* — `dag.py` imported `PipelineResult`,
+  `_CONTEXT_META_KEYS`, `_get_retry_config`, `_run_step_with_retry`, `_write_step_run` from
+  `runner.py` at module level, while `runner.py` could only import `dag.run_dag` lazily inside a
+  function body to avoid the resulting cycle. Fixed by extracting those 5 symbols — the actual
+  shared single-step-execution primitives both the wave engine and DAG engine build on — into a new
+  `flowforge/engine/step_exec.py`, which neither `dag.py` nor `runner.py` needs to import from each
+  other for anymore. Verified both `dag`-first and `runner`-first import order work identically
+  (previously order-sensitive), both modules' `PipelineResult` are now the literal same class
+  (`is` identity check), and every existing `patch('flowforge.engine.runner._write_step_run', ...)`
+  -style test mock still works via the re-export in `__init__`. Full suite (2120 tests) unchanged.
+  Note: the remaining ~65 lazy function-body imports in the package (`loader.py`, `bulk_load.py`,
+  `scheduler.py`, etc.) are mostly legitimate — deferring the Flask/DB layer until actually needed
+  for testability, not papering over other live cycles — this item was specifically about the one
+  confirmed real circular dependency, not a sweep of every lazy import in the codebase.
+- [x] **Fix the concurrency semaphore's multi-worker blind spot** *(2026-07-24)* —
+  `flowforge/engine/concurrency.py` falls back to a per-process `threading.Semaphore(5)` without
+  Redis, meaning N Gunicorn workers give you N×5 effective concurrent runs, not 5. Fixed: `create_app()`
+  now logs a `CAPACITY:` warning at startup when `GUNICORN_WORKERS > 1` and `FLOWFORGE_REDIS_URL` is
+  unset (3 new tests cover warn/no-warn cases). Separately, `_try_acquire_redis`'s fail-open behavior
+  on Redis errors is deliberate and load-tested (`tests/test_concurrency_failure_injection.py`), so
+  rather than flipping the default, added an opt-in `FLOWFORGE_CONCURRENCY_FAIL_CLOSED=true` env var
+  for operators who'd rather deny new runs than risk extra DB load during a Redis outage (2 new tests).
+- [x] **Add leader-election or a distributed lock to `flowforge/engine/scheduler.py`'s
+  `BlockingScheduler`** *(2026-07-24)* — added `flowforge/engine/leader.py`: with
+  `FLOWFORGE_REDIS_URL` set, `start_scheduler()` now routes `_scheduler.start()` through
+  `leader.run_with_leadership()`, which blocks until this replica wins a Redis lock
+  (`SET NX PX`, 30s TTL) and only then calls into the scheduler; a background thread renews the
+  lock every 10s via a Lua script that checks token ownership before extending it. If renewal
+  ever fails (Redis unreachable, or another replica's clock/timing won the lock instead), the
+  process calls `os._exit(1)` immediately rather than risk two schedulers firing the same cron
+  job — the process manager (Docker/systemd/k8s) is expected to restart it, at which point it
+  re-enters the election. Without `FLOWFORGE_REDIS_URL`, election is skipped entirely (same
+  convention as `concurrency.py`'s fallback) and a startup `WARNING` says not to run more than
+  one replica — HA isn't possible without a shared coordination point. 14 new tests in
+  `tests/test_leader_election.py` plus 2 in `tests/test_scheduler.py` covering the wiring; full
+  suite (2134 tests) passes unchanged.
+- [x] **Stream/chunk large data instead of full in-memory loads** *(2026-07-24, partial — scoped down,
+  see below)* — added `BaseConnection.execute_query_with_columns_chunked()` (concrete default:
+  falls back to the eager path, so every connection type keeps working) with real streaming
+  overrides in `postgres.py` (named/server-side cursor — a regular cursor pulls the whole result to
+  the client on `execute()` regardless of `fetchall()`, so only a named cursor actually avoids
+  holding a multi-million-row result in memory) and `oracle.py` (iterating the cursor directly
+  batches via `arraysize` without needing a special cursor type). `csv_report.py`'s `generate()` now
+  accepts any iterable and writes row-by-row instead of requiring a materialized list; `report.py`'s
+  CSV branch wires DB → CSV end-to-end through the new streaming path, keeping the connection open
+  for the duration of the write instead of closing it right after an eager fetch. Found and fixed a
+  real bug along the way: psycopg2 named cursors report `.description` as `None` until the *first
+  fetch* — reading columns immediately after `execute()` (as the naive version of this fix did)
+  silently returned an empty column list, caught by `tests/test_report_e2e.py`'s real-Postgres tests
+  (a pure-mock test suite would not have caught this). 16 new tests across
+  `test_postgres_unit.py`/`test_oracle.py`/`test_connection_base.py`/`test_report_generators.py`.
+  **Explicitly out of scope for this pass** (each needs its own dedicated, carefully-tested effort,
+  not a rushed inclusion here): Excel/PDF/JSON report formats still materialize `rows` fully —
+  Excel in particular would need `openpyxl`'s `write_only=True` mode, which has real interaction
+  with the already-shipped column-formatting feature (`docs/manual-testing-guide.md` §36) that needs
+  careful verification, not a blind conversion. `bulk_load.py`/`data_load.py` still read entire
+  source files into memory before chunking on the insert side — footer-row stripping in particular
+  needs a bounded sliding-window buffer (not a naive one-pass stream) to preserve exact
+  header/footer-trim behavior across 3 load paths (Python fallback, Postgres COPY, SQL*Loader) in
+  an already-867-line file with heavy existing test coverage worth not destabilizing casually.
+- [x] **Add connect timeouts to the connection-pool creation paths** *(2026-07-24)* — added
+  `connect_timeout=5` to `postgres.py`'s `ThreadedConnectionPool` and `tcp_connect_timeout=5` to
+  `oracle.py`'s `create_pool` and to the `test-raw` endpoint's `oracledb.connect()` call (the one
+  branch that had no timeout at all, unlike every other `db_type` in that function). 3 new tests
+  assert the kwarg is actually passed through.
+- [x] **Extend rate limiting beyond the 3 current `@limiter.limit` sites** *(2026-07-24)* — added
+  `@limiter.limit('20 per minute')` to all 4 `flowforge/api/routes/ai.py` endpoints (`data_profile`,
+  `chart_config`, `ai_query`, `anomaly_narrative` — the cost-DoS vector via paid Claude/Gemini
+  fallback) and to `reports.py`'s `preview_report` (arbitrary stored SQL execution). Matches the
+  existing `pipelines.py` pattern exactly (`from flowforge.api.app import limiter`).
+- [x] **Break up `flowforge/engine/runner.py`** *(2026-07-24)* — retry logic already lived in
+  `step_exec.py` from the earlier dag.py/runner.py circular-dependency fix; this pass split the
+  rest. New modules: `waves.py` (wave-building + wave execution — `_build_execution_waves`,
+  `_run_sequential_step` [newly extracted from `run_pipeline`'s inline sequential-step branch,
+  for symmetry with the already-factored-out `_run_parallel_wave`], `_run_parallel_wave`,
+  `_expose_step_outputs`, `_build_vars_log`, `_handle_failed_step`), `run_records.py`
+  (`_create_run_record`, `_finish_run_record`, `_get_last_success_ts`), `notifications.py`
+  (`_fire_failure_webhook`, `_notify_devbrain`), `dependency_trigger.py`
+  (`_trigger_downstream_pipelines`). `runner.py` now only holds `run_pipeline()` (158 lines) and
+  imports everything else. No behavior change — pure mechanical extraction, same call order, same
+  return values. `_write_step_run`/`_expose_step_outputs`/`_handle_failed_step` are re-exported
+  (unused, `# noqa: F401`) from `runner.py` even though their call sites moved into `waves.py`,
+  because existing tests patch/import them as `flowforge.engine.runner.<name>` — same convention
+  already used for `step_exec.py`'s re-exports. `ruff check` clean; full suite (2134 tests) passes
+  unchanged.
+- [x] **Add a `frontend/src/hooks/` layer and break up the monolithic page components**
+  *(2026-07-24)* — new `frontend/src/hooks/`: `useMfa`, `useRetentionSettings`,
+  `useChangePassword` (state/query/mutation logic pulled out of `Settings.tsx`'s inline card
+  components), `useReportConfigForm`, `useReportPreviewTools` (form + data-fetching vs.
+  AI-tooling state pulled out of `ReportEdit.tsx`, split along the same seam the two hooks
+  already had — a single shared `error`/`setError` passed from the form hook into the preview
+  hook, matching the original single error banner). Every card that used to be a function
+  declared inline in `Settings.tsx` now lives in its own file under
+  `frontend/src/components/settings/` (`ChangePasswordCard`, `MfaCard`, `GoogleOAuthCard`,
+  `Microsoft365Card`, `AiOllamaCard`, `RetentionCard`, `YamlCard`, `DocsCard`, plus
+  `common.tsx` for the shared `StatusBadge`/`CodeBlock`/`InlineCode`); `ColumnFormattingCard`
+  moved out of `ReportEdit.tsx` into `frontend/src/components/report/`. `Settings.tsx` went
+  737 → 90 lines (now just the tab shell), `ReportEdit.tsx` went 675 → 370 (page layout +
+  wiring, no state logic). No behavior change — pure mechanical extraction. Verified via `tsc
+  --noEmit` (clean), `eslint` (0 errors, same pre-existing `watch()` warning pattern already
+  present in `EmailEdit.tsx`), the full Vitest suite (172 tests, unchanged), a production
+  `vite build`, and a manual Playwright pass against the real dev stack (login → all 5 Settings
+  tabs → MFA card → admin Retention save → create/save a real report end-to-end → delete it) —
+  zero console errors.
+- [x] **Close the release-cadence gap** *(2026-07-24)* — `pyproject.toml` bumped `1.1.0` → `1.3.0`
+  (also fixed `flowforge/__init__.py`'s `__version__`, separately stale at `0.1.0` — unused
+  elsewhere in the app, but worth being accurate now that it's touched). **Not** tagged `v1.2.0`:
+  `CHANGELOG.md` already has an unrelated, unused `## [1.2.0]` section (pre-launch "multi-user
+  roles" content, folded into the `v1.0.0` tag, whose own `compare/v1.1.0...v1.2.0` link is the
+  dangling one this item originally flagged) — reusing that label for today's real release would
+  put two different `## [1.2.0]` sections in the file. Decided with the user: skip straight to
+  `v1.3.0` rather than rewrite historical changelog content; the old `[1.2.0]` section and its
+  dangling link are left as-is (a known, now-documented quirk, not a live gap). `CHANGELOG.md`'s
+  `[Unreleased]` section converted to `## [1.3.0] — 2026-07-24`, with today's four refactors
+  (service layer, leader election, runner.py split, frontend hooks layer) added under it alongside
+  the already-documented DAG engine work. `release.yml`/`publish.yml` (SLSA provenance, PyPI OIDC)
+  fired on push — user confirmed, tag pushed, both workflows green, package live on PyPI. This was
+  also the first time these ~12 already-committed-but-never-pushed local commits actually ran
+  through GitHub's CI (they'd only ever been tested on this dev machine, Windows) — that surfaced
+  one real, pre-existing bug: `tests/test_plugin_loader.py`'s
+  `test_world_or_group_writable_always_false_on_windows` built `Path('x')` *after* monkeypatching
+  `os.name` to `'nt'`, which is silently a no-op on Windows (already `'nt'` natively) but on Linux
+  CI made `pathlib.Path()` itself try to instantiate a real `WindowsPath` and raise
+  `NotImplementedError` — which then also crashed pytest's own failure-reporting code (also calls
+  `Path()`), aborting the whole session with a cascading `INTERNALERROR` instead of a normal test
+  failure. Root-caused by reproducing the exact crash in a Linux Docker container mirroring CI's
+  postgres/env setup (not guessable from the Windows-only local runs that had passed every time);
+  fixed by building the `Path` before the monkeypatch. Two follow-up commits after the tag push
+  (a `ruff` import-sort miss in the same file, then this real fix) before `master`'s CI went fully
+  green (CI, CodeQL, Secrets Scan, OpenSSF Scorecard all passing on `7968521`, confirmed still
+  green on `615b2d7` — the last commit of this session).
+- [x] **Make `.github/workflows/secrets-scan.yml` a blocking gate** *(2026-07-24)* — removed
+  `continue-on-error: true` from the TruffleHog step. Note: this is a one-line change I could verify
+  parses as valid YAML but couldn't execute (no local GitHub Actions runner) — worth watching the
+  next PR's checks to confirm nothing in this repo's history trips `--only-verified` now that it's
+  blocking.
+
+---
+
+
 ## Session — 2026-07-22 (Phase 14 — Visual Pipeline Canvas complete: Option A canvas + Option B step-level DAG rewrite) 🟢 *(COMPLETE)*
 
 ### Phase 14 — Visual Pipeline Canvas *(scoped 2026-07-08)* — Option A + Option B complete

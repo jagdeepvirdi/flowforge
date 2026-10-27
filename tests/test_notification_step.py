@@ -1,4 +1,4 @@
-"""Unit tests for NotificationStep — all HTTP calls are mocked via urllib.request.urlopen.
+"""Unit tests for NotificationStep — all HTTP calls are mocked via flowforge.net_guard.safe_urlopen.
 
 assert_public_url is also mocked (autouse) so these tests never perform a real DNS
 lookup — SSRF-guard behavior itself is covered separately below and in test_net_guard.py.
@@ -37,7 +37,7 @@ class TestSlackNotification:
 
     def test_send_success(self):
         step = _step({'platform': 'slack', 'message': 'Hello', 'webhook_url': 'https://hooks.slack.com/T/X'})
-        with patch('urllib.request.urlopen', return_value=_mock_urlopen_ok()):
+        with patch('flowforge.net_guard.safe_urlopen', return_value=_mock_urlopen_ok()):
             result = step.run({})
         assert result.success is True
         assert 'Slack' in result.logs
@@ -57,7 +57,7 @@ class TestSlackNotification:
     def test_http_error(self):
         step = _step({'platform': 'slack', 'message': 'Hello', 'webhook_url': 'https://hooks.slack.com/T/X'})
         err = urllib.error.HTTPError(url='', code=400, msg='Bad', hdrs=None, fp=BytesIO(b'invalid_token'))
-        with patch('urllib.request.urlopen', side_effect=err):
+        with patch('flowforge.net_guard.safe_urlopen', side_effect=err):
             result = step.run({})
         assert result.success is False
         assert '400' in result.error
@@ -65,7 +65,7 @@ class TestSlackNotification:
     def test_message_truncated_in_logs(self):
         long_msg = 'A' * 200
         step = _step({'platform': 'slack', 'message': long_msg, 'webhook_url': 'https://hooks.slack.com/T/X'})
-        with patch('urllib.request.urlopen', return_value=_mock_urlopen_ok()):
+        with patch('flowforge.net_guard.safe_urlopen', return_value=_mock_urlopen_ok()):
             result = step.run({})
         assert result.success is True
 
@@ -76,7 +76,7 @@ class TestTeamsNotification:
 
     def test_send_success_no_title(self):
         step = _step({'platform': 'teams', 'message': 'Ping', 'webhook_url': 'https://example.webhook.office.com/X'})
-        with patch('urllib.request.urlopen', return_value=_mock_urlopen_ok()):
+        with patch('flowforge.net_guard.safe_urlopen', return_value=_mock_urlopen_ok()):
             result = step.run({})
         assert result.success is True
         assert 'Teams' in result.logs
@@ -88,7 +88,7 @@ class TestTeamsNotification:
             'title':    'Alert',
             'webhook_url': 'https://example.webhook.office.com/X',
         })
-        with patch('urllib.request.urlopen', return_value=_mock_urlopen_ok()):
+        with patch('flowforge.net_guard.safe_urlopen', return_value=_mock_urlopen_ok()):
             result = step.run({})
         assert result.success is True
 
@@ -101,7 +101,7 @@ class TestTeamsNotification:
     def test_http_error(self):
         step = _step({'platform': 'teams', 'message': 'Ping', 'webhook_url': 'https://example.webhook.office.com/X'})
         err = urllib.error.HTTPError(url='', code=500, msg='Err', hdrs=None, fp=BytesIO(b'server error'))
-        with patch('urllib.request.urlopen', side_effect=err):
+        with patch('flowforge.net_guard.safe_urlopen', side_effect=err):
             result = step.run({})
         assert result.success is False
         assert '500' in result.error
@@ -131,7 +131,7 @@ class TestTelegramNotification:
             'chat_id':    '999',
             'parse_mode': 'HTML',
         })
-        with patch('urllib.request.urlopen', return_value=_mock_urlopen_ok()):
+        with patch('flowforge.net_guard.safe_urlopen', return_value=_mock_urlopen_ok()):
             result = step.run({})
         assert result.success is True
         assert '999' in result.logs
@@ -145,7 +145,7 @@ class TestTelegramNotification:
             'chat_id':    '999',
             'parse_mode': 'HTML',
         })
-        with patch('urllib.request.urlopen', return_value=_mock_urlopen_ok()):
+        with patch('flowforge.net_guard.safe_urlopen', return_value=_mock_urlopen_ok()):
             result = step.run({})
         assert result.success is True
 
@@ -158,7 +158,7 @@ class TestTelegramNotification:
             'chat_id':    '999',
             'parse_mode': 'Markdown',
         })
-        with patch('urllib.request.urlopen', return_value=_mock_urlopen_ok()):
+        with patch('flowforge.net_guard.safe_urlopen', return_value=_mock_urlopen_ok()):
             result = step.run({})
         assert result.success is True
 
@@ -169,14 +169,14 @@ class TestTelegramNotification:
             'bot_token': 'tok123',
             'chat_id':   '42',
         })
-        with patch('urllib.request.urlopen', return_value=_mock_urlopen_ok()):
+        with patch('flowforge.net_guard.safe_urlopen', return_value=_mock_urlopen_ok()):
             result = step.run({})
         assert result.success is True
 
     def test_http_error(self):
         step = _step({'platform': 'telegram', 'message': 'Hello', 'bot_token': 'tok123', 'chat_id': '999'})
         err = urllib.error.HTTPError(url='', code=401, msg='Unauthorized', hdrs=None, fp=BytesIO(b'unauthorized'))
-        with patch('urllib.request.urlopen', side_effect=err):
+        with patch('flowforge.net_guard.safe_urlopen', side_effect=err):
             result = step.run({})
         assert result.success is False
         assert '401' in result.error
@@ -198,7 +198,7 @@ class TestNotificationEdgeCases:
             'message':     'Hello {{ name }}',
             'webhook_url': 'https://hooks.slack.com/T/X',
         })
-        with patch('urllib.request.urlopen', return_value=_mock_urlopen_ok()):
+        with patch('flowforge.net_guard.safe_urlopen', return_value=_mock_urlopen_ok()):
             result = step.run({'name': 'World'})
         assert result.success is True
 
@@ -209,13 +209,13 @@ class TestNotificationEdgeCases:
             'title':       '{{ pipeline_name }} finished',
             'webhook_url': 'https://example.webhook.office.com/X',
         })
-        with patch('urllib.request.urlopen', return_value=_mock_urlopen_ok()):
+        with patch('flowforge.net_guard.safe_urlopen', return_value=_mock_urlopen_ok()):
             result = step.run({'pipeline_name': 'Monthly Report'})
         assert result.success is True
 
     def test_generic_exception_wrapped_in_step_result(self):
         step = _step({'platform': 'slack', 'message': 'Hello', 'webhook_url': 'https://hooks.slack.com/T/X'})
-        with patch('urllib.request.urlopen', side_effect=Exception('connection refused')):
+        with patch('flowforge.net_guard.safe_urlopen', side_effect=Exception('connection refused')):
             result = step.run({})
         assert result.success is False
         assert 'connection refused' in result.error
@@ -243,6 +243,6 @@ class TestSsrfGuard:
     def test_slack_does_not_call_urlopen_when_url_unsafe(self):
         step = _step({'platform': 'slack', 'message': 'Hello', 'webhook_url': 'http://127.0.0.1/'})
         with patch('flowforge.net_guard.assert_public_url', side_effect=UnsafeUrlError('blocked')), \
-             patch('urllib.request.urlopen') as mock_urlopen:
+             patch('flowforge.net_guard.safe_urlopen') as mock_urlopen:
             step.run({})
         mock_urlopen.assert_not_called()

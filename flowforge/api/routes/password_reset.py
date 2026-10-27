@@ -17,6 +17,7 @@ import bcrypt
 from flask import Blueprint, jsonify, request
 
 import flowforge.audit as audit
+from flowforge.api.email_utils import send_via_default_provider
 from flowforge.db.models import PasswordResetToken, User, db
 
 bp = Blueprint('password_reset', __name__)
@@ -53,24 +54,7 @@ def _send_reset_email(user: User, token: str) -> None:
     """
 
     try:
-        from flowforge.db.models import EmailProvider
-        from flowforge.email_providers.factory import get_provider
-        provider_row = db.session.query(EmailProvider).filter_by(is_default=True).first()
-        if not provider_row:
-            provider_row = db.session.query(EmailProvider).first()
-        if not provider_row:
-            raise RuntimeError("No email provider configured")
-
-        provider = get_provider(provider_row)
-        result   = provider.send(
-            to=[user.email],
-            cc=[], bcc=[],
-            subject=subject,
-            html_body=html_body,
-            attachments=[],
-        )
-        if not result.success:
-            raise RuntimeError(result.error or "Send failed")
+        send_via_default_provider([user.email], subject, html_body)
     except Exception as exc:
         import logging
         logging.getLogger(__name__).exception(
@@ -134,6 +118,7 @@ def confirm_reset():
         return jsonify({'error': 'User not found'}), 404
 
     user.password_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+    user.must_change_password = False
     entry.used_at      = now
     db.session.commit()
 

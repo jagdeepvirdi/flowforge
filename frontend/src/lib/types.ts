@@ -21,6 +21,7 @@ export interface User {
   email: string | null
   mfa_enabled: boolean
   sso_provider: string | null
+  must_change_password: boolean
   created_at: string
 }
 

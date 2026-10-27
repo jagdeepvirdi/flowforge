@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 *V2.0 Audit Action Items — see [`docs/TASKS.md`](docs/TASKS.md) for full detail on each item.*
 
+### Security — 2026-10-27
+
+- **SSRF: pipeline failure webhook is now guarded.** `on_failure_webhook_url` was POSTed server-side with no validation; it is now checked at save time (create, update, YAML import: http(s) scheme, hostname, no literal private/loopback/link-local IP) and again at send time (all resolved addresses must be public).
+- **SSRF: redirect and DNS-rebinding bypass closed.** Outbound requests to editor-configurable URLs (notification steps and the failure webhook) go through the new `net_guard.safe_urlopen`: redirects are never followed, and the connection is pinned to the IP that was validated. Failure-webhook logs now record only the host, since webhook URLs often embed secret tokens.
+
 ### Added — 2026-07-25
 
 - **OpenAPI-generated TypeScript types for `pipelines`/`runs`** — [`docs/openapi/pipelines.yaml`](docs/openapi/pipelines.yaml)

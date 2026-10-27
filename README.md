@@ -1,6 +1,6 @@
 # FlowForge
 
-**Database-driven pipeline orchestrator. Configure everything from the UI — DB procedures, reports, email (Gmail/M365/SMTP), Google Drive, OneDrive, SFTP, smart attachments, scheduling. No YAML. No Airflow complexity.**
+**Enterprise Telecom Revenue Assurance: a deterministic data-orchestration core (the "Muscle") paired with a separate AI root-cause engine (the "Brain"). Configure everything from the UI — no YAML, no Airflow complexity.**
 
 [![Tests](https://github.com/jagdeepvirdi/flowforge/actions/workflows/test.yml/badge.svg)](https://github.com/jagdeepvirdi/flowforge/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/jagdeepvirdi/flowforge/graph/badge.svg)](https://codecov.io/gh/jagdeepvirdi/flowforge)
@@ -11,11 +11,50 @@
 
 ---
 
-## What is FlowForge?
+## Product Vision
 
-FlowForge runs ordered data pipelines: call database procedures, run queries, generate reports (Excel/PDF/CSV/JSON), send emails with smart attachment handling, upload files to Google Drive or OneDrive, and transfer files over SFTP. Everything is configured through a web frontend — no config files to edit, no Python DAGs to write.
+Telecom operators lose millions to **revenue leakage**: CDRs dropped between the switch and billing, tariffs that
+rate usage wrongly, and subscriptions that are active in the network but not billed (or the reverse). FlowForge is
+being built to find that leakage on a schedule — by combining **heavy-duty data orchestration** with **AI-assisted
+root-cause analysis** — and to put the findings, charts and diagnoses in one place for the enterprise user.
 
-Designed for solo developers, data analysts, and small teams who need lightweight automation without the overhead of enterprise orchestration tools.
+> **Status, honestly:** the orchestration engine below is real, tested and shipping today. The telecom-specific
+> layer (CDR/mediation tooling, reconciliation steps, leakage KPIs, case management) and the Brain are the
+> **direction**, not yet shipped features. [`ARCHITECTURE.md` §7](ARCHITECTURE.md#7-telecom-revenue-assurance-mapping)
+> maps each use case to what exists and what is missing.
+
+## Architecture: "Muscle" and "Brain"
+
+We strictly separate **deterministic data pipelines** from **non-deterministic LLM operations**:
+
+| | **Muscle — FlowForge Core** *(this repository)* | **Brain — FlowForge Intelligence** *(separate service)* |
+|---|---|---|
+| Role | Deterministic data orchestrator and ETL pipeline | Non-deterministic AI diagnostic engine |
+| Stack | Python 3.11+ / Flask / PostgreSQL (+ Oracle and others for customer data), APScheduler, optional Celery + Redis, React frontend | FastAPI (Python), Google Gemini via Vertex AI / AI Studio |
+| Does | Ingests CDRs / mediation logs / CRM data at volume; runs complex SQL audits (e.g. Network HLR vs. Billing status); schedules, retries, alerts | Performs Root Cause Analysis: given anonymized error evidence (e.g. 5,000 dropped sessions) it returns a structured, plain-English diagnosis and remediation step |
+| AI/LLM code | **None. Ever.** | All of it |
+| Must be | Fast, predictable, highly available | Optional — everything works without it |
+
+The **React frontend** is the single pane of glass: it pulls operational data and charts from Core and fetches AI
+diagnostics from the Brain over HTTP. If no Brain is attached, no AI UI is shown.
+
+**Rules the core must keep** (full detail in [`ARCHITECTURE.md`](ARCHITECTURE.md#8-hard-rules)):
+- The core backend **never imports LLM SDKs** (no `anthropic`, `openai`, `google-generativeai`, `vertexai`,
+  `langchain`, …) and contains no prompts, model names or AI provider keys.
+- The core **never makes long-running or long-polling AI calls** and never waits on the Brain. Hand-offs to the
+  Brain are asynchronous and off the pipeline's critical path, so a slow or unavailable model can never block an
+  API worker, the scheduler, or a data pipeline.
+- Evidence is **anonymized and minimized in the core** before it leaves; Brain output is advisory and never
+  triggers changes automatically.
+
+> **Transition note (2026-10-27):** the repository still contains the legacy in-repo AI features (Ollama/Claude/
+> Gemini helpers and the `ai_analyze` step) while they are being extracted. Removal is planned in
+> [`docs/BRAIN_DECOUPLING_PLAN.md`](docs/BRAIN_DECOUPLING_PLAN.md); this README describes the target state and no
+> longer documents those features.
+
+## What is FlowForge Core?
+
+FlowForge Core runs ordered data pipelines: call database procedures, run queries, generate reports (Excel/PDF/CSV/JSON), send emails with smart attachment handling, upload files to Google Drive, OneDrive, S3 or Azure Blob, and transfer files over SFTP. Everything is configured through a web frontend — no config files to edit, no Python DAGs to write. These are the building blocks for the revenue-assurance audits above.
 
 ---
 
@@ -24,7 +63,7 @@ Designed for solo developers, data analysts, and small teams who need lightweigh
 ### Pipeline Engine
 - **No-YAML config** — pipelines, reports, email templates, and schedules are all managed in the UI
 - **Multi-project workspace** — organize resources by team or department in one instance, with team-scoped project membership
-- **17 step types** — db_procedure, db_query, report, email, drive_upload, onedrive_upload, s3_upload, azure_blob_upload, data_load, bulk_load, sftp_transfer, ssh_command, ssh_health_check, db_health_check, data_report, notification (Slack/Teams/Telegram), ai_analyze
+- **16 step types** — db_procedure, db_query, report, email, drive_upload, onedrive_upload, s3_upload, azure_blob_upload, data_load, bulk_load, sftp_transfer, ssh_command, ssh_health_check, db_health_check, data_report, notification (Slack/Teams/Telegram)
 - **Plugin system** — drop a custom `BaseStep` subclass into `FLOWFORGE_PLUGIN_DIR` to add community/internal step types without forking
 - **Pipeline dependencies** — chain pipelines so a downstream one launches automatically after all its upstreams succeed; cycle detection included
 - **Parallel step execution** — group steps with `parallel_group` to run them concurrently in a pipeline
@@ -75,14 +114,13 @@ Designed for solo developers, data analysts, and small teams who need lightweigh
 - **Gunicorn + Nginx deployment guide**: gevent workers, systemd units, TLS termination — see `docs/deployment.md` / `RUNBOOK.md`
 - **SQLAlchemy pool tuning**: pool size/overflow/timeout/recycle configurable via env vars, with PgBouncer guidance for 100+ concurrent pipelines
 
-### AI Features (Ollama, Claude API, or Gemini API)
-All AI-powered UI features (below) run through Ollama by default (local, zero cost) and fall back to Claude or Gemini — in that order — if Ollama is unreachable and one of `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` is set. Configure in Settings → AI.
-- **AI chart generator**: "Visualize" button on Report Preview — sends column names + sample rows to the AI provider; renders result with Recharts (bar, line, area, pie, scatter)
-- **SQL Explainer**: "Explain" button in the SQL editor — plain-English summary of what a query does
-- **SQL Optimizer**: "Optimize" button — side-by-side diff of original vs AI-suggested rewrite; accept with one click
-- **Pipeline failure diagnosis**: "Explain this error" on failed step logs — 2–4 sentence cause and fix
-- **Data Profiler**: one-click narrative summary of query result (structure, ranges, nulls, outliers)
-- **Run history anomaly alerts**: statistical outlier detection (>2σ) on row counts and durations; AI narrative when anomaly is detected
+### Run-Health Anomaly Detection (deterministic)
+- **Statistical outlier detection** (>2σ) on per-step row counts and durations across run history — flagged in the Run Detail view. No AI involved.
+
+### AI Diagnostics — external (not part of this repository's runtime)
+Root-cause analysis lives in the separate **Brain** service ([`ARCHITECTURE.md`](ARCHITECTURE.md)). When a Brain is attached
+(`FLOWFORGE_BRAIN_URL`), the UI can show its diagnoses next to the run or finding they explain; when it is not,
+FlowForge behaves exactly the same minus those panels.
 
 ### Security
 - **AES-256-GCM** credential encryption for all DB and email provider configs stored in the database
@@ -94,7 +132,7 @@ All AI-powered UI features (below) run through Ollama by default (local, zero co
 - **Env var allowlist** (`FLOWFORGE_TEMPLATE_ENV_VARS`) — restrict which env vars are accessible in templates
 - **Path containment** check on report file download — prevents directory traversal
 - **Procedure name validation** — blocks SQL injection via stored procedure names
-- **SSRF guard** on outbound webhook/notification URLs — rejects internal/private-network targets
+- **SSRF guard** on every editor-configurable outbound URL (notification steps and the pipeline failure webhook) — rejects internal/private-network targets, never follows redirects, and connects to the exact IP it validated (no DNS-rebinding window); unsafe webhook URLs are also rejected at save time
 - **SFTP strict host key checking** (`FLOWFORGE_SFTP_STRICT_HOSTKEYS=true`)
 - **Audit log** — every login, pipeline run, config change, and webhook trigger logged with username attribution; file (rotating 10 MB × 5) + structured JSON stdout
 - **SAST in CI** — `bandit` (Python) + `npm audit` on every push; TruffleHog secrets scan; property-based fuzz tests (Hypothesis)
@@ -120,7 +158,7 @@ All AI-powered UI features (below) run through Ollama by default (local, zero co
 | Google Drive / OneDrive | Built-in | DIY | DIY | DIY |
 | Smart attachments | Built-in | DIY | DIY | DIY |
 | Multi-user roles | Built-in | Built-in | Built-in | DIY |
-| AI analysis | Built-in (Ollama/Claude/Gemini) | DIY | DIY | DIY |
+| AI root-cause analysis | Separate optional Brain service | DIY | DIY | DIY |
 | Scheduling | Built-in UI | Built-in | Built-in | OS cron |
 | Run history / logs | Built-in UI | Built-in | Built-in | DIY |
 | SFTP transfer | Built-in | Plugin | Plugin | DIY |
@@ -148,7 +186,6 @@ All AI-powered UI features (below) run through Ollama by default (local, zero co
 | `db_health_check` | Collect DB health metrics (sessions, cache hit ratio, replication lag, etc.); outputs a report file |
 | `data_report` | Run an arbitrary script and turn its output into a report |
 | `notification` | Send a message to Slack, Microsoft Teams, or Telegram |
-| `ai_analyze` | Run a SQL query, summarize results with Ollama, Claude, or Gemini; result available as `{{ ai_summary }}` |
 
 Custom step types, database connections, and email providers can also be added via the [plugin system](docs/plugins.md) without forking FlowForge.
 
@@ -168,7 +205,7 @@ Custom step types, database connections, and email providers can also be added v
 | Task queue | Celery + Redis (optional — threads used when Redis is not configured) |
 | Auth | Username/password + JWT, MFA (TOTP), SSO (Google, Microsoft, SAML 2.0) |
 | Monitoring | Prometheus metrics endpoint, Celery Flower dashboard |
-| AI (optional) | Ollama (local, zero cost), Claude API (Anthropic), Gemini API (Google, free tier) |
+| AI (optional) | External Brain microservice — FastAPI + Gemini (Vertex AI / AI Studio); not part of this repo's runtime |
 
 ---
 
@@ -217,13 +254,10 @@ pip install -e ".[ses]"           # AWS SES email provider + S3 upload
 pip install -e ".[azure_blob]"    # Azure Blob Storage upload
 pip install -e ".[sftp]"          # SFTP transfer step (paramiko)
 pip install -e ".[sso]"           # SSO: Google, Microsoft, SAML 2.0
-pip install -e ".[claude]"        # ai_analyze step via Claude API
 pip install -e ".[celery]"        # Celery task queue (FLOWFORGE_REDIS_URL) — pulls in redis too
 pip install -e ".[redis]"         # Redis-backed concurrency limit + rate limiting, no Celery task queue
 pip install -e ".[all]"           # Everything above
 ```
-
-`ai_analyze` step via Gemini API needs no extra install — it's a plain REST call, just set `GEMINI_API_KEY`.
 
 #### 3. Configure
 
@@ -330,7 +364,6 @@ Available in every config field rendered via Jinja2:
 | `{{ steps.name.drive_url }}` | Drive / OneDrive URL from a previous step |
 | `{{ steps.name.rows_affected }}` | Row count from a previous step |
 | `{{ steps.name.table_html }}` | HTML table of captured query rows |
-| `{{ steps.name.ai_summary }}` | AI narrative from an `ai_analyze` step |
 | `{{ my_var }}` / `{{ vars.my_var }}` | Pipeline-level variable (secrets encrypted at rest) |
 
 ---
@@ -374,7 +407,7 @@ flowforge/
 │   ├── steps/               # db_procedure, db_query, report, email, drive_upload, onedrive_upload,
 │   │                        #   s3_upload, azure_blob_upload, data_load, bulk_load, sftp_transfer,
 │   │                        #   ssh_command, ssh_health_check, db_health_check, script_report,
-│   │                        #   notification, ai_analyze
+│   │                        #   notification
 │   ├── connections/         # PostgreSQL, Oracle, MySQL, MSSQL, ODBC, Snowflake, BigQuery, Redshift + factory
 │   ├── email_providers/     # Gmail, M365, SMTP, SendGrid, SES, Mailgun + factory
 │   ├── reports/             # Excel, CSV, PDF, JSON generators
@@ -407,6 +440,8 @@ flowforge/
 
 ## Documentation
 
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — Muscle/Brain architecture, integration flows, hard rules, telecom RA mapping
+- [`docs/BRAIN_DECOUPLING_PLAN.md`](docs/BRAIN_DECOUPLING_PLAN.md) — plan for extracting the legacy in-repo AI code
 - [`docs/getting-started.md`](docs/getting-started.md) — end-to-end setup walkthrough
 - [`docs/step-types.md`](docs/step-types.md) — full config reference for all step types
 - [`docs/email-providers.md`](docs/email-providers.md) — SMTP, M365, Gmail, SendGrid, SES, and Mailgun setup guides
@@ -435,6 +470,7 @@ flowforge/
 | v1.1.0 | ✅ | MySQL / MariaDB, OneDrive / SharePoint upload, SFTP transfer step, AI features (chart generator, SQL explainer/optimizer, failure diagnosis, data profiler, anomaly alerts), pipeline clone, YAML import/export, step retry + backoff, failure webhook, webhook/API trigger, JWT revocation, RBAC guards, SAST in CI |
 | v1.2.0 | ✅ | Multi-user roles (admin / editor / viewer), user management UI, role-based frontend visibility, Celery / Redis task queue, `flowforge worker` CLI, responsive mobile layout, audit log username attribution |
 | Since v1.2.0 | ✅ | SSH steps (command, health check) + DB health check + script reports; Gunicorn/Nginx production hardening, connection-pool tuning, Prometheus metrics, Celery Flower; MFA (TOTP), SSO (Google/Microsoft/SAML 2.0), GDPR export/purge, IP allowlisting, report encryption at rest, secrets scanning, password reset; MSSQL/ODBC/Snowflake/BigQuery/Redshift connectors; SendGrid/SES/Mailgun providers + Slack/Teams/Telegram notification step; S3/Azure Blob upload; plugin step-type system; pipeline dependencies + parallel step execution; run diff view; report column formatting; environment promotion; team-scoped project membership; distributed Redis concurrency lock; fuzzing (Hypothesis), signed releases (SLSA), PyPI publish; full Tailwind CSS frontend migration; visual pipeline canvas (list/graph toggle in the pipeline editor); step-level DAG dependencies (real edge-drawing on the canvas, branch-scoped `on_error: stop`, ancestors-only step context) |
+| **Direction (2026-10-27)** | 🧭 | Telecom Revenue Assurance: extract AI into the external Brain service; CDR/mediation tooling, reconciliation steps, conditional alerting, leakage KPIs and case management — see [`ARCHITECTURE.md`](ARCHITECTURE.md) |
 | **Not yet built** | — | OSS-Fuzz registration; cosign-signed release artifacts |
 
 ---
@@ -445,7 +481,7 @@ flowforge/
 
 **Feedback:** Use [GitHub Issues](https://github.com/jagdeepvirdi/flowforge/issues) to report bugs or request features. Please include your FlowForge version, Python version, OS, steps to reproduce, and any relevant log output from `ff_step_runs.logs`.
 
-**Contribute:** See [`CONTRIBUTING.md`](CONTRIBUTING.md) for dev setup, running tests, adding step types, and the PR process. All contributions welcome — bug fixes, new step types, documentation improvements, and test coverage.
+**Contribute:** See [`CONTRIBUTING.md`](CONTRIBUTING.md) for dev setup, running tests, adding step types, and the PR process. Contributions must respect the core's architectural rule: **no LLM SDKs, prompts or blocking AI calls in this repository** ([`ARCHITECTURE.md` §8](ARCHITECTURE.md#8-hard-rules)). All contributions welcome — bug fixes, new step types, documentation improvements, and test coverage.
 
 ---
 

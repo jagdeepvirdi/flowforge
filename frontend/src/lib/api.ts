@@ -61,7 +61,13 @@ const del  = <T>(path: string)             => request<T>('DELETE', path)
 
 // Auth
 export const login  = (username: string, password: string) =>
-  post<{ token: string } | { mfa_required: true; mfa_token: string }>('/auth/login', { username, password })
+  post<
+    | { token: string }
+    | { mfa_required: true; mfa_token: string }
+    | { password_change_required: true; change_token: string }
+  >('/auth/login', { username, password })
+export const changeRequiredPassword = (change_token: string, new_password: string) =>
+  post<{ token: string }>('/auth/change-required-password', { change_token, new_password })
 export const logout = () => post<{ message: string }>('/auth/logout')
 export const getMe  = () => get<import('./types').CurrentUser>('/auth/me')
 
@@ -290,8 +296,8 @@ export const getAnomalyNarrative = (payload: {
 
 // Users (admin)
 export const getUsers    = () => get<import('./types').User[]>('/users')
-export const createUser  = (data: { username: string; password: string; role: string; email?: string }) =>
-  post<import('./types').User>('/users', data)
+export const createUser  = (data: { username: string; password: string; role: string; email?: string; send_welcome_email?: boolean }) =>
+  post<import('./types').User & { email_sent?: boolean }>('/users', data)
 export const updateUser  = (id: string, data: { role?: string; username?: string }) =>
   request<import('./types').User>('PATCH', `/users/${id}`, data)
 export const deleteUser  = (id: string) => del<{ message: string }>(`/users/${id}`)

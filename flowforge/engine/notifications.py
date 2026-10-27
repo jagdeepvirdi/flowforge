@@ -14,9 +14,18 @@ logger = logging.getLogger(__name__)
 
 
 def _fire_failure_webhook(url: str, payload: dict) -> None:
-    """POST JSON payload to the failure webhook URL; errors are logged, never raised."""
+    """POST JSON payload to the failure webhook URL; errors are logged, never raised.
+
+    The URL is editor-configurable, so it goes through the SSRF guard (public targets only,
+    no redirects, connection pinned to the validated IP). Only the host is logged — webhook
+    URLs routinely embed secret tokens in the path.
+    """
     if not url:
         return
+    from urllib.parse import urlparse
+
+    from flowforge.net_guard import UnsafeUrlError, safe_urlopen
+    host = urlparse(url).netloc or '<invalid>'
     try:
         body = json.dumps(payload).encode()
         req = urllib.request.Request(
@@ -25,11 +34,13 @@ def _fire_failure_webhook(url: str, payload: dict) -> None:
             headers={'Content-Type': 'application/json'},
             method='POST',
         )
-        with urllib.request.urlopen(req, timeout=10):  # nosec B310
+        with safe_urlopen(req, timeout=10):
             pass
-        logger.info("Failure webhook delivered to %s", url)
+        logger.info("Failure webhook delivered to %s", host)
+    except UnsafeUrlError as exc:
+        logger.warning("Failure webhook to %s blocked by SSRF guard: %s", host, exc)
     except Exception as exc:
-        logger.warning("Failure webhook POST to %s failed: %s", url, exc)
+        logger.warning("Failure webhook POST to %s failed: %s", host, exc)
 
 
 def _notify_devbrain(

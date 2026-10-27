@@ -722,7 +722,7 @@ config:
 | `parse_mode` | telegram | `HTML` (default) or `Markdown` — controls how `title`/`message` are formatted |
 
 **Notes:**
-- Slack and Teams webhook URLs are validated against SSRF (`assert_public_url`) before the request is sent — internal/private-network URLs are rejected.
+- Slack, Teams and Telegram requests go through `net_guard.safe_urlopen`: the target must resolve to public addresses only, HTTP redirects are **not** followed (a 3xx is reported as an error), and the connection is pinned to the validated IP so a changed DNS answer can't redirect it. If an HTTP(S) proxy is configured for the target, IP pinning is skipped (the proxy resolves the name) while target validation and redirect refusal still apply — enforce destination policy at the proxy too.
 - Requests use stdlib `urllib` (no extra dependency); a non-2xx response fails the step with the HTTP status and response body (truncated to 200 chars).
 - Slack payload is a plain `{"text": message}`; Teams uses a legacy `MessageCard` payload; Telegram calls `POST https://api.telegram.org/bot<token>/sendMessage`.
 
