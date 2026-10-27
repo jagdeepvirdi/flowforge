@@ -1,9 +1,10 @@
 # TASKS.md — FlowForge
 
 *Open work only. Completed work lives in [TASKS_ARCHIVE.md](TASKS_ARCHIVE.md) (newest-first; the
-2026-10-27 entry holds the V2.0 Audit Action Items and Phase 13 audit fixes).*
+2026-10-27 entries hold the V2.0 audit, Phase 13 fixes, the SSRF/dependency fixes and the Dependabot triage).*
+*Direction: [TELECOM_PIVOT_ROADMAP.md](TELECOM_PIVOT_ROADMAP.md) (with `[claude]` review comments) · architecture: [../ARCHITECTURE.md](../ARCHITECTURE.md) · AI removal plan: [BRAIN_DECOUPLING_PLAN.md](BRAIN_DECOUPLING_PLAN.md).*
 *Full codebase review with scores in [CODEBASE_REVIEW.md](CODEBASE_REVIEW.md).*
-*Last reorganized: 2026-10-27.*
+*Last reorganized: 2026-10-27 (second pass: re-ranked around the Telecom Revenue Assurance direction).*
 
 ---
 
@@ -11,242 +12,196 @@
 
 | Release | Goal | Status |
 |---|---|---|
-| **v1.0** | Public GitHub release — stable, tested, `docker compose up` works, badges and docs polished, GTM done | Shipped (tagged); **GTM still partial** — see §6 |
-| **v2.0** | Production-hardening — scaling docs, metrics, audit UI, retention, dependency audit in CI | Code complete; V2.0 audit items (ARCH/SEC/PERF/MAINT-01..02) all closed |
+| **v1.0** | Public GitHub release — stable, tested, `docker compose up` works | Shipped (tagged); **GTM partial** — see §D |
+| **v2.0** | Production-hardening — scaling docs, metrics, audit UI, retention, dependency audit in CI | Code complete; V2.0 audit items all closed |
 | **v2.x Compliance** | MFA, SSO, GDPR, encryption at rest | Shipped |
 | **v3.0** | New connectors/providers, pipeline DAGs, plugin system, visual canvas | Shipped |
+| **Telecom RA MVP** | Orphaned-subscription audit on a design partner's data; Muscle/Brain split | **Direction adopted 2026-10-27; nothing telecom-specific shipped** — see §A–§C |
 
-Latest code-review score table: **7.8 / 10 (2026-05-25)** — stale; the later 2026-07-24 architect/VC audit
-scored 6/10 overall (Security 3/10 at the time; its Critical items have since all shipped). Re-score
-after the §1–§3 items below land.
+CI is green on `master` (backend, frontend, bandit, CodeQL, TruffleHog) after the 2026-10-27 security and dependency pass.
+Latest code-review score table: **7.8 / 10 (2026-05-25)** — stale; the 2026-07-24 architect/VC audit scored 6/10
+(Security 3/10 at the time; all its Critical items are fixed, and the 2026-10-27 re-audit closed the remaining SSRF
+and dependency gaps — Claude's estimate ≈ 6.5–7/10, a judgment, not a rubric). Re-score after §A and §B land.
 
-**Open items: 65** — §0 AI decoupling (11) · §0a Telecom RA MVP (5) · §1 Blockers (12) · §2 Product polish (7) · §3 Engineering quality (7) · §4 Supply chain & OSS health (7) · §5 Docs hygiene (2) · §6 Go-to-market (6) · §7 Strategic (8)
+**Open items: 66** — §A Now (17) · §B Telecom MVP track (12) · §C Gating decisions (5) · §D Go-to-market (8) · §E Product polish (5) · §F Engineering quality (7) · §G Dev environment (4) · §H Parked (8)
+
+**Priority rule:** §A and §B come first; §C runs in parallel (the design partner is the longest lead time, so start it now);
+§D keeps moving but is ordered behind the Brain scrub so nothing is published that the scrub makes untrue; §E–§G are
+done opportunistically; §H is parked deliberately — do not pick from it without a reason.
 
 Items tagged *(derived)* were not open checkboxes before: they come from "explicitly out of scope" notes
-in the now-archived completed items, promoted here so they aren't lost.
+in archived completed items, promoted here so they aren't lost.
 
 ---
 
-## 0. Architecture decision — decouple AI into the external "Brain" service *(decided 2026-10-27)*
+## A. Now — scrub, conditional execution, security leftovers *(≈ weeks 1–2)*
+
+### A1. AI decoupling — remove all AI/LLM from Core *(decided 2026-10-27)*
 
 **Full plan: [BRAIN_DECOUPLING_PLAN.md](BRAIN_DECOUPLING_PLAN.md)** (read its 2026-10-27 (b) amendment: no `/ai/*` shells — the UI calls Brain directly) and the target architecture in [`../ARCHITECTURE.md`](../ARCHITECTURE.md). Read both before touching any AI code.
 FlowForge becomes a deterministic ETL/SQL orchestrator; all LLM logic moves to a separate FastAPI "Brain" service.
 **Rule:** the small AI features (SQL explain/optimize, failure diagnosis, anomaly narrative, data profile, chart suggestion,
 `ai_analyze` step) stay in the UI code paths but are **dark unless a Brain is attached** (`FLOWFORGE_BRAIN_URL`). No fake/stub AI
-output; disabled routes return `503 brain_not_attached`; the `ai_analyze` step fails with a clear message. **Do this before the §6
-launch** (published posts and planned PH copy advertise "local AI"; record the demo GIF after the scrub). Effort ≈ 3–4 days.
+output; disabled routes return `503 brain_not_attached`; the `ai_analyze` step fails with a clear message. **Do this before the §D
+launch assets are recorded or published** (published posts advertise "local AI"). Effort ≈ 3–4 days. Runs in parallel with A2.
 
-- [ ] **A0 Prep** — commit/stash the uncommitted auth/users work first; tag `pre-brain-split`; branch/worktree `scrub/brain-decoupling`; record baseline test counts.
-- [ ] **A1 Extract** — write `extracted_ai_logic.md` (prompts, provider code, endpoint contracts, step spec, UX contract, test behavior) **before deleting anything**; decide commit vs gitignore (public repo).
+- [ ] **A0 Prep** — tag `pre-brain-split`; branch/worktree `scrub/brain-decoupling`; record baseline test counts. *(The uncommitted auth/users work was committed in PR #123.)*
+- [ ] **A1 Extract** — write `extracted_ai_logic.md` (prompts, provider code, endpoint contracts, step spec, UX contract, test behavior) **before deleting anything**; decide commit vs gitignore (public repo). *Keep it as a record only: the legacy prompts are generic and will not drive the telecom RCA design.*
 - [ ] **A2 Gate module** — `flowforge/brain.py`: `brain_enabled()` (Phase A: always False, TODO comment) + `brain_unavailable_response()`.
 - [ ] **A3 Backend** — gut `routes/ai.py` to 503 shells, `ai_analyze` to a failing step, `setup.py` ai block → `{enabled, brain_url_configured}`; keep secret blocklist + historic migrations.
 - [ ] **A4 Backend tests** — replace `test_ai.py`/`test_ai_analyze.py` with `test_brain_gate.py`; fix 4 other test files; check coverage gate.
 - [ ] **A5 Frontend** — default-off gating (`?? false`), BrainCard replaces AiOllamaCard, remove AI calls/strings, hide `ai_analyze` from picker (keep badge), keep `ChartPreview` + anomaly detection; manual Playwright pass.
 - [ ] **A6 Dependencies & config** — add a CI deny-list test (no LLM SDK imports/deps in `flowforge/`); remove `claude` extra (`anthropic`) from `pyproject.toml`; replace `.env.example` AI block with `FLOWFORGE_BRAIN_URL`/`_API_KEY`.
-- [ ] **A7 Docs & positioning** — CLAUDE.md, README, ROADMAP, ~14 docs, new `docs/brain.md`, CHANGELOG breaking entry; rewrite GTM copy; check published Reddit/LinkedIn posts.
+- [ ] **A7 Docs & positioning** — CLAUDE.md, README, ROADMAP, ~14 docs, new `docs/brain.md`, CHANGELOG breaking entry; rewrite GTM copy; check published Reddit/LinkedIn posts (see §D).
 - [ ] **A8 Ship** — version decision (v2.0.0 vs 1.4.0 + BREAKING), PR with CI green.
 - [ ] **Decide before A3:** check your DB for saved `ai_analyze` steps (they will fail after the scrub) — query in the plan §7.3.
-- [ ] **Phase B (blocked)** — define Brain's API contract (auth, TLS, size caps, redaction, errors, versioning), then implement `brain_enabled()` health check and forwarding. Not scheduled.
+
+### A2. Conditional / branching step execution *(≈ 1 week; moved up from product polish — needed for threshold alerting)*
+
+- [ ] **Conditional execution** — gate a step on a prior step's result (e.g. "alert only if `mismatch_count > threshold`", "only send email if row count > 0"). Today only DAG failure propagation (`on_error: stop`/`continue`) exists. Touches the runner and the DAG engine, so it has the highest blast radius of anything on this list: add it to both the sequential/parallel-wave engine and the DAG engine, with tests in both. Basic threshold gating belongs in the MIT core (general-purpose); do not make it a proprietary feature. *(Phase 12)*
+
+### A3. Security leftovers *(from the 2026-10-27 re-audit; the July Critical items and the SSRF/dependency gaps are fixed — see archive)*
+
+- [ ] **react-router 6 → 7** *(≈ 1–2 days; 19 files in `frontend/src/`; manual click-through needed)* — `npm audit` flags `react-router` `6.0.0-7.17.0` for two moderate advisories: open redirect via backslash in `<Link>`/`useNavigate` ([GHSA-wrjc-x8rr-h8h6](https://github.com/advisories/GHSA-wrjc-x8rr-h8h6)) and constructor injection via `deserializeErrors()` in SSR hydration ([GHSA-337j-9hxr-rhxg](https://github.com/advisories/GHSA-337j-9hxr-rhxg)). 6.30.6 is still inside the advisory range, so only the v7 migration clears it. Read the [v7 upgrade guide](https://reactrouter.com/upgrading/v6), migrate, re-run `npm audit`. The vitest/@vitest/mocker moderate chain also remains (needs a vitest bump). Neither gates CI (`--audit-level=high`).
+- [ ] **Resolve SonarCloud `pythonsecurity:S5496`** (issue key `AZ82Oyzt-6VzRaR01a4L`, `flowforge/engine/context.py`) as Won't Fix / False Positive in the SonarCloud UI — the rule flags the `render()` call-site pattern itself regardless of mitigations already shipped (`_jinja` is a `SandboxedEnvironment`, the blocklist covers credential names, rendered values are not reflected). **Requires SonarCloud login (not available to Claude).** *(~15 min, you)*
+- [ ] **Resolve SonarCloud `pythonsecurity:S3649`** (SQL injection, issue key `AZ83ITEjNp5vzm4zlnz0`, `flowforge/steps/bulk_load.py:614` in `_dry_run_insert_rows()`) as Won't Fix / False Positive — both `target_table` and `columns` are validated with `validate_identifier()` (regex allowlist) by the caller **and** re-validated inside the function; SonarCloud doesn't recognise a project-local validator as a sanitizer boundary. **Requires SonarCloud login.** *(~15 min, you)*
+- [ ] **Make bandit fail on unjustified `# nosec`** *(≈ 0.5 day)* — 40 findings are hidden by `# nosec` (`--ignore-nosec`: 7× B608 SQL string-building, rest low). The SQL ones in `data_load`, `db_query`, `bulk_load` were spot-checked (identifiers validated first); `urlopen` suppressions are down to 4 (three in the legacy AI code being removed in A1, one DevBrain notify hook). Require a reason comment so this can't recur silently.
+- [ ] **Local credential hygiene + one-time full-history secrets scan** *(≈ 0.5 day)* — a dev login is stored in plaintext in the assistant memory index; `docs/credentials.local.md` is correctly gitignored and untracked. Rotate/remove the stored login if it was ever reused, and run TruffleHog over **full git history** once (the CI gate is `--only-verified`).
+- [ ] **Re-verify the 2026-07-01 audit findings with regression tests** *(≈ 0.5–1 day; do early)* — memory records a verified SQL injection in `data_load.py`, a secrets leak and an SSRF from that audit; the code looks fixed, but confirm each has a regression test rather than assuming.
 
 ---
 
-## 0a. Telecom RA MVP — build order *(adopted 2026-10-27 from [TELECOM_PIVOT_ROADMAP.md](TELECOM_PIVOT_ROADMAP.md) with Claude's amendments)*
+## B. Telecom RA MVP track *(≈ weeks 3–11, one developer full-time; estimates are unvalidated)*
 
 **First proof-of-concept: orphaned subscriptions** (HLR/HSS vs. billing vs. CRM), audited **in place** in the operator's
-databases; FlowForge schedules and monitors the SQL and collects aggregates. Sequence: design-partner discovery
-(§7, runs in parallel throughout) → §0 Brain scrub **∥** conditional execution (§2) → reconciliation step → PII
-tokenization → audit template → compliance-claim verification → Brain scaffold (last; Phase B above). Reasoning and
-the points where Claude disagrees with the roadmap are in the roadmap document. Effort figures are unvalidated estimates for one full-time developer.
+databases; FlowForge schedules and monitors the SQL and collects aggregates (no terabyte ingestion; raw-file streaming
+stays deferred — §E). Sequence: §A1 ∥ §A2 → reconciliation → tokenization → audit template + benchmark → compliance
+evidence → Brain scaffold (last; it only adds value once detection is trustworthy). Reasoning, and the points where
+Claude disagrees with the roadmap, are in the roadmap document. Design-partner discovery (§C) runs throughout.
 
-- [ ] **Reconciliation step** *(≈ 1–2 weeks; the missing telecom primitive)* — compare keyed aggregates or key sets across **two connections** with tolerances and a capped sample of offending keys. A single `db_query` cannot join CRM, billing and HLR because they live in different systems, and `data_load` reads whole files into memory, so staging a full subscriber base is not safe. Define "orphaned" precisely first (active-unbilled, billed-unprovisioned, status mismatch, in-flight provisioning windows). Depends on conditional execution (§2) for threshold alerting.
+- [ ] **Reconciliation step** *(≈ 1–2 weeks; the missing telecom primitive)* — compare keyed aggregates or key sets across **two connections** with tolerances and a capped sample of offending keys. A single `db_query` cannot join CRM, billing and HLR because they live in different systems, and `data_load` reads whole files into memory, so staging a full subscriber base is not safe. Define "orphaned" precisely first (active-unbilled, billed-unprovisioned, status mismatch, in-flight provisioning windows). Uses conditional execution (§A2) for threshold alerting.
+- [ ] **Synthetic telecom dataset generator** *(≈ 2–3 days)* — seed CRM / billing / HLR tables with a controllable fraction of planted orphans, so the demo, the benchmark and the tests don't wait on a partner's data.
 - [ ] **PII tokenization/masking step** *(≈ 1 week)* — keyed HMAC with a per-deployment secret, **or** tokenization with a local lookup table (so Core can map findings back to subscribers). A plain/shared-salt hash of MSISDN/IMSI is brute-forceable and must not be called "irreversible". Also scrub free-text fields and cap the payload. Must exist and be reviewed before any data is sent to a Brain.
-- [ ] **Orphaned-subscription audit template + seeded demo dataset** *(≈ 1 week)* — run end to end on the design partner's data or a synthetic equivalent; this is the PoC evidence.
-- [ ] **Verify audit-log immutability** *(≈ 0.5 day)* — the roadmap lists "immutable audit logs" as already built. It is append-only in application code only; confirm whether the DB blocks UPDATE/DELETE (the retention job deletes old rows) and add revoked privileges / trigger / hash chain if not. Until then do not use the word "immutable" in docs or sales material.
-- [ ] **Compliance-floor evidence** *(≈ 1–2 weeks, parallelizable)* — data-flow diagram (what leaves the network, over which path), retention and data-residency statement, key-management description, pen-test plan. Plus the existing items: react-router 7, the two SonarCloud findings. A telco security review asks for these before it looks at features.
+- [ ] **Orphaned-subscription audit template** *(≈ 1 week)* — scheduled pipeline built from the reconciliation step, with the synthetic dataset as the demo; run end to end on the partner's data when available. This is the PoC evidence.
+- [ ] **Volume benchmark** *(≈ 2–3 days)* — run the reconciliation on a realistic multi-million-row table on PostgreSQL **and Oracle** (telco billing/mediation commonly runs on Oracle; confirm that path at scale, not just that it works). Publish real numbers; until then docs say "designed for", not "optimized for extreme volume".
+- [ ] **Verify audit-log immutability** *(≈ 0.5 day)* — the roadmap lists "immutable audit logs" as built. It is append-only in application code only; confirm whether the DB blocks UPDATE/DELETE (the retention job deletes old rows) and add revoked privileges / trigger / hash chain if not. Until then do not use the word "immutable" in docs or sales material.
+- [ ] **Editor trust boundary controls** *(by design today; a prerequisite for the telecom pitch)* — users with the `editor` role can author arbitrary SQL (`db_query`, `db_procedure`, report SQL) against every connected database and arbitrary shell commands over SSH (`ssh_command`); `docs/threat-model.md` documents this. Decide and implement: read-only DB accounts per connection, per-connection allowlists, an approval/review step for SQL and SSH changes, and an `author`/`approver` role split.
+- [ ] **Compliance-floor evidence** *(≈ 1–2 weeks, parallelizable)* — data-flow diagram (what leaves the network, over which path), retention and data-residency statement, key-management description, pen-test plan. A telco security review asks for these before it looks at features.
+- [ ] **Signed releases + SBOM** *(≈ 1 day)* — add a cosign step to `release.yml` (`cosign sign-blob` on the wheel, attach `.sig`/`.pem`) and publish an SBOM; telco security reviews ask for both.
+- [ ] **On-premises install and upgrade docs** *(≈ 2–3 days)* — air-gapped install (offline wheel/image bundle), network requirements (including Core→Brain egress and UI→Brain reachability), upgrade/rollback, backup and restore. A Kubernetes/Helm option once the install is documented. Replaces "one-click cloud deploy" as the deployment priority.
+- [ ] **Brain API contract, service credential and token endpoint** *(blocked on a design partner's requirements)* — freeze the contract in `ARCHITECTURE.md` §6.3 (auth, TLS, size caps, redaction, errors, versioning); Core→Brain service credential; `POST /api/brain/token` (short-lived, audience-scoped, asymmetrically signed — not the shared HS256 secret); `brain_enabled()` health check and async forwarding with circuit breaker. Not scheduled.
+- [ ] **Scaffold `flowforge-brain`** *(≈ 2–3 weeks; last)* — separate repo: FastAPI, model-agnostic provider interface (Vertex AI Gemini and a customer-hosted open-weight option; the latter needs an evaluation set before it is promised to anyone), structured-JSON RCA, async `202 + case_id` contract. Not started.
 
 ---
 
-## 1. Blockers — do first
+## C. Gating decisions *(run in parallel; none is buildable by Claude alone)*
 
-*Failing quality gates or broken local dev. Nothing else is credible while these are red.*
+- [ ] **Find one design partner** *(longest lead time — weeks to months)* — ideally an RA analyst at one operator, with a sample schema for CRM, billing and HLR/HSS. The PoC and the Brain both depend on this; zero external users exist today, so SSO/SAML/MFA/GDPR tooling currently serves no one but the author. Do not add more enterprise-checkbox features before this.
+- [ ] **Decide repo naming and the licensing/delivery model** — this repo is `flowforge`; the roadmap says `flowforge-core`. An MIT core plus a proprietary Telecom RA Pack + Brain needs a delivery mechanism (private repo / package index) and a contributor policy (CLA); the MIT core also means anyone can build the pack, so the moat is audit templates proven on real data and the partner relationship. Hold until a partner has seen reconciliation output.
+- [ ] **Decide the Brain network path for telco deployments** — a cloud Brain requires operator browsers and Core to reach it, which many telco networks forbid. Proxy UI→Brain traffic through Core (contradicts the direct-UI decision in `ARCHITECTURE.md`) or require direct reachability; also decide the on-premises open-weight mode. "Air-gapped" is not an accurate description of Core's relationship to the Brain; use "no LLM code or keys in Core, only sanitized evidence leaves".
+- [ ] **Decide who runs the Brain (hosted tier)** — running it for customers is a hosted tier and conflicts with the stated "No cloud SaaS" non-goal (`CLAUDE.md`; "Self-hosted only" below). If operators run it themselves there is no conflict. Decide explicitly before any hosted work.
+- [ ] **Reconcile positioning and roadmap documents** — `ROADMAP.md`, `CLAUDE.md` ("Target users" still says solo developers/small teams), `README.md` and this file have disagreed before about what is shipped vs. deferred and who the product is for; do one pass so all tell the same story, and add the telecom roadmap to the picture.
 
-### Security re-audit — 2026-10-27 *(do these before anything else; verified against code)*
+---
 
-*Re-check of the July 2026 audits (Security was scored 3/10 on 2026-07-24). The July Critical and punch-list items are confirmed fixed in code (see archive). Findings below are what the re-check turned up that is still open.*
+## D. Go-to-market *(keep moving — ordered behind the Brain scrub)*
 
-- [ ] **react-router 6 → 7** (tracked in §2) — now the only frontend advisory pair left (2 moderate). Re-checked 2026-10-27: `npm audit fix` bumps 6.30.4 → 6.30.6 but the advisory range covers all of 6.x through 7.17.0, so it still needs the v7 migration. The vitest/@vitest/mocker moderate chain also remains (needs a vitest bump). Neither gates CI (`--audit-level=high`).
-- [ ] **Push the dependency fixes and confirm CI is green; then triage the 12 open Dependabot PRs** — root cause of the failing CI found 2026-10-27: both audit gates were red on `master`'s own dependencies (backend `pip-audit`: 24 vulns in cryptography/PyJWT/tornado/urllib3; frontend `npm audit --audit-level=high`: 9 high), which is also why every Dependabot PR fails within ~45 s. Both are fixed locally (not yet committed or pushed). After merging: re-run CI, then rebase/close the Dependabot PRs; several are majors that need real review (typescript 7, recharts 3, jsdom 30, node 25-alpine, @types/node 26) and the actions bumps (checkout 7, setup-python 7, setup-node 7). Consider enabling Dependabot grouping for majors and a weekly lock refresh so the audit gates don't silently rot again.
-- [ ] **Run the remaining security checks** *(partly done 2026-10-27: the full backend suite passed, 2,195 tests, once the test DB on port 5434 was up — the re-check had run while it was offline)*. Still to do: confirm the `flowforge-db` container is the intended test DB going forward, and run `npm test`/CI. Original item: **Test database was offline during the re-check** — nothing on port 5434 (only an unrelated `trove-postgres` container on 5440), so the security test files (`test_net_guard`, `test_rbac`, `test_auth*`, `test_context`, `test_plugin_loader`, `test_app_coverage`) were **not run**. Start the test DB and run the full suite to confirm the "fixed" claims empirically.
-- [ ] **Residual `# nosec` review** — 40 findings are hidden by `# nosec` (bandit `--ignore-nosec`: 7× B608 SQL string-building, 8× B310 `urlopen`, rest low). I spot-checked the SQL ones in `data_load`, `db_query` and `bulk_load`: their table/column names are validated first. The `urlopen` suppressions are down from 8 to 4 after the 2026-10-27 SSRF fixes; the 4 left are admin-env URLs (three in the legacy AI code being removed, one DevBrain notify hook). Make `bandit` fail on **unjustified** `nosec` (require a reason comment) so this can't recur silently.
-- [ ] **Decide the editor trust boundary** *(by design, but critical for a telecom pitch)* — users with the `editor` role can author arbitrary SQL (`db_query`, `db_procedure`, report SQL) against every connected database and arbitrary shell commands over SSH (`ssh_command`). `docs/threat-model.md` documents this. Before enterprise use, consider: read-only DB accounts per connection, per-connection allowlists, an approval/review step for SQL and SSH changes, and an `author`/`approver` role split.
-- [ ] **Local credential hygiene** — a dev login is stored in plaintext in the assistant memory index; `docs/credentials.local.md` is correctly gitignored and untracked. Rotate/remove the stored login if it was ever reused anywhere, and run a TruffleHog scan over full git history once (the CI gate is `--only-verified`).
+*Detail/copy for each item is in the reference section at the bottom. Copy that advertises "local AI" is wrong after the scrub; the demo GIF must show the post-scrub UI. Positioning tension: the existing launch material targets solo developers/small teams while the product direction is telecom — settle the headline in §C ("Reconcile positioning") before spending ProductHunt's one launch.*
 
-**Verified fixed (no action):** boot-time secret validation and no JWT→`SECRET_KEY` fallback outside tests; secret pipeline variables hard-blocked from SQL/email/notification sinks (`SecretLeakError`); `validate_identifier()` on `data_load`/`bulk_load`/`db_query` table and column names; `assert_public_url` on the `notification` step; `log_user_change()` for user-admin audit events; Docker runs as non-root `flowforge`; compose requires `POSTGRES_PASSWORD`; `.env`/`credentials.local.md` untracked; bandit (without `--ignore-nosec`) reports 0 medium/high.
+- [ ] **Correct the already-published posts** *(do first, right after A1 ships)* — the 2026-07-08 Reddit (r/Python, r/selfhosted) and LinkedIn launch posts advertise "local AI"; edit or add a clarifying comment so they match the product.
+- [ ] **Rewrite GTM copy and the README hero** without "local AI" and with the agreed positioning (part of A7).
+- [ ] **Record a 60–90s demo GIF/MP4** (dashboard → create pipeline with report+email step → run → Run History) and add it to the README *(5.1 — blocks the rest; record after A1)*. Add the telecom demo (synthetic orphans → reconciliation → alert) once §B has it.
+- [ ] **High-quality Dashboard screenshot** for the README hero / LinkedIn Featured *(5.1)*; this also covers the "update pre-multi-user screenshots" docs item.
+- [ ] **Reddit** — r/Python and r/selfhosted posted 2026-07-08; r/opensource and the r/dataengineering cross-post still pending *(5.3)*.
+- [ ] **Awesome lists** — PRs to awesome-selfhosted ("Automation") and awesome-python ("Task Queues"/"Data Pipeline") *(5.4)*. Review waits are external.
+- [ ] **LinkedIn** — launch post published 2026-07-08; confirm it's pinned to Featured and carries the suggested hashtags *(5.5)*.
+- [ ] **ProductHunt** — maker profile, listing (name/tagline/description/gallery), schedule a Tue/Wed launch *(5.2)*. **Last**: needs the final positioning and the demo assets.
 
-### SonarCloud — needs manual resolution *(found 2026-07-06)*
+---
 
-- [ ] **Resolve SonarCloud `pythonsecurity:S5496`** (issue key `AZ82Oyzt-6VzRaR01a4L`, `flowforge/engine/context.py`) as Won't Fix / False Positive in the SonarCloud UI — the rule flags the `render()` call-site pattern itself (Jinja2 template from user-controlled input) regardless of the mitigations already shipped, and will keep failing `master`'s Quality Gate until manually resolved or aged out of the New Code period. Justification: `_jinja` is already a `SandboxedEnvironment` (blocks RCE-class gadgets), the blocklist/pattern covers known and future credential names, rendered values are no longer reflected, and this is the same `{{ current_date }}`-style templating used intentionally everywhere else. **Requires SonarCloud login (not available to Claude).**
-- [ ] **Resolve SonarCloud `pythonsecurity:S3649`** (SQL injection, issue key `AZ83ITEjNp5vzm4zlnz0`, `flowforge/steps/bulk_load.py:614` in `_dry_run_insert_rows()`, introduced 2026-07-06) as Won't Fix / False Positive — taint tracker flags `target_table`/`columns` flowing into the f-string-built `INSERT`, but both are validated with `validate_identifier()` (regex allowlist: letters/digits/underscore/dot only) by the caller **and** redundantly re-validated inside `_dry_run_insert_rows()`. SonarCloud doesn't recognize a project-local validator as a sanitizer boundary, so the finding persists. Fails the Quality Gate (New Code Security Rating) like S5496. **Requires SonarCloud login.**
+## E. Product polish — generic product
 
-### Local environment — Gmail sending broken *(found 2026-07-03, blocks dev testing)*
+*Useful, but secondary to §A–§B. Pick up opportunistically.*
 
-*SMTP is fixed (port/`use_ssl` mismatch + AVG Email Shield). Gmail is still broken.*
+- [ ] **Close the "no YAML required" first-run gap** *(≈ 3–4 days; the biggest hobbyist-adoption lever)* — a first real pipeline with email needs 5+ manual steps in Google Cloud Console or Azure AD before the no-code promise is true end-to-end. Candidates: a guided first-run wizard, a zero-config "send me a test email" via plain SMTP, a sample pipeline that needs no external account.
+- [ ] **One-click deploy** (Railway/Render/Fly.io) *(≈ 1 day per platform)* — lowers hobbyist adoption friction; irrelevant to telco on-premises installs (see the on-prem docs in §B).
+- [ ] **Decide Jinja undefined-variable behavior in DAG-mode pipelines** *(≈ 0.5 day; optional)* — a typo'd `{{ steps.X.* }}` silently renders blank. Keep Jinja's default `Undefined` or add a DAG-build-time lint. *(Phase 14.2 M2 stretch.)*
+- [ ] **Stream Excel/PDF/JSON reports and `bulk_load`/`data_load` source files** *(derived; ≈ 3–5 days; deferred)* — only CSV streams end-to-end today. The telecom plan audits in place and does not ingest raw volume, so do this only when a real large-file case appears. Excel needs `openpyxl` `write_only=True`, which interacts with the shipped column-formatting feature (`docs/manual-testing-guide.md` §36); footer-row stripping needs a bounded sliding-window buffer across 3 load paths (Python fallback, Postgres COPY, SQL*Loader).
+- [ ] **Extend OpenAPI-generated frontend types to the other 21 route files** *(derived; ≈ 0.5 day each, 8–10 days total)* — only `pipelines.py` + `runs.py` are generated; `connections`, `reports`, `emails`, `users`, `steps`, … are hand-typed in `types.ts`/`api.ts`, which is where drift bugs hide. Do incrementally, worst-drift files first.
 
-- [ ] **AVG Web Shield is intercepting `oauth2.googleapis.com`** — `SSLCertVerificationError: unable to get local issuer certificate` on token refresh. Fix: AVG → Settings → Protection → Web & Email → disable **Web Shield**, or add a domain exception for `googleapis.com`.
-- [ ] **Re-authorize Gmail — refresh token expired** — `RefreshError: invalid_grant: Bad Request`. Cause: Google OAuth consent screen is in **Testing** status, where refresh tokens hard-expire after 7 days. Fix: re-run Step 5 in `docs/gmail-oauth2-setup.md`, then update the "Personal Gmail" provider in **Connections → Email Providers**.
-- [ ] **Stop it recurring every ~7 days** — publish the OAuth consent screen to "In production". Caveat: the app requests the full `drive` scope (Google-*restricted*, needs a verification review). Options: go through verification, or narrow to `drive.file` (not restricted) if full-Drive access isn't required — small code change plus re-consent.
+---
+
+## F. Engineering quality
+
+- [ ] **True unit tests with mocking** for `engine/runner.py`, `engine/dag.py`, `engine/context.py` *(≈ 3–4 days)* — the suite is ~2,200 tests but 100% integration-style against a real Postgres with zero `@patch`/`MagicMock` in the files checked; safe for refactors but slow, and can't isolate business logic. **Consider doing this right before or alongside §A2** — conditional execution touches the runner and DAG engine, and this is the safety net.
+- [ ] **Production error tracking** (Sentry or equivalent) *(≈ 0.5 day)* — logging is solid (113 call sites) but there is no error-tracking SDK anywhere.
+- [ ] **Dependency/license audit in CI** (e.g. `pip-licenses`) plus a `NOTICE` file *(≈ 0.5 day)* — the MIT-compatibility check was a one-time manual grep. Do before any relicensing/commercial conversation (§C).
+- [ ] **Extend the service/repository layer beyond `pipelines.py`** *(derived; ≈ 4–6 days)* — `runs.py`, `reports.py`, `connections.py`, etc. still hold business logic inline in route bodies.
+- [ ] **Extend the N+1 review to other list endpoints** *(≈ 1 day)* — PERF-01 fixed `/api/pipelines` only; `/runs`, `/reports`, `/emails` list serializers weren't audited.
+- [ ] **Dependabot hygiene** *(≈ 0.5 day)* — the pip group keeps bundling SQLAlchemy 2.1 and ruff 0.17 with patch bumps. Configure ignore rules for those majors and a weekly lock refresh so the audit gates don't silently rot again. SQLAlchemy 2.1 and ruff 0.16+ each need their own decision.
+- [ ] **Refresh the review score table** *(≈ 1 day)* — re-run the codebase review and update `CODEBASE_REVIEW.md` after §A–§B.
+
+---
+
+## G. Dev environment *(local only — does not affect the product)*
+
+*Gmail sending is broken on the author's machine. SMTP is fixed.*
+
+- [ ] **AVG Web Shield is intercepting `oauth2.googleapis.com`** — `SSLCertVerificationError: unable to get local issuer certificate`. Fix: AVG → Settings → Protection → Web & Email → disable **Web Shield** or add a domain exception for `googleapis.com`. (The same interception breaks host `pip-audit`.) *(~1 hr)*
+- [ ] **Re-authorize Gmail — refresh token expired** — `RefreshError: invalid_grant`. The OAuth consent screen is in **Testing** status, where refresh tokens hard-expire after 7 days. Re-run Step 5 in `docs/gmail-oauth2-setup.md`, then update the "Personal Gmail" provider in **Connections → Email Providers**.
+- [ ] **Stop it recurring every ~7 days** — publish the consent screen to "In production". Caveat: the app requests the full `drive` scope (Google-*restricted*, needs a verification review). Either go through verification (1–4 weeks) or narrow to `drive.file` (not restricted; ≈ 0.5 day plus re-consent) if full-Drive access isn't required.
 - [ ] **Doc gap**: `docs/gmail-oauth2-setup.md` "Keeping the App in Testing vs Publishing" (line ~158) says Testing mode is fine "indefinitely" but omits the 7-day refresh-token expiry — add a warning.
 
 ---
 
-## 2. Product polish — user-visible
+## H. Parked *(deliberately not now — revisit after a design partner or when §A–§B are done)*
 
-*What a first-time user or evaluator actually sees. This is the "polish the product" track.*
+*Badge and speculative work. None of it helps win a first partner or ship the MVP.*
 
-- [ ] **Close the "no YAML required" first-run gap** — a bare dashboard is one `docker compose up` away, but a first real pipeline with email needs 5+ manual steps in Google Cloud Console or Azure AD (OAuth app registration, consent screens, client secrets) before the no-code promise is true end-to-end. Candidates: a guided first-run wizard, a zero-config "send me a test email" via plain SMTP, a sample pipeline that needs no external account.
-- [ ] **Conditional / branching step execution** — can't gate a step on a prior step's output (e.g. "only send email if row count > 0") beyond DAG failure propagation (`on_error: stop`/`continue`). Current workaround: always run the step, filter in the query. Not a non-goal, just not built. *(Phase 12)*
-- [ ] **One-click deploy** (Railway/Render/Fly.io) to lower adoption friction beyond `docker compose up`.
-- [ ] **react-router-dom 6.x → 7.x migration** — `npm audit` flags `react-router` `6.0.0-7.17.0` (installed `^6.24.0`) for two moderate advisories: open redirect via backslash in `<Link>`/`useNavigate` ([GHSA-wrjc-x8rr-h8h6](https://github.com/advisories/GHSA-wrjc-x8rr-h8h6)) and constructor injection via `deserializeErrors()` in SSR hydration ([GHSA-337j-9hxr-rhxg](https://github.com/advisories/GHSA-337j-9hxr-rhxg)). No same-major patch clears it (6.30.6 is still in range); needs a real v6→v7 migration (19 files in `frontend/src/` use router APIs). Doesn't gate CI (`--audit-level=high`). Steps: read the [v7 upgrade guide](https://reactrouter.com/upgrading/v6), audit affected APIs, migrate, re-run `npm audit`.
-- [ ] **Decide Jinja undefined-variable behavior in DAG-mode pipelines** — a typo'd `{{ steps.X.* }}` silently renders blank. Either keep Jinja's default `Undefined` or add a DAG-build-time lint. *(Phase 14.2 M2 stretch; genuinely optional.)*
-- [ ] **Stream Excel/PDF/JSON reports and `bulk_load`/`data_load` source files** *(derived)* — only CSV streams end-to-end today. Excel needs `openpyxl` `write_only=True`, which interacts with the shipped column-formatting feature (`docs/manual-testing-guide.md` §36); footer-row stripping in `bulk_load`/`data_load` needs a bounded sliding-window buffer to preserve header/footer-trim behavior across 3 load paths (Python fallback, Postgres COPY, SQL*Loader). Do it only when a real large-file case appears.
-- [ ] **Extend OpenAPI-generated frontend types to the other 21 route files** *(derived from MAINT-02)* — only `pipelines.py` + `runs.py` are generated; `connections`, `reports`, `emails`, `users`, `steps`, … are still hand-typed in `types.ts`/`api.ts`, which is where drift bugs hide (MAINT-02 found a real nullable-`started_at` bug this way). Per route file: write/verify the spec against the real route + serializer, regenerate, alias only response-only types, verify with `tsc`/vitest.
+- [ ] **OpenSSF Scorecard: re-run and Code-Review deadlock** — Code-Review is 0/10 and structurally stuck for a solo maintainer (GitHub blocks self-approval; admin-override merges count as unreviewed). Recruit a co-maintainer/approver or explicitly drop the ≥ 8.0 target. Re-run Scorecard once to confirm Pinned-Dependencies improved after the hash-pinning.
+- [ ] **PR discipline** — never push directly to `master`; open a PR. Self-approval is blocked, so use a second account/collaborator or prefer bot-authored PRs.
+- [ ] **CII Silver** — needs a co-maintainer (`bus_factor`), DCO sign-off in the PR template, the Silver questionnaire at bestpractices.dev, and the README badge URL.
+- [ ] **Fuzzing** — register with [OSS-Fuzz](https://google.github.io/oss-fuzz/getting-started/accepting-new-projects/) or add an `atheris` target + `project.yaml`.
+- [ ] **Code Climate maintainability badge** — add to the README badge row if grade is A or B (explicitly optional).
+- [ ] **Airflow/cron migration tooling** *(2–4 weeks)* — nothing exists beyond FlowForge's own YAML export/import; a plausible differentiator for the generic product, not for telecom RA.
+- [ ] **Plugin marketplace/discovery layer** *(2–3 weeks)* on the existing plugin system (`docs/plugins.md`) — the load mechanism exists; no registry/discovery UX.
+- [ ] **Managed/hosted tier build** *(4+ weeks)* — blocked on the §C decision.
 
----
-
-## 3. Engineering quality
-
-- [ ] **True unit tests with mocking** for `engine/runner.py`, `engine/dag.py`, `engine/context.py` — the suite is ~2150 tests but 100% integration-style against a real Postgres with zero `@patch`/`MagicMock` in the files checked; safe for refactors but slow, and can't isolate business logic from the DB/HTTP layer.
-- [ ] **Production error tracking** (Sentry or equivalent) — logging is solid (113 call sites) but there is no error-tracking SDK anywhere.
-- [ ] **Dependency/license audit in CI** (e.g. `pip-licenses`) plus a `NOTICE` file — the MIT-compatibility check (no GPL-family packages) was a one-time manual grep. Do before any commercial relicensing conversation.
-- [ ] **Extend the service/repository layer beyond `pipelines.py`** *(derived)* — `pipeline_service.py` shipped for the worst offender only; `runs.py`, `reports.py`, `connections.py`, etc. still hold business logic inline in route bodies.
-- [ ] **Extend the N+1 review to other list endpoints** *(suggested, not from a prior note)* — PERF-01 fixed `/api/pipelines` only; `/runs`, `/reports`, `/emails` list serializers weren't audited. Add the same query-count assertion test where they walk relationships.
-- [ ] **Confirm the blocking secrets-scan gate on the next PR** — `secrets-scan.yml` lost `continue-on-error`; it was only YAML-validated locally, never executed. Watch the next PR's checks to ensure nothing in history trips TruffleHog `--only-verified`.
-- [ ] **Re-verify the audit's "Critical" claim against the older 2026-07-01 findings** *(derived from project memory)* — memory records a verified SQL injection in `data_load.py`, a secrets leak, and an SSRF from that earlier audit; confirm each is closed (with a regression test) rather than assuming the Phase 13 pass covered them.
+*Removed as obsolete or done: "ensure ≥ 1 commit/week" (window passed); "push the dependency fixes and triage Dependabot PRs" (done — PR #123 and the Dependabot triage, see archive); "confirm the blocking secrets-scan gate" (TruffleHog ran and passed on the merged PRs); "run the remaining security checks" (full backend suite 2,195 passed, `flowforge-db` on port 5434 is the test DB).*
 
 ---
 
-## 4. Supply chain & OSS health
+## Timeline & effort *(estimates, rebuilt 2026-10-27 for the telecom direction)*
 
-- [ ] **Resolve the Scorecard Code-Review deadlock** (0/10; structurally stuck for a solo maintainer since GitHub blocks self-approval) — recruit a co-maintainer/approver or explicitly drop the ≥ 8.0 target. Disabling `enforce_admins` (2026-07-06) unblocks the solo merge workflow but admin-override merges still count as unreviewed.
-- [ ] **PR discipline** — never push directly to `master`; open a PR. Self-approval is blocked, so use a second account/collaborator, or prefer bot-authored PRs (Dependabot).
-- [ ] **Re-run Scorecard** to confirm Pinned-Dependencies improved after the hash-pinning already done.
-- [ ] **Fuzzing** — register with [OSS-Fuzz](https://google.github.io/oss-fuzz/getting-started/accepting-new-projects/), or add an `atheris` target + `project.yaml` *(Scorecard — Fuzzing)*.
-- [ ] **Signed releases** — add a cosign step to `release.yml` (`cosign sign-blob` on the wheel, attach `.sig`/`.pem`) *(Scorecard — Signed-Releases)*.
-- [ ] **CII Silver** — document/recruit a co-maintainer (`bus_factor`), add DCO sign-off to the PR template (`dco`), complete the [Silver questionnaire](https://bestpractices.dev), update the README badge URL.
-- [ ] **Code Climate maintainability badge** — add to README badge row if grade is A or B *(explicitly optional)*.
-
----
-
-## 5. Docs hygiene
-
-- [ ] **Refresh the review score table** — the 7.8/10 table is from 2026-05-25; re-run the codebase review and update `CODEBASE_REVIEW.md` after §1–§3.
-- [ ] **Update screenshots showing the pre-multi-user UI** *(deferred — no screenshots exist in docs yet; do this together with the §6 demo assets)*.
-
----
-
-## 6. Go-to-market
-
-*Detail/copy for each item is in the reference section at the bottom. The demo GIF blocks everything else here.*
-
-- [ ] **Record a 60–90s demo GIF/MP4** (dashboard → create pipeline with report+email step → run → Run History) and add it to the README *(5.1 — blocks the rest)*.
-- [ ] **High-quality Dashboard screenshot** for the README hero / LinkedIn Featured *(5.1)*.
-- [ ] **ProductHunt** — maker profile, listing (name/tagline/description/gallery), schedule a Tue/Wed launch *(5.2)*.
-- [ ] **Reddit** — **partially done 2026-07-08**: r/Python and r/selfhosted posted; r/opensource and the r/dataengineering cross-post still pending *(5.3)*.
-- [ ] **Awesome lists** — PRs to awesome-selfhosted ("Automation") and awesome-python ("Task Queues"/"Data Pipeline") *(5.4)*.
-- [ ] **LinkedIn** — **launch post published 2026-07-08**; confirm it's pinned to Featured and carries the suggested hashtags *(5.5)*.
-
----
-
-## 7. Strategic — decide before building
-
-*Product-direction questions from the architect/VC audits. Don't build these on autopilot.*
-
-- [ ] **Telecom RA pivot: find the design partner** *(2026-10-27; MVP use case decided = orphaned subscriptions, see §0a)* — [`ARCHITECTURE.md` §7](../ARCHITECTURE.md#7-telecom-revenue-assurance-mapping) shows building blocks exist but no telecom feature does. Prerequisites already on this list: conditional steps (threshold alerting), streaming for large files (CDR volumes), cross-DB comparison. Decide which leakage type to prove first (dropped CDRs vs. orphaned subscriptions), whether MIT-open-source core + enterprise offering is the model, and revisit the "solo devs / small teams" positioning in `CLAUDE.md`.
-- [ ] **Decide repo naming and the licensing/delivery model** *(2026-10-27)* — this repo is `flowforge`; the roadmap says `flowforge-core`. An MIT core plus a proprietary Telecom RA Pack + Brain needs a delivery mechanism (private repo / package index) and a contributor policy (CLA); the MIT core also means anyone can build the pack, so the moat is audit templates proven on real data and the partner relationship. Hold the decision until a partner has seen reconciliation output.
-- [ ] **Decide the Brain network path for telco deployments** *(2026-10-27)* — a cloud Brain requires operator browsers and Core to reach it, which many telco networks forbid. Proxy UI→Brain traffic through Core (contradicts the direct-UI decision in `ARCHITECTURE.md`) or require direct reachability; also decide the on-premises open-weight mode and build an evaluation set before promising it. Note "air-gapped" is not an accurate description of Core's relationship to the Brain; use "no LLM code or keys in Core, only sanitized evidence leaves".
-- [ ] **Get at least one real external user or design partner** before adding more enterprise-checkbox features (SSO/SAML/MFA/GDPR tooling currently serves zero non-author users).
-- [ ] **Airflow/cron migration tooling** — nothing exists beyond FlowForge's own YAML export/import; the most plausible real differentiator given the "Oracle advantage" / migration-bridge positioning in `docs/USE_CASE.md`.
-- [ ] **Plugin marketplace/discovery layer** on the existing plugin system (`docs/plugins.md`) — the load mechanism exists; no registry/discovery UX.
-- [ ] **Managed/hosted tier** reusing the `docker-compose.yml` topology — **conflicts with the stated non-goal** ("No cloud SaaS version" in `CLAUDE.md`; "Self-hosted only" in the accepted tradeoffs below). Decide whether to change that non-goal before any work; the audit calls it the more realistic commercial moat.
-- [ ] **Reconcile the roadmap contradictions** *(derived from project memory)* — `ROADMAP.md`, `CLAUDE.md` Non-Goals and this file have disagreed before about what's shipped vs deferred; do one pass so all three tell the same story.
-
----
-
-*Removed as obsolete: "ensure ≥ 1 commit/week until the repo passes 90 days old (~2026-07)" — the window has passed; Scorecard's Maintained check resolves on its own.*
-
----
-
-## Timeline & effort *(estimates, added 2026-10-27)*
-
-**Assumptions:** one developer working with Claude doing most of the code; estimates are focused working days
-(~6 productive hrs). Part-time (~15 hrs/week) multiply calendar time by ~2.5. External waits (verification
-reviews, other people's replies) are shown separately because effort doesn't shrink them. These are
-judgment-based estimates, not measured — re-baseline after Week 1.
-
-### Effort per item
-
-| § | Item | Effort | Notes |
-|---|---|---|---|
-| 0 | AI decoupling (extract, stub/disable, remove, tests, docs) | 3–4 days | Brain service itself is a separate project — not estimated here |
-| 1 | SonarCloud S5496 + S3649 | 30 min | You only — needs SonarCloud login |
-| 1 | AVG exception, Gmail re-auth, doc warning | 1 hr | You + Claude |
-| 1 | Stop 7-day expiry | 0.5 day (narrow to `drive.file`) **or** 1–4 wk wait (Google verification) | Narrowing is the fast path |
-| 2 | react-router 6→7 | 1–2 days | 19 files; manual click-through needed |
-| 2 | First-run friction (wizard / SMTP test / sample pipeline) | 3–4 days | Biggest adoption lever |
-| 2 | Conditional / branching steps | 2–3 days | Touches runner + DAG engine — highest blast radius |
-| 2 | One-click deploy | 1 day per platform | Railway first |
-| 2 | Jinja undefined lint | 0.5 day | Optional |
-| 2 | Streaming Excel/PDF/bulk_load | 3–5 days | Defer until a real large-file case |
-| 2 | OpenAPI for 21 route files | ~0.5 day each, 8–10 days total | Do incrementally, worst-drift files first |
-| 3 | Mocked unit tests (runner/dag/context) | 3–4 days | |
-| 3 | Sentry | 0.5 day | |
-| 3 | License audit + NOTICE | 0.5 day | |
-| 3 | Service layer for remaining routes | 4–6 days | Mechanical, tests already exist |
-| 3 | N+1 review of other list endpoints | 1 day | |
-| 3 | Re-verify 2026-07-01 audit findings | 0.5–1 day | Do early — it may reveal real bugs |
-| 3 | Confirm secrets-scan gate | 10 min | Passive, on next PR |
-| 4 | Scorecard re-run, Code Climate badge | 1 hr each | |
-| 4 | Cosign signing | 0.5 day | |
-| 4 | Fuzzing (atheris target) | 1–2 days | OSS-Fuzz acceptance: weeks of waiting |
-| 4 | CII Silver | 1 day | Blocked on having a co-maintainer |
-| 4 | Code-Review deadlock / PR discipline | Open-ended | Needs another person; or drop the 8.0 target (15 min decision) |
-| 5 | Re-run review + score table, screenshots | 1 day + 2 hrs | Screenshots done alongside demo GIF |
-| 6 | Demo GIF + screenshot | 0.5–1 day | Blocks the rest of §6 |
-| 6 | ProductHunt | 1–2 days prep | Launch must be a Tue/Wed |
-| 6 | Reddit, awesome lists, LinkedIn | ~0.5 day total | Awesome-list PR review waits are external |
-| 7 | External user / design partner | Weeks–months | Not buildable; outreach |
-| 7 | Airflow/cron migration tooling | 2–4 weeks | |
-| 7 | Plugin marketplace | 2–3 weeks | |
-| 7 | Hosted tier | 1 hr to decide; 4+ weeks to build | Conflicts with stated non-goal |
-| 7 | Roadmap reconciliation | 0.5 day | |
-
-**Totals (full-time):** §1 ≈ 1–2 days · §2 ≈ 19–26 days · §3 ≈ 10–14 days · §4 ≈ 4–6 days (+ people-dependent) ·
-§5 ≈ 1.5 days · §6 ≈ 3–4 days. **§0–§6 ≈ 9–11 weeks full-time, or ~5–6 months part-time.** §7 is not scheduled.
-
-### Suggested schedule
+**Assumptions:** one developer working with Claude doing most of the code; focused working days (~6 productive hrs).
+Part-time (~15 hrs/week): multiply calendar time by ~2.5. External waits (partner replies, reviews, awesome-list PRs)
+are shown separately because effort doesn't shrink them. These are judgment-based, not measured — re-baseline after Week 2.
 
 | Week | Focus | Exit criteria |
 |---|---|---|
-| **1** | §0 AI decoupling (branch + tag first); §1 blockers | Suite green without AI code; Quality Gate green; Gmail sending |
-| **2** | §3 re-verify old audit; §6 demo GIF + screenshot + README (recorded *after* the scrub) | GIF shows the post-scrub UI |
-| **3** | Launch (copy rewritten without "local AI"): Reddit remainder, awesome lists, LinkedIn pin, ProductHunt scheduled; Scorecard re-run | GTM items done or scheduled |
-| **4** | react-router 7; Sentry; license audit + NOTICE; cosign | `npm audit` clean; supply-chain badges up |
-| **5–6** | First-run friction (§2), one-click deploy (Railway) | A new user sends a first email with no cloud-console steps |
-| **7–8** | Conditional steps; Jinja lint decision | Gated step works in both engines, tested |
-| **9–10** | Mocked unit tests; service layer; N+1 review | Core engine logic testable without Postgres |
-| **11+** | OpenAPI rollout, streaming, fuzzing; fresh code review + score refresh | Review score re-baselined |
-| **Ongoing** | §4 people items, §7 strategic | Revisit after first external user |
+| **1** | §A1 Brain scrub (branch + tag first); SonarCloud ×2 (you, 30 min); nosec policy; full-history secrets scan; **start design-partner outreach** | Suite green without AI code; CI deny-list in place; Quality Gate green |
+| **2** | §A2 conditional execution (consider the mocked runner/dag tests first); §D wave 1: correct published posts, README rewrite, demo GIF + screenshot, Reddit remainder, LinkedIn pin | Gated step works in both engines, tested; README and posts no longer say "local AI" |
+| **3–4** | §B reconciliation step; synthetic dataset generator; react-router 7 (1–2 days, in a gap) | Two-connection reconcile with tolerances and capped sample; `npm audit` clean |
+| **5** | §B PII tokenization step | Keyed HMAC / tokenization with local lookup, reviewed |
+| **6** | §B orphaned-subscription audit template; volume benchmark (PostgreSQL + Oracle) | End-to-end demo on synthetic data; real benchmark numbers |
+| **7–8** | §B audit-log immutability; editor-boundary controls; compliance evidence; cosign + SBOM; on-prem install docs; awesome-list PRs | Data-flow diagram and install docs exist; "immutable" claim verified or removed |
+| **9** | §D telecom demo asset; ProductHunt prep (only if positioning settled in §C) | Demo shows the telecom flow |
+| **10–12** | §B Brain contract + scaffold `flowforge-brain` (only once a partner exists or the PoC is validated) | Async RCA over tokenized evidence, Core fully functional with Brain absent |
+| **Ongoing** | §C design partner, licensing, network path; §E/§F opportunistically; §H parked | Revisit after the first partner has seen reconciliation output |
 
-**Why this order:** launch assets first because the demo GIF gates every GTM item and nothing is visible
-without it; cheap security/supply-chain wins before the large features; the highest-risk engine change
-(conditional steps) only after the old audit findings are re-verified and a safety net of mocked tests is
-planned right behind it (consider moving §3 unit tests ahead of conditional steps if you want that net first).
+**Totals (full-time, to Brain scaffold):** ≈ 10–12 weeks, or ~6–7 months part-time. §E and §F add roughly 3–4 weeks if all done.
+The design partner is the real critical path: without one, weeks 10–12 (Brain) should wait.
+
+**Why this order:** the scrub is cheap, makes the positioning true and unblocks honest GTM copy; conditional execution is the
+one engine change every telecom use case needs, so it runs alongside the scrub rather than after it; the reconciliation
+step is the missing primitive and tokenization must be reviewed before any data can reach a Brain; the Brain comes last
+because it only adds value once the detection layer produces trustworthy findings.
 
 ---
 
 # Reference material
 
-## Phase 5 detail — Go-To-Market copy (§6 reference)
+## Phase 5 detail — Go-To-Market copy (§D reference)
 
 *These do not block the GitHub release tag but should happen within the first week of release.*
 *Tracking checkboxes consolidated in Phase 10 — the detail below is reference material (exact copy/hashtags/etc.) for when you get to each one.*

@@ -33,7 +33,7 @@ FlowForge is a lightweight, database-driven data pipeline orchestrator. Users co
 
 **GitHub tagline** (README as of 2026-10-27): "Enterprise Telecom Revenue Assurance: a deterministic data-orchestration core (the Muscle) paired with a separate AI root-cause engine (the Brain). Configure everything from the UI — no YAML, no Airflow complexity."
 
-**Target users**: Today — solo developers, small teams and data analysts who need lightweight orchestration. Direction — enterprise telecom revenue-assurance teams (no design partner or external user yet; see `docs/TASKS.md` §7). The two positionings are in tension; resolve before external marketing.
+**Target users**: Today — solo developers, small teams and data analysts who need lightweight orchestration. Direction — enterprise telecom revenue-assurance teams (no design partner or external user yet; see `docs/TASKS.md` §C). The two positionings are in tension; resolve before external marketing.
 
 ---
 
@@ -741,4 +741,4 @@ See Claude Design handoff. Key tokens:
 > visibility. A pipeline with zero drawn edges is completely unaffected.
 
 - No Airflow DAG import
-- No cloud SaaS version *(under review: a managed/hosted tier is an open strategic question in `docs/TASKS.md` §7; do not build one without an explicit decision)*
+- No cloud SaaS version *(under review: a managed/hosted tier is an open strategic question in `docs/TASKS.md` §C; do not build one without an explicit decision)*

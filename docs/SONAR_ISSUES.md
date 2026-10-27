@@ -20,7 +20,7 @@
 | DependencyUpdateTool | ERROR | 1 | ✅ Already fixed — stale alert (dependabot.yml covers pip + npm + github-actions) |
 | SAST | ERROR | 1 | ⬜ Fix — add CodeQL workflow |
 | Vulnerabilities | ERROR | 1 | ⬜ Fix — run pip-audit in CI |
-| CIIBestPractices | ERROR | 1 | ⬜ Tracked in TASKS.md §2.3 (OpenSSF self-cert) |
+| CIIBestPractices | ERROR | 1 | ⬜ Tracked in TASKS.md §H (parked) (OpenSSF self-cert) |
 | Fuzzing | ERROR | 1 | 🚫 Accept — OSS-Fuzz registration not practical for v1 |
 | Maintained | ERROR | 1 | 🚫 Auto-resolves with commit activity |
 
@@ -132,7 +132,7 @@ Also confirm `npm audit --audit-level=high` in the `frontend` job is correctly f
 
 ---
 
-## SC-8 — CIIBestPractices (1 alert) ⬜ Tracked in TASKS.md §2.3
+## SC-8 — CIIBestPractices (1 alert) ⬜ Tracked in TASKS.md §H (parked)
 Complete the self-certification at [bestpractices.dev](https://bestpractices.dev). Earning the Passing tier adds this badge and clears the Scorecard alert automatically.
 
 ---

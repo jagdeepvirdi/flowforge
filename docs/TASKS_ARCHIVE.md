@@ -3,6 +3,14 @@
 
 ---
 
+## Session — 2026-10-27 (PR #123 merged; Dependabot triage; TASKS re-ranked) 🟢 *(COMPLETE)*
+
+- [x] **Push the dependency fixes, confirm CI green, triage the 12 open Dependabot PRs** *(2026-10-27)* — PR #123 (auth invite flow, SSRF hardening, dependency/CodeQL fixes, Muscle/Brain docs) merged to `master` with every check green. Dependabot: merged #113, #114, #116, #108, #115 and the fresh actions/npm groups #126, #124; closed the pip group (#122, #125 — bundled SQLAlchemy 2.1 and ruff 0.16/0.17) and the TypeScript 7, recharts 3, jsdom 30 and node 25 majors (#107, #109, #110, #105) with "ignore this major". Safe pip bumps landed by hand in PR #127 (alembic, click, psycopg2-binary, python-dotenv; dev: pyotp, pytest-mock, responses), verified with `--require-hashes` and the full suite on Linux Python 3.11.
+- [x] **Run the remaining security checks** *(2026-10-27)* — full backend suite 2,195 passed on Windows/Python 3.14 once the test DB (`flowforge-db`, port 5434) was up; Linux/3.11 locked-deps run 2,192 passed with the known Docker host-name failure.
+- [x] **Confirm the blocking secrets-scan gate** *(2026-10-27)* — TruffleHog `--only-verified` ran blocking on PR #123 and the Dependabot PRs and passed.
+
+---
+
 ## Session — 2026-10-27 (Security re-audit: SSRF fixes) 🟢 *(COMPLETE)*
 
 - [x] **SSRF: pipeline failure webhook had no guard** *(2026-10-27)* — `engine/notifications.py:_fire_failure_webhook` POSTed the editor-configurable `on_failure_webhook_url` with plain `urlopen` and nothing validated it at save time, so an editor could aim the server at loopback/RFC1918/`169.254.169.254` (and `file://` was not rejected). Fixed: `validators.validate_webhook_url` (via `validate_pipeline`) now rejects non-http(s) schemes, missing hostnames and literal private/loopback/link-local IPs on create, update **and** YAML import (400); the send path validates all resolved addresses and logs only the host (webhook URLs embed secret tokens).
