@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, AlertTriangle, ChevronDown, ChevronUp, ExternalLink, CheckCircle, XCircle, Download, Lightbulb, X } from 'lucide-react'
-import { getRun, downloadStepOutput, aiQuery, getSetupStatus, getRunAnomalies, getAnomalyNarrative, getRunDiff } from '../lib/api'
+import { ArrowLeft, AlertTriangle, ChevronDown, ChevronUp, ExternalLink, CheckCircle, XCircle, Download } from 'lucide-react'
+import { getRun, downloadStepOutput, getRunAnomalies, getRunDiff } from '../lib/api'
 import type { StepRun, StepAnomaly, AnomalyMetric, StepDiff } from '../lib/types'
 import StatusBadge from '../components/shared/StatusBadge'
 import TopBar from '../components/shared/TopBar'
@@ -42,40 +42,18 @@ const DURATION_TEXT_CLS: Record<string, string> = {
   running: 'text-running-text',
 }
 
-function AnomalyRow({ label, metric, a, aiEnabled, narrative, narrating, onNarrate, onDismiss }: {
-  label: string; metric: 'rows' | 'duration'; a: AnomalyMetric
-  aiEnabled: boolean
-  narrative: string | null; narrating: boolean
-  onNarrate: () => void; onDismiss: () => void
-}) {
+function AnomalyRow({ label, metric, a }: { label: string; metric: 'rows' | 'duration'; a: AnomalyMetric }) {
   const pctAbs = Math.abs(a.pct_diff)
   const dir    = a.pct_diff > 0 ? 'above' : 'below'
   const valStr  = metric === 'rows' ? `${a.value.toLocaleString()} rows` : fmtDur(a.value)
   const meanStr = metric === 'rows' ? `${Math.round(a.mean).toLocaleString()} rows` : fmtDur(Math.round(a.mean))
   return (
-    <div className="flex flex-col gap-[5px]">
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-[11px] text-text-3 min-w-[52px] font-[inherit]">{label}</span>
-        <span className="text-[11px] font-mono text-text-2">{valStr}</span>
-        <span className="text-[10.5px] py-px px-1.5 rounded-[3px] bg-[rgba(249,115,22,0.1)] text-accent font-[inherit]">
-          {pctAbs.toFixed(0)}% {dir} avg ({meanStr})
-        </span>
-        {aiEnabled && narrative === null && (
-          <button
-            onClick={onNarrate}
-            disabled={narrating}
-            className={`text-[10.5px] py-0.5 px-[7px] border border-[rgba(249,115,22,0.3)] bg-transparent text-accent rounded-[3px] font-[inherit] ${narrating ? 'cursor-default opacity-70' : 'cursor-pointer opacity-100'}`}
-          >
-            {narrating ? '…' : 'Why?'}
-          </button>
-        )}
-      </div>
-      {narrative !== null && (
-        <div className="flex items-start gap-2 py-1.5 px-2.5 bg-[rgba(249,115,22,0.06)] border border-[rgba(249,115,22,0.15)] rounded-[5px]">
-          <span className="text-[11.5px] text-text-2 leading-[1.65] flex-1 font-[inherit]">{narrative}</span>
-          <button onClick={onDismiss} className="flex bg-transparent border-none cursor-pointer text-text-3 p-0 shrink-0"><X size={11} /></button>
-        </div>
-      )}
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="text-[11px] text-text-3 min-w-[52px] font-[inherit]">{label}</span>
+      <span className="text-[11px] font-mono text-text-2">{valStr}</span>
+      <span className="text-[10.5px] py-px px-1.5 rounded-[3px] bg-[rgba(249,115,22,0.1)] text-accent font-[inherit]">
+        {pctAbs.toFixed(0)}% {dir} avg ({meanStr})
+      </span>
     </div>
   )
 }
@@ -87,7 +65,7 @@ function StepStatusIcon({ status, stepOrder }: { status: string; stepOrder: numb
   return <span className="font-mono text-[10px] font-bold">{stepOrder}</span>
 }
 
-function StepLogsTab({ s, diagnosisPanel }: { s: StepRun; diagnosisPanel: React.ReactNode }) {
+function StepLogsTab({ s }: { s: StepRun }) {
   return (
     <>
       {s.error_message && (
@@ -95,7 +73,6 @@ function StepLogsTab({ s, diagnosisPanel }: { s: StepRun; diagnosisPanel: React.
           <div className="py-2 px-3 bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.2)] rounded-r-sm text-failure-text whitespace-pre-wrap mb-1.5">
             {s.error_message}
           </div>
-          {diagnosisPanel}
         </div>
       )}
       {s.logs
@@ -166,51 +143,7 @@ function StepInfoTab({ s }: { s: StepRun }) {
   )
 }
 
-function DiagnosisPanel({ diagnosis, diagnosing, onDiagnose, onDismiss, aiEnabled }: {
-  diagnosis: string | null; diagnosing: boolean; onDiagnose: () => void; onDismiss: () => void; aiEnabled: boolean
-}) {
-  if (diagnosis !== null) {
-    return (
-      <div className="py-2.5 px-3 bg-[rgba(249,115,22,0.06)] border border-[rgba(249,115,22,0.2)] rounded-r-sm">
-        <div className="flex items-center justify-between mb-[7px]">
-          <span className="text-[11px] font-semibold text-accent flex items-center gap-1 font-[inherit]">
-            <Lightbulb size={11} /> AI Diagnosis
-          </span>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-text-dim font-[inherit]">via Ollama</span>
-            <button onClick={onDismiss} className="flex bg-transparent border-none cursor-pointer text-text-3 p-0">
-              <X size={12} />
-            </button>
-          </div>
-        </div>
-        <div className="text-xs text-text-2 leading-[1.7] whitespace-pre-wrap font-[inherit]">
-          {diagnosis}
-        </div>
-      </div>
-    )
-  }
-  if (aiEnabled) {
-    return (
-      <button
-        onClick={onDiagnose}
-        disabled={diagnosing}
-        className={`inline-flex items-center gap-[5px] text-[11px] py-[3px] px-[9px] rounded border border-[rgba(249,115,22,0.3)] bg-[rgba(249,115,22,0.06)] text-accent font-[inherit] ${diagnosing ? 'cursor-default opacity-70' : 'cursor-pointer opacity-100'}`}
-      >
-        <Lightbulb size={11} />
-        {diagnosing ? 'Diagnosing…' : 'Explain this error'}
-      </button>
-    )
-  }
-  return null
-}
-
-function AnomalyPanel({ anomaly, aiEnabled, rowsNarrative, rowsNarrating, durNarrative, durNarrating, onNarrate, onDismissNarrative }: {
-  anomaly: StepAnomaly; aiEnabled: boolean
-  rowsNarrative: string | null; rowsNarrating: boolean
-  durNarrative: string | null; durNarrating: boolean
-  onNarrate: (metric: 'rows' | 'duration', a: AnomalyMetric) => void
-  onDismissNarrative: (metric: 'rows' | 'duration') => void
-}) {
+function AnomalyPanel({ anomaly }: { anomaly: StepAnomaly }) {
   return (
     <div className="py-2.5 px-4 border-b border-border bg-[rgba(249,115,22,0.03)] flex flex-col gap-2.5">
       <div className="flex items-center gap-1.5">
@@ -219,78 +152,23 @@ function AnomalyPanel({ anomaly, aiEnabled, rowsNarrative, rowsNarrating, durNar
         <span className="text-[10.5px] text-text-dim font-[inherit]">— this step result is &gt;2σ outside its 30-run average</span>
       </div>
       {anomaly.rows_anomaly && (
-        <AnomalyRow
-          label="Rows" metric="rows" a={anomaly.rows_anomaly}
-          aiEnabled={aiEnabled}
-          narrative={rowsNarrative} narrating={rowsNarrating}
-          onNarrate={() => onNarrate('rows', anomaly.rows_anomaly!)}
-          onDismiss={() => onDismissNarrative('rows')}
-        />
+        <AnomalyRow label="Rows" metric="rows" a={anomaly.rows_anomaly} />
       )}
       {anomaly.duration_anomaly && (
-        <AnomalyRow
-          label="Duration" metric="duration" a={anomaly.duration_anomaly}
-          aiEnabled={aiEnabled}
-          narrative={durNarrative} narrating={durNarrating}
-          onNarrate={() => onNarrate('duration', anomaly.duration_anomaly!)}
-          onDismiss={() => onDismissNarrative('duration')}
-        />
+        <AnomalyRow label="Duration" metric="duration" a={anomaly.duration_anomaly} />
       )}
     </div>
   )
 }
 
-function TimelineStep({ s, last, aiEnabled, anomaly }: { s: StepRun; last: boolean; aiEnabled: boolean; anomaly: StepAnomaly | null }) {
+function TimelineStep({ s, last, anomaly }: { s: StepRun; last: boolean; anomaly: StepAnomaly | null }) {
   const [open, setOpen]           = useState(s.status === 'failed' || !!anomaly)
   const [activeTab, setActiveTab] = useState(0)
-  const [diagnosis, setDiagnosis] = useState<string | null>(null)
-  const [diagnosing, setDiagnosing] = useState(false)
-  const [rowsNarrative, setRowsNarrative] = useState<string | null>(null)
-  const [rowsNarrating, setRowsNarrating] = useState(false)
-  const [durNarrative, setDurNarrative]   = useState<string | null>(null)
-  const [durNarrating, setDurNarrating]   = useState(false)
-
-  async function handleNarrate(metric: 'rows' | 'duration', a: AnomalyMetric) {
-    const setNarrative = metric === 'rows' ? setRowsNarrative : setDurNarrative
-    const setNarrating = metric === 'rows' ? setRowsNarrating : setDurNarrating
-    setNarrating(true)
-    try {
-      const { result } = await getAnomalyNarrative({ step_name: s.step_name, metric, value: a.value, mean: a.mean, pct_diff: a.pct_diff })
-      setNarrative(result)
-    } catch {
-      setNarrative('Could not reach Ollama. Is it running?')
-    } finally {
-      setNarrating(false)
-    }
-  }
-
-  async function handleDiagnose() {
-    if (!s.error_message) return
-    setDiagnosing(true)
-    try {
-      const { result } = await aiQuery({ task: 'diagnose', step_type: s.step_type, error: s.error_message, logs: s.logs })
-      setDiagnosis(result)
-    } catch {
-      setDiagnosis('Could not reach Ollama. Is it running?')
-    } finally {
-      setDiagnosing(false)
-    }
-  }
 
   const typeMeta = TYPE_META[s.step_type] ?? { cls: 'tbadge-query', label: s.step_type }
   const statusTextCls = STATUS_TEXT_CLS[s.status] ?? 'text-text-dim'
   const statusBorderCls = STATUS_BORDER_CLS[s.status] ?? 'border-text-dim'
   const durationCls = DURATION_TEXT_CLS[s.status] ?? 'text-text-dim'
-
-  const diagnosisPanel = (
-    <DiagnosisPanel
-      diagnosis={diagnosis}
-      diagnosing={diagnosing}
-      onDiagnose={handleDiagnose}
-      onDismiss={() => setDiagnosis(null)}
-      aiEnabled={aiEnabled}
-    />
-  )
 
   return (
     <div className="flex gap-3.5 relative">
@@ -324,16 +202,7 @@ function TimelineStep({ s, last, aiEnabled, anomaly }: { s: StepRun; last: boole
           <div className="border-t border-border bg-bg">
             {/* Anomaly panel */}
             {anomaly && (
-              <AnomalyPanel
-                anomaly={anomaly}
-                aiEnabled={aiEnabled}
-                rowsNarrative={rowsNarrative}
-                rowsNarrating={rowsNarrating}
-                durNarrative={durNarrative}
-                durNarrating={durNarrating}
-                onNarrate={handleNarrate}
-                onDismissNarrative={(m) => m === 'rows' ? setRowsNarrative(null) : setDurNarrative(null)}
-              />
+              <AnomalyPanel anomaly={anomaly} />
             )}
             {/* Tabs */}
             <div className="flex items-center border-b border-border px-4">
@@ -344,7 +213,7 @@ function TimelineStep({ s, last, aiEnabled, anomaly }: { s: StepRun; last: boole
 
             {/* Content */}
             <div className="py-3 px-4 font-mono text-[11.5px] leading-[1.7]">
-              {activeTab === 0 && <StepLogsTab s={s} diagnosisPanel={diagnosisPanel} />}
+              {activeTab === 0 && <StepLogsTab s={s} />}
               {activeTab === 1 && <StepOutputTab s={s} />}
               {activeTab === 2 && <StepInfoTab s={s} />}
             </div>
@@ -455,8 +324,6 @@ export default function RunDetail() {
     queryFn: () => getRun(id!),
     refetchInterval: (q) => q.state.data?.status === 'running' ? 3000 : false,
   })
-  const { data: setupStatus } = useQuery({ queryKey: ['setup-status'], queryFn: getSetupStatus, staleTime: 60_000 })
-  const aiEnabled = setupStatus?.ai?.enabled ?? true
   const { data: anomalies = [] } = useQuery({
     queryKey: ['run-anomalies', id],
     queryFn: () => getRunAnomalies(id!),
@@ -599,7 +466,7 @@ export default function RunDetail() {
 
         {/* Timeline */}
         <div className="flex flex-col pb-5">
-          {steps.map((s, i) => <TimelineStep key={s.id} s={s} last={i === steps.length - 1} aiEnabled={aiEnabled} anomaly={anomalyMap.get(s.id) ?? null} />)}
+          {steps.map((s, i) => <TimelineStep key={s.id} s={s} last={i === steps.length - 1} anomaly={anomalyMap.get(s.id) ?? null} />)}
         </div>
       </div>
     </>

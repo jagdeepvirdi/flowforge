@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Play, Save, RefreshCw, Check, BarChart2, Lightbulb, Wand2, Activity, X } from 'lucide-react'
+import { ArrowLeft, Play, Save, RefreshCw, Check, BarChart2 } from 'lucide-react'
 import type { ReportFormat } from '../lib/types'
 import ChartPreview from '../components/report/ChartPreview'
 import ColumnFormattingCard from '../components/report/ColumnFormattingCard'
@@ -14,7 +14,7 @@ const FORMAT_EXT: Record<ReportFormat, string> = { excel: '.xlsx', csv: '.csv', 
 
 export default function ReportEdit() {
   const {
-    id, isNew, isLoading, dbConns, aiEnabled,
+    id, isNew, isLoading, dbConns,
     register, handleSubmit, getValues, setValue, errors, isSubmitting,
     columnFormatting, setColumnFormatting,
     error, setError,
@@ -24,12 +24,8 @@ export default function ReportEdit() {
 
   const {
     preview, previewing, handlePreview,
-    chartConfig, setChartConfig, visualizing, handleVisualize,
-    explanation, setExplanation, explaining, handleExplain,
-    optimization, setOptimization, optimizing, handleOptimize, acceptOptimization,
-    profilePending, setProfilePending, profileResult, setProfileResult, profiling,
-    handleSummarise, handleProfileProceed,
-  } = useReportPreviewTools(id, getValues, setValue, setError)
+    chartConfig, setChartConfig, handleVisualize,
+  } = useReportPreviewTools(id, setError)
 
   const crumbs = isNew ? ['Workspace', 'Reports', 'New Report'] : ['Workspace', 'Reports', name || 'Edit Report']
 
@@ -73,14 +69,9 @@ export default function ReportEdit() {
                 {previewing ? <Spinner size={12} /> : <Play size={12} />} Run query
               </button>
             )}
-            {!isNew && preview && aiEnabled && (
-              <button className="btn btn-sm" onClick={handleVisualize} disabled={visualizing}>
-                {visualizing ? <Spinner size={12} /> : <BarChart2 size={12} />} Visualize
-              </button>
-            )}
-            {!isNew && preview && aiEnabled && (
-              <button className="btn btn-sm" onClick={handleSummarise} disabled={profiling}>
-                {profiling ? <Spinner size={12} /> : <Activity size={12} />} Summarise
+            {!isNew && preview && (
+              <button className="btn btn-sm" onClick={handleVisualize}>
+                <BarChart2 size={12} /> Visualize
               </button>
             )}
             <button className="btn btn-primary btn-sm" onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
@@ -193,16 +184,6 @@ export default function ReportEdit() {
                 <span className="mono text-text-3">query.sql</span>
               </div>
               <div className="flex gap-1.5 items-center">
-                {aiEnabled && (
-                  <button className="btn btn-sm btn-ghost" onClick={handleExplain} disabled={explaining}>
-                    {explaining ? <Spinner size={12} /> : <Lightbulb size={12} />} Explain
-                  </button>
-                )}
-                {aiEnabled && (
-                  <button className="btn btn-sm btn-ghost" onClick={handleOptimize} disabled={optimizing}>
-                    {optimizing ? <Spinner size={12} /> : <Wand2 size={12} />} Optimize
-                  </button>
-                )}
                 <button className="btn btn-sm btn-ghost" onClick={handlePreview} disabled={previewing}>
                   {previewing ? <Spinner size={12} /> : <RefreshCw size={12} />} Run
                 </button>
@@ -218,72 +199,6 @@ export default function ReportEdit() {
               />
             </div>
           </div>
-
-          {/* SQL Optimization diff */}
-          {optimization && (
-            <div className="card p-0 overflow-hidden">
-              {/* Header */}
-              <div className="flex items-center justify-between py-[9px] px-3.5 border-b border-border">
-                <div className="flex items-center gap-1.5">
-                  <Wand2 size={13} className="text-accent" />
-                  <span className="text-xs font-semibold text-text-primary">SQL Optimization</span>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <span className="text-[10.5px] text-text-dim">via Ollama</span>
-                  <button onClick={() => setOptimization(null)} className="flex bg-transparent border-none cursor-pointer text-text-3 p-0.5">
-                    <X size={14} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Side-by-side diff */}
-              <div className="grid grid-cols-2 gap-0">
-                <div className="border-r border-border">
-                  <div className="py-1.5 px-3.5 border-b border-border bg-[rgba(239,68,68,0.04)]">
-                    <span className="text-[10.5px] font-semibold text-text-3 uppercase tracking-[0.05em]">Original</span>
-                  </div>
-                  <pre className="m-0 py-3 px-3.5 text-xs leading-[1.65] text-text-2 overflow-x-auto font-mono whitespace-pre-wrap break-all bg-[rgba(239,68,68,0.02)] max-h-80">
-                    {optimization.original}
-                  </pre>
-                </div>
-                <div>
-                  <div className="py-1.5 px-3.5 border-b border-border bg-[rgba(34,197,94,0.05)]">
-                    <span className="text-[10.5px] font-semibold text-text-3 uppercase tracking-[0.05em]">Suggested</span>
-                  </div>
-                  <pre className="m-0 py-3 px-3.5 text-xs leading-[1.65] text-text-2 overflow-x-auto font-mono whitespace-pre-wrap break-all bg-[rgba(34,197,94,0.02)] max-h-80">
-                    {optimization.suggested}
-                  </pre>
-                </div>
-              </div>
-
-              {/* Footer actions */}
-              <div className="flex gap-2 py-2.5 px-3.5 border-t border-border justify-end">
-                <button className="btn btn-sm" onClick={() => setOptimization(null)}>Dismiss</button>
-                <button className="btn btn-primary btn-sm" onClick={acceptOptimization}>Accept suggestion</button>
-              </div>
-            </div>
-          )}
-
-          {/* SQL Explanation */}
-          {explanation !== null && (
-            <div className="card p-0 overflow-hidden">
-              <div className="flex items-center justify-between py-[9px] px-3.5 border-b border-border">
-                <div className="flex items-center gap-1.5">
-                  <Lightbulb size={13} className="text-accent" />
-                  <span className="text-xs font-semibold text-text-primary">SQL Explanation</span>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <span className="text-[10.5px] text-text-dim">via Ollama</span>
-                  <button onClick={() => setExplanation(null)} className="flex bg-transparent border-none cursor-pointer text-text-3 p-0.5">
-                    <X size={14} />
-                  </button>
-                </div>
-              </div>
-              <div className="py-3.5 px-4 text-[13px] text-text-2 leading-[1.75] whitespace-pre-wrap">
-                {explanation}
-              </div>
-            </div>
-          )}
 
           {/* Preview table */}
           {preview && (
@@ -311,50 +226,7 @@ export default function ReportEdit() {
             </div>
           )}
 
-          {/* Data profile opt-in banner */}
-          {profilePending && (
-            <div className="py-3 px-3.5 bg-[rgba(59,130,246,0.06)] border border-[rgba(59,130,246,0.18)] rounded-r flex flex-col gap-2.5">
-              <div className="flex items-start gap-[9px]">
-                <Activity size={14} className="text-running mt-px shrink-0" />
-                <div>
-                  <div className="text-xs font-semibold text-text-primary mb-1">Data Profiling — Local Only</div>
-                  <div className="text-xs text-text-2 leading-[1.65]">
-                    Your preview rows (up to 20) will be sent to your <strong>local Ollama instance</strong> for analysis.
-                    No data leaves your machine.
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-2 justify-end">
-                <button className="btn btn-sm" onClick={() => setProfilePending(false)}>Cancel</button>
-                <button className="btn btn-primary btn-sm" onClick={handleProfileProceed} disabled={profiling}>
-                  {profiling ? <Spinner size={12} /> : <Activity size={12} />} Proceed
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Data profile result */}
-          {profileResult !== null && (
-            <div className="card p-0 overflow-hidden">
-              <div className="flex items-center justify-between py-[9px] px-3.5 border-b border-border">
-                <div className="flex items-center gap-1.5">
-                  <Activity size={13} className="text-accent" />
-                  <span className="text-xs font-semibold text-text-primary">Data Profile</span>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <span className="text-[10.5px] text-text-dim">via Ollama</span>
-                  <button onClick={() => setProfileResult(null)} className="flex bg-transparent border-none cursor-pointer text-text-3 p-0.5">
-                    <X size={14} />
-                  </button>
-                </div>
-              </div>
-              <div className="py-3.5 px-4 text-[13px] text-text-2 leading-[1.75] whitespace-pre-wrap">
-                {profileResult}
-              </div>
-            </div>
-          )}
-
-          {/* AI Chart */}
+          {/* Chart */}
           {chartConfig && preview && (
             <ChartPreview
               columns={preview.columns}

@@ -216,17 +216,6 @@ export const updateReportConfig = (id: string, data: Partial<import('./types').R
 export const deleteReportConfig = (id: string) => del<{ deleted: string }>(`/report-configs/${id}`)
 export const cloneReportConfig  = (id: string) => post<import('./types').ReportConfig>(`/report-configs/${id}/clone`)
 export const previewReport      = (id: string) => post<{ columns: string[]; rows: unknown[][] }>(`/report-configs/${id}/preview`)
-export const profileData = (payload: { columns: string[]; rows: unknown[][] }) =>
-  post<{ result: string }>('/ai/data-profile', payload)
-export const generateChartConfig = (payload: { columns: string[]; rows: unknown[][]; hint?: string }) =>
-  post<{ type: 'bar' | 'line' | 'area' | 'pie' | 'scatter'; x: string; y: string; title: string; available_columns: string[] }>('/ai/chart-config', payload)
-type AiQueryPayload =
-  | { task: 'explain';  sql: string }
-  | { task: 'optimize'; sql: string }
-  | { task: 'diagnose'; step_type: string; error: string; logs?: string | null }
-export const aiQuery = (payload: AiQueryPayload) =>
-  post<{ result: string }>('/ai/query', payload)
-
 // Email configs
 export const getEmailConfigs   = (params?: { project_id?: string }) => {
   const qs = params?.project_id ? `?project_id=${params.project_id}` : ''
@@ -289,11 +278,6 @@ export const getStepRunTrends = (params?: { step_type?: string; pipeline_id?: st
   const q = qs.toString()
   return get<import('./types').StepTrends>(`/step-runs/trends${q ? `?${q}` : ''}`)
 }
-export const getAnomalyNarrative = (payload: {
-  step_name: string; metric: 'rows' | 'duration'
-  value: number; mean: number; pct_diff: number
-}) => post<{ result: string }>('/ai/anomaly-narrative', payload)
-
 // Users (admin)
 export const getUsers    = () => get<import('./types').User[]>('/users')
 export const createUser  = (data: { username: string; password: string; role: string; email?: string; send_welcome_email?: boolean }) =>
@@ -317,11 +301,7 @@ export type SetupStatus = {
   gmail:        { configured: boolean; sender: string }
   drive:        { configured: boolean; folder_id: string }
   microsoft365: { configured: boolean; sender: string }
-  ai: {
-    enabled: boolean; ollama_url: string; model: string
-    claude: { configured: boolean }
-    gemini: { configured: boolean; model: string }
-  }
+  ai: { enabled: boolean; brain_url_configured: boolean }
   retention:    { run_days: number; audit_days: number }
 }
 export const getSetupStatus = () => get<SetupStatus>('/setup/status')

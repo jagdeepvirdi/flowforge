@@ -18,11 +18,7 @@ vi.mock('../lib/api', () => ({
     gmail:        { configured: false, sender: '' },
     drive:        { configured: false, folder_id: '' },
     microsoft365: { configured: false, sender: '' },
-    ai: {
-      enabled: true, ollama_url: 'http://localhost:11434', model: 'llama3.2:3b',
-      claude: { configured: false },
-      gemini: { configured: false, model: 'gemini-2.5-flash' },
-    },
+    ai: { enabled: false, brain_url_configured: false },
     retention:    { run_days: 90, audit_days: 90 },
   })),
   getMfaStatus:   vi.fn(() => Promise.resolve({ mfa_enabled: false, sso_provider: null })),
@@ -79,23 +75,23 @@ describe('Settings', () => {
     })
   })
 
-  it('shows AI section title', async () => {
+  it('shows the Brain card as not attached', async () => {
     const user = userEvent.setup()
     renderWithProviders(<Settings />)
-    await user.click(await screen.findByRole('button', { name: 'AI' }))
+    await user.click(await screen.findByRole('button', { name: 'Brain' }))
     await waitFor(() => {
-      expect(screen.getByText('AI Features')).toBeInTheDocument()
+      expect(screen.getByText('Not attached')).toBeInTheDocument()
     })
+    expect(screen.getByText(/FLOWFORGE_BRAIN_URL/)).toBeInTheDocument()
   })
 
-  it('shows Claude and Gemini provider status for ai_analyze', async () => {
+  it('has no AI tab and no provider (Ollama/Claude/Gemini) UI', async () => {
     const user = userEvent.setup()
     renderWithProviders(<Settings />)
-    await user.click(await screen.findByRole('button', { name: 'AI' }))
-    await waitFor(() => {
-      expect(screen.getByText('Claude API (Anthropic)')).toBeInTheDocument()
-      expect(screen.getByText('Gemini API (Google, free tier)')).toBeInTheDocument()
-    })
+    expect(screen.queryByRole('button', { name: 'AI' })).not.toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: 'Brain' }))
+    await waitFor(() => expect(screen.getByText('Not attached')).toBeInTheDocument())
+    expect(screen.queryByText(/Ollama|Claude|Gemini/)).not.toBeInTheDocument()
   })
 
   it('shows retention policy section title', async () => {
@@ -125,13 +121,13 @@ describe('Settings', () => {
     })
   })
 
-  it('does not show Email, AI, or System content on the default Account tab', async () => {
+  it('does not show Email, Brain, or System content on the default Account tab', async () => {
     renderWithProviders(<Settings />)
     await waitFor(() => {
       expect(screen.getAllByText('Change Password').length).toBeGreaterThan(0)
     })
     expect(screen.queryByText('Google OAuth2 (Gmail + Drive)')).not.toBeInTheDocument()
-    expect(screen.queryByText('AI Features')).not.toBeInTheDocument()
+    expect(screen.queryByText('Not attached')).not.toBeInTheDocument()
     expect(screen.queryByText('Data Retention Policies')).not.toBeInTheDocument()
   })
 
