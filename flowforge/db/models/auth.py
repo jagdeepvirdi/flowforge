@@ -25,6 +25,10 @@ class User(db.Model):
     password_hash    = Column(String(255), nullable=False)
     role             = Column(String(20), nullable=False, default='editor')
     email            = Column(String(255), index=True)  # optional — for password reset
+    # Forces a set-new-password step at login before a full session is issued —
+    # set when an admin invites the user via a set-password-link email (see
+    # flowforge/api/routes/users.py::create_user), cleared once they set their own password.
+    must_change_password = Column(Boolean, nullable=False, default=False)
     # MFA (TOTP) — secret and backup codes stored AES-256 encrypted
     mfa_secret       = Column(Text)
     mfa_enabled      = Column(Boolean, nullable=False, default=False)

@@ -24,8 +24,8 @@ function RoleBadge({ role }: { role: Role }) {
   )
 }
 
-type AddForm = { username: string; password: string; role: Role; email: string }
-const emptyForm = (): AddForm => ({ username: '', password: '', role: 'editor', email: '' })
+type AddForm = { username: string; password: string; role: Role; email: string; sendWelcomeEmail: boolean }
+const emptyForm = (): AddForm => ({ username: '', password: '', role: 'editor', email: '', sendWelcomeEmail: false })
 
 export default function Users() {
   const navigate   = useNavigate()
@@ -42,11 +42,17 @@ export default function Users() {
 
   const createMut = useMutation({
     mutationFn: createUser,
-    onSuccess: () => {
+    onSuccess: (user) => {
       qc.invalidateQueries({ queryKey: ['users'] })
       setShowAdd(false)
       setForm(emptyForm())
       setFormError('')
+      if (user.email_sent === false) {
+        globalThis.alert(
+          `User "${user.username}" was created, but the welcome email could not be sent ` +
+          '(check the default email provider under Connections). Share the password with them directly instead.'
+        )
+      }
     },
     onError: (e: Error) => setFormError(e.message),
   })
@@ -93,6 +99,14 @@ export default function Users() {
               {user.username}
               {user.id === me?.id && (
                 <span className="ml-1.5 text-[10.5px] text-text-muted font-normal">(you)</span>
+              )}
+              {user.must_change_password && (
+                <span
+                  className="ml-1.5 text-[10.5px] font-semibold py-0.5 px-1.5 rounded-[3px] bg-[rgba(249,115,22,0.12)] text-accent-text"
+                  title="User must set a new password on next login"
+                >
+                  Invite pending
+                </span>
               )}
             </td>
             <td className="py-3 px-4 text-xs text-text-muted">
@@ -163,7 +177,14 @@ export default function Users() {
     setFormError('')
     if (!form.username.trim()) { setFormError('Username is required'); return }
     if (form.password.length < 8) { setFormError('Password must be at least 8 characters'); return }
-    createMut.mutate({ username: form.username, password: form.password, role: form.role, email: form.email || undefined })
+    if (form.sendWelcomeEmail && !form.email.trim()) { setFormError('Email is required to send a welcome invite'); return }
+    createMut.mutate({
+      username: form.username,
+      password: form.password,
+      role: form.role,
+      email: form.email || undefined,
+      send_welcome_email: form.sendWelcomeEmail,
+    })
   }
 
   function handleDelete(user: User) {
@@ -259,6 +280,19 @@ export default function Users() {
                     placeholder="user@example.com"
                   />
                 </div>
+                <label className="flex items-start gap-2 text-xs text-text-muted cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={form.sendWelcomeEmail}
+                    disabled={!form.email.trim()}
+                    onChange={e => setForm(f => ({ ...f, sendWelcomeEmail: e.target.checked }))}
+                  />
+                  <span>
+                    Email them a set-password link and require them to set their own password on first login.
+                    {!form.email.trim() && <span className="block text-text-dim">Add an email address to enable this.</span>}
+                  </span>
+                </label>
                 {formError && (
                   <div className="text-[12.5px] text-failure-text bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.2)] rounded-r-sm py-2 px-3">
                     {formError}

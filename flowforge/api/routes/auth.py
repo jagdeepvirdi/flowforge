@@ -1,10 +1,12 @@
 """Auth routes — POST /api/auth/login, POST /api/auth/logout."""
+import bcrypt
 from flask import Blueprint, g, jsonify, request
 
 from flowforge import audit
 from flowforge.api.app import limiter
+from flowforge.api.auth import generate_token, require_auth, revoke_token, verify_pwchange_token
 from flowforge.api.auth import login as auth_login
-from flowforge.api.auth import require_auth, revoke_token
+from flowforge.db.models import User, db
 
 bp = Blueprint('auth', __name__)
 
@@ -31,6 +33,37 @@ def login():
         return jsonify(result)
 
     return jsonify({'token': result})
+
+
+@bp.post('/auth/change-required-password')
+@limiter.limit('10 per minute')
+def change_required_password():
+    """Second step of login when the account is flagged must_change_password
+    (e.g. an admin-invited user who logged in with the password the admin set).
+    Consumes the short-lived change_token from login() and issues a full session."""
+    data = request.get_json(silent=True) or {}
+    change_token = data.get('change_token') or ''
+    new_password = data.get('new_password') or ''
+
+    if not change_token or not new_password:
+        return jsonify({'error': 'change_token and new_password are required'}), 400
+    if len(new_password) < 8:
+        return jsonify({'error': 'new_password must be at least 8 characters'}), 400
+
+    payload = verify_pwchange_token(change_token)
+    if not payload:
+        return jsonify({'error': 'Invalid or expired token'}), 401
+
+    user = db.session.get(User, payload.get('uid'))
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    user.password_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+    user.must_change_password = False
+    db.session.commit()
+    audit.log_user_change('PASSWORD_CHANGED', user.username, user.id)
+
+    return jsonify({'token': generate_token(user)})
 
 
 @bp.get('/auth/me')

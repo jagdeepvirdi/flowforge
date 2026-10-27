@@ -67,12 +67,42 @@ def verify_mfa_token(token: str) -> dict | None:
         return None
 
 
+def generate_pwchange_token(user: User) -> str:
+    """Short-lived (15 min) challenge token issued when credentials are correct
+    but the account is flagged (must_change_password) to set a new password
+    before a full session is issued."""
+    payload = {
+        'sub': user.username,
+        'uid': user.id,
+        'role': user.role,
+        'jti': str(_uuid_mod.uuid4()),
+        'pwd_step': True,
+        'iat': datetime.now(UTC),
+        'exp': datetime.now(UTC) + timedelta(minutes=15),
+    }
+    return jwt.encode(payload, _secret(), algorithm=_algorithm())
+
+
+def verify_pwchange_token(token: str) -> dict | None:
+    """Verify a forced-password-change challenge token. Returns payload if valid and un-revoked, else None."""
+    try:
+        payload = jwt.decode(token, _secret(), algorithms=[_algorithm()])
+        if not payload.get('pwd_step'):
+            return None
+        jti = payload.get('jti')
+        if jti and db.session.get(TokenBlocklist, jti) is not None:
+            return None
+        return payload
+    except jwt.PyJWTError:
+        return None
+
+
 def verify_token(token: str) -> dict | None:
     """Return the payload if the token is valid and not revoked, else None."""
     try:
         payload = jwt.decode(token, _secret(), algorithms=[_algorithm()])
-        # Reject MFA challenge tokens from being used as full session tokens.
-        if payload.get('mfa_step'):
+        # Reject MFA/password-change challenge tokens from being used as full session tokens.
+        if payload.get('mfa_step') or payload.get('pwd_step'):
             return None
         jti = payload.get('jti')
         if jti and db.session.get(TokenBlocklist, jti) is not None:
@@ -105,7 +135,10 @@ def login(username: str, password: str) -> 'str | dict | None':
     """Verify credentials.
 
     Returns:
-        str  — full JWT (MFA not enabled or not configured)
+        str  — full JWT (no pending challenge)
+        dict — {'password_change_required': True, 'change_token': '...'} when the
+               account must set a new password before a session is issued (checked
+               first — a freshly admin-invited account won't have MFA set up yet)
         dict — {'mfa_required': True, 'mfa_token': '...'} when MFA is enabled
         None — invalid credentials
     """
@@ -114,6 +147,8 @@ def login(username: str, password: str) -> 'str | dict | None':
         return None
     if not bcrypt.checkpw(password.encode(), user.password_hash.encode()):
         return None
+    if user.must_change_password:
+        return {'password_change_required': True, 'change_token': generate_pwchange_token(user)}
     if user.mfa_enabled:
         return {'mfa_required': True, 'mfa_token': generate_mfa_token(user)}
     return generate_token(user)

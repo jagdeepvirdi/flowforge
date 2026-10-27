@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { login, getMe, mfaVerify, mfaUseBackup, getSsoProviders, requestPasswordReset, confirmPasswordReset, validateResetToken } from '../lib/api'
+import { login, getMe, mfaVerify, mfaUseBackup, getSsoProviders, requestPasswordReset, confirmPasswordReset, validateResetToken, changeRequiredPassword } from '../lib/api'
 import { useAuth } from '../lib/auth'
 
-type LoginStep = 'credentials' | 'mfa-code' | 'mfa-backup' | 'forgot-password' | 'forgot-sent' | 'reset-password' | 'reset-done'
+type LoginStep = 'credentials' | 'mfa-code' | 'mfa-backup' | 'forgot-password' | 'forgot-sent' | 'reset-password' | 'reset-done' | 'force-password-change'
 
 export default function Login() {
   const { setToken, setUser } = useAuth()
@@ -11,6 +11,7 @@ export default function Login() {
 
   const [step, setStep]         = useState<LoginStep>('credentials')
   const [mfaToken, setMfaToken] = useState('')
+  const [changeToken, setChangeToken] = useState('')
   const [resetToken, setResetToken] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -80,7 +81,10 @@ export default function Login() {
     setLoading(true)
     try {
       const result = await login(username, password)
-      if ('mfa_required' in result && result.mfa_required) {
+      if ('password_change_required' in result && result.password_change_required) {
+        setChangeToken(result.change_token)
+        setStep('force-password-change')
+      } else if ('mfa_required' in result && result.mfa_required) {
         setMfaToken(result.mfa_token)
         setStep('mfa-code')
       } else if ('token' in result) {
@@ -138,6 +142,25 @@ export default function Login() {
       setStep('reset-done')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Reset failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleForcePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    if (newPassword.length < 8) { setError('Password must be at least 8 characters'); return }
+    if (newPassword !== confirmPassword) { setError('Passwords do not match'); return }
+    setLoading(true)
+    try {
+      const { token } = await changeRequiredPassword(changeToken, newPassword)
+      setToken(token)
+      const user = await getMe()
+      setUser(user)
+      navigate('/dashboard')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Password change failed')
     } finally {
       setLoading(false)
     }
@@ -359,6 +382,32 @@ export default function Login() {
                 {error && <ErrorBox>{error}</ErrorBox>}
                 <button type="submit" className="btn btn-primary w-full" disabled={loading}>
                   {loading ? 'Saving…' : 'Set password'}
+                </button>
+              </form>
+            </>
+          )}
+
+          {/* ── Forced password change (admin-invited account, first login) ── */}
+          {step === 'force-password-change' && (
+            <>
+              <h2 className="text-base font-semibold text-text-primary mb-2 mt-0">Set a new password</h2>
+              <p className="text-[13px] text-text-muted mb-[18px]">
+                Your account requires a password change before continuing.
+              </p>
+              <form onSubmit={handleForcePasswordChange} className="flex flex-col gap-3.5">
+                <div className="field">
+                  <label htmlFor="force-new-password">New password</label>
+                  <input id="force-new-password" className="input" type="password" value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)} autoFocus required minLength={8} />
+                </div>
+                <div className="field">
+                  <label htmlFor="force-confirm-password">Confirm new password</label>
+                  <input id="force-confirm-password" className="input" type="password" value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)} required />
+                </div>
+                {error && <ErrorBox>{error}</ErrorBox>}
+                <button type="submit" className="btn btn-primary w-full" disabled={loading}>
+                  {loading ? 'Saving…' : 'Set password and sign in'}
                 </button>
               </form>
             </>

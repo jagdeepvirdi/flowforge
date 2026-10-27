@@ -1,10 +1,24 @@
 """User management API — admin-only CRUD + self-service change-password + GDPR endpoints."""
+import logging
+import os
+import secrets
+from datetime import UTC, datetime, timedelta
+
 import bcrypt
 from flask import Blueprint, g, jsonify, request
 
 import flowforge.audit as audit
 from flowforge.api.auth import require_auth, require_role
-from flowforge.db.models import AuditLog, PipelineRun, Project, ProjectMember, User, db
+from flowforge.api.email_utils import send_via_default_provider
+from flowforge.db.models import (
+    AuditLog,
+    PasswordResetToken,
+    PipelineRun,
+    Project,
+    ProjectMember,
+    User,
+    db,
+)
 
 bp = Blueprint('users', __name__)
 
@@ -12,6 +26,40 @@ bp = Blueprint('users', __name__)
 _NOT_FOUND = 'User not found'
 
 _VALID_ROLES = {'admin', 'editor', 'viewer'}
+_INVITE_TOKEN_TTL_HOURS = 72
+
+
+def _app_url() -> str:
+    return os.environ.get('FLOWFORGE_APP_URL', 'http://localhost:5000').rstrip('/')
+
+
+def _send_welcome_email(user: User) -> None:
+    """Send a set-your-password invite email, reusing the password-reset token
+    mechanism/link (and the same frontend screen that handles it) rather than
+    emailing the admin-set password in plaintext."""
+    token = secrets.token_hex(32)
+    expires_at = datetime.now(UTC) + timedelta(hours=_INVITE_TOKEN_TTL_HOURS)
+    db.session.add(PasswordResetToken(token=token, user_id=user.id, expires_at=expires_at))
+    db.session.flush()
+
+    set_link = f"{_app_url()}/#reset_token={token}"
+    subject = "Welcome to FlowForge — set your password"
+    html_body = f"""
+    <div style="font-family: Inter, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; color: #F1F5F9; background: #1A1D27; border-radius: 8px;">
+      <div style="margin-bottom: 24px;">
+        <span style="font-size: 20px; font-weight: 600; color: #F97316;">FlowForge</span>
+      </div>
+      <h2 style="font-size: 16px; font-weight: 600; margin: 0 0 12px; color: #F1F5F9;">Welcome to FlowForge</h2>
+      <p style="font-size: 13px; color: #94A3B8; margin: 0 0 20px; line-height: 1.6;">
+        An account was created for you as <strong>{user.username}</strong>.
+        Click the button below to set your password and sign in. This link expires in {_INVITE_TOKEN_TTL_HOURS // 24} days.
+      </p>
+      <a href="{set_link}" style="display: inline-block; background: #F97316; color: #fff; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-size: 13px; font-weight: 600;">
+        Set your password
+      </a>
+    </div>
+    """
+    send_via_default_provider([user.email], subject, html_body)
 
 
 def _add_default_project_membership(user_id: str) -> None:
@@ -32,6 +80,7 @@ def _user_dict(u: User) -> dict:
         'email': u.email,
         'mfa_enabled': u.mfa_enabled,
         'sso_provider': u.sso_provider,
+        'must_change_password': u.must_change_password,
         'created_at': u.created_at.isoformat() if u.created_at else None,
     }
 
@@ -50,6 +99,7 @@ def create_user():
     username = (data.get('username') or '').strip()
     password = data.get('password') or ''
     role = (data.get('role') or 'editor').strip()
+    send_welcome_email = bool(data.get('send_welcome_email'))
 
     if not username or not password:
         return jsonify({'error': 'username and password are required'}), 400
@@ -59,15 +109,36 @@ def create_user():
         return jsonify({'error': 'Username already exists'}), 409
 
     email = (data.get('email') or '').strip().lower() or None
+    if send_welcome_email and not email:
+        return jsonify({'error': 'email is required to send a welcome invite'}), 400
+
     pw_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-    user = User(username=username, password_hash=pw_hash, role=role, email=email)
+    user = User(
+        username=username, password_hash=pw_hash, role=role, email=email,
+        # The invite email lets the user set their own password; the admin-supplied
+        # one above is only a fallback if they log in directly instead of via the link.
+        must_change_password=send_welcome_email,
+    )
     db.session.add(user)
     db.session.flush()
     if role != 'admin':
         _add_default_project_membership(user.id)
+
+    email_sent = None
+    if send_welcome_email:
+        try:
+            _send_welcome_email(user)
+            email_sent = True
+        except Exception:
+            logging.getLogger(__name__).exception('Welcome email failed for user %s', username)
+            email_sent = False
+
     db.session.commit()
     audit.log_user_change('CREATED', username, user.id)
-    return jsonify(_user_dict(user)), 201
+    result = _user_dict(user)
+    if send_welcome_email:
+        result['email_sent'] = email_sent
+    return jsonify(result), 201
 
 
 @bp.patch('/users/<uuid:user_id>')
