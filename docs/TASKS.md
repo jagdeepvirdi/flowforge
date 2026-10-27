@@ -1,261 +1,234 @@
 # TASKS.md — FlowForge
 
-*Completed tasks are in [TASKS_ARCHIVE.md](TASKS_ARCHIVE.md).*
+*Open work only. Completed work lives in [TASKS_ARCHIVE.md](TASKS_ARCHIVE.md) (newest-first; the
+2026-10-27 entry holds the V2.0 Audit Action Items and Phase 13 audit fixes).*
 *Full codebase review with scores in [CODEBASE_REVIEW.md](CODEBASE_REVIEW.md).*
+*Last reorganized: 2026-10-27.*
 
 ---
 
-## Codebase Review Score: 7.8 / 10 (2026-05-25)
+## Where we are
 
-| Dimension | 2026-05-20 | 2026-05-23 | 2026-05-25 | Target (v1.0) |
-|---|---|---|---|---|
-| Architecture | 6.5 | 7.0 | 7.5 | 8.5 |
-| Code Quality | 6.0 | 7.0 | 7.5 | 8.5 |
-| Database | 6.5 | 8.0 | 8.5 | 9.0 |
-| Security | 5.5 | 7.5 | 7.5 | 8.5 |
-| Tests | 6.0 | 7.5 | 8.5 | 9.0 |
-| Frontend | 5.5 | 6.5 | 8.0 | 9.0 |
-| DevOps | 6.0 | 7.5 | 8.5 | 9.0 |
-| **Overall** | **6.0** | **7.3** | **7.8** | **≥ 9.0** |
+| Release | Goal | Status |
+|---|---|---|
+| **v1.0** | Public GitHub release — stable, tested, `docker compose up` works, badges and docs polished, GTM done | Shipped (tagged); **GTM still partial** — see §6 |
+| **v2.0** | Production-hardening — scaling docs, metrics, audit UI, retention, dependency audit in CI | Code complete; V2.0 audit items (ARCH/SEC/PERF/MAINT-01..02) all closed |
+| **v2.x Compliance** | MFA, SSO, GDPR, encryption at rest | Shipped |
+| **v3.0** | New connectors/providers, pipeline DAGs, plugin system, visual canvas | Shipped |
 
----
+Latest code-review score table: **7.8 / 10 (2026-05-25)** — stale; the later 2026-07-24 architect/VC audit
+scored 6/10 overall (Security 3/10 at the time; its Critical items have since all shipped). Re-score
+after the §1–§3 items below land.
 
-## Release Definition
+**Open items: 58** — §0 AI decoupling (11) · §1 Blockers (12) · §2 Product polish (7) · §3 Engineering quality (7) · §4 Supply chain & OSS health (7) · §5 Docs hygiene (2) · §6 Go-to-market (6) · §7 Strategic (6)
 
-| Release | Goal |
-|---|---|
-| **v1.0** | Public GitHub release — stable, tested, `docker compose up` works, badges and docs polished, GTM done |
-| **v2.0** | Production-hardening — Gunicorn/scaling docs, metrics, audit UI, retention, dependency audit in CI |
-| **v2.x Compliance** | Regulated-environment track — MFA, SSO, GDPR, encryption at rest |
-| **v3.0** | New connectors/providers, pipeline DAGs, plugin system |
+Items tagged *(derived)* were not open checkboxes before: they come from "explicitly out of scope" notes
+in the now-archived completed items, promoted here so they aren't lost.
 
 ---
 
----
+## 0. Architecture decision — decouple AI into the external "Brain" service *(decided 2026-10-27)*
 
-# Phase 10 — Consolidated Pending Work
+**Full plan: [BRAIN_DECOUPLING_PLAN.md](BRAIN_DECOUPLING_PLAN.md)** (read its 2026-10-27 (b) amendment: no `/ai/*` shells — the UI calls Brain directly) and the target architecture in [`../ARCHITECTURE.md`](../ARCHITECTURE.md). Read both before touching any AI code.
+FlowForge becomes a deterministic ETL/SQL orchestrator; all LLM logic moves to a separate FastAPI "Brain" service.
+**Rule:** the small AI features (SQL explain/optimize, failure diagnosis, anomaly narrative, data profile, chart suggestion,
+`ai_analyze` step) stay in the UI code paths but are **dark unless a Brain is attached** (`FLOWFORGE_BRAIN_URL`). No fake/stub AI
+output; disabled routes return `503 brain_not_attached`; the `ai_analyze` step fails with a clear message. **Do this before the §6
+launch** (published posts and planned PH copy advertise "local AI"; record the demo GIF after the scrub). Effort ≈ 3–4 days.
 
-*Every remaining unchecked item in this file, gathered in one place and
-ordered by priority. Completed work — score tables, dates, full
-implementation detail — has been moved to
-[TASKS_ARCHIVE.md](TASKS_ARCHIVE.md) rather than kept under the original
-Phase headings, so this file now only contains open items plus the
-reference material (Phase 5, Known Risks) still needed to act on them.
-Phase 13 and Phase 14 were fully completed and archived on 2026-07-22 —
-see TASKS_ARCHIVE.md's "Session — 2026-07-21" and "Session — 2026-07-22"
-entries.*
-
-## High priority
-
-*Release-blocking (Release Definition lists "GTM done" under v1.0), quick wins, or ongoing practice that protects a score already earned.*
-
-- [ ] Going forward: never push directly to `master`; always open a PR. Self-approval is blocked by GitHub for PRs you author, so get approval from a collaborator/second account for those, or prefer bot-authored PRs (e.g. Dependabot) *(Scorecard — Code-Review)* — **partially addressed 2026-07-06**: `enforce_admins` disabled on `master`'s branch protection so admin-override merges (`gh pr merge --admin`) are possible without a collaborator (PRs #94, #95 merged this way). This unblocks the solo-maintainer workflow but does **not** raise the Scorecard Code-Review score — admin-override merges still count as unreviewed, so the score stays near 0 until a real second reviewer is in the loop. See Phase 11's Code-Review deadlock item below.
-- [ ] Re-run scorecard to confirm Pinned-Dependencies improved after the hash-pinning already done *(Scorecard — Pinned-Dependencies)*
-- [ ] Record a 60–90s demo GIF/MP4 (dashboard → create pipeline with report+email step → run it → Run History) and add to the README — blocks every other GTM item below *(Go-To-Market 5.1)*
-- [ ] Capture a high-quality Dashboard screenshot for the README hero / LinkedIn Featured section *(Go-To-Market 5.1)*
-
-## Security — SonarCloud residual finding needs manual resolution *(found 2026-07-06)*
-
-- [ ] **Manually resolve the residual SonarCloud finding** (`pythonsecurity:S5496`, issue key `AZ82Oyzt-6VzRaR01a4L`, `flowforge/engine/context.py`) as Won't Fix / False Positive in the SonarCloud UI — the rule flags the `render()` call-site pattern itself (Jinja2 template from user-controlled input) regardless of the mitigations already shipped (see archive), and will keep failing `master`'s Quality Gate until either manually resolved or it ages out of the New Code period on its own. Justification: `_jinja` is already a `SandboxedEnvironment` (blocks RCE-class gadgets), the blocklist/pattern now covers known and future credential names, and rendered values are no longer reflected — this is the same `{{ current_date }}`-style templating used intentionally everywhere else in the app, not a coding mistake in this one spot. Requires SonarCloud login (not available to Claude).
-- [ ] **Second residual SonarCloud finding, same category** (`pythonsecurity:S3649` — SQL injection, issue key `AZ83ITEjNp5vzm4zlnz0`, `flowforge/steps/bulk_load.py:614` in `_dry_run_insert_rows()`, introduced by the bulk-load dry-run V2 feature on 2026-07-06) — also needs manual Won't Fix / False Positive resolution in the SonarCloud UI; failing `master`'s Quality Gate (New Code Security Rating) the same way S5496 does. The taint tracker flags `target_table`/`columns` flowing into the f-string-built `INSERT` statement, but both are validated with `validate_identifier()` (regex allowlist: letters/digits/underscore/dot only, raises otherwise) by the caller (`preview_bulk_load` validates `target_table`; `_derive_csv_columns` validates each column name) **and** redundantly re-validated inside `_dry_run_insert_rows()` itself (added specifically to try to satisfy this finding) — SonarCloud's Python security rules don't recognize a project-local validation function as a sanitizer boundary regardless of where it's called from, so the finding persists even with the belt-and-suspenders fix in place. Same remediation path as S5496: requires SonarCloud login (not available to Claude) to mark resolved.
-
-## Local environment — email providers broken *(found 2026-07-03, blocks dev testing)*
-
-*Both SMTP and Gmail sending were failing locally. SMTP is now fixed (port/`use_ssl` mismatch + AVG Email Shield). Gmail is still broken — steps below.*
-
-- [ ] **AVG Web Shield is intercepting `oauth2.googleapis.com`** — same class of issue as the SMTP one (AVG Email Shield), but a different shield since this is a plain HTTPS call, not SMTP. Confirmed via `SSLCertVerificationError: unable to get local issuer certificate` when attempting a token refresh. Fix: AVG → Settings → Protection → Web & Email → disable **Web Shield**, or add a domain exception for `googleapis.com`.
-- [ ] **Re-authorize Gmail — refresh token expired** — `RefreshError: invalid_grant: Bad Request`. Root cause: the stored refresh token is 40 days old, and the Google OAuth consent screen is in **Testing** publishing status, where Google hard-expires refresh tokens after 7 days regardless of activity. Fix: re-run Step 5 in `docs/gmail-oauth2-setup.md` to mint a new refresh token, then update the "Personal Gmail" provider in **Connections → Email Providers**.
-- [ ] **Stop this recurring every ~7 days** — publish the OAuth consent screen to "In production" in Google Cloud Console. Caveat: the app currently requests the full `drive` scope, which Google classifies as *restricted* and normally requires a verification review to publish for real use. Two options: go through verification, or narrow the scope to `drive.file` (not restricted, no review needed) if full-Drive access isn't actually required — would need a small code change plus re-consent.
-- [ ] **Doc gap**: `docs/gmail-oauth2-setup.md`'s "Keeping the App in Testing vs Publishing" section (line ~158) says Testing mode is fine "indefinitely" but doesn't mention the 7-day refresh-token expiry — add a warning there so this doesn't surprise the next person.
-
-## Medium priority
-
-*Meaningful score/visibility gains that take more setup effort.*
-
-- [ ] Fuzzing: register with [OSS-Fuzz](https://google.github.io/oss-fuzz/getting-started/accepting-new-projects/), or add an `atheris` fuzzing target + register in `project.yaml` *(Scorecard — Fuzzing)*
-- [ ] Signed-Releases: add a cosign signing step to `release.yml` — sign the wheel with `cosign sign-blob`, attach `.sig`/`.pem` as release artifacts *(Scorecard — Signed-Releases)*
-- [ ] CII Silver: document/recruit a co-maintainer (`bus_factor`), add a DCO sign-off requirement to the PR template (`dco`), complete the [Silver questionnaire](https://bestpractices.dev), then update the README badge URL *(CII-Best-Practices)*
-- [ ] ProductHunt: create maker profile, draft the listing (name/tagline/description/gallery), schedule a Tue/Wed launch *(Go-To-Market 5.2)*
-- [ ] Reddit: post in r/selfhosted, r/Python, r/opensource, and cross-post to r/dataengineering *(Go-To-Market 5.3)* — **partially done 2026-07-08**: posted to r/Python and r/selfhosted; r/opensource and the r/dataengineering cross-post still pending.
-- [ ] Submit PRs to awesome-selfhosted ("Automation") and awesome-python ("Task Queues"/"Data Pipeline") *(Go-To-Market 5.4)*
-- [ ] LinkedIn: write the launch post, add FlowForge to your Featured section, tag `#OpenSource #Python #LocalAI #DataEngineering #Productivity` *(Go-To-Market 5.5)* — **launch post already published 2026-07-08**; unconfirmed whether it's pinned to the Featured section or carries the suggested hashtags.
-
-## Low priority
-
-*Passive/automatic, deferred until a precondition exists, or explicitly optional.*
-
-- [ ] Ensure at least 1 commit/week until the repo passes 90 days old (~2026-07) — Maintained check auto-resolves either way, no other fix exists *(Scorecard — Maintained)*
-- [ ] Update screenshots showing old (pre-multi-user) UI *(deferred — no screenshots exist in docs yet, so nothing to do until some are added)*
-- [ ] Code Climate maintainability badge — set up, add to README badge row if grade is A or B *(explicitly optional)*
-- [ ] Decide whether to leave Jinja's default `Undefined` (silently blank for an undeclared `{{ steps.X.* }}` reference in DAG-mode pipelines) or add a DAG-build-time lint for it *(Phase 14.2 Milestone 2 stretch item, left open when M2 shipped — genuinely optional, not required by anything else)*
+- [ ] **A0 Prep** — commit/stash the uncommitted auth/users work first; tag `pre-brain-split`; branch/worktree `scrub/brain-decoupling`; record baseline test counts.
+- [ ] **A1 Extract** — write `extracted_ai_logic.md` (prompts, provider code, endpoint contracts, step spec, UX contract, test behavior) **before deleting anything**; decide commit vs gitignore (public repo).
+- [ ] **A2 Gate module** — `flowforge/brain.py`: `brain_enabled()` (Phase A: always False, TODO comment) + `brain_unavailable_response()`.
+- [ ] **A3 Backend** — gut `routes/ai.py` to 503 shells, `ai_analyze` to a failing step, `setup.py` ai block → `{enabled, brain_url_configured}`; keep secret blocklist + historic migrations.
+- [ ] **A4 Backend tests** — replace `test_ai.py`/`test_ai_analyze.py` with `test_brain_gate.py`; fix 4 other test files; check coverage gate.
+- [ ] **A5 Frontend** — default-off gating (`?? false`), BrainCard replaces AiOllamaCard, remove AI calls/strings, hide `ai_analyze` from picker (keep badge), keep `ChartPreview` + anomaly detection; manual Playwright pass.
+- [ ] **A6 Dependencies & config** — add a CI deny-list test (no LLM SDK imports/deps in `flowforge/`); remove `claude` extra (`anthropic`) from `pyproject.toml`; replace `.env.example` AI block with `FLOWFORGE_BRAIN_URL`/`_API_KEY`.
+- [ ] **A7 Docs & positioning** — CLAUDE.md, README, ROADMAP, ~14 docs, new `docs/brain.md`, CHANGELOG breaking entry; rewrite GTM copy; check published Reddit/LinkedIn posts.
+- [ ] **A8 Ship** — version decision (v2.0.0 vs 1.4.0 + BREAKING), PR with CI green.
+- [ ] **Decide before A3:** check your DB for saved `ai_analyze` steps (they will fail after the scrub) — query in the plan §7.3.
+- [ ] **Phase B (blocked)** — define Brain's API contract (auth, TLS, size caps, redaction, errors, versioning), then implement `brain_enabled()` health check and forwarding. Not scheduled.
 
 ---
 
+## 1. Blockers — do first
+
+*Failing quality gates or broken local dev. Nothing else is credible while these are red.*
+
+### Security re-audit — 2026-10-27 *(do these before anything else; verified against code)*
+
+*Re-check of the July 2026 audits (Security was scored 3/10 on 2026-07-24). The July Critical and punch-list items are confirmed fixed in code (see archive). Findings below are what the re-check turned up that is still open.*
+
+- [ ] **react-router 6 → 7** (tracked in §2) — now the only frontend advisory pair left (2 moderate). Re-checked 2026-10-27: `npm audit fix` bumps 6.30.4 → 6.30.6 but the advisory range covers all of 6.x through 7.17.0, so it still needs the v7 migration. The vitest/@vitest/mocker moderate chain also remains (needs a vitest bump). Neither gates CI (`--audit-level=high`).
+- [ ] **Push the dependency fixes and confirm CI is green; then triage the 12 open Dependabot PRs** — root cause of the failing CI found 2026-10-27: both audit gates were red on `master`'s own dependencies (backend `pip-audit`: 24 vulns in cryptography/PyJWT/tornado/urllib3; frontend `npm audit --audit-level=high`: 9 high), which is also why every Dependabot PR fails within ~45 s. Both are fixed locally (not yet committed or pushed). After merging: re-run CI, then rebase/close the Dependabot PRs; several are majors that need real review (typescript 7, recharts 3, jsdom 30, node 25-alpine, @types/node 26) and the actions bumps (checkout 7, setup-python 7, setup-node 7). Consider enabling Dependabot grouping for majors and a weekly lock refresh so the audit gates don't silently rot again.
+- [ ] **Run the remaining security checks** *(partly done 2026-10-27: the full backend suite passed, 2,195 tests, once the test DB on port 5434 was up — the re-check had run while it was offline)*. Still to do: confirm the `flowforge-db` container is the intended test DB going forward, and run `npm test`/CI. Original item: **Test database was offline during the re-check** — nothing on port 5434 (only an unrelated `trove-postgres` container on 5440), so the security test files (`test_net_guard`, `test_rbac`, `test_auth*`, `test_context`, `test_plugin_loader`, `test_app_coverage`) were **not run**. Start the test DB and run the full suite to confirm the "fixed" claims empirically.
+- [ ] **Residual `# nosec` review** — 40 findings are hidden by `# nosec` (bandit `--ignore-nosec`: 7× B608 SQL string-building, 8× B310 `urlopen`, rest low). I spot-checked the SQL ones in `data_load`, `db_query` and `bulk_load`: their table/column names are validated first. The `urlopen` suppressions are down from 8 to 4 after the 2026-10-27 SSRF fixes; the 4 left are admin-env URLs (three in the legacy AI code being removed, one DevBrain notify hook). Make `bandit` fail on **unjustified** `nosec` (require a reason comment) so this can't recur silently.
+- [ ] **Decide the editor trust boundary** *(by design, but critical for a telecom pitch)* — users with the `editor` role can author arbitrary SQL (`db_query`, `db_procedure`, report SQL) against every connected database and arbitrary shell commands over SSH (`ssh_command`). `docs/threat-model.md` documents this. Before enterprise use, consider: read-only DB accounts per connection, per-connection allowlists, an approval/review step for SQL and SSH changes, and an `author`/`approver` role split.
+- [ ] **Local credential hygiene** — a dev login is stored in plaintext in the assistant memory index; `docs/credentials.local.md` is correctly gitignored and untracked. Rotate/remove the stored login if it was ever reused anywhere, and run a TruffleHog scan over full git history once (the CI gate is `--only-verified`).
+
+**Verified fixed (no action):** boot-time secret validation and no JWT→`SECRET_KEY` fallback outside tests; secret pipeline variables hard-blocked from SQL/email/notification sinks (`SecretLeakError`); `validate_identifier()` on `data_load`/`bulk_load`/`db_query` table and column names; `assert_public_url` on the `notification` step; `log_user_change()` for user-admin audit events; Docker runs as non-root `flowforge`; compose requires `POSTGRES_PASSWORD`; `.env`/`credentials.local.md` untracked; bandit (without `--ignore-nosec`) reports 0 medium/high.
+
+### SonarCloud — needs manual resolution *(found 2026-07-06)*
+
+- [ ] **Resolve SonarCloud `pythonsecurity:S5496`** (issue key `AZ82Oyzt-6VzRaR01a4L`, `flowforge/engine/context.py`) as Won't Fix / False Positive in the SonarCloud UI — the rule flags the `render()` call-site pattern itself (Jinja2 template from user-controlled input) regardless of the mitigations already shipped, and will keep failing `master`'s Quality Gate until manually resolved or aged out of the New Code period. Justification: `_jinja` is already a `SandboxedEnvironment` (blocks RCE-class gadgets), the blocklist/pattern covers known and future credential names, rendered values are no longer reflected, and this is the same `{{ current_date }}`-style templating used intentionally everywhere else. **Requires SonarCloud login (not available to Claude).**
+- [ ] **Resolve SonarCloud `pythonsecurity:S3649`** (SQL injection, issue key `AZ83ITEjNp5vzm4zlnz0`, `flowforge/steps/bulk_load.py:614` in `_dry_run_insert_rows()`, introduced 2026-07-06) as Won't Fix / False Positive — taint tracker flags `target_table`/`columns` flowing into the f-string-built `INSERT`, but both are validated with `validate_identifier()` (regex allowlist: letters/digits/underscore/dot only) by the caller **and** redundantly re-validated inside `_dry_run_insert_rows()`. SonarCloud doesn't recognize a project-local validator as a sanitizer boundary, so the finding persists. Fails the Quality Gate (New Code Security Rating) like S5496. **Requires SonarCloud login.**
+
+### Local environment — Gmail sending broken *(found 2026-07-03, blocks dev testing)*
+
+*SMTP is fixed (port/`use_ssl` mismatch + AVG Email Shield). Gmail is still broken.*
+
+- [ ] **AVG Web Shield is intercepting `oauth2.googleapis.com`** — `SSLCertVerificationError: unable to get local issuer certificate` on token refresh. Fix: AVG → Settings → Protection → Web & Email → disable **Web Shield**, or add a domain exception for `googleapis.com`.
+- [ ] **Re-authorize Gmail — refresh token expired** — `RefreshError: invalid_grant: Bad Request`. Cause: Google OAuth consent screen is in **Testing** status, where refresh tokens hard-expire after 7 days. Fix: re-run Step 5 in `docs/gmail-oauth2-setup.md`, then update the "Personal Gmail" provider in **Connections → Email Providers**.
+- [ ] **Stop it recurring every ~7 days** — publish the OAuth consent screen to "In production". Caveat: the app requests the full `drive` scope (Google-*restricted*, needs a verification review). Options: go through verification, or narrow to `drive.file` (not restricted) if full-Drive access isn't required — small code change plus re-consent.
+- [ ] **Doc gap**: `docs/gmail-oauth2-setup.md` "Keeping the App in Testing vs Publishing" (line ~158) says Testing mode is fine "indefinitely" but omits the 7-day refresh-token expiry — add a warning.
+
 ---
 
-## V2.0 Audit Action Items (2026-07-24 Security & Architecture Review)
+## 2. Product polish — user-visible
 
-- [x] **ARCH-01**: Fix Celery `ModuleNotFoundError` during app initialization when Celery is not installed (`flowforge/celery_app.py`) *(2026-07-24)* —
-  `flowforge/celery_app.py` unconditionally did `from celery import Celery, Task` at module level; `create_app()` imports this
-  module whenever `FLOWFORGE_REDIS_URL` is set (`flowforge/api/app.py:124-126`), so a deployment that sets the Redis URL without
-  installing celery crashed app startup with a bare `ModuleNotFoundError: No module named 'celery'`. Fixed: the import is now
-  wrapped and re-raises `ModuleNotFoundError` with an actionable message (`pip install "flowforge[celery]"`), matching the
-  existing optional-dependency error pattern in `flowforge/api/routes/connections.py`. Also added the missing `celery` extra
-  to `pyproject.toml` (`celery[redis]>=5.6`, matching the pin in `requirements.txt`) and included it in the `all` extra —
-  previously celery wasn't installable via any documented extra at all. Verified via a fault-injected `ModuleNotFoundError`
-  on `celery` import during `create_app()`; existing redis/celery app-init and launcher/concurrency tests still pass.
-- [x] **SEC-01**: Require `FLOWFORGE_JWT_SECRET` in non-testing environments; remove fallback to `SECRET_KEY` (`flowforge/api/auth.py`) *(2026-07-25)* —
-  `flowforge/api/app.py` silently reused `SECRET_KEY` (the AES encryption key) as the JWT signing key whenever
-  `FLOWFORGE_JWT_SECRET` was unset, only emitting a `warnings.warn` outside `TESTING` — production could boot indefinitely
-  with two supposedly-independent secrets actually being the same value. `flowforge/api/auth.py:_secret()` had its own
-  identical `current_app.config.get('JWT_SECRET') or current_app.config['SECRET_KEY']` fallback, so even patching app.py
-  alone would've left a second silent reuse path. Fixed both: `create_app()` now only falls back to `SECRET_KEY` when
-  `TESTING` is set (so `_validate_secret('FLOWFORGE_JWT_SECRET', ...)` — already boot-time-enforced since the earlier
-  Phase 13 critical fix — now genuinely fails closed in real deployments instead of the fallback quietly satisfying it);
-  `_secret()` now reads `JWT_SECRET` directly, no fallback. Updated `docs/deployment.md`'s env var reference table.
-  Verified: a fault-injected non-TESTING boot with `FLOWFORGE_JWT_SECRET` unset now raises `RuntimeError` (was: silent
-  boot); full test suite (2134 tests) passes unchanged since `conftest.py` always sets both secrets via env.
-- [x] **PERF-01**: Eliminate N+1 query cascade in `/api/pipelines` serializer via joinedload (`flowforge/api/routes/pipelines.py`)
-  *(2026-07-25)* — `serializers.pipeline_dict()` walks each pipeline's `steps`, `variables`, `upstream_deps`, and
-  `downstream_deps` (each dependency also reads its linked `Pipeline.name`), all lazy-loaded relationships — unguarded,
-  `GET /api/pipelines` issued up to 6 extra queries *per pipeline row*. Fixed: `list_pipelines()` now applies
-  `selectinload` for all four relationships (nesting a second `selectinload` for the dependency→Pipeline hop). Used
-  `selectinload`, not literal `joinedload` as originally worded — `joinedload`s LEFT JOIN semantics multiply rows when
-  more than one one-to-many collection is joined in the same query (the classic collection-joinedload "cartesian
-  explosion"); `selectinload` issues one extra `WHERE id IN (...)`-style query per relationship for the whole page
-  instead, so query count no longer scales with row count. Added `test_list_pipelines_does_not_n_plus_one` (asserts
-  `ff_pipeline_steps`/`ff_pipeline_variables` are queried at most once and `ff_pipeline_dependencies` at most twice for
-  a page of 6 pipelines each with a step/variable/dependency) — confirmed it fails without the fix (6 queries per
-  table) and passes with it. Full test suite (2138 tests) passes.
-- [x] **SEC-02**: Add deprecation warning and strict validation for blocklist-based env variable template exposure
-  (`flowforge/engine/context.py`) *(2026-07-25)* — `_SafeEnv`'s blocklist mode (active whenever `FLOWFORGE_TEMPLATE_ENV_VARS`
-  is unset) let templates read any env var except a hardcoded list — inherently unable to keep up with the next
-  credential-shaped var a future integration adds (the exact class of gap the 2026-07-06 name-pattern fix already
-  patched once). Fixed: blocklist mode now logs a one-time-per-process `DEPRECATED` warning recommending allowlist mode
-  (throttled via a module-level flag so `context.build()`, called on every pipeline step, doesn't spam it per run).
-  Also added allowlist-mode validation: if `FLOWFORGE_TEMPLATE_ENV_VARS` explicitly lists a credential-shaped name, it's
-  still exposed (allowlist is opt-in and explicit — see `test_safe_env_allowlist_credential_explicitly_listed`), but a
-  warning now flags the likely misconfiguration. Updated `docs/security.md`. Verified both warnings fire correctly via a
-  standalone script; full test suite (2134 tests) passes unchanged.
-- [x] **MAINT-01**: Abstract database-specific drivers (psycopg2 vs cx_Oracle vs PyMySQL) behind a unified DB
-  abstraction layer rather than checking engine strings inside step runners (`flowforge/steps/bulk_load.py`)
-  *(2026-07-25)* — investigation found the unified abstraction already exists and is already used correctly
-  elsewhere: `flowforge/connections/factory.py`'s registry + `BaseConnection` (`execute_many`/`make_placeholders`),
-  as demonstrated by the newer `data_load` step (`flowforge/steps/data_load.py`). `bulk_load.py`'s Python-fallback
-  (`_load_python_fallback`) and dry-run preview (`_dry_run_insert_rows`) paths never adopted it — they hand-rolled a
-  second, narrower (postgresql/oracle-only) `psycopg2`/`oracledb` dispatch in `_open_raw_connection()` and
-  **hardcoded `%s` placeholders**, which is Postgres-specific bind-variable syntax. Verified this was a live
-  correctness bug, not just a style issue: oracledb uses `:1,:2`, MSSQL/ODBC use `?` — every Oracle-without-SQL\*Loader
-  or MSSQL/ODBC load through the Python fallback would have built an INSERT with the wrong bind-variable syntax and
-  failed against a real database. Fixed:
-  - `flowforge/connections/factory.py`: split `get_connection()` into `connection_class_for(db_type)` (pure registry
-    lookup, no config/DB needed) and `build_connection(db_type, cfg)` (dispatch + construct from an already-decrypted
-    config), both reused internally by `get_connection()` unchanged — verified via the existing factory test suite.
-  - `flowforge/connections/base.py`: `make_placeholders` is now `@staticmethod` on the ABC and all 7 subclasses (none
-    referenced `self`, confirmed by inspection) so it's callable via the class alone, no live connection required.
-    Added a concrete `raw_connection` property (returns `self._conn`, or a clear `NotImplementedError` for connection
-    types like BigQuery that wrap a client object instead of a DB-API connection) for callers needing cursor-level
-    control beyond the higher-level methods.
-  - `bulk_load.py`: `_make_placeholders(conn_cfg, n)` now resolves the correct placeholder syntax via
-    `connection_class_for()` instead of hardcoding `%s`. `_open_raw_connection()` now delegates to
-    `build_connection(db_type, conn_cfg).raw_connection` for `mysql`/`mssql`/`odbc`/`snowflake` — extending the "Python
-    fallback (any DB)" promise the module docstring already made but didn't keep — instead of raising
-    `ValueError('Unsupported db_type for bulk_load: ...')` for every type except postgresql/oracle.
-  - **Deliberately left unchanged**: `postgresql`/`oracle` in `_open_raw_connection()` still open a direct, ad-hoc
-    (non-pooled) connection exactly as before, rather than routing through those two types' `flowforge/connections/*.py`
-    classes — which pool connections (`ThreadedConnectionPool` / `oracledb.create_pool()`). A long-running bulk load
-    (streaming `COPY`, or many chunked `executemany` calls over a large file) holding a slot from that small, shared
-    pool for its whole duration would starve unrelated concurrent pipeline steps needing the same pool. Multiple
-    existing tests (`test_oracle_bulk_load.py`) also pin the exact "plain `oracledb.connect()`, not pooled" behavior.
-    `COPY FROM STDIN` (PostgreSQL) and SQL\*Loader (Oracle) remain genuinely engine-specific fast paths — no
-    unification is possible there; that's not the anti-pattern this item targeted. BigQuery/Redshift remain
-    unsupported by `bulk_load` (BigQuery has no raw DB-API connection to expose at all; Redshift's connection pools
-    via inherited `PostgreSQLConnection`, same pooling concern as postgresql) — both are already reachable through
-    the more general `data_load` step instead.
-  - Added `tests/test_bulk_load_maint01.py` (placeholder-syntax-per-db_type coverage, plus the concrete regression
-    proof — asserts the actual SQL built for an Oracle Python-fallback load uses `:1, :2`, not `%s` — and new
-    `_open_raw_connection` coverage for mysql/mssql/odbc/snowflake) and `raw_connection` property tests in
-    `tests/test_connection_base.py`. Fixed two pre-existing test fixtures using a fake `_db_type: 'other'` sentinel
-    (meant only to route past the `postgresql` special case) that broke once placeholder resolution started actually
-    validating `_db_type` against the registry — switched to `'mysql'`, a real registered type. Updated
-    `docs/step-types.md`'s bulk_load load-path table. Full test suite (2155 tests) passes.
-- [x] **MAINT-02**: Introduce OpenAPI/Swagger schema generator or TypeScript API client generator to sync backend
-  Flask responses with frontend Zustand/React Query state definitions (`frontend/src/lib/api.ts`) *(2026-07-25)* —
-  scoped to one vertical slice (user-selected option, given the full 23-route-file surface would be a large, risky
-  rewrite of an already-shipped app): `pipelines.py` + `runs.py`, proven end-to-end rather than left as scaffolding.
-  - `docs/openapi/pipelines.yaml`: hand-authored OpenAPI 3.0 spec, written against the actual
-    `serializers.py`/`validators.py`/`pipeline_service.py` code (not aspirational) — every response schema traced to
-    the exact dict a route returns.
-  - `frontend/src/lib/generated/pipelines.ts`: generated via `openapi-typescript` (new devDependency). `npm run
-    generate:api-types` (added to `frontend/package.json`) regenerates it from the spec.
-  - `frontend/src/__tests__/apiTypesSync.test.ts`: regenerates from the spec on every test run and diffs against the
-    committed generated file — fails if someone edits the spec (or the generated file) without regenerating and
-    committing the result. Verified it actually catches drift: temporarily added a field to the spec, confirmed the
-    test failed with a clear diff, reverted, confirmed it passed again.
-  - `frontend/src/lib/types.ts`: 9 of the hand-written interfaces this file re-exported for pipelines/runs
-    (`PipelineDep`, `WebhookToken`, `PipelineRun`, `StepRun`, `StepDiff`, `RunDiff`, `StepTrendPoint`, `StepTrends`,
-    `StepAnomaly`/`AnomalyMetric`) are now type aliases to the generated schema, under the same exported names — every
-    existing component importing them from `./types` is unaffected. **`Pipeline`, `PipelineStep`, and
-    `PipelineVariable` were deliberately NOT aliased**: `PipelineStep` is reused for two genuinely different response
-    shapes (the embedded-in-Pipeline shape this spec covers has no `pipeline_id`; `steps.py`'s standalone
-    `GET/POST .../steps` endpoints — out of scope — return the same object *with* `pipeline_id`), and
-    `PipelineVariable`/`Pipeline` are used for both response reads and request writes with different optionality
-    (a freshly-typed variable in a create form has no `id` yet). Aliasing those to the response-only generated shape
-    would have silently broken real call sites; verified this isn't hypothetical by grepping actual usage before
-    deciding.
-  - `frontend/src/lib/api.ts`: `createPipeline`/`updatePipeline`'s request parameter now types as the generated
-    `PipelineCreate`/`PipelineUpdate` (replacing a loose `Partial<Pipeline>` that permitted response-only fields like
-    `id`/`created_at`/`steps` a caller can't actually set) — verified against the real call site in
-    `PipelineEdit.tsx`, which already constructs variables without an `id`, matching `PipelineVariableInput` exactly.
-    `runPipeline` now returns the generated `RunDispatched` schema. Other pipeline/run functions already returned
-    `import('./types').X` where `X` is now generated-backed, so needed no import-path change.
-  - **Found and fixed a real drift bug in the process**: the hand-written `PipelineRun.started_at`/`StepRun.started_at`
-    were typed as non-nullable `string`, but `serializers.py`'s `run_dict()`/`step_run_dict()` both do
-    `r.started_at.isoformat() if r.started_at else None` — genuinely nullable. Generating from an accurate spec
-    surfaced 6 real `new Date(x.started_at)`-on-possibly-null call sites across
-    `Dashboard.tsx`/`RunDetail.tsx`/`RunHistory.tsx`/`Layout.tsx` that `tsc` had never caught; fixed each with a
-    null-guard (matching the existing pattern already used for `finished_at`/`next_run` in the same files).
-  - **Also fixed, incidentally**: adding `openapi-typescript` initially required `npm install --legacy-peer-deps`
-    (TypeScript 6.0.3 vs. its `^5.x` peer range) — that flag silently broke `@testing-library/dom` resolution
-    project-wide, which was masking as 36 pre-existing-looking `tsc`/vitest failures. Replaced with a scoped
-    `overrides` entry in `frontend/package.json` (`openapi-typescript.typescript` pinned to the root `typescript`
-    version) so a plain `npm install` resolves cleanly — `tsc --noEmit` is 0 errors and all 173 frontend tests
-    (172 existing + the new drift-check) pass, versus 36 failures before this fix.
-  - **Not covered** (explicit scope boundary, not an oversight): the other 21 backend route files
-    (`connections.py`, `reports.py`, `emails.py`, `users.py`, `steps.py`, ...) and their corresponding hand-written
-    types in `types.ts`/`api.ts` remain un-generated. Expanding coverage means repeating this same process per route
-    file — write/verify the OpenAPI paths against the actual route + serializer code, regenerate, alias only the
-    response-only types in `types.ts`, verify with `tsc`/vitest, fix any drift bugs surfaced.
-- [x] **PERF-02**: Implement Redis-backed distributed concurrency locks & rate limiting to replace in-memory
-  process-local semaphores (`flowforge/engine/concurrency.py`) *(2026-07-25)* — the distributed concurrency counter
-  (Redis sorted set, fail-open/fail-closed via `FLOWFORGE_CONCURRENCY_FAIL_CLOSED`) already existed in this file; the
-  gap was the API rate limiter (`flowforge/api/app.py`'s `limiter`, Flask-Limiter), which had no `storage_uri`
-  configured and so defaulted to per-process in-memory counters — the identical multi-worker failure mode already
-  flagged for the concurrency semaphore (`GUNICORN_WORKERS × limit`, not the configured limit), just not fixed for
-  rate limiting yet. Fixed: `create_app()` now sets `RATELIMIT_STORAGE_URI` from `FLOWFORGE_REDIS_URL` (via
-  `setdefault`, so an explicit `RATELIMIT_STORAGE_URI` still wins) before `limiter.init_app(app)`, reusing the same
-  Redis instance as the concurrency counter and leader election. Extended the existing `CAPACITY:` startup warning to
-  cover both. Also added a standalone `redis` extra to `pyproject.toml` (concurrency/leader-election/rate-limiting all
-  depend on the `redis` package independent of Celery; previously only reachable via the `celery` extra). Verified
-  end-to-end with a real local Redis that `limiter.storage` resolves to `limits.storage.redis.RedisStorage` when
-  `FLOWFORGE_REDIS_URL` is set, and `limits.storage.memory.MemoryStorage` otherwise; added
-  `test_rate_limit_storage_uri_set_from_redis_url` / `..._unset_without_redis` / `..._explicit_override_wins`
-  (asserting on `app.config['RATELIMIT_STORAGE_URI']` rather than the live singleton — see test file comment for why).
-  Updated `docs/RUNBOOK.md`. Full test suite (2138 tests) passes.
+*What a first-time user or evaluator actually sees. This is the "polish the product" track.*
 
-## Follow-ups surfaced while closing out the V2.0 Audit Action Items (2026-07-25)
+- [ ] **Close the "no YAML required" first-run gap** — a bare dashboard is one `docker compose up` away, but a first real pipeline with email needs 5+ manual steps in Google Cloud Console or Azure AD (OAuth app registration, consent screens, client secrets) before the no-code promise is true end-to-end. Candidates: a guided first-run wizard, a zero-config "send me a test email" via plain SMTP, a sample pipeline that needs no external account.
+- [ ] **Conditional / branching step execution** — can't gate a step on a prior step's output (e.g. "only send email if row count > 0") beyond DAG failure propagation (`on_error: stop`/`continue`). Current workaround: always run the step, filter in the query. Not a non-goal, just not built. *(Phase 12)*
+- [ ] **One-click deploy** (Railway/Render/Fly.io) to lower adoption friction beyond `docker compose up`.
+- [ ] **react-router-dom 6.x → 7.x migration** — `npm audit` flags `react-router` `6.0.0-7.17.0` (installed `^6.24.0`) for two moderate advisories: open redirect via backslash in `<Link>`/`useNavigate` ([GHSA-wrjc-x8rr-h8h6](https://github.com/advisories/GHSA-wrjc-x8rr-h8h6)) and constructor injection via `deserializeErrors()` in SSR hydration ([GHSA-337j-9hxr-rhxg](https://github.com/advisories/GHSA-337j-9hxr-rhxg)). No same-major patch clears it (6.30.6 is still in range); needs a real v6→v7 migration (19 files in `frontend/src/` use router APIs). Doesn't gate CI (`--audit-level=high`). Steps: read the [v7 upgrade guide](https://reactrouter.com/upgrading/v6), audit affected APIs, migrate, re-run `npm audit`.
+- [ ] **Decide Jinja undefined-variable behavior in DAG-mode pipelines** — a typo'd `{{ steps.X.* }}` silently renders blank. Either keep Jinja's default `Undefined` or add a DAG-build-time lint. *(Phase 14.2 M2 stretch; genuinely optional.)*
+- [ ] **Stream Excel/PDF/JSON reports and `bulk_load`/`data_load` source files** *(derived)* — only CSV streams end-to-end today. Excel needs `openpyxl` `write_only=True`, which interacts with the shipped column-formatting feature (`docs/manual-testing-guide.md` §36); footer-row stripping in `bulk_load`/`data_load` needs a bounded sliding-window buffer to preserve header/footer-trim behavior across 3 load paths (Python fallback, Postgres COPY, SQL*Loader). Do it only when a real large-file case appears.
+- [ ] **Extend OpenAPI-generated frontend types to the other 21 route files** *(derived from MAINT-02)* — only `pipelines.py` + `runs.py` are generated; `connections`, `reports`, `emails`, `users`, `steps`, … are still hand-typed in `types.ts`/`api.ts`, which is where drift bugs hide (MAINT-02 found a real nullable-`started_at` bug this way). Per route file: write/verify the spec against the real route + serializer, regenerate, alias only response-only types, verify with `tsc`/vitest.
 
-- [ ] **react-router-dom 6.x → 7.x major bump** — `npm audit` flags `react-router` `6.0.0-7.17.0` (installed:
-  `^6.24.0`) for two moderate-severity advisories: open redirect via backslash in `<Link>`/`useNavigate`
-  ([GHSA-wrjc-x8rr-h8h6](https://github.com/advisories/GHSA-wrjc-x8rr-h8h6)) and arbitrary constructor injection via
-  `deserializeErrors()` in SSR hydration ([GHSA-337j-9hxr-rhxg](https://github.com/advisories/GHSA-337j-9hxr-rhxg)).
-  A same-major patch isn't available — the fix requires bumping past 7.17.0, i.e. a real v6→v7 migration (router API
-  changes, `<Routes>`/loader/action patterns) — so it wasn't done as part of the MAINT-02 CI-unblock fix, which was
-  scoped to non-breaking patches only. Doesn't block CI today (`--audit-level=high` doesn't gate on moderate), but
-  should get a deliberate migration pass: read the [v7 upgrade guide](https://reactrouter.com/upgrading/v6), audit
-  `frontend/src/` for affected APIs, migrate, then re-run `npm audit` to confirm both advisories clear.
+---
 
-## Phase 5 — Go-To-Market (P1 — Visibility)
+## 3. Engineering quality
+
+- [ ] **True unit tests with mocking** for `engine/runner.py`, `engine/dag.py`, `engine/context.py` — the suite is ~2150 tests but 100% integration-style against a real Postgres with zero `@patch`/`MagicMock` in the files checked; safe for refactors but slow, and can't isolate business logic from the DB/HTTP layer.
+- [ ] **Production error tracking** (Sentry or equivalent) — logging is solid (113 call sites) but there is no error-tracking SDK anywhere.
+- [ ] **Dependency/license audit in CI** (e.g. `pip-licenses`) plus a `NOTICE` file — the MIT-compatibility check (no GPL-family packages) was a one-time manual grep. Do before any commercial relicensing conversation.
+- [ ] **Extend the service/repository layer beyond `pipelines.py`** *(derived)* — `pipeline_service.py` shipped for the worst offender only; `runs.py`, `reports.py`, `connections.py`, etc. still hold business logic inline in route bodies.
+- [ ] **Extend the N+1 review to other list endpoints** *(suggested, not from a prior note)* — PERF-01 fixed `/api/pipelines` only; `/runs`, `/reports`, `/emails` list serializers weren't audited. Add the same query-count assertion test where they walk relationships.
+- [ ] **Confirm the blocking secrets-scan gate on the next PR** — `secrets-scan.yml` lost `continue-on-error`; it was only YAML-validated locally, never executed. Watch the next PR's checks to ensure nothing in history trips TruffleHog `--only-verified`.
+- [ ] **Re-verify the audit's "Critical" claim against the older 2026-07-01 findings** *(derived from project memory)* — memory records a verified SQL injection in `data_load.py`, a secrets leak, and an SSRF from that earlier audit; confirm each is closed (with a regression test) rather than assuming the Phase 13 pass covered them.
+
+---
+
+## 4. Supply chain & OSS health
+
+- [ ] **Resolve the Scorecard Code-Review deadlock** (0/10; structurally stuck for a solo maintainer since GitHub blocks self-approval) — recruit a co-maintainer/approver or explicitly drop the ≥ 8.0 target. Disabling `enforce_admins` (2026-07-06) unblocks the solo merge workflow but admin-override merges still count as unreviewed.
+- [ ] **PR discipline** — never push directly to `master`; open a PR. Self-approval is blocked, so use a second account/collaborator, or prefer bot-authored PRs (Dependabot).
+- [ ] **Re-run Scorecard** to confirm Pinned-Dependencies improved after the hash-pinning already done.
+- [ ] **Fuzzing** — register with [OSS-Fuzz](https://google.github.io/oss-fuzz/getting-started/accepting-new-projects/), or add an `atheris` target + `project.yaml` *(Scorecard — Fuzzing)*.
+- [ ] **Signed releases** — add a cosign step to `release.yml` (`cosign sign-blob` on the wheel, attach `.sig`/`.pem`) *(Scorecard — Signed-Releases)*.
+- [ ] **CII Silver** — document/recruit a co-maintainer (`bus_factor`), add DCO sign-off to the PR template (`dco`), complete the [Silver questionnaire](https://bestpractices.dev), update the README badge URL.
+- [ ] **Code Climate maintainability badge** — add to README badge row if grade is A or B *(explicitly optional)*.
+
+---
+
+## 5. Docs hygiene
+
+- [ ] **Refresh the review score table** — the 7.8/10 table is from 2026-05-25; re-run the codebase review and update `CODEBASE_REVIEW.md` after §1–§3.
+- [ ] **Update screenshots showing the pre-multi-user UI** *(deferred — no screenshots exist in docs yet; do this together with the §6 demo assets)*.
+
+---
+
+## 6. Go-to-market
+
+*Detail/copy for each item is in the reference section at the bottom. The demo GIF blocks everything else here.*
+
+- [ ] **Record a 60–90s demo GIF/MP4** (dashboard → create pipeline with report+email step → run → Run History) and add it to the README *(5.1 — blocks the rest)*.
+- [ ] **High-quality Dashboard screenshot** for the README hero / LinkedIn Featured *(5.1)*.
+- [ ] **ProductHunt** — maker profile, listing (name/tagline/description/gallery), schedule a Tue/Wed launch *(5.2)*.
+- [ ] **Reddit** — **partially done 2026-07-08**: r/Python and r/selfhosted posted; r/opensource and the r/dataengineering cross-post still pending *(5.3)*.
+- [ ] **Awesome lists** — PRs to awesome-selfhosted ("Automation") and awesome-python ("Task Queues"/"Data Pipeline") *(5.4)*.
+- [ ] **LinkedIn** — **launch post published 2026-07-08**; confirm it's pinned to Featured and carries the suggested hashtags *(5.5)*.
+
+---
+
+## 7. Strategic — decide before building
+
+*Product-direction questions from the architect/VC audits. Don't build these on autopilot.*
+
+- [ ] **Telecom RA pivot: pick the MVP use case and design partner** *(2026-10-27)* — [`ARCHITECTURE.md` §7](../ARCHITECTURE.md#7-telecom-revenue-assurance-mapping) shows building blocks exist but no telecom feature does. Prerequisites already on this list: conditional steps (threshold alerting), streaming for large files (CDR volumes), cross-DB comparison. Decide which leakage type to prove first (dropped CDRs vs. orphaned subscriptions), whether MIT-open-source core + enterprise offering is the model, and revisit the "solo devs / small teams" positioning in `CLAUDE.md`.
+- [ ] **Get at least one real external user or design partner** before adding more enterprise-checkbox features (SSO/SAML/MFA/GDPR tooling currently serves zero non-author users).
+- [ ] **Airflow/cron migration tooling** — nothing exists beyond FlowForge's own YAML export/import; the most plausible real differentiator given the "Oracle advantage" / migration-bridge positioning in `docs/USE_CASE.md`.
+- [ ] **Plugin marketplace/discovery layer** on the existing plugin system (`docs/plugins.md`) — the load mechanism exists; no registry/discovery UX.
+- [ ] **Managed/hosted tier** reusing the `docker-compose.yml` topology — **conflicts with the stated non-goal** ("No cloud SaaS version" in `CLAUDE.md`; "Self-hosted only" in the accepted tradeoffs below). Decide whether to change that non-goal before any work; the audit calls it the more realistic commercial moat.
+- [ ] **Reconcile the roadmap contradictions** *(derived from project memory)* — `ROADMAP.md`, `CLAUDE.md` Non-Goals and this file have disagreed before about what's shipped vs deferred; do one pass so all three tell the same story.
+
+---
+
+*Removed as obsolete: "ensure ≥ 1 commit/week until the repo passes 90 days old (~2026-07)" — the window has passed; Scorecard's Maintained check resolves on its own.*
+
+---
+
+## Timeline & effort *(estimates, added 2026-10-27)*
+
+**Assumptions:** one developer working with Claude doing most of the code; estimates are focused working days
+(~6 productive hrs). Part-time (~15 hrs/week) multiply calendar time by ~2.5. External waits (verification
+reviews, other people's replies) are shown separately because effort doesn't shrink them. These are
+judgment-based estimates, not measured — re-baseline after Week 1.
+
+### Effort per item
+
+| § | Item | Effort | Notes |
+|---|---|---|---|
+| 0 | AI decoupling (extract, stub/disable, remove, tests, docs) | 3–4 days | Brain service itself is a separate project — not estimated here |
+| 1 | SonarCloud S5496 + S3649 | 30 min | You only — needs SonarCloud login |
+| 1 | AVG exception, Gmail re-auth, doc warning | 1 hr | You + Claude |
+| 1 | Stop 7-day expiry | 0.5 day (narrow to `drive.file`) **or** 1–4 wk wait (Google verification) | Narrowing is the fast path |
+| 2 | react-router 6→7 | 1–2 days | 19 files; manual click-through needed |
+| 2 | First-run friction (wizard / SMTP test / sample pipeline) | 3–4 days | Biggest adoption lever |
+| 2 | Conditional / branching steps | 2–3 days | Touches runner + DAG engine — highest blast radius |
+| 2 | One-click deploy | 1 day per platform | Railway first |
+| 2 | Jinja undefined lint | 0.5 day | Optional |
+| 2 | Streaming Excel/PDF/bulk_load | 3–5 days | Defer until a real large-file case |
+| 2 | OpenAPI for 21 route files | ~0.5 day each, 8–10 days total | Do incrementally, worst-drift files first |
+| 3 | Mocked unit tests (runner/dag/context) | 3–4 days | |
+| 3 | Sentry | 0.5 day | |
+| 3 | License audit + NOTICE | 0.5 day | |
+| 3 | Service layer for remaining routes | 4–6 days | Mechanical, tests already exist |
+| 3 | N+1 review of other list endpoints | 1 day | |
+| 3 | Re-verify 2026-07-01 audit findings | 0.5–1 day | Do early — it may reveal real bugs |
+| 3 | Confirm secrets-scan gate | 10 min | Passive, on next PR |
+| 4 | Scorecard re-run, Code Climate badge | 1 hr each | |
+| 4 | Cosign signing | 0.5 day | |
+| 4 | Fuzzing (atheris target) | 1–2 days | OSS-Fuzz acceptance: weeks of waiting |
+| 4 | CII Silver | 1 day | Blocked on having a co-maintainer |
+| 4 | Code-Review deadlock / PR discipline | Open-ended | Needs another person; or drop the 8.0 target (15 min decision) |
+| 5 | Re-run review + score table, screenshots | 1 day + 2 hrs | Screenshots done alongside demo GIF |
+| 6 | Demo GIF + screenshot | 0.5–1 day | Blocks the rest of §6 |
+| 6 | ProductHunt | 1–2 days prep | Launch must be a Tue/Wed |
+| 6 | Reddit, awesome lists, LinkedIn | ~0.5 day total | Awesome-list PR review waits are external |
+| 7 | External user / design partner | Weeks–months | Not buildable; outreach |
+| 7 | Airflow/cron migration tooling | 2–4 weeks | |
+| 7 | Plugin marketplace | 2–3 weeks | |
+| 7 | Hosted tier | 1 hr to decide; 4+ weeks to build | Conflicts with stated non-goal |
+| 7 | Roadmap reconciliation | 0.5 day | |
+
+**Totals (full-time):** §1 ≈ 1–2 days · §2 ≈ 19–26 days · §3 ≈ 10–14 days · §4 ≈ 4–6 days (+ people-dependent) ·
+§5 ≈ 1.5 days · §6 ≈ 3–4 days. **§0–§6 ≈ 9–11 weeks full-time, or ~5–6 months part-time.** §7 is not scheduled.
+
+### Suggested schedule
+
+| Week | Focus | Exit criteria |
+|---|---|---|
+| **1** | §0 AI decoupling (branch + tag first); §1 blockers | Suite green without AI code; Quality Gate green; Gmail sending |
+| **2** | §3 re-verify old audit; §6 demo GIF + screenshot + README (recorded *after* the scrub) | GIF shows the post-scrub UI |
+| **3** | Launch (copy rewritten without "local AI"): Reddit remainder, awesome lists, LinkedIn pin, ProductHunt scheduled; Scorecard re-run | GTM items done or scheduled |
+| **4** | react-router 7; Sentry; license audit + NOTICE; cosign | `npm audit` clean; supply-chain badges up |
+| **5–6** | First-run friction (§2), one-click deploy (Railway) | A new user sends a first email with no cloud-console steps |
+| **7–8** | Conditional steps; Jinja lint decision | Gated step works in both engines, tested |
+| **9–10** | Mocked unit tests; service layer; N+1 review | Core engine logic testable without Postgres |
+| **11+** | OpenAPI rollout, streaming, fuzzing; fresh code review + score refresh | Review score re-baselined |
+| **Ongoing** | §4 people items, §7 strategic | Revisit after first external user |
+
+**Why this order:** launch assets first because the demo GIF gates every GTM item and nothing is visible
+without it; cheap security/supply-chain wins before the large features; the highest-risk engine change
+(conditional steps) only after the old audit findings are re-verified and a safety net of mocked tests is
+planned right behind it (consider moving §3 unit tests ahead of conditional steps if you want that net first).
+
+---
+
+# Reference material
+
+## Phase 5 detail — Go-To-Market copy (§6 reference)
 
 *These do not block the GitHub release tag but should happen within the first week of release.*
 *Tracking checkboxes consolidated in Phase 10 — the detail below is reference material (exact copy/hashtags/etc.) for when you get to each one.*
@@ -297,8 +270,6 @@ entries.*
 
 ---
 
----
-
 ## Known Risks & Mitigations
 
 | Risk | Mitigation |
@@ -314,40 +285,9 @@ entries.*
 
 ---
 
----
-
-# Phase 11 — External Review Hit-List (2026-07-01)
-
-*From a brutal, evidence-based architect/VC-style audit of the codebase as it actually is today (verified via code reading, not self-reported scores). Findings below survived direct verification against `flowforge/` source, not just prior review docs. The Critical subsection and most of High Priority / Nice-to-Have have since shipped — see [TASKS_ARCHIVE.md](TASKS_ARCHIVE.md) ("Session — 2026-07-02" and surrounding entries) for the full fix detail. Only the items below remain open.*
-
-## High Priority (refactoring & scalability)
-
-- [ ] Resolve the OpenSSF Scorecard Code-Review deadlock (0/10, structurally stuck for a solo maintainer since GitHub blocks self-approval) — recruit a co-maintainer/approver or explicitly drop the ≥8.0 target instead of leaving it perpetually "in progress." **Not resolved by disabling `enforce_admins` (2026-07-06)** — that change only unblocks the solo-maintainer merge workflow (see Phase 10 note above); admin-override merges still don't count as reviewed, so the score is unaffected.
-- [ ] Get at least one real external user or design partner before adding more enterprise-checkbox features (SSO/SAML/MFA/GDPR tooling currently serves zero non-author users).
-
-## Nice-to-Have (polish & optimization)
-
-- [ ] Add a one-click deploy option (Railway/Render/Fly.io) to lower adoption friction beyond `docker compose up`.
-
----
-
----
-
-# Phase 12 — Known Product Limitations (2026-07-24)
-
-*Surfaced while auditing `docs/USE_CASE.md`'s "Limitations to Be Honest About" table for staleness.
-Most of these are deliberate design decisions, not bugs — listed here for visibility and to keep
-`docs/USE_CASE.md` and this file honest about the same set of constraints, not as a commitment to
-build any of them out.*
-
-## Genuinely open (candidate future work)
-
-- [ ] No conditional/branching step execution — can't gate a step on a prior step's output (e.g.
-  "only send email if row count > 0") beyond DAG failure propagation (`on_error: stop`/`continue`).
-  Current workaround: always run the step, filter in the query. Unlike the items below, this one
-  isn't an intentional non-goal — just not built yet.
-
 ## Accepted design tradeoffs (not planned)
+
+*From Phase 12 — deliberate decisions, not bugs; kept so `docs/USE_CASE.md` and this file stay honest about the same constraints.*
 
 - No true multi-tenant isolation beyond project-level workspace scoping (`ff_project_members`) —
   by design; see [`docs/threat-model.md`](threat-model.md#out-of-scope)
@@ -357,274 +297,3 @@ build any of them out.*
   [`docs/deployment.md`](deployment.md)
 - PDF reports require the optional `weasyprint` extra (`pip install flowforge[pdf]`) rather than
   shipping in the default install — keeps the base install light for the Excel/CSV/JSON-only case
-
-## Already tracked elsewhere (not duplicated here)
-
-- Supply-chain security posture (OpenSSF Scorecard 6.5/10 target 8.0, no OSS-Fuzz registration, no
-  cosign-signed releases) — see "Medium priority" above and `ROADMAP.md`'s "In progress" / "Not yet
-  built" sections
-
----
-
----
-
-# Phase 13 — Architect/VC Audit Hit-List (2026-07-24)
-
-*From a brutal, evidence-based architecture/security/performance/market-readiness audit run against
-the actual code (not docs) across four independent passes. Every item below cites the file/behavior
-that was actually verified — this is not a generic checklist. Scores from the same audit: Architecture
-6/10, Code Quality 7/10, Security 3/10, Test Coverage 6/10, Scalability 5/10, DevOps/CI 8/10, Moat 3/10,
-Documentation 8/10 — overall 6/10. The one showstopper is the JWT/secret-key item below; everything
-else is real but not on fire.*
-
-## Critical (fix immediately / showstoppers)
-
-- [x] **`SECRET_KEY`/`JWT_SECRET` have no startup validation and can silently be empty** *(2026-07-24)* —
-  `flowforge/api/app.py:46-60` reads both via `os.environ.get(..., '')`; `JWT_SECRET` falls back to
-  `SECRET_KEY`, and if both are unset the app boots fine and signs HS256 JWTs with an empty key,
-  making every session token forgeable by anyone who knows the algorithm (same file). Fixed:
-  `create_app()` now calls `_validate_secret()` on both (raises `RuntimeError`, not just a log) if
-  either is unset or under 32 characters — the length floor alone rejects every realistic
-  human-typed placeholder (`changeme`, `secret`, `password` are all under 32 chars) without an
-  entropy heuristic, which would've flagged the test suite's own intentionally-simple dummy keys
-  (`'a' * 64`). Also made `flowforge/crypto.py`'s existing 32-byte format check run eagerly at boot
-  (`crypto._key()` called directly in `create_app()`) instead of only on first
-  `encrypt()`/`decrypt()`. 4 new tests in `tests/test_app_coverage.py`; full suite (2099 tests) still
-  green.
-- [x] **Docker image runs as root** *(2026-07-24)* — `Dockerfile` now creates a non-root
-  `flowforge` user/group (uid/gid 1000) and switches to it via `USER flowforge` after `output/` and
-  `logs/` are created and `chown -R`'d. Verified: image builds, `whoami`/`id` report the non-root
-  user, `output/` is writable, gunicorn boots cleanly with all 4 workers and `/api/health` responds
-  `{"status":"ok"}` under the new user.
-- [x] **Weak defaults in `docker-compose.yml` that a lazy deployer will never change** *(2026-07-24)* —
-  `POSTGRES_PASSWORD` and `FLOWER_BASIC_AUTH` now use compose's `${VAR:?message}` required-variable
-  syntax instead of `${VAR:-weak-default}`, so `docker compose up` refuses to start with a clear
-  error if either is unset, rather than silently defaulting to `flowforge` / `admin:changeme`.
-  Verified via `docker compose config` both failing (unset) and succeeding (set). `.env.example`
-  comments updated to say REQUIRED. This repo's own local `.env` didn't have either set — confirms
-  the gap was real, not hypothetical.
-- [x] **`/dashboard/summary` runs an unbounded query, polled every 3-5s per open tab** *(2026-07-24)* —
-  `flowforge/api/routes/runs.py`'s `dashboard_summary()` now ranks runs per-pipeline in SQL with a
-  `ROW_NUMBER() OVER (PARTITION BY pipeline_id ORDER BY started_at DESC)` window function
-  (`sqlalchemy.orm.aliased` on the ranked subquery) and filters `rn <= 14` in the database, instead
-  of fetching every `PipelineRun` row for every accessible pipeline and truncating to 14/pipeline in
-  Python. New test creates 20 runs for one pipeline and confirms exactly the 14 most recent come
-  back, most-recent-first.
-- [x] **`/pipelines` list endpoint has no pagination** *(2026-07-24)* — added the same `limit`
-  (capped at 500, matching `/runs`) / `offset` pattern used elsewhere; still returns a bare JSON
-  array (no response-shape change) so the frontend's existing `getPipelines()` call needed no
-  changes. 3 new tests cover the cap, an explicit small limit, and offset skipping.
-- [x] **Plugin loader has no runtime trust enforcement** *(2026-07-24)* — added
-  `_world_or_group_writable()` (POSIX-only; Windows' `os.stat()` doesn't model real per-owner
-  permissions so the check always returns `False` there rather than false-positiving on every file).
-  `_load_directory_plugins()` now logs a loud `SECURITY:` warning if `FLOWFORGE_PLUGIN_DIR` itself is
-  group/world-writable, and **refuses to load** (logs an error, skips) any individual `.py` file
-  that is group/world-writable, rather than only documenting the admin-only trust boundary in a
-  docstring. 7 new tests, including a Windows-specific regression test (an obviously-writable mode
-  bit is still ignored on `os.name == 'nt'`) since the naive version of this check broke every
-  plugin-loader test on this dev machine before being scoped to POSIX.
-
-## High Priority (refactoring & scalability)
-
-- [x] **Split `flowforge/db/models.py` into domain modules** *(2026-07-24)* — was 468 lines, 22
-  unrelated models in one file. Now a package: `_shared.py` (the single `db = SQLAlchemy()`
-  instance, `_uuid`/`_utcnow`, cross-domain constants), `audit.py`, `auth.py` (User, ProjectMember,
-  TokenBlocklist, PasswordResetToken), `projects.py`, `connections.py` (DbConnection, SSHConnection),
-  `email.py` (EmailProvider, EmailConfig, RecipientGroup), `reports.py`, `bulk_load.py`,
-  `pipelines.py` (Pipeline, PipelineStep, PipelineVariable, PipelineDependency, StepDependency,
-  PipelineRun, StepRun, WebhookToken), `settings.py`, all re-exported from `__init__.py` — every one
-  of the 69 existing `from flowforge.db.models import X` call sites across the codebase needed zero
-  changes. Safe because every `relationship(...)`/`ForeignKey(...)` in this codebase was already
-  string-based (SQLAlchemy resolves those against its own mapper registry, not Python import order),
-  so domain modules don't import each other and there's no new circular-import risk between them —
-  they just all need to be imported once, which `__init__.py` does. Verified three ways: (1)
-  `sqlalchemy.orm.configure_mappers()` resolves every relationship with no errors, (2) `alembic
-  revision --autogenerate` against the migrated test DB shows zero *new* drift beyond pre-existing
-  index-naming mismatches confirmed identical against the original single-file version via `git
-  show`, (3) full test suite (2120 tests, including the migration-heavy `apply_migrations` fixture)
-  passes unchanged.
-- [x] **Introduce a service/repository layer between `flowforge/api/routes/*.py` and SQLAlchemy**
-  *(2026-07-24, scoped to `pipelines.py` — the file this item named as the worst offender)* —
-  added `flowforge/api/pipeline_service.py` (cron validation, create/update/clone/promote/import
-  business logic, dependency-cycle detection, webhook token creation — all the multi-step
-  DB-mutating logic that was previously inlined in route bodies) following the same flat-module
-  convention already established by `project_access.py`/`validators.py` (no new package needed for
-  one domain). Moved `_pipeline_dict`/`_webhook_token_dict` into `serializers.py` alongside the
-  existing `run_dict`/`step_run_dict` — that file is specifically the home for pure model→dict
-  serialization, and a new `pipeline_export_dict()` was added there too for the YAML export
-  endpoint's doc-building, which was previously inlined in the route. `routes/pipelines.py` now
-  only does Blueprint wiring, request parsing, `can_access_project` authz checks, and
-  `jsonify(...)` responses — trivial single-statement `db.session.get()`/`delete()`/`commit()`
-  calls that exist purely to produce a 404/403 before any business logic runs were left in routes
-  deliberately, not moved. File went from 781 → 412 lines; no behavior change (same status codes,
-  JSON shapes, validation order). Full test suite (2120 tests) passes unchanged; no other module
-  imported the moved private helpers by path, so this was safe to do without touching call sites
-  elsewhere. Remaining route files (`runs.py`, `reports.py`, etc.) are unaffected — out of scope
-  for this pass, per the item's own framing.
-- [x] **Resolve the live circular dependency between `flowforge/engine/dag.py` and
-  `flowforge/engine/runner.py`** *(2026-07-24)* — `dag.py` imported `PipelineResult`,
-  `_CONTEXT_META_KEYS`, `_get_retry_config`, `_run_step_with_retry`, `_write_step_run` from
-  `runner.py` at module level, while `runner.py` could only import `dag.run_dag` lazily inside a
-  function body to avoid the resulting cycle. Fixed by extracting those 5 symbols — the actual
-  shared single-step-execution primitives both the wave engine and DAG engine build on — into a new
-  `flowforge/engine/step_exec.py`, which neither `dag.py` nor `runner.py` needs to import from each
-  other for anymore. Verified both `dag`-first and `runner`-first import order work identically
-  (previously order-sensitive), both modules' `PipelineResult` are now the literal same class
-  (`is` identity check), and every existing `patch('flowforge.engine.runner._write_step_run', ...)`
-  -style test mock still works via the re-export in `__init__`. Full suite (2120 tests) unchanged.
-  Note: the remaining ~65 lazy function-body imports in the package (`loader.py`, `bulk_load.py`,
-  `scheduler.py`, etc.) are mostly legitimate — deferring the Flask/DB layer until actually needed
-  for testability, not papering over other live cycles — this item was specifically about the one
-  confirmed real circular dependency, not a sweep of every lazy import in the codebase.
-- [x] **Fix the concurrency semaphore's multi-worker blind spot** *(2026-07-24)* —
-  `flowforge/engine/concurrency.py` falls back to a per-process `threading.Semaphore(5)` without
-  Redis, meaning N Gunicorn workers give you N×5 effective concurrent runs, not 5. Fixed: `create_app()`
-  now logs a `CAPACITY:` warning at startup when `GUNICORN_WORKERS > 1` and `FLOWFORGE_REDIS_URL` is
-  unset (3 new tests cover warn/no-warn cases). Separately, `_try_acquire_redis`'s fail-open behavior
-  on Redis errors is deliberate and load-tested (`tests/test_concurrency_failure_injection.py`), so
-  rather than flipping the default, added an opt-in `FLOWFORGE_CONCURRENCY_FAIL_CLOSED=true` env var
-  for operators who'd rather deny new runs than risk extra DB load during a Redis outage (2 new tests).
-- [x] **Add leader-election or a distributed lock to `flowforge/engine/scheduler.py`'s
-  `BlockingScheduler`** *(2026-07-24)* — added `flowforge/engine/leader.py`: with
-  `FLOWFORGE_REDIS_URL` set, `start_scheduler()` now routes `_scheduler.start()` through
-  `leader.run_with_leadership()`, which blocks until this replica wins a Redis lock
-  (`SET NX PX`, 30s TTL) and only then calls into the scheduler; a background thread renews the
-  lock every 10s via a Lua script that checks token ownership before extending it. If renewal
-  ever fails (Redis unreachable, or another replica's clock/timing won the lock instead), the
-  process calls `os._exit(1)` immediately rather than risk two schedulers firing the same cron
-  job — the process manager (Docker/systemd/k8s) is expected to restart it, at which point it
-  re-enters the election. Without `FLOWFORGE_REDIS_URL`, election is skipped entirely (same
-  convention as `concurrency.py`'s fallback) and a startup `WARNING` says not to run more than
-  one replica — HA isn't possible without a shared coordination point. 14 new tests in
-  `tests/test_leader_election.py` plus 2 in `tests/test_scheduler.py` covering the wiring; full
-  suite (2134 tests) passes unchanged.
-- [x] **Stream/chunk large data instead of full in-memory loads** *(2026-07-24, partial — scoped down,
-  see below)* — added `BaseConnection.execute_query_with_columns_chunked()` (concrete default:
-  falls back to the eager path, so every connection type keeps working) with real streaming
-  overrides in `postgres.py` (named/server-side cursor — a regular cursor pulls the whole result to
-  the client on `execute()` regardless of `fetchall()`, so only a named cursor actually avoids
-  holding a multi-million-row result in memory) and `oracle.py` (iterating the cursor directly
-  batches via `arraysize` without needing a special cursor type). `csv_report.py`'s `generate()` now
-  accepts any iterable and writes row-by-row instead of requiring a materialized list; `report.py`'s
-  CSV branch wires DB → CSV end-to-end through the new streaming path, keeping the connection open
-  for the duration of the write instead of closing it right after an eager fetch. Found and fixed a
-  real bug along the way: psycopg2 named cursors report `.description` as `None` until the *first
-  fetch* — reading columns immediately after `execute()` (as the naive version of this fix did)
-  silently returned an empty column list, caught by `tests/test_report_e2e.py`'s real-Postgres tests
-  (a pure-mock test suite would not have caught this). 16 new tests across
-  `test_postgres_unit.py`/`test_oracle.py`/`test_connection_base.py`/`test_report_generators.py`.
-  **Explicitly out of scope for this pass** (each needs its own dedicated, carefully-tested effort,
-  not a rushed inclusion here): Excel/PDF/JSON report formats still materialize `rows` fully —
-  Excel in particular would need `openpyxl`'s `write_only=True` mode, which has real interaction
-  with the already-shipped column-formatting feature (`docs/manual-testing-guide.md` §36) that needs
-  careful verification, not a blind conversion. `bulk_load.py`/`data_load.py` still read entire
-  source files into memory before chunking on the insert side — footer-row stripping in particular
-  needs a bounded sliding-window buffer (not a naive one-pass stream) to preserve exact
-  header/footer-trim behavior across 3 load paths (Python fallback, Postgres COPY, SQL*Loader) in
-  an already-867-line file with heavy existing test coverage worth not destabilizing casually.
-- [x] **Add connect timeouts to the connection-pool creation paths** *(2026-07-24)* — added
-  `connect_timeout=5` to `postgres.py`'s `ThreadedConnectionPool` and `tcp_connect_timeout=5` to
-  `oracle.py`'s `create_pool` and to the `test-raw` endpoint's `oracledb.connect()` call (the one
-  branch that had no timeout at all, unlike every other `db_type` in that function). 3 new tests
-  assert the kwarg is actually passed through.
-- [x] **Extend rate limiting beyond the 3 current `@limiter.limit` sites** *(2026-07-24)* — added
-  `@limiter.limit('20 per minute')` to all 4 `flowforge/api/routes/ai.py` endpoints (`data_profile`,
-  `chart_config`, `ai_query`, `anomaly_narrative` — the cost-DoS vector via paid Claude/Gemini
-  fallback) and to `reports.py`'s `preview_report` (arbitrary stored SQL execution). Matches the
-  existing `pipelines.py` pattern exactly (`from flowforge.api.app import limiter`).
-- [x] **Break up `flowforge/engine/runner.py`** *(2026-07-24)* — retry logic already lived in
-  `step_exec.py` from the earlier dag.py/runner.py circular-dependency fix; this pass split the
-  rest. New modules: `waves.py` (wave-building + wave execution — `_build_execution_waves`,
-  `_run_sequential_step` [newly extracted from `run_pipeline`'s inline sequential-step branch,
-  for symmetry with the already-factored-out `_run_parallel_wave`], `_run_parallel_wave`,
-  `_expose_step_outputs`, `_build_vars_log`, `_handle_failed_step`), `run_records.py`
-  (`_create_run_record`, `_finish_run_record`, `_get_last_success_ts`), `notifications.py`
-  (`_fire_failure_webhook`, `_notify_devbrain`), `dependency_trigger.py`
-  (`_trigger_downstream_pipelines`). `runner.py` now only holds `run_pipeline()` (158 lines) and
-  imports everything else. No behavior change — pure mechanical extraction, same call order, same
-  return values. `_write_step_run`/`_expose_step_outputs`/`_handle_failed_step` are re-exported
-  (unused, `# noqa: F401`) from `runner.py` even though their call sites moved into `waves.py`,
-  because existing tests patch/import them as `flowforge.engine.runner.<name>` — same convention
-  already used for `step_exec.py`'s re-exports. `ruff check` clean; full suite (2134 tests) passes
-  unchanged.
-- [x] **Add a `frontend/src/hooks/` layer and break up the monolithic page components**
-  *(2026-07-24)* — new `frontend/src/hooks/`: `useMfa`, `useRetentionSettings`,
-  `useChangePassword` (state/query/mutation logic pulled out of `Settings.tsx`'s inline card
-  components), `useReportConfigForm`, `useReportPreviewTools` (form + data-fetching vs.
-  AI-tooling state pulled out of `ReportEdit.tsx`, split along the same seam the two hooks
-  already had — a single shared `error`/`setError` passed from the form hook into the preview
-  hook, matching the original single error banner). Every card that used to be a function
-  declared inline in `Settings.tsx` now lives in its own file under
-  `frontend/src/components/settings/` (`ChangePasswordCard`, `MfaCard`, `GoogleOAuthCard`,
-  `Microsoft365Card`, `AiOllamaCard`, `RetentionCard`, `YamlCard`, `DocsCard`, plus
-  `common.tsx` for the shared `StatusBadge`/`CodeBlock`/`InlineCode`); `ColumnFormattingCard`
-  moved out of `ReportEdit.tsx` into `frontend/src/components/report/`. `Settings.tsx` went
-  737 → 90 lines (now just the tab shell), `ReportEdit.tsx` went 675 → 370 (page layout +
-  wiring, no state logic). No behavior change — pure mechanical extraction. Verified via `tsc
-  --noEmit` (clean), `eslint` (0 errors, same pre-existing `watch()` warning pattern already
-  present in `EmailEdit.tsx`), the full Vitest suite (172 tests, unchanged), a production
-  `vite build`, and a manual Playwright pass against the real dev stack (login → all 5 Settings
-  tabs → MFA card → admin Retention save → create/save a real report end-to-end → delete it) —
-  zero console errors.
-- [x] **Close the release-cadence gap** *(2026-07-24)* — `pyproject.toml` bumped `1.1.0` → `1.3.0`
-  (also fixed `flowforge/__init__.py`'s `__version__`, separately stale at `0.1.0` — unused
-  elsewhere in the app, but worth being accurate now that it's touched). **Not** tagged `v1.2.0`:
-  `CHANGELOG.md` already has an unrelated, unused `## [1.2.0]` section (pre-launch "multi-user
-  roles" content, folded into the `v1.0.0` tag, whose own `compare/v1.1.0...v1.2.0` link is the
-  dangling one this item originally flagged) — reusing that label for today's real release would
-  put two different `## [1.2.0]` sections in the file. Decided with the user: skip straight to
-  `v1.3.0` rather than rewrite historical changelog content; the old `[1.2.0]` section and its
-  dangling link are left as-is (a known, now-documented quirk, not a live gap). `CHANGELOG.md`'s
-  `[Unreleased]` section converted to `## [1.3.0] — 2026-07-24`, with today's four refactors
-  (service layer, leader election, runner.py split, frontend hooks layer) added under it alongside
-  the already-documented DAG engine work. `release.yml`/`publish.yml` (SLSA provenance, PyPI OIDC)
-  fired on push — user confirmed, tag pushed, both workflows green, package live on PyPI. This was
-  also the first time these ~12 already-committed-but-never-pushed local commits actually ran
-  through GitHub's CI (they'd only ever been tested on this dev machine, Windows) — that surfaced
-  one real, pre-existing bug: `tests/test_plugin_loader.py`'s
-  `test_world_or_group_writable_always_false_on_windows` built `Path('x')` *after* monkeypatching
-  `os.name` to `'nt'`, which is silently a no-op on Windows (already `'nt'` natively) but on Linux
-  CI made `pathlib.Path()` itself try to instantiate a real `WindowsPath` and raise
-  `NotImplementedError` — which then also crashed pytest's own failure-reporting code (also calls
-  `Path()`), aborting the whole session with a cascading `INTERNALERROR` instead of a normal test
-  failure. Root-caused by reproducing the exact crash in a Linux Docker container mirroring CI's
-  postgres/env setup (not guessable from the Windows-only local runs that had passed every time);
-  fixed by building the `Path` before the monkeypatch. Two follow-up commits after the tag push
-  (a `ruff` import-sort miss in the same file, then this real fix) before `master`'s CI went fully
-  green (CI, CodeQL, Secrets Scan, OpenSSF Scorecard all passing on `7968521`, confirmed still
-  green on `615b2d7` — the last commit of this session).
-- [x] **Make `.github/workflows/secrets-scan.yml` a blocking gate** *(2026-07-24)* — removed
-  `continue-on-error: true` from the TruffleHog step. Note: this is a one-line change I could verify
-  parses as valid YAML but couldn't execute (no local GitHub Actions runner) — worth watching the
-  next PR's checks to confirm nothing in this repo's history trips `--only-verified` now that it's
-  blocking.
-
-## Nice-to-Have (polish & optimization)
-
-- [ ] Add true unit tests with mocking for core business logic (`engine/runner.py`, `engine/dag.py`,
-  `engine/context.py`) alongside the existing suite — every test file checked (`test_pipelines.py`,
-  `test_runs.py`, `test_runs_api.py`, etc.) is 100% integration-style against a real Postgres with
-  zero `@patch`/`MagicMock` usage; safe for refactors but slow to iterate on and can't isolate
-  business-logic correctness from the DB/HTTP layer.
-- [ ] Add production error-tracking (Sentry or equivalent) — logging itself is legitimate (113
-  `logging`/`getLogger` call sites, not print-statement soup), but there's zero error-tracking SDK
-  anywhere, so production debugging is log-files-only.
-- [ ] Add a dependency/license audit tool to CI (e.g. `pip-licenses`) plus a `NOTICE` file — the
-  current MIT-compatibility check (no GPL-family packages found) was a manual one-time grep, not an
-  enforced, repeatable gate. Do this before any commercial relicensing conversation.
-- [ ] Build genuine Airflow/cron migration tooling — zero evidence this exists today beyond
-  FlowForge's own YAML export/import; this is the most plausible real differentiator given the
-  existing "Oracle advantage" / migration-bridge positioning in `docs/USE_CASE.md`, rather than more
-  enterprise-checkbox features.
-- [ ] Evaluate a managed/hosted tier reusing the existing `docker-compose.yml` service topology —
-  low engineering lift given the multi-service (db/redis/app/scheduler/worker) shape already exists;
-  this is the more realistic commercial moat than the core engine itself, which is honestly
-  replicable in a few weeks by a competent team (topological DAG + Jinja2 templating + integration
-  adapters — no proprietary technology).
-- [ ] Add a plugin marketplace/discovery layer on top of the existing plugin system (`docs/plugins.md`)
-  — the load mechanism exists, there's no registry/discovery UX around it.
-- [ ] Close the gap between "no YAML required" marketing and actual first-run friction — a bare
-  dashboard is genuinely one `docker compose up` away, but a real first pipeline with email requires
-  5+ manual steps across Google Cloud Console or Azure AD (OAuth app registration, consent screens,
-  client secrets) before the "no-code" promise is actually true end-to-end.
-

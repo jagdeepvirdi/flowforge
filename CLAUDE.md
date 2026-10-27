@@ -1,15 +1,39 @@
 # CLAUDE.md — FlowForge
 
 ## Project Overview
+
+**Positioning (as stated by the project owner, 2026-10-27):**
+> FlowForge is a high-performance, self-hostable data pipeline and ETL orchestrator.
+>
+> **Enterprise Focus:** While FlowForge can orchestrate any generic data workflow, its architecture is heavily optimized for the extreme volume and strict compliance requirements of the Telecom sector. When paired with our optional AI diagnostic microservice (`flowforge-brain`), the platform serves as a complete Telecom Revenue Assurance Solution, automating root cause analysis for dropped CDRs and orphaned subscriptions.
+
+**Reality check — keep documentation honest:** the generic orchestration engine is real, tested and shipping (v1.3.0). The telecom-specific layer (CDR/mediation parsers, reconciliation steps, leakage KPIs, case management, streaming ingestion for all formats) is the **direction, not shipped features**, and "optimized for extreme volume / strict compliance" describes the intent: heavy work is pushed into the database (`COPY`, SQL*Loader), but only CSV streams end-to-end today and no telecom-specific compliance review has happened. Do not claim telecom capabilities or regulatory compliance in docs, UI or marketing that the code does not have. Gap analysis: `ARCHITECTURE.md` §7.
+
+### Architecture: "Muscle" and "Brain" (decided 2026-10-27)
+Full detail in [`ARCHITECTURE.md`](ARCHITECTURE.md). In short:
+- **Muscle = this repository** (FlowForge Core): deterministic ETL, SQL audits (e.g. HLR vs. billing), scheduling, alerting. **Zero AI/LLM logic.**
+- **Brain = `flowforge-brain`** (separate FastAPI + Gemini via Vertex AI / AI Studio service): non-deterministic Root Cause Analysis over anonymized evidence. Owns all prompts, model choice, provider keys, and the diagnosis store.
+- **Frontend** is one React UI: operational data/charts from Core, AI diagnostics from the Brain over HTTP. With no Brain attached (`FLOWFORGE_BRAIN_URL` unset) **no AI UI renders**.
+
+**Hard rules for any code change in this repo:**
+1. Never import an LLM SDK (`anthropic`, `openai`, `google-generativeai`, `vertexai`, `langchain`, `ollama`, …) or add prompts, model names or AI-provider keys/HTTP clients to Core.
+2. Never make long-running/long-polling AI calls or block API workers, the scheduler, pipeline threads or Celery workers on the Brain. Core→Brain traffic is async, off the critical path, short timeouts, bounded retries, circuit breaker.
+3. Core must be fully functional with the Brain absent. Brain output is advisory and never auto-triggers changes.
+4. Anonymize and minimize evidence in Core before it leaves; send grouped signatures + counts + a capped sample, not raw row dumps.
+5. Do **not** add new AI features here. **Transition state:** the legacy in-repo AI code (`flowforge/api/routes/ai.py`, `flowforge/steps/ai_analyze.py`, the frontend AI UI, the `claude` extra) still exists until the scrub in [`docs/BRAIN_DECOUPLING_PLAN.md`](docs/BRAIN_DECOUPLING_PLAN.md) runs (read its 2026-10-27 (b) amendment). Do not extend it; do not "fix" it by moving it elsewhere in Core.
+6. "DevBrain" (`FLOWFORGE_DEVBRAIN_NOTIFY_URL`, `_notify_devbrain`) is an unrelated notification tool — not the Brain; leave it alone.
+
+---
+
 FlowForge is a lightweight, database-driven data pipeline orchestrator. Users configure pipelines, reports, email templates, and schedules entirely through a web frontend — no YAML editing required. Pipelines execute ordered steps: calling database stored procedures/packages, running SQL queries, generating reports (Excel/PDF/CSV), sending emails (Gmail, Microsoft 365, SMTP), and uploading files to Google Drive. Smart attachment handling: if a report exceeds a configured size threshold, it is automatically uploaded to Drive and a shareable link is sent in the email instead.
 
 **Key principle**: All configuration lives in the database. The frontend is the primary interface for creating and managing everything.
 
 **Origin**: Evolved from an internal reporting automation tool (Perl/Python, Oracle/PostgreSQL). Fully scrubbed, generalized, and open-sourced after code review and refactor.
 
-**GitHub tagline**: "Database-driven pipeline orchestrator. Configure everything from the UI — DB procedures, reports, email (Gmail/M365/SMTP), Google Drive, smart attachments, scheduling. No YAML. No Airflow complexity."
+**GitHub tagline** (README as of 2026-10-27): "Enterprise Telecom Revenue Assurance: a deterministic data-orchestration core (the Muscle) paired with a separate AI root-cause engine (the Brain). Configure everything from the UI — no YAML, no Airflow complexity."
 
-**Target users**: Solo developers, small teams, data analysts who need lightweight pipeline orchestration without enterprise tool complexity.
+**Target users**: Today — solo developers, small teams and data analysts who need lightweight orchestration. Direction — enterprise telecom revenue-assurance teams (no design partner or external user yet; see `docs/TASKS.md` §7). The two positionings are in tension; resolve before external marketing.
 
 ---
 
@@ -40,6 +64,7 @@ The existing code has working implementations of: email sending (Gmail), Google 
   Flower available for worker monitoring. See `flowforge/celery_app.py`, `flowforge/tasks.py`,
   `docker-compose.yml`. Purely additive — a deployment with no Redis configured is unaffected.
 - **Templating**: Jinja2 (email bodies, report titles, variable resolution)
+- **AI/LLM**: **none in this repository** — lives in the external `flowforge-brain` service (see Architecture above)
 
 ### Email Providers
 - **Gmail**: OAuth2 via `google-auth` + `google-auth-oauthlib`
@@ -293,17 +318,8 @@ Upload a file to Google Drive.
 }
 ```
 
-### ai_analyze
-```json
-{
-  "connection_id": "uuid",
-  "query": "SELECT ...",
-  "prompt": "Summarize the top trends in this data in 3 sentences.",
-  "output_variable": "ai_summary",
-  "provider": "ollama"
-}
-```
-`provider` also accepts `"claude"` (Anthropic API) or `"gemini"` (Google Gemini API — has a free tier).
+### ai_analyze *(legacy — being removed)*
+Pending removal per `docs/BRAIN_DECOUPLING_PLAN.md`; do not build on it. After the scrub the type remains only as a failing shell so saved pipelines still load. AI analysis belongs to the Brain service.
 
 ---
 
@@ -503,7 +519,7 @@ Both implement the same `BaseConnection` interface — pipelines don't know whic
 - FlowForge system config (attachment threshold default, Drive folder default)
 - Google OAuth setup (Gmail + Drive)
 - Microsoft 365 setup (MSAL)
-- AI / Ollama / Claude / Gemini configuration status (dedicated AI tab)
+- Brain service status (attached / not attached) — AI diagnostics panels appear only when a Brain is attached
 - Data retention (run history, audit log, output file TTL) — view/edit (admin), DB-backed override
   of `FLOWFORGE_RUN_RETENTION_DAYS` / `FLOWFORGE_AUDIT_RETENTION_DAYS` / `FLOWFORGE_OUTPUT_TTL_DAYS`
 - Export all pipeline configs as YAML
@@ -535,7 +551,6 @@ Available in all config values rendered via Jinja2:
 | `{{ env.VAR_NAME }}` | Any env variable |
 | `{{ steps.step_name.output_path }}` | File path from previous step |
 | `{{ steps.step_name.drive_url }}` | Drive URL from previous step |
-| `{{ ai_summary }}` | Output from ai_analyze step |
 
 ---
 
@@ -580,13 +595,10 @@ MICROSOFT_SENDER_EMAIL=
 # Google Drive OAuth2 (shares credentials with Gmail if same account)
 GOOGLE_DRIVE_FOLDER_ID=
 
-# AI (optional, for ai_analyze step)
-OLLAMA_URL=http://localhost:11434
-OLLAMA_QUERY_MODEL=llama3.2:3b    # model for explain/optimize/diagnose
-OLLAMA_CHART_MODEL=llama3.2:3b    # model for chart & profile tasks
-ANTHROPIC_API_KEY=                # ai_analyze step: provider: "claude"
-GEMINI_API_KEY=                   # ai_analyze step: provider: "gemini" (has a free tier)
-GEMINI_QUERY_MODEL=gemini-2.5-flash
+# Brain (optional) — attaches the external flowforge-brain AI diagnostic service.
+# Unset = no AI anywhere in the UI. Core holds NO AI-provider keys (those live in the Brain).
+# (Legacy OLLAMA_*/ANTHROPIC_API_KEY/GEMINI_* vars still exist in the old in-repo AI code until it is removed.)
+FLOWFORGE_BRAIN_URL=
 
 # Data retention (scheduler prunes daily) — all three below can also be overridden at runtime
 # via Settings → System (admin-only), which takes priority over these env vars when set
@@ -619,8 +631,7 @@ flowforge/
 │   │   ├── db_query.py
 │   │   ├── report.py
 │   │   ├── email_step.py           # Smart attachment logic here
-│   │   ├── drive_upload.py
-│   │   └── ai_analyze.py           # v2
+│   │   └── drive_upload.py         # (legacy ai_analyze.py pending removal)
 │   ├── connections/
 │   │   ├── base.py
 │   │   ├── postgres.py
@@ -714,9 +725,7 @@ See Claude Design handoff. Key tokens:
 | Microsoft 365 send | $0 (Graph API free) |
 | Google Drive upload | $0 (Drive API free tier) |
 | Scheduler | $0 |
-| AI analysis (Ollama) | $0 — local |
-| AI analysis (Claude API) | Pay-per-use, opt-in only |
-| AI analysis (Gemini API) | Free tier available, opt-in only |
+| AI diagnostics | Provided by the separate Brain service — not a Core cost; model-provider cost and data-egress terms are the Brain's concern |
 | **Monthly baseline** | **$0** |
 
 ---
@@ -732,4 +741,4 @@ See Claude Design handoff. Key tokens:
 > visibility. A pipeline with zero drawn edges is completely unaffected.
 
 - No Airflow DAG import
-- No cloud SaaS version
+- No cloud SaaS version *(under review: a managed/hosted tier is an open strategic question in `docs/TASKS.md` §7; do not build one without an explicit decision)*
