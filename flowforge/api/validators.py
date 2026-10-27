@@ -25,8 +25,10 @@ def validate_webhook_url(url: str | None, field: str = 'on_failure_webhook_url')
         return None
     try:
         check_url_syntax(str(url))
-    except UnsafeUrlError as e:
-        return f"'{field}': {e}"
+    except UnsafeUrlError:
+        # Fixed message on purpose: never echo exception text (or the submitted URL) back to the client.
+        return (f"'{field}' must be a public http(s) URL — internal, loopback, link-local and "
+                "non-http(s) targets are not allowed")
     return _check_len(str(url), field, 2000)
 
 

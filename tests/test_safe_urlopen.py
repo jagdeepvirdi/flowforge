@@ -183,7 +183,8 @@ class TestFailureWebhook:
                 caplog.at_level(logging.WARNING):
             _fire_failure_webhook('https://hooks.example.com/services/SECRET-TOKEN', {})
         assert 'SECRET-TOKEN' not in caplog.text
-        assert 'hooks.example.com' in caplog.text
+        # the host (first log arg) is logged — compared exactly, not by substring
+        assert any(rec.args and rec.args[0] == 'hooks.example.com' for rec in caplog.records)
 
 
 # ── validators + API ─────────────────────────────────────────────────────────
