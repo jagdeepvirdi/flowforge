@@ -343,7 +343,7 @@ rather than kept (Core then has no AI routes at all). The detached/attached swit
    everywhere.
 
 **Planned order of work** (adopted from the pivot roadmap with Claude's amendments; details and effort in
-[`docs/TELECOM_PIVOT_ROADMAP.md`](docs/TELECOM_PIVOT_ROADMAP.md) and [`docs/TASKS.md`](docs/TASKS.md) §0a):
+[`docs/TELECOM_PIVOT_ROADMAP.md`](docs/TELECOM_PIVOT_ROADMAP.md) and [`docs/TASKS.md`](docs/TASKS.md) §B):
 design-partner discovery (in parallel throughout) → Brain scrub ∥ conditional execution → reconciliation step →
 PII tokenization step → orphaned-subscription audit template → compliance-claim verification → Brain scaffold.
 The Brain comes last because it only adds value once the detection layer produces trustworthy findings.

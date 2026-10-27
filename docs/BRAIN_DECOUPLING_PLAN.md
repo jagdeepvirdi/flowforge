@@ -1,6 +1,6 @@
 # Brain Decoupling Plan — removing AI/LLM from FlowForge
 
-*Written 2026-10-27. Status: **PLANNED — no code changed yet.** Tracker entry: [`TASKS.md`](TASKS.md) §0.
+*Written 2026-10-27. Status: **PLANNED — no code changed yet.** Tracker entry: [`TASKS.md`](TASKS.md) §A1.
 This document is the durable source of truth so the plan survives the session that wrote it.*
 
 > **AMENDMENT 2026-10-27 (b) — supersedes parts of §3/§4 below.** The product direction is now Telecom Revenue
