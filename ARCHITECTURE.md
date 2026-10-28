@@ -235,7 +235,7 @@ code review comment.
 1. **Core never imports an LLM SDK.** No `anthropic`, `openai`, `google-generativeai`, `google-genai`,
    `vertexai`, `langchain`, `llama-index`, `ollama`, or equivalent — directly or transitively through a
    FlowForge-owned module — anywhere in `flowforge/`. Core contains **no prompts, no model names, no provider
-   keys, and no AI-provider HTTP clients.** *Enforcement [Proposed]:* a CI test that scans `flowforge/**/*.py`
+   keys, and no AI-provider HTTP clients.** *Enforcement [Shipped, v2.0.0]:* `tests/test_no_llm_in_core.py` scans `flowforge/**/*.py`
    imports and `pyproject.toml` dependencies for a deny-list and fails the build.
 2. **Core never makes long-running or long-polling AI calls**, and never blocks on the Brain. The API
    workers (Gunicorn/gevent), the scheduler thread, pipeline execution threads and Celery workers must not sit
@@ -317,9 +317,9 @@ code review comment.
 | Item | Status |
 |---|---|
 | Architecture decision (this document) | Adopted |
-| Legacy in-repo AI code (`flowforge/api/routes/ai.py`, `flowforge/steps/ai_analyze.py`, frontend AI UI, `claude` extra) | **Still present** — removal planned in [`docs/BRAIN_DECOUPLING_PLAN.md`](docs/BRAIN_DECOUPLING_PLAN.md) (phases A0–A8, ~3–4 days) |
-| `extracted_ai_logic.md` (prompts/logic to rebuild Brain) | Not yet written (phase A1) |
-| CI deny-list guard for LLM imports | Not yet written |
+| Legacy in-repo AI code | **Removed** in v2.0.0 (#130). `routes/ai.py` returns `503 brain_not_attached`; `ai_analyze` is a failing shell; frontend AI UI replaced by a Settings → Brain card. Plan: [`docs/BRAIN_DECOUPLING_PLAN.md`](docs/BRAIN_DECOUPLING_PLAN.md) |
+| `extracted_ai_logic.md` (prompts/logic to rebuild Brain) | Written |
+| CI deny-list guard for LLM imports | Shipped (`tests/test_no_llm_in_core.py`) |
 | Brain API contract | Draft only ([§6.3](#63-proposed-brain-api-contract-draft--freeze-before-building)) |
 | Brain service | Not started |
 | Telecom RA features ([§7](#7-telecom-revenue-assurance-mapping)) | Direction only — building blocks exist, domain features do not |

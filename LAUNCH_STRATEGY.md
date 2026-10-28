@@ -28,7 +28,7 @@ This file contains consolidated advice, templates, and recommendations for the v
 4.  **Feature Deep-Dive (Gifs):**
     -   Pipeline Builder (Step-by-step logic)
     -   Smart Attachments (Drive/OneDrive routing)
-    -   AI Features (SQL Explainer/Optimizer via Ollama, with optional Claude/Gemini fallback)
+    -   Run History anomaly alerts (statistical outlier detection, no AI)
 5.  **Engineering Standards:** SonarCloud Straight-A proof.
 6.  **Roadmap:** v2.0 Hardening (SSO, MFA, Metrics).
 7.  **CTA:** Star on GitHub, join the conversation.
@@ -55,7 +55,7 @@ This file contains consolidated advice, templates, and recommendations for the v
 -   **Zero Cost:** Self-hosted, no per-seat pricing.
 -   **Oracle-First:** First-class support for Oracle packages/procedures.
 -   **Smart Routing:** Auto-upload to Drive/OneDrive if attachments > 10MB.
--   **Local AI:** Privacy-first SQL help via local Ollama (Llama 3 / Mistral) — Claude or Gemini optional as a fallback/alternative.
+-   **Deterministic core:** no LLM code or keys in the product; optional AI diagnostics come from a separate Brain service (not shipped yet).
 -   **Multi-Project:** Organize by team (Finance, HR, etc.) in one instance.
 
 ---

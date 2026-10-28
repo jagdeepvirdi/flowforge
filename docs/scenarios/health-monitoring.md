@@ -154,29 +154,9 @@ To run these ad hoc, use a `db_query` step with `output_variable` to capture the
 
 ---
 
-## Combining with AI Analysis (Optional)
+## Summarising the metrics
 
-Add an `ai_analyze` step after the DB health check to generate a natural-language summary of the metrics:
-
-```yaml
-- name: summarise_health
-  step_type: ai_analyze
-  step_order: 5
-  config:
-    connection_id: <YOUR_PG_CONNECTION_ID>
-    query: >
-      SELECT datname, numbackends, blks_hit, blks_read,
-             round(blks_hit::numeric / nullif(blks_hit+blks_read,0) * 100, 1) AS cache_pct
-      FROM pg_stat_database
-      WHERE datname NOT LIKE 'template%'
-    prompt: >
-      You are a database reliability engineer. Summarise these PostgreSQL stats in 3 sentences.
-      Flag anything concerning. Be concise — this goes in an ops email.
-    output_variable: db_summary
-    provider: ollama
-```
-
-Then use `{{ db_summary }}` in the email body template.
+AI summaries are not part of Core (see [brain.md](../brain.md)). To put the numbers in the email, use a `db_health_check` or `db_query` step and reference its outputs in the email body template, or add a threshold check that fails the step.
 
 ---
 
