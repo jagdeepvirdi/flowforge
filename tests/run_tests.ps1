@@ -42,17 +42,20 @@ if (Test-Path $envFile) {
     }
 }
 
-# Dev defaults — only applied when not already set (and no .env.test).
-# These match docs/credentials.local.md and only target the local test DB.
+# Test-run secrets. Nothing is baked into this script: the DB URL must come from .env.test
+# (see .env.test.example) or the environment, and the encryption/JWT keys are random per run
+# unless you set them. The test database is recreated on every run, so a fresh key is fine.
 if (-not $env:FLOWFORGE_DB_URL) {
-    $env:FLOWFORGE_DB_URL = 'postgresql://flowforge:harpal123@localhost:5434/flowforge_test'
+    Write-Error 'FLOWFORGE_DB_URL is not set. Copy .env.test.example to .env.test and fill it in.'
+    exit 1
 }
-if (-not $env:FLOWFORGE_SECRET_KEY) {
-    $env:FLOWFORGE_SECRET_KEY = '4d688ef00edded2d39f4109d9e6497d54fff5165555a8a41e8aaedb9c7f62fd0'
+function New-HexKey {
+    $bytes = New-Object byte[] 32
+    [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+    -join ($bytes | ForEach-Object { $_.ToString('x2') })
 }
-if (-not $env:FLOWFORGE_JWT_SECRET) {
-    $env:FLOWFORGE_JWT_SECRET = '4d688ef00edded2d39f4109d9e6497d54fff5165555a8a41e8aaedb9c7f62fd0'
-}
+if (-not $env:FLOWFORGE_SECRET_KEY) { $env:FLOWFORGE_SECRET_KEY = New-HexKey }
+if (-not $env:FLOWFORGE_JWT_SECRET) { $env:FLOWFORGE_JWT_SECRET = New-HexKey }
 
 # ── Manual smoke test (no Docker/DB setup needed) ───────────────────────────
 if ($Manual) {

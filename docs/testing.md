@@ -15,14 +15,16 @@ Copy-paste ready for a human or an AI agent (Gemini, Claude, etc.).
 | `.venv` | created | `.venv\Scripts\python.exe --version` |
 | `.env.test` | exists at repo root | present at `D:\Project\flowforge\.env.test` |
 
-### `.env.test` contents (already configured)
+### `.env.test` contents
+Copy `.env.test.example` to `.env.test` (it is gitignored) and fill in your own values:
 ```
-FLOWFORGE_DB_URL=postgresql://flowforge:harpal123@localhost:5434/flowforge_test
-FLOWFORGE_SECRET_KEY=4d688ef00edded2d39f4109d9e6497d54fff5165555a8a41e8aaedb9c7f62fd0
-FLOWFORGE_JWT_SECRET=4d688ef00edded2d39f4109d9e6497d54fff5165555a8a41e8aaedb9c7f62fd0
-E2E_USERNAME=admin
-E2E_PASSWORD=H@rpal123
+FLOWFORGE_DB_URL=postgresql://flowforge:<your-test-db-password>@localhost:5434/flowforge_test
+FLOWFORGE_SECRET_KEY=<python -c "import secrets; print(secrets.token_hex(32))">
+FLOWFORGE_JWT_SECRET=<a different value generated the same way>
 ```
+
+Never copy real keys or passwords into this document or any other tracked file. Use a fresh,
+random key for every environment. `tests/run_tests.*` generate throwaway keys when none are set.
 
 > The test DB (`flowforge_test`) is separate from the app DB (`flowforge`).
 > `conftest.py` drops and recreates all tables on every pytest run — never point it at the live DB.
@@ -55,9 +57,9 @@ Runs the full pytest suite against `flowforge_test`. `conftest.py` wipes and rem
 ### PowerShell (recommended)
 ```powershell
 cd D:\Project\flowforge
-$env:FLOWFORGE_DB_URL  = "postgresql://flowforge:harpal123@localhost:5434/flowforge_test"
-$env:FLOWFORGE_SECRET_KEY = "4d688ef00edded2d39f4109d9e6497d54fff5165555a8a41e8aaedb9c7f62fd0"
-$env:FLOWFORGE_JWT_SECRET  = "4d688ef00edded2d39f4109d9e6497d54fff5165555a8a41e8aaedb9c7f62fd0"
+$env:FLOWFORGE_DB_URL  = "postgresql://flowforge:<test-db-password>@localhost:5434/flowforge_test"
+$env:FLOWFORGE_SECRET_KEY = "<64 hex chars: generate a different one>"
+$env:FLOWFORGE_JWT_SECRET  = "<64 hex chars: generate a different one>"
 .\tests\run_tests.ps1
 ```
 
@@ -81,17 +83,17 @@ source .env.test
 
 ### Run with coverage report
 ```powershell
-$env:FLOWFORGE_DB_URL = "postgresql://flowforge:harpal123@localhost:5434/flowforge_test"
-$env:FLOWFORGE_SECRET_KEY = "4d688ef00edded2d39f4109d9e6497d54fff5165555a8a41e8aaedb9c7f62fd0"
-$env:FLOWFORGE_JWT_SECRET  = "4d688ef00edded2d39f4109d9e6497d54fff5165555a8a41e8aaedb9c7f62fd0"
+$env:FLOWFORGE_DB_URL = "postgresql://flowforge:<test-db-password>@localhost:5434/flowforge_test"
+$env:FLOWFORGE_SECRET_KEY = "<64 hex chars: generate a different one>"
+$env:FLOWFORGE_JWT_SECRET  = "<64 hex chars: generate a different one>"
 .venv\Scripts\python.exe -m pytest tests\ -v --tb=short --ignore=tests\manual --cov=flowforge --cov-report=term-missing
 ```
 
 ### Run a single test file
 ```powershell
-$env:FLOWFORGE_DB_URL = "postgresql://flowforge:harpal123@localhost:5434/flowforge_test"
-$env:FLOWFORGE_SECRET_KEY = "4d688ef00edded2d39f4109d9e6497d54fff5165555a8a41e8aaedb9c7f62fd0"
-$env:FLOWFORGE_JWT_SECRET  = "4d688ef00edded2d39f4109d9e6497d54fff5165555a8a41e8aaedb9c7f62fd0"
+$env:FLOWFORGE_DB_URL = "postgresql://flowforge:<test-db-password>@localhost:5434/flowforge_test"
+$env:FLOWFORGE_SECRET_KEY = "<64 hex chars: generate a different one>"
+$env:FLOWFORGE_JWT_SECRET  = "<64 hex chars: generate a different one>"
 .venv\Scripts\python.exe -m pytest tests\test_pipelines.py -v
 ```
 
@@ -175,7 +177,10 @@ cd D:\Project\flowforge\frontend
 npm run test:e2e
 ```
 
-Playwright reads `../.env.test` automatically for `E2E_USERNAME` and `E2E_PASSWORD`.
+No E2E password is stored anywhere. Before the run, `frontend/e2e/global.user.ts` creates a throwaway admin
+with a random password (`flowforge user create --generate-password`) in the database named by `../.env`,
+shares it with the tests in memory, and deletes the account afterwards. Start the backend from that same
+`.env`. To test a specific account instead, set both `E2E_USERNAME` and `E2E_PASSWORD` in your shell.
 
 ### Open the Playwright UI (interactive mode)
 ```powershell
@@ -209,12 +214,12 @@ Runs a quick sanity check against a live server (GET pipelines, auth, etc.).
 
 ```powershell
 cd D:\Project\flowforge
-.\tests\run_tests.ps1 -Manual -ApiUrl http://localhost:5000 -ApiUser admin -ApiPass "H@rpal123"
+.\tests\run_tests.ps1 -Manual -ApiUrl http://localhost:5000 -ApiUser admin -ApiPass "<your-admin-password>"
 ```
 
 Or directly:
 ```powershell
-.venv\Scripts\python.exe tests\manual\check_api.py --url http://localhost:5000 --user admin --pass "H@rpal123"
+.venv\Scripts\python.exe tests\manual\check_api.py --url http://localhost:5000 --user admin --pass "<your-admin-password>"
 ```
 
 ---
@@ -227,9 +232,9 @@ Run Layers 1–3 in one go (no server required):
 cd D:\Project\flowforge
 
 # Set test env vars
-$env:FLOWFORGE_DB_URL  = "postgresql://flowforge:harpal123@localhost:5434/flowforge_test"
-$env:FLOWFORGE_SECRET_KEY = "4d688ef00edded2d39f4109d9e6497d54fff5165555a8a41e8aaedb9c7f62fd0"
-$env:FLOWFORGE_JWT_SECRET  = "4d688ef00edded2d39f4109d9e6497d54fff5165555a8a41e8aaedb9c7f62fd0"
+$env:FLOWFORGE_DB_URL  = "postgresql://flowforge:<test-db-password>@localhost:5434/flowforge_test"
+$env:FLOWFORGE_SECRET_KEY = "<64 hex chars: generate a different one>"
+$env:FLOWFORGE_JWT_SECRET  = "<64 hex chars: generate a different one>"
 
 # Backend tests
 .venv\Scripts\python.exe -m pytest tests\ -v --tb=short --ignore=tests\manual
@@ -252,7 +257,7 @@ cd ..
 | `ModuleNotFoundError: flowforge` | Run `pip install -e .` inside the venv |
 | `Address already in use :5000` | Another Flask instance is running — kill it |
 | `Address already in use :5173` | Another Vite instance is running — kill it or change port |
-| Playwright can't log in | Confirm backend is running and `.env.test` has correct `E2E_PASSWORD=H@rpal123` |
+| Playwright can't log in | The backend must use the same database as `../.env` (the throwaway user is created there); see `frontend/e2e/global.user.ts` |
 | `npm: command not found` | Node.js not installed or not on PATH |
 
 ---
@@ -265,5 +270,5 @@ cd ..
 | Port     | 5434                                                |
 | Database | `flowforge_test`                                    |
 | User     | `flowforge`                                         |
-| Password | `harpal123`                                         |
+| Password | `<test-db-password>`                                         |
 | Note     | Wiped and remigrated on every `pytest` run          |

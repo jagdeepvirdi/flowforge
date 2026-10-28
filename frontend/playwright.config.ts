@@ -24,11 +24,14 @@ loadEnv({ path: path.resolve(__dirname, '../.env.test') })
  *
  * Environment variables (all optional, shown with defaults):
  *   E2E_BASE_URL   http://localhost:5173
- *   E2E_USERNAME   admin        (set in .env.test)
- *   E2E_PASSWORD   (set in .env.test — never hardcode here)
+ *   E2E_USERNAME / E2E_PASSWORD   normally unset: a throwaway admin with a random password
+ *                  is created and deleted for each run (e2e/global.user.ts). Set both only to
+ *                  test a specific existing account. Never hardcode a password here.
  */
 export default defineConfig({
   testDir: './e2e',
+  // Creates a throwaway admin with a random password for this run (see e2e/global.user.ts)
+  globalSetup: './e2e/global.user.ts',
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

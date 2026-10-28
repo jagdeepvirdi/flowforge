@@ -3,16 +3,14 @@
 Covers: encrypt_file, decrypt_file_to_bytes, decrypt_file_to_stream.
 """
 import io
+import secrets
 
 import pytest
 
 
 @pytest.fixture(autouse=True)
 def _set_secret_key(monkeypatch):
-    monkeypatch.setenv(
-        'FLOWFORGE_SECRET_KEY',
-        '4d688ef00edded2d39f4109d9e6497d54fff5165555a8a41e8aaedb9c7f62fd0',
-    )
+    monkeypatch.setenv('FLOWFORGE_SECRET_KEY', secrets.token_hex(32))
 
 
 def test_encrypt_file_creates_enc_file(tmp_path):

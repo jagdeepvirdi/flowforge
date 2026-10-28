@@ -57,7 +57,7 @@ flowforge db upgrade
 flowforge db seed
 ```
 
-`flowforge db seed` reads `FLOWFORGE_USERNAME` and `FLOWFORGE_PASSWORD` from your `.env` and creates the admin account. It is safe to run more than once — it skips if a user already exists.
+`flowforge db seed` creates the first admin account (username from `FLOWFORGE_USERNAME`, default `admin`). With no `FLOWFORGE_PASSWORD` set it generates a random password, prints it once, and asks you to change it at first login; if you set `FLOWFORGE_PASSWORD` it must be a bcrypt hash, never plaintext. It is safe to run more than once: it skips if a user already exists. Add more accounts with `flowforge user create NAME --role editor --generate-password`.
 
 > **Upgrading from an older version?** If your database was created before Alembic was introduced, run `flowforge db stamp head` once instead of `flowforge db upgrade`. See [RUNBOOK.md](RUNBOOK.md#32-existing-database-tables-already-created-by-an-older-version) for details.
 
