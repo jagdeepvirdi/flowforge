@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] — 2026-10-28
+
 ### Fixed
 
 - **Account-security events are audited under their own names.** MFA enrol/disable/backup-code, password-reset request/completion and first-time SSO user creation were recorded as `PIPELINE_CFG_MFA_ENABLED`, `PIPELINE_CFG_PASSWORD_RESET_REQUESTED`, etc. They are now `MFA_ENABLED`, `MFA_DISABLED`, `MFA_BACKUP_CODE_USED`, `PASSWORD_RESET_REQUESTED`, `PASSWORD_RESET_COMPLETED` and `SSO_USER_CREATED`, matching `docs/security.md`. Events written before this change keep their old `PIPELINE_CFG_*` action names (the audit log is append-only), so filter on both when reviewing history. When nobody is signed in (a reset request, a backup-code login, a first SSO login) the affected account is recorded as the actor, as with `LOGIN_*` events.
@@ -20,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Removed hard-coded development credentials from documentation and helper scripts, and added `tests/test_no_plaintext_credentials.py`, which fails the build on credentials and 64-hex keys in tracked files. Treat any credential that was ever committed as exposed and rotate it.
 - `tests/run_tests.*` and `verify_celery.py` generate throwaway keys instead of using a built-in one.
+
+### Changed
+
+- `docs/manual-testing-guide.md` refreshed: the AI sections are removed, claims that no longer matched the code are corrected (audit action names, trigger response, Flower credentials, YAML import location), and sections for `run_if` and the user CLI are added.
 
 ## [2.1.0] — 2026-10-28
 
@@ -628,7 +634,8 @@ below — see those entries for the full feature breakdown.
 - `flowforge-io[pdf]` — `weasyprint`
 - `flowforge-io[dev]` — `pytest`, `pytest-mock`, `responses`, `pytest-cov`
 
-[Unreleased]: https://github.com/jagdeepvirdi/flowforge/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/jagdeepvirdi/flowforge/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/jagdeepvirdi/flowforge/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/jagdeepvirdi/flowforge/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/jagdeepvirdi/flowforge/compare/v1.3.0...v2.0.0
 [1.3.0]: https://github.com/jagdeepvirdi/flowforge/compare/v1.1.0...v1.3.0
