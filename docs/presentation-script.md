@@ -14,7 +14,7 @@ demos, and ProductHunt launch day.
 
 > "Teams automate reporting with 50 brittle cron scripts nobody wants to touch. FlowForge
 > replaces that with a web UI: point-and-click pipelines that pull from your database, build a
-> report, and email or Slack it out — with local AI for summaries, at zero marginal cost, and no
+> report, and email or Slack it out — self-hosted, at zero marginal cost, and no
 > YAML or Airflow complexity."
 
 Memorize the shape of this, not the exact words: **pain (cron scripts) → solution (UI-driven
@@ -79,9 +79,7 @@ Don't do all of these — read the room and pick what lands:
 - **Multi-database, one interface**: open **Connections** — show PostgreSQL, Oracle, Snowflake,
   BigQuery side by side. *"Same pipeline engine, any data source — including warehouses, not
   just OLTP databases."*
-- **Local AI, zero marginal cost**: in Report Designer, click **Visualize** or **Explain** on a
-  query — *"this calls a local Ollama model, not an API — so AI features don't show up on
-  anyone's cloud bill."*
+- **Run History anomaly alerts**: open a Run Detail with a flagged step — *"statistical outlier detection on row counts and durations, no AI service involved."*
 - **Smart attachments**: in an Email config, point out the attachment-size threshold — *"large
   reports auto-upload to Drive/OneDrive and the email gets a link instead — nobody's inbox chokes
   on a 40MB spreadsheet."*
@@ -97,9 +95,8 @@ update live, then open Run Detail — step timeline, durations, row counts, and 
 Audit Log entry for the run.
 
 ### 5. Close (30s)
-Talking point: *"Free to run — Postgres, Redis, the app container. AI is local by default. Pay
-only if you opt into Claude (or use Gemini's free tier) for analysis, or if you're pushing files
-to S3/Drive at scale."*
+Talking point: *"Free to run — Postgres, Redis, the app container. No AI service is required. Pay
+only if you're pushing files to S3/Drive at scale."*
 Land on the GitHub URL / call to action.
 
 ---
@@ -111,7 +108,7 @@ Talking points only, no live app required — use this if the demo environment b
 1. The problem: teams run reporting automation as brittle, undocumented cron scripts.
 2. The fix: a web UI over a pipeline engine — DB call → report → email/Slack, configured, not coded.
 3. Three proof points: (a) database-agnostic (Postgres/Oracle/MySQL/Snowflake/BigQuery/Redshift),
-   (b) local AI for summaries and chart suggestions — no per-seat AI cost, (c) enterprise auth
+   (b) deterministic, no LLM dependency in the product, (c) enterprise auth
    (MFA/SSO/SAML) and full audit logging, but still self-hosted and free.
 4. Point to the README demo GIF or screenshots as the visual proof, and offer a follow-up live demo.
 
@@ -122,7 +119,6 @@ Talking points only, no live app required — use this if the demo environment b
 - [ ] `docker compose up` from a clean pull — confirm nothing broke since the last demo
 - [ ] At least one pipeline has 3+ successful runs in history (empty Run History looks unfinished)
 - [ ] At least one connection per major DB type you plan to show is pre-configured and passes **Test**
-- [ ] Ollama is running locally if showing AI features (`ollama serve`) — test the button once beforehand
 - [ ] Log in as a non-admin test user once if you plan to show role-based restrictions, so you're not fumbling credentials live
 - [ ] Close any browser tabs with unrelated errors, other client work, or sensitive data
 - [ ] Mute Slack/Teams/Telegram notification volume if you're about to trigger a real webhook send live — a notification popping up mid-sentence is a distraction, not a feature demo
@@ -132,6 +128,5 @@ Talking points only, no live app required — use this if the demo environment b
 | If this happens | Do this |
 |---|---|
 | A live query is slow / times out | Have a pre-run pipeline's Run History ready as a fallback — narrate over it instead of waiting |
-| Ollama isn't responding | If Claude/Gemini is configured it silently falls back; otherwise the AI buttons degrade gracefully ("AI unavailable") — acknowledge it in one sentence and move on, don't debug live |
 | An email doesn't arrive in time | Show the step log's "sent" confirmation instead of waiting for the inbox — narrate that delivery is provider-side |
 | Someone asks a QA-level "what happens if X fails" question | Answer at a high level, then say "happy to show that in detail after" rather than derailing into an error-handling deep dive |

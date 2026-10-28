@@ -20,7 +20,7 @@ Full detail in [`ARCHITECTURE.md`](ARCHITECTURE.md). In short:
 2. Never make long-running/long-polling AI calls or block API workers, the scheduler, pipeline threads or Celery workers on the Brain. Core→Brain traffic is async, off the critical path, short timeouts, bounded retries, circuit breaker.
 3. Core must be fully functional with the Brain absent. Brain output is advisory and never auto-triggers changes.
 4. Anonymize and minimize evidence in Core before it leaves; send grouped signatures + counts + a capped sample, not raw row dumps.
-5. Do **not** add new AI features here. **Transition state:** the legacy in-repo AI code (`flowforge/api/routes/ai.py`, `flowforge/steps/ai_analyze.py`, the frontend AI UI, the `claude` extra) still exists until the scrub in [`docs/BRAIN_DECOUPLING_PLAN.md`](docs/BRAIN_DECOUPLING_PLAN.md) runs (read its 2026-10-27 (b) amendment). Do not extend it; do not "fix" it by moving it elsewhere in Core.
+5. Do **not** add new AI features here. The legacy in-repo AI code was removed in v2.0.0 (PR #130): `flowforge/api/routes/ai.py` returns `503 brain_not_attached`, `ai_analyze` remains only as a failing shell so saved pipelines still load, and the frontend AI UI is gone. `tests/test_no_llm_in_core.py` fails on any LLM SDK import or dependency. Do not re-add AI logic to Core; it belongs in the Brain (see [`docs/brain.md`](docs/brain.md)).
 6. "DevBrain" (`FLOWFORGE_DEVBRAIN_NOTIFY_URL`, `_notify_devbrain`) is an unrelated notification tool — not the Brain; leave it alone.
 
 ---
@@ -318,8 +318,8 @@ Upload a file to Google Drive.
 }
 ```
 
-### ai_analyze *(legacy — being removed)*
-Pending removal per `docs/BRAIN_DECOUPLING_PLAN.md`; do not build on it. After the scrub the type remains only as a failing shell so saved pipelines still load. AI analysis belongs to the Brain service.
+### ai_analyze *(removed — failing shell)*
+Removed in v2.0.0; do not build on it. The type stays registered only so saved pipelines still load, and running it fails with a "Brain not attached" message. AI analysis belongs to the Brain service.
 
 ---
 
@@ -597,8 +597,9 @@ GOOGLE_DRIVE_FOLDER_ID=
 
 # Brain (optional) — attaches the external flowforge-brain AI diagnostic service.
 # Unset = no AI anywhere in the UI. Core holds NO AI-provider keys (those live in the Brain).
-# (Legacy OLLAMA_*/ANTHROPIC_API_KEY/GEMINI_* vars still exist in the old in-repo AI code until it is removed.)
+# FLOWFORGE_BRAIN_API_KEY is the service credential Core presents to the Brain (not a model-provider key).
 FLOWFORGE_BRAIN_URL=
+FLOWFORGE_BRAIN_API_KEY=
 
 # Data retention (scheduler prunes daily) — all three below can also be overridden at runtime
 # via Settings → System (admin-only), which takes priority over these env vars when set
@@ -631,7 +632,7 @@ flowforge/
 │   │   ├── db_query.py
 │   │   ├── report.py
 │   │   ├── email_step.py           # Smart attachment logic here
-│   │   └── drive_upload.py         # (legacy ai_analyze.py pending removal)
+│   │   └── drive_upload.py         # (ai_analyze.py: failing shell only)
 │   ├── connections/
 │   │   ├── base.py
 │   │   ├── postgres.py

@@ -16,14 +16,14 @@
 | **v2.0** | Production-hardening — scaling docs, metrics, audit UI, retention, dependency audit in CI | Code complete; V2.0 audit items all closed |
 | **v2.x Compliance** | MFA, SSO, GDPR, encryption at rest | Shipped |
 | **v3.0** | New connectors/providers, pipeline DAGs, plugin system, visual canvas | Shipped |
-| **Telecom RA MVP** | Orphaned-subscription audit on a design partner's data; Muscle/Brain split | **Direction adopted 2026-10-27; nothing telecom-specific shipped** — see §A–§C |
+| **Telecom RA MVP** | Orphaned-subscription audit on a design partner's data; Muscle/Brain split | **Muscle side of the split done (v2.0.0, AI removed from Core); Brain not built; nothing telecom-specific shipped** — see §B–§C |
 
-CI is green on `master` (backend, frontend, bandit, CodeQL, TruffleHog) after the 2026-10-27 security and dependency pass.
+CI is green on `master` (backend, frontend, bandit, CodeQL, TruffleHog) after #129 (msgpack CVE-2026-114613 had turned it red on 2026-10-27). Core is at **v2.0.0** (2026-10-28): all AI/LLM code removed from Core (#130); the Brain service itself is not built.
 Latest code-review score table: **7.8 / 10 (2026-05-25)** — stale; the 2026-07-24 architect/VC audit scored 6/10
 (Security 3/10 at the time; all its Critical items are fixed, and the 2026-10-27 re-audit closed the remaining SSRF
 and dependency gaps — Claude's estimate ≈ 6.5–7/10, a judgment, not a rubric). Re-score after §A and §B land.
 
-**Open items: 66** — §A Now (17) · §B Telecom MVP track (12) · §C Gating decisions (5) · §D Go-to-market (8) · §E Product polish (5) · §F Engineering quality (7) · §G Dev environment (4) · §H Parked (8)
+**Open items: 59** — §A Now (10) · §B Telecom MVP track (12) · §C Gating decisions (5) · §D Go-to-market (8) · §E Product polish (5) · §F Engineering quality (7) · §G Dev environment (4) · §H Parked (8)
 
 **Priority rule:** §A and §B come first; §C runs in parallel (the design partner is the longest lead time, so start it now);
 §D keeps moving but is ordered behind the Brain scrub so nothing is published that the scrub makes untrue; §E–§G are
@@ -49,11 +49,12 @@ launch assets are recorded or published** (published posts advertise "local AI")
 - [x] **A1 Extract** — write `extracted_ai_logic.md` (prompts, provider code, endpoint contracts, step spec, UX contract, test behavior) **before deleting anything**; decide commit vs gitignore (public repo). *Keep it as a record only: the legacy prompts are generic and will not drive the telecom RCA design.*
 - [x] **A2 Gate module** — `flowforge/brain.py`: `brain_enabled()` (Phase A: always False, TODO comment) + `brain_unavailable_response()`.
 - [x] **A3 Backend** — gut `routes/ai.py` to 503 shells, `ai_analyze` to a failing step, `setup.py` ai block → `{enabled, brain_url_configured}`; keep secret blocklist + historic migrations.
-- [ ] **A4 Backend tests** — replace `test_ai.py`/`test_ai_analyze.py` with `test_brain_gate.py`; fix 4 other test files; check coverage gate.
-- [ ] **A5 Frontend** — default-off gating (`?? false`), BrainCard replaces AiOllamaCard, remove AI calls/strings, hide `ai_analyze` from picker (keep badge), keep `ChartPreview` + anomaly detection; manual Playwright pass.
+- [x] **A4 Backend tests** — replace `test_ai.py`/`test_ai_analyze.py` with `test_brain_gate.py`; fix 4 other test files; check coverage gate.
+- [ ] **A5 Frontend** *(code shipped in #130; only the manual Playwright pass remains — Settings → Brain card, no AI buttons, `ai_analyze` hidden from the picker; checklist in `docs/manual-testing-guide.md` §14–15)* — default-off gating (`?? false`), BrainCard replaces AiOllamaCard, remove AI calls/strings, hide `ai_analyze` from picker (keep badge), keep `ChartPreview` + anomaly detection; manual Playwright pass.
 - [x] **A6 Dependencies & config** — add a CI deny-list test (no LLM SDK imports/deps in `flowforge/`); remove `claude` extra (`anthropic`) from `pyproject.toml`; replace `.env.example` AI block with `FLOWFORGE_BRAIN_URL`/`_API_KEY`.
-- [ ] **A7 Docs & positioning** — CLAUDE.md, README, ROADMAP, ~14 docs, new `docs/brain.md`, CHANGELOG breaking entry; rewrite GTM copy; check published Reddit/LinkedIn posts (see §D).
-- [ ] **A8 Ship** — version decision (v2.0.0 vs 1.4.0 + BREAKING), PR with CI green.
+- [x] **A7 Docs & positioning** *(done; historical review/briefing docs such as `CODEBASE_REVIEW.md`, `GEMINI_*.md` and `TELECOM_PIVOT_ROADMAP.md` intentionally left as records)* — CLAUDE.md, README, ARCHITECTURE, getting-started, step-types, data-flow, USE_CASE, manual-testing-guide, health-monitoring scenario, presentation-script, LAUNCH_STRATEGY, new `docs/brain.md`, CHANGELOG breaking entry. The published Reddit/LinkedIn posts are tracked in §D.
+- [x] **A8 Ship** — v2.0.0 chosen; merged as #130 (CI green) and #129 (msgpack CVE bump) on 2026-10-28, both with admin override.
+- [ ] **Tag `v2.0.0` and cut the GitHub release** *(≈ 0.5 h)* — version is bumped and the changelog section exists, but no tag/release has been created.
 - [ ] **Decide before A3:** check your DB for saved `ai_analyze` steps (they will fail after the scrub) — query in the plan §7.3.
 
 ### A2. Conditional / branching step execution *(≈ 1 week; moved up from product polish — needed for threshold alerting)*
