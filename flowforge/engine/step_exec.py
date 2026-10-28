@@ -46,6 +46,30 @@ def _get_retry_config(step: BaseStep) -> tuple[int, int]:
     return count, delay
 
 
+def _evaluate_gate(pipeline_name: str, step: BaseStep, context: dict) -> StepResult | None:
+    """Evaluate a step's optional `run_if` condition, shared by both engines.
+
+    Returns None when the step should run (no condition, or the condition is true). Returns a
+    successful, ``skipped`` StepResult when the condition is false. A condition that cannot be
+    evaluated (typo'd step name, bad comparison, secret reference) returns a failed StepResult,
+    so a broken alert gate surfaces as a normal step failure (honouring on_error) instead of
+    silently never firing.
+    """
+    expr = (step.config.get('run_if') if hasattr(step, 'config') else None)
+    if not isinstance(expr, str) or not expr.strip():
+        return None
+    from flowforge.engine.context import evaluate_condition
+    try:
+        should_run = evaluate_condition(expr, context)
+    except Exception as e:
+        logger.warning("[%s] Step '%s' run_if %r could not be evaluated: %s", pipeline_name, step.name, expr, e)
+        return StepResult(success=False, error=f"run_if could not be evaluated ({expr!r}): {e}")
+    if should_run:
+        return None
+    logger.info("[%s] Step '%s' skipped: run_if %r is false", pipeline_name, step.name, expr)
+    return StepResult(success=True, skipped=True, logs=f"Skipped: run_if {expr!r} evaluated to false")
+
+
 def _run_step_with_retry(
     pipeline_name: str,
     step: BaseStep,
@@ -82,7 +106,7 @@ def _write_step_run(run_record, step, step_order, step_result, started_at, finis
             step_name=step.name,
             step_type=step.step_type or step.__class__.__name__.replace('Step', '').lower(),
             step_order=step_order,
-            status='skipped' if skipped else ('success' if step_result.success else 'failed'),
+            status='skipped' if (skipped or step_result.skipped) else ('success' if step_result.success else 'failed'),
             started_at=started_at,
             finished_at=finished_at,
             duration_ms=duration_ms,

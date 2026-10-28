@@ -23,7 +23,7 @@ Latest code-review score table: **7.8 / 10 (2026-05-25)** — stale; the 2026-07
 (Security 3/10 at the time; all its Critical items are fixed, and the 2026-10-27 re-audit closed the remaining SSRF
 and dependency gaps — Claude's estimate ≈ 6.5–7/10, a judgment, not a rubric). Re-score after §A and §B land.
 
-**Open items: 57** — §A Now (8) · §B Telecom MVP track (12) · §C Gating decisions (5) · §D Go-to-market (8) · §E Product polish (5) · §F Engineering quality (7) · §G Dev environment (4) · §H Parked (8)
+**Open items: 56** — §A Now (7) · §B Telecom MVP track (12) · §C Gating decisions (5) · §D Go-to-market (8) · §E Product polish (5) · §F Engineering quality (7) · §G Dev environment (4) · §H Parked (8)
 
 **Priority rule:** §A and §B come first; §C runs in parallel (the design partner is the longest lead time, so start it now);
 §D keeps moving but is ordered behind the Brain scrub so nothing is published that the scrub makes untrue; §E–§G are
@@ -59,7 +59,7 @@ launch assets are recorded or published** (published posts advertise "local AI")
 
 ### A2. Conditional / branching step execution *(≈ 1 week; moved up from product polish — needed for threshold alerting)*
 
-- [ ] **Conditional execution** — gate a step on a prior step's result (e.g. "alert only if `mismatch_count > threshold`", "only send email if row count > 0"). Today only DAG failure propagation (`on_error: stop`/`continue`) exists. Touches the runner and the DAG engine, so it has the highest blast radius of anything on this list: add it to both the sequential/parallel-wave engine and the DAG engine, with tests in both. Basic threshold gating belongs in the MIT core (general-purpose); do not make it a proprietary feature. *(Phase 12)*
+- [x] **Conditional execution** *(done 2026-10-28: `run_if` on any step, both engines, UI + save-time validation, docs in step-types.md)* — gate a step on a prior step's result (e.g. "alert only if `mismatch_count > threshold`", "only send email if row count > 0"). Today only DAG failure propagation (`on_error: stop`/`continue`) exists. Touches the runner and the DAG engine, so it has the highest blast radius of anything on this list: add it to both the sequential/parallel-wave engine and the DAG engine, with tests in both. Basic threshold gating belongs in the MIT core (general-purpose); do not make it a proprietary feature. *(Phase 12)*
 
 ### A3. Security leftovers *(from the 2026-10-27 re-audit; the July Critical items and the SSRF/dependency gaps are fixed — see archive)*
 

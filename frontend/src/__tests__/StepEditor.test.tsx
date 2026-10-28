@@ -82,4 +82,14 @@ describe('StepEditor', () => {
     expect(screen.getByText(/Config \(JSON\)/)).toBeInTheDocument()
     expect(screen.getByDisplayValue(/"foo":\s*"bar"/)).toBeInTheDocument()
   })
+
+  it('shows the existing run_if condition and saves edits into config', () => {
+    const { onChange } = renderStepEditor(makeStep({ config: { run_if: 'steps.check.rows_affected > 0', retry_count: 2 } }))
+    const input = screen.getByTestId('run-if')
+    expect(input).toHaveValue('steps.check.rows_affected > 0')
+    fireEvent.change(input, { target: { value: 'steps.check.rows_affected > 5' } })
+    expect(onChange).toHaveBeenCalledWith('s1', {
+      config: { run_if: 'steps.check.rows_affected > 5', retry_count: 2 },
+    })
+  })
 })

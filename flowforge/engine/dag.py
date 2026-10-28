@@ -24,6 +24,7 @@ from typing import Any
 from flowforge.engine.step_exec import (
     _CONTEXT_META_KEYS,
     PipelineResult,
+    _evaluate_gate,
     _get_retry_config,
     _run_step_with_retry,
     _write_step_run,
@@ -54,7 +55,7 @@ def _step_output_entry(step_result: StepResult) -> dict:
     than refactored to share code, so the wave engine's behavior/signature stays byte-for-byte
     unchanged per the Milestone 1 backward-compatibility decision.
     """
-    return {
+    entry = {
         'output_path':    step_result.output_path,
         'drive_url':      step_result.drive_url,
         'rows_affected':  step_result.rows_affected,
@@ -69,6 +70,9 @@ def _step_output_entry(step_result: StepResult) -> dict:
         'kv_html':        step_result.kv_html,
         'ai_summary':     step_result.ai_summary,
     }
+    if step_result.skipped:
+        entry['skipped'] = True
+    return entry
 
 
 def _step_output_vars(pipeline_name: str, step_name: str, step_result: StepResult) -> dict:
@@ -151,7 +155,10 @@ def run_dag(
         retry_count, retry_delay = _get_retry_config(step)
         node_ctx = _build_node_context(sid)
         t0 = datetime.now(UTC)
-        step_result = _run_step_with_retry(pipeline_name, step, node_ctx, retry_count, retry_delay)
+        step_result = (
+            _evaluate_gate(pipeline_name, step, node_ctx)
+            or _run_step_with_retry(pipeline_name, step, node_ctx, retry_count, retry_delay)
+        )
         t1 = datetime.now(UTC)
         return sid, step_result, t0, t1, node_vars_log
 
@@ -201,7 +208,8 @@ def run_dag(
                 step = id_to_step[sid]
                 duration_ms = int((t1 - t0).total_seconds() * 1000)
                 result.step_results[step.name] = step_result
-                result.steps_run += 1
+                if not step_result.skipped:
+                    result.steps_run += 1
                 completed_step_entry[sid] = _step_output_entry(step_result)
                 completed_vars[sid] = _step_output_vars(pipeline_name, step.name, step_result)
                 _write_step_run(run_record, step, step.db_step_order, step_result, t0, t1, duration_ms, node_vars_log)

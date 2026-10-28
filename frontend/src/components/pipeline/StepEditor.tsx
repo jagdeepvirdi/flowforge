@@ -5,6 +5,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import FieldTooltip from '../shared/FieldTooltip'
 import { stepMeta } from './stepMeta'
+import RunIfField from './RunIfField'
 import StepConfigForm from './StepConfigForm'
 
 type Props = Readonly<{
@@ -110,6 +111,10 @@ export default function StepEditor({ step, onChange, onDelete, onDuplicate, allS
 
         {expanded && (
           <div className="pt-3 pr-3.5 pb-3.5 pl-3.5 border-t border-border">
+            <RunIfField
+              value={typeof cfg.run_if === 'string' ? cfg.run_if : ''}
+              onChange={v => setConfig('run_if', v)}
+            />
             <StepConfigForm
               step={step}
               onChange={onChange}
