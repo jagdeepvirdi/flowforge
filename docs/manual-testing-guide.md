@@ -793,7 +793,7 @@ Same credentials as M365 email — set `MICROSOFT_TENANT_ID`, `MICROSOFT_CLIENT_
 ### 14b. Settings → Brain card
 
 - [ ] Shows "not attached"; no Ollama / Claude / Gemini fields anywhere in Settings
-- [ ] With `FLOWFORGE_BRAIN_URL` set, the card shows the URL as configured but the Brain is still reported not attached (the Core→Brain contract is not built yet)
+- [ ] With `FLOWFORGE_BRAIN_URL` set, the card still reports "Not attached" (the Core→Brain contract is not built yet; the card only shows the env-var hint)
 
 ### 14c. API gate
 
