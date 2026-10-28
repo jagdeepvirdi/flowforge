@@ -212,7 +212,7 @@ Custom step types, database connections, and email providers can also be added v
 git clone https://github.com/jagdeepvirdi/flowforge.git
 cd flowforge
 cp .env.example .env
-# Edit .env — set FLOWFORGE_SECRET_KEY, FLOWFORGE_JWT_SECRET, and FLOWFORGE_PASSWORD at minimum
+# Edit .env — set FLOWFORGE_SECRET_KEY and FLOWFORGE_JWT_SECRET at minimum
 docker compose up
 ```
 
@@ -258,7 +258,7 @@ pip install -e ".[all]"           # Everything above
 
 ```bash
 cp .env.example .env
-# Set FLOWFORGE_DB_URL, FLOWFORGE_SECRET_KEY, FLOWFORGE_JWT_SECRET, and FLOWFORGE_PASSWORD at minimum
+# Set FLOWFORGE_DB_URL, FLOWFORGE_SECRET_KEY and FLOWFORGE_JWT_SECRET at minimum
 ```
 
 #### 4. Initialize the database and create the admin user
@@ -323,7 +323,9 @@ flowforge db upgrade [revision]         # apply Alembic migrations (default: hea
 flowforge db downgrade <revision>       # revert migrations
 flowforge db current                    # show current migration revision
 flowforge db stamp <revision>           # mark DB at revision without running migrations
-flowforge db seed                       # create admin user from env vars (run once after upgrade)
+flowforge db seed                       # create the first admin (random one-time password unless FLOWFORGE_PASSWORD holds a hash)
+flowforge user create NAME --role editor --generate-password   # add a user; the password is printed once, never taken from argv
+flowforge user delete NAME --yes        # remove a user (--purge also anonymizes their audit entries)
 
 # Maintenance
 flowforge cleanup [--days N] [--dry-run]  # remove output files older than N days

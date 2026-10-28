@@ -57,10 +57,14 @@ if [[ -f "$ENV_FILE" ]]; then
     done < "$ENV_FILE"
 fi
 
-# Dev defaults — only applied when not already set.
-export FLOWFORGE_DB_URL="${FLOWFORGE_DB_URL:-postgresql://flowforge:harpal123@localhost:5434/flowforge_test}"
-export FLOWFORGE_SECRET_KEY="${FLOWFORGE_SECRET_KEY:-4d688ef00edded2d39f4109d9e6497d54fff5165555a8a41e8aaedb9c7f62fd0}"
-export FLOWFORGE_JWT_SECRET="${FLOWFORGE_JWT_SECRET:-4d688ef00edded2d39f4109d9e6497d54fff5165555a8a41e8aaedb9c7f62fd0}"
+# Test-run secrets. Nothing is baked into this script: the DB URL must come from .env.test
+# (see .env.test.example) or the environment, and the encryption/JWT keys are random per run
+# unless you set them. The test database is recreated on every run, so a fresh key is fine.
+: "${FLOWFORGE_DB_URL:?FLOWFORGE_DB_URL is not set - copy .env.test.example to .env.test and fill it in}"
+new_hex_key() { python3 -c 'import secrets; print(secrets.token_hex(32))' 2>/dev/null || openssl rand -hex 32; }
+export FLOWFORGE_SECRET_KEY="${FLOWFORGE_SECRET_KEY:-$(new_hex_key)}"
+export FLOWFORGE_JWT_SECRET="${FLOWFORGE_JWT_SECRET:-$(new_hex_key)}"
+export FLOWFORGE_DB_URL
 
 # ── Manual smoke test ────────────────────────────────────────────────────────
 if [[ "$MODE" == "manual" ]]; then

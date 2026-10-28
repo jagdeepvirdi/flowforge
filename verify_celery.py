@@ -11,16 +11,18 @@ Usage:
     .venv\Scripts\python.exe verify_celery.py
 """
 import os
+import secrets
 import subprocess
 import sys
 import time
 import uuid
 from pathlib import Path
+from urllib.parse import urlparse
 
 # ── env vars must be set BEFORE any flowforge import ──────────────────────────
 # Override defaults by setting these env vars before running the script.
 _DB_URL = os.environ.get('FLOWFORGE_DB_URL', 'postgresql://flowforge:flowforge@localhost:5434/flowforge_test')
-_SK     = os.environ.get('FLOWFORGE_SECRET_KEY', '4d688ef00edded2d39f4109d9e6497d54fff5165555a8a41e8aaedb9c7f62fd0')  # NOSONAR: local dev verification only
+_SK     = os.environ.get('FLOWFORGE_SECRET_KEY') or secrets.token_hex(32)
 _REDIS  = os.environ.get('FLOWFORGE_REDIS_URL', 'redis://localhost:6379/0')
 
 os.environ['FLOWFORGE_DB_URL']     = _DB_URL
@@ -69,7 +71,7 @@ def _create_test_connection(app) -> str:
             'port': 5434,
             'database': 'flowforge_test',
             'user': 'flowforge',
-            'password': 'harpal123',
+            'password': urlparse(_DB_URL).password or '',
         })
         conn = DbConnection(
             id=str(uuid.uuid4()),

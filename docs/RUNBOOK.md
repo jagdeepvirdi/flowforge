@@ -36,7 +36,7 @@ Minimum required variables:
 FLOWFORGE_DB_URL=postgresql://flowforge:yourpassword@localhost:5432/flowforge
 FLOWFORGE_SECRET_KEY=<generate: python -c "import secrets; print(secrets.token_hex(32))">
 FLOWFORGE_USERNAME=admin
-FLOWFORGE_PASSWORD=<bcrypt hash: python -c "import bcrypt; print(bcrypt.hashpw(b'yourpassword', bcrypt.gensalt()).decode())">
+# FLOWFORGE_PASSWORD is optional: leave it unset and `flowforge db seed` prints a generated one-time password.
 ```
 
 The `FLOWFORGE_DB_URL` controls which PostgreSQL instance stores all FlowForge config (pipelines, schedules, run history). This is **not** your data source database — those are configured in the UI.
@@ -56,7 +56,7 @@ createdb flowforge        # or use psql / pgAdmin
 flowforge db upgrade      # creates all 11 tables + alembic_version
 ```
 
-After `db upgrade`, start the server — the admin user is seeded automatically from `FLOWFORGE_USERNAME` / `FLOWFORGE_PASSWORD` in `.env`.
+After `db upgrade`, run `flowforge db seed` to create the first admin. It prints a one-time password (or uses the bcrypt hash in `FLOWFORGE_PASSWORD` if you set one), then start the server.
 
 ### 3.2 Existing database (tables already created by an older version)
 
@@ -387,7 +387,9 @@ Common causes of scheduler silence:
 | `flowforge db downgrade <rev>` | Revert to a previous revision (e.g. `-1`) |
 | `flowforge db stamp <rev>` | Mark DB as being at a revision without running DDL |
 | `flowforge db current` | Show the currently applied revision |
-| `flowforge db seed` | Create the admin user from `FLOWFORGE_USERNAME` / `FLOWFORGE_PASSWORD` |
+| `flowforge db seed` | Create the first admin; generates and prints a one-time password unless `FLOWFORGE_PASSWORD` holds a bcrypt hash |
+| `flowforge user create NAME --generate-password` | Create a user; password printed once (or prompted), never passed on argv |
+| `flowforge user delete NAME --yes [--purge]` | Delete a user; `--purge` anonymizes their audit-log entries |
 | `flowforge db revision -m "msg"` | Generate a new migration script |
 | `flowforge db revision -m "msg" --autogenerate` | Auto-detect model changes and generate migration |
 | `flowforge setup gmail` | Run interactive Gmail OAuth2 setup — writes tokens to `.env` |

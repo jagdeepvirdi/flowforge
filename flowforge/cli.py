@@ -345,18 +345,23 @@ def db_stamp(revision: str):
 
 @db_group.command('seed')
 def db_seed():
-    """Create the initial admin user from FLOWFORGE_USERNAME / FLOWFORGE_PASSWORD env vars.
+    """Create the initial admin user on a fresh installation.
 
-    Run once after applying migrations on a fresh installation:
+    Run once after applying migrations:
 
         flowforge db upgrade
         flowforge db seed
+
+    The username comes from FLOWFORGE_USERNAME (default: admin). If FLOWFORGE_PASSWORD holds a
+    bcrypt hash it is used as-is. Otherwise a random password is generated, printed once, and
+    the account must set its own password at first login - nothing is stored in plaintext.
     """
-    username = os.environ.get('FLOWFORGE_USERNAME', '').strip()
+    username = os.environ.get('FLOWFORGE_USERNAME', '').strip() or 'admin'
     password_hash = os.environ.get('FLOWFORGE_PASSWORD', '').strip()
-    if not username or not password_hash:
+    if password_hash and not password_hash.startswith('$2'):
         click.echo(
-            'ERROR: Set FLOWFORGE_USERNAME and FLOWFORGE_PASSWORD env vars before seeding.',
+            'ERROR: FLOWFORGE_PASSWORD must be a bcrypt hash (starts with "$2"), not a plaintext '
+            'password. Unset it to have a password generated for you.',
             err=True,
         )
         sys.exit(1)
@@ -368,12 +373,76 @@ def db_seed():
             if db.session.query(User).first():
                 click.echo('Admin user already exists — skipping.')
                 return
-            db.session.add(User(username=username, password_hash=password_hash, role='admin'))
-            db.session.commit()
-            click.echo(f'Admin user "{username}" created.')
+            if password_hash:
+                db.session.add(User(username=username, password_hash=password_hash, role='admin'))
+                db.session.commit()
+                click.echo(f'Admin user "{username}" created.')
+                return
+            from flowforge.user_admin import create_user
+            _, password = create_user(username, role='admin', must_change_password=True)
+            click.echo(f'Admin user "{username}" created.', err=True)
+            click.echo('A one-time password was generated. Save it now; it is not shown again '
+                       'and you must change it at first login:', err=True)
+            click.echo(password)
         except Exception as e:
             click.echo(f'ERROR: {e}', err=True)
             sys.exit(1)
+
+
+@cli.group('user')
+def user_group():
+    """Manage user accounts."""
+
+
+@user_group.command('create')
+@click.argument('username')
+@click.option('--role', type=click.Choice(['admin', 'editor', 'viewer']), default='editor',
+              show_default=True)
+@click.option('--email', default=None, help='Optional email (used for password reset).')
+@click.option('--generate-password', is_flag=True,
+              help='Generate a random password and print it once (otherwise you are prompted).')
+@click.option('--no-force-change', is_flag=True,
+              help='Do not require a password change at first login (for throwaway/test accounts).')
+@click.option('--json', 'as_json', is_flag=True, help='Print {"username", "password"} as JSON.')
+def user_create(username: str, role: str, email: str | None, generate_password: bool,
+                no_force_change: bool, as_json: bool):
+    """Create a user. The password is generated or prompted for, never taken from argv."""
+    import json as _json
+    password = None if generate_password else click.prompt(
+        'Password', hide_input=True, confirmation_prompt=True, err=True)
+    app = _create_app()
+    with app.app_context():
+        from flowforge.user_admin import create_user
+        try:
+            _, password = create_user(username, role=role, email=email, password=password,
+                                      must_change_password=not no_force_change)
+        except ValueError as e:
+            click.echo(f'ERROR: {e}', err=True)
+            sys.exit(1)
+    if as_json:
+        click.echo(_json.dumps({'username': username, 'password': password}))
+    elif generate_password:
+        click.echo(f'User "{username}" ({role}) created. One-time password (not shown again):', err=True)
+        click.echo(password)
+    else:
+        click.echo(f'User "{username}" ({role}) created.')
+
+
+@user_group.command('delete')
+@click.argument('username')
+@click.option('--purge', is_flag=True, help='Also anonymize the audit-log entries of this user (GDPR).')
+@click.option('--yes', is_flag=True, help='Skip the confirmation prompt.')
+def user_delete(username: str, purge: bool, yes: bool):
+    """Delete a user."""
+    if not yes:
+        click.confirm(f'Delete user "{username}"?', abort=True)
+    app = _create_app()
+    with app.app_context():
+        from flowforge.user_admin import delete_user
+        if not delete_user(username, purge=purge):
+            click.echo(f'ERROR: no such user "{username}"', err=True)
+            sys.exit(1)
+    click.echo(f'User "{username}" deleted.')
 
 
 @cli.command()

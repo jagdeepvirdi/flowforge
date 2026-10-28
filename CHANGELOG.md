@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`flowforge user create` / `flowforge user delete`.** Passwords are generated and printed once (`--generate-password`) or prompted for, never accepted on the command line. `flowforge db seed` now generates a one-time password when `FLOWFORGE_PASSWORD` is unset (the account must change it at first login); a plaintext `FLOWFORGE_PASSWORD` is rejected, only a bcrypt hash is accepted.
+- **E2E tests no longer need a stored password.** Playwright creates a throwaway admin with a random password for each run and deletes it afterwards (`frontend/e2e/global.user.ts`).
+
+### Security
+
+- Removed hard-coded development credentials from documentation and helper scripts, and added `tests/test_no_plaintext_credentials.py`, which fails the build on credentials and 64-hex keys in tracked files. Treat any credential that was ever committed as exposed and rotate it.
+- `tests/run_tests.*` and `verify_celery.py` generate throwaway keys instead of using a built-in one.
+
 ## [2.1.0] — 2026-10-28
 
 ### Security
