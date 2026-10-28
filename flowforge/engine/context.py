@@ -278,7 +278,7 @@ def _referenced_secrets(template_str: str, context: dict[str, Any]) -> set[str]:
         from jinja2 import meta as _meta
         ast = _jinja.parse(template_str)
         referenced = _meta.find_undeclared_variables(ast)
-    except Exception:  # nosec B110 — don't block execution on template-parse errors
+    except Exception:
         return set()
     return referenced & secret_keys
 

@@ -23,8 +23,8 @@ logger = logging.getLogger(__name__)
 _REDIS_KEY = 'flowforge:concurrent_runs'
 _SLOT_TTL_SECONDS = 3600  # safety valve if release() is never called (crash)
 
-_LOCAL_UNAVAILABLE_TOKEN = 'local'  # nosec B105 — a slot-token marker, not a credential
-_REDIS_DOWN_TOKEN = 'redis-unavailable'  # nosec B105 — fail-open marker, see _try_acquire_redis
+_LOCAL_UNAVAILABLE_TOKEN = 'local'  # nosec B105 — a slot-token marker and not a credential
+_REDIS_DOWN_TOKEN = 'redis-unavailable'  # nosec B105 — fail-open marker (see the redis acquire helper)
 
 _local_semaphore: threading.Semaphore | None = None
 _local_semaphore_lock = threading.Lock()

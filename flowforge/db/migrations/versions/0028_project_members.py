@@ -46,7 +46,7 @@ def upgrade() -> None:
     # Backfill: every existing user keeps access to the Default project, so
     # enforcing membership doesn't lock anyone out of resources they already had.
     op.execute(
-        "INSERT INTO ff_project_members (id, project_id, user_id, created_at) "  # nosec B608
+        "INSERT INTO ff_project_members (id, project_id, user_id, created_at) "  # nosec B608 — interpolates only the module-level default project id constant
         f"SELECT gen_random_uuid(), '{_DEFAULT_PROJECT_ID}', id, NOW() "
         "FROM ff_users "
         f"WHERE EXISTS (SELECT 1 FROM ff_projects WHERE id = '{_DEFAULT_PROJECT_ID}') "

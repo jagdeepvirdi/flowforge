@@ -40,7 +40,7 @@ def upgrade() -> None:
 
     # 2. Seed the Default project with a fixed, predictable UUID
     op.execute(
-        f"INSERT INTO ff_projects (id, name, is_default, created_at) "  # nosec B608
+        f"INSERT INTO ff_projects (id, name, is_default, created_at) "  # nosec B608 — interpolates only the module-level default project id constant
         f"VALUES ('{DEFAULT_PROJECT_ID}', 'Default', true, NOW())"
     )
 
@@ -59,7 +59,7 @@ def upgrade() -> None:
     # 4. Backfill all existing rows to the Default project
     for table in _SCOPED_TABLES:
         op.execute(
-            f"UPDATE {table} SET project_id = '{DEFAULT_PROJECT_ID}' WHERE project_id IS NULL"  # nosec B608
+            f"UPDATE {table} SET project_id = '{DEFAULT_PROJECT_ID}' WHERE project_id IS NULL"  # nosec B608 — table comes from a fixed module-level tuple and never from user input
         )
 
 
