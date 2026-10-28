@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 *V2.0 Audit Action Items — see [`docs/TASKS.md`](docs/TASKS.md) for full detail on each item.*
 
+### Security — 2026-10-28
+
+- Bumped `msgpack` 1.2.1 → 1.2.3 in `requirements-dev.txt` (CVE-2026-114613, flagged by pip-audit).
+
 ### Security — 2026-10-27
 
 - **SSRF: pipeline failure webhook is now guarded.** `on_failure_webhook_url` was POSTed server-side with no validation; it is now checked at save time (create, update, YAML import: http(s) scheme, hostname, no literal private/loopback/link-local IP) and again at send time (all resolved addresses must be public).
