@@ -41,9 +41,9 @@ def _render_kv_html(rows: list[dict]) -> str:
 
 def _write_to_output_table(conn, output_table: str, mode: str, raw_rows: list) -> None:
     if mode in ('replace', 'truncate_insert'):
-        conn.execute_write(f'TRUNCATE TABLE {output_table}')  # nosec B608
+        conn.execute_write(f'TRUNCATE TABLE {output_table}')
     placeholders = ', '.join(['%s'] * len(raw_rows[0]))
-    insert_sql = f'INSERT INTO {output_table} VALUES ({placeholders})'  # nosec B608
+    insert_sql = f'INSERT INTO {output_table} VALUES ({placeholders})'  # nosec B608 — output_table passes validate_identifier before this call; values are bound parameters
     for row in raw_rows:
         conn.execute_write(insert_sql, tuple(row))
 

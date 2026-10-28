@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **bandit `# nosec` policy.** `tests/test_nosec_policy.py` fails the build on a bare `# nosec`, a suppression without a reason, or any change to the per-file suppression count. Six suppressions that silenced nothing were removed and the remaining 31 now document why they are safe.
+
 ### Added
 
 - **Conditional step execution (`run_if`).** Any step can carry a sandboxed Jinja2 expression in its config; the step is skipped (recorded as `skipped`, not failed) when it is false, in both the wave and DAG engines. An expression that cannot be evaluated fails the step instead of silently skipping. Editable in the pipeline builder (list and canvas) and validated on save. See [`docs/step-types.md`](docs/step-types.md#conditional-execution-run_if).

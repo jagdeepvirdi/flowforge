@@ -23,7 +23,7 @@ import csv
 import io
 import logging
 import shutil
-import subprocess  # nosec B404 — only used with a fixed arg list, no shell=True (see call site)
+import subprocess  # nosec B404 — only used with a fixed arg list and no shell=True (see call site)
 import tempfile
 import time
 from pathlib import Path
@@ -398,12 +398,12 @@ def _load_python_fallback(
         cols = derived or [f'col{i}' for i in range(len(data_rows[0]))]
 
         if load_mode == 'replace':
-            cur.execute(f'TRUNCATE TABLE {target_table}')  # nosec B608
+            cur.execute(f'TRUNCATE TABLE {target_table}')
             db_conn.commit()
 
         placeholders = _make_placeholders(conn_cfg, len(cols))
         col_names    = ', '.join(cols)
-        sql = f'INSERT INTO {target_table} ({col_names}) VALUES ({placeholders})'  # nosec B608
+        sql = f'INSERT INTO {target_table} ({col_names}) VALUES ({placeholders})'  # nosec B608 — target_table and column names pass validate_identifier before this statement; values are bound parameters
 
         CHUNK = 10_000
         records_loaded = records_failed = 0
@@ -453,7 +453,7 @@ def _load_postgres_copy(
         data_lines = _extract_data_rows(all_lines, header_rows, footer_rows)
 
         if load_mode == 'replace':
-            cur.execute(f'TRUNCATE TABLE {target_table}')  # nosec B608
+            cur.execute(f'TRUNCATE TABLE {target_table}')
             db_conn.commit()
 
         data_io = io.StringIO(''.join(data_lines))
@@ -565,7 +565,7 @@ def _load_sqlloader(
             pass  # Windows; tmpdir is already process-private
 
         cmd = ['sqlldr', f'parfile={par_file}']
-        subprocess.run(cmd, capture_output=True, text=True, timeout=3600)  # nosec B603 — fixed arg list, no shell, par_file is app-controlled
+        subprocess.run(cmd, capture_output=True, text=True, timeout=3600)  # nosec B603 — fixed arg list and no shell; par_file is app-controlled
 
         log_text = log_file.read_text(errors='replace') if log_file.exists() else ''
         records_loaded, records_failed = _parse_sqlldr_counts(log_text)
@@ -669,7 +669,7 @@ def _dry_run_insert_rows(
 
     placeholders = _make_placeholders(conn_cfg, len(columns))
     col_names = ', '.join(columns)
-    sql = f'INSERT INTO {target_table} ({col_names}) VALUES ({placeholders})'  # nosec B608
+    sql = f'INSERT INTO {target_table} ({col_names}) VALUES ({placeholders})'  # nosec B608 — target_table and column names pass validate_identifier before this statement; values are bound parameters
 
     db_conn = _open_raw_connection(conn_cfg)
     row_errors: list[dict] = []

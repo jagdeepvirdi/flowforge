@@ -301,12 +301,12 @@ class DataLoadStep(BaseStep):
 
     def _bulk_load(self, conn, table: str, mode: str, columns: list[str], rows: list[tuple], chunk_size: int) -> int:
         if mode == 'replace':
-            conn.execute_write(f"TRUNCATE TABLE {table}")  # nosec B608
+            conn.execute_write(f"TRUNCATE TABLE {table}")
             logger.debug("Truncated %s", table)
 
         col_list = ', '.join(columns)
         placeholders = conn.make_placeholders(len(columns))
-        insert_sql = f"INSERT INTO {table} ({col_list}) VALUES ({placeholders})"  # nosec B608
+        insert_sql = f"INSERT INTO {table} ({col_list}) VALUES ({placeholders})"  # nosec B608 — table and column names pass validate_identifier in run() before this call; values are bound parameters
 
         total = 0
         for i in range(0, len(rows), chunk_size):

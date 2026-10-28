@@ -89,5 +89,5 @@ class MySQLConnection(BaseConnection):
     def close(self) -> None:
         try:
             self._conn.close()
-        except Exception:  # nosec B110 — best-effort cleanup, matches other connectors
+        except Exception:  # nosec B110 — best-effort cleanup that matches other connectors
             pass

@@ -76,7 +76,7 @@ def _notify_devbrain(
             headers={'Content-Type': 'application/json'},
             method='POST',
         )
-        with urllib.request.urlopen(req, timeout=10):  # nosec B310
+        with urllib.request.urlopen(req, timeout=10):  # nosec B310 — URL is an operator-set environment variable and not editor-configurable
             pass
         logger.info("DevBrain notification delivered for pipeline %s", pipeline_name)
     except Exception as exc:

@@ -22,7 +22,7 @@ class SSHConnection:
         host: str,
         port: int = 22,
         username: str = '',
-        password: str = '',  # nosec B107 — empty-string default, not a credential
+        password: str = '',  # nosec B107 — empty-string default and not a credential
         key_path: str = '',
         key_passphrase: str = '',
         timeout: int = 30,

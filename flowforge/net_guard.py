@@ -172,4 +172,4 @@ def safe_urlopen(req: 'urllib.request.Request | str', timeout: float = 10):
     handlers: list = [_NoRedirectHandler()]
     if not _uses_proxy(url):
         handlers += [_PinnedHTTPHandler(ips[0]), _PinnedHTTPSHandler(ips[0])]
-    return urllib.request.build_opener(*handlers).open(req, timeout=timeout)  # nosec B310 - scheme validated above
+    return urllib.request.build_opener(*handlers).open(req, timeout=timeout)
