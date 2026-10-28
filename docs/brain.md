@@ -45,4 +45,6 @@ FLOWFORGE_BRAIN_API_KEY=      # service credential Core presents to the Brain (n
 - The `claude` extra (`anthropic`) is gone, and `OLLAMA_*`, `ANTHROPIC_API_KEY`, `GEMINI_*` and
   `FLOWFORGE_AI_ENABLED` are no longer read. Remove them from your environment.
 - Any saved `ai_analyze` step now fails when run. Set `on_error: continue` on it or delete it.
+  Find them before upgrading with `psql "$FLOWFORGE_DB_URL" -f scripts/check_ai_analyze.sql` (read-only): it lists saved
+  `ai_analyze` steps, templates that use `{{ ai_summary }}`, and recent runs.
 - Downstream templates that use `{{ ai_summary }}` will render empty.
