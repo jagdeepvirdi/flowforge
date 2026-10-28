@@ -23,7 +23,7 @@ Latest code-review score table: **7.8 / 10 (2026-05-25)** — stale; the 2026-07
 (Security 3/10 at the time; all its Critical items are fixed, and the 2026-10-27 re-audit closed the remaining SSRF
 and dependency gaps — Claude's estimate ≈ 6.5–7/10, a judgment, not a rubric). Re-score after §A and §B land.
 
-**Open items: 55** — §A Now (6) · §B Telecom MVP track (12) · §C Gating decisions (5) · §D Go-to-market (8) · §E Product polish (5) · §F Engineering quality (7) · §G Dev environment (4) · §H Parked (8)
+**Open items: 54** — §A Now (6) · §B Telecom MVP track (12) · §C Gating decisions (5) · §D Go-to-market (7) · §E Product polish (5) · §F Engineering quality (7) · §G Dev environment (4) · §H Parked (8)
 
 **Priority rule:** §A and §B come first; §C runs in parallel (the design partner is the longest lead time, so start it now);
 §D keeps moving but is ordered behind the Brain scrub so nothing is published that the scrub makes untrue; §E–§G are
@@ -109,7 +109,7 @@ Claude disagrees with the roadmap, are in the roadmap document. Design-partner d
 
 *Detail/copy for each item is in the reference section at the bottom. Copy that advertises "local AI" is wrong after the scrub; the demo GIF must show the post-scrub UI. Positioning tension: the existing launch material targets solo developers/small teams while the product direction is telecom — settle the headline in §C ("Reconcile positioning") before spending ProductHunt's one launch.*
 
-- [ ] **Correct the already-published posts** *(do first, right after A1 ships)* — the 2026-07-08 Reddit (r/Python, r/selfhosted) and LinkedIn launch posts advertise "local AI"; edit or add a clarifying comment so they match the product.
+- [x] **Correct the already-published posts** *(done 2026-10-28)* — the 2026-07-08 Reddit (r/Python, r/selfhosted) and LinkedIn launch posts advertised "local AI". New Reddit and LinkedIn posts went out on 2026-10-28 explaining the Muscle/Brain split and stating that the local AI features were removed in v2.0.0. *(The original July posts were not edited; the correction is in the new posts.)*
 - [ ] **Rewrite GTM copy and the README hero** without "local AI" and with the agreed positioning (part of A7).
 - [ ] **Record a 60–90s demo GIF/MP4** (dashboard → create pipeline with report+email step → run → Run History) and add it to the README *(5.1 — blocks the rest; record after A1)*. Add the telecom demo (synthetic orphans → reconciliation → alert) once §B has it.
 - [ ] **High-quality Dashboard screenshot** for the README hero / LinkedIn Featured *(5.1)*; this also covers the "update pre-multi-user screenshots" docs item.
