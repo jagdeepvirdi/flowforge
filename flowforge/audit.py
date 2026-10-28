@@ -186,6 +186,22 @@ def log_user_change(action: str, username: str, user_id: str) -> None:
     _write_db_audit(f'USER_{action.upper()}', _current_user(), _current_user_id(), '', {'name': username, 'id': user_id})
 
 
+def log_auth_event(action: str, username: str, user_id: str) -> None:
+    """Account-security events filed under their own action name, never PIPELINE_CFG_*.
+
+    action: MFA_ENABLED | MFA_DISABLED | MFA_BACKUP_CODE_USED | PASSWORD_RESET_REQUESTED |
+    PASSWORD_RESET_COMPLETED | SSO_USER_CREATED. These are often raised by someone who is not
+    signed in (a reset request, a backup-code login, a first SSO login), so when there is no
+    authenticated actor the affected account is recorded as the actor, as LOGIN_* events do.
+    """
+    action = action.upper()
+    actor, actor_id = _current_user(), _current_user_id()
+    if actor == 'system':
+        actor, actor_id = username, user_id
+    _get_logger().info('AUTH         %-24s name=%-30r  id=%s  by=%s  user_id=%s', action, username, user_id, actor, actor_id)
+    _write_db_audit(action, actor, actor_id, '', {'name': username, 'id': user_id})
+
+
 def log_email_sent(
     pipeline_name: str,
     step_name: str,
