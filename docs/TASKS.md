@@ -23,7 +23,7 @@ Latest code-review score table: **7.8 / 10 (2026-05-25)** — stale; the 2026-07
 (Security 3/10 at the time; all its Critical items are fixed, and the 2026-10-27 re-audit closed the remaining SSRF
 and dependency gaps — Claude's estimate ≈ 6.5–7/10, a judgment, not a rubric). Re-score after §A and §B land.
 
-**Open items: 56** — §A Now (7) · §B Telecom MVP track (12) · §C Gating decisions (5) · §D Go-to-market (8) · §E Product polish (5) · §F Engineering quality (7) · §G Dev environment (4) · §H Parked (8)
+**Open items: 55** — §A Now (6) · §B Telecom MVP track (12) · §C Gating decisions (5) · §D Go-to-market (8) · §E Product polish (5) · §F Engineering quality (7) · §G Dev environment (4) · §H Parked (8)
 
 **Priority rule:** §A and §B come first; §C runs in parallel (the design partner is the longest lead time, so start it now);
 §D keeps moving but is ordered behind the Brain scrub so nothing is published that the scrub makes untrue; §E–§G are
@@ -68,7 +68,7 @@ launch assets are recorded or published** (published posts advertise "local AI")
 - [ ] **Resolve SonarCloud `pythonsecurity:S3649`** (SQL injection, issue key `AZ83ITEjNp5vzm4zlnz0`, `flowforge/steps/bulk_load.py:614` in `_dry_run_insert_rows()`) as Won't Fix / False Positive — both `target_table` and `columns` are validated with `validate_identifier()` (regex allowlist) by the caller **and** re-validated inside the function; SonarCloud doesn't recognise a project-local validator as a sanitizer boundary. **Requires SonarCloud login.** *(~15 min, you)*
 - [ ] **Make bandit fail on unjustified `# nosec`** *(≈ 0.5 day)* — 40 findings are hidden by `# nosec` (`--ignore-nosec`: 7× B608 SQL string-building, rest low). The SQL ones in `data_load`, `db_query`, `bulk_load` were spot-checked (identifiers validated first); `urlopen` suppressions are down to 4 (three in the legacy AI code being removed in A1, one DevBrain notify hook). Require a reason comment so this can't recur silently.
 - [ ] **Local credential hygiene + one-time full-history secrets scan** *(≈ 0.5 day)* — a dev login is stored in plaintext in the assistant memory index; `docs/credentials.local.md` is correctly gitignored and untracked. Rotate/remove the stored login if it was ever reused, and run TruffleHog over **full git history** once (the CI gate is `--only-verified`).
-- [ ] **Re-verify the 2026-07-01 audit findings with regression tests** *(≈ 0.5–1 day; do early)* — memory records a verified SQL injection in `data_load.py`, a secrets leak and an SSRF from that audit; the code looks fixed, but confirm each has a regression test rather than assuming.
+- [x] **Re-verify the 2026-07-01 audit findings with regression tests** *(done 2026-10-28: `tests/test_july_audit_regressions.py`, 50 tests — data_load identifier injection, secret-variable leakage across the db_query/data_load/report/notification/email sinks, SSRF on notification steps and the failure webhook (real guard, sockets blocked), and USER_* audit events through the API. Each fix was mutation-checked: reverting it fails the tests. Known design note: the save-time webhook check rejects only literal IPs and bad schemes; hostnames are resolved and blocked at send time.)*
 
 ---
 
