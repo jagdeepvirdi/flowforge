@@ -122,22 +122,22 @@ def test_data_load_still_loads_with_valid_identifiers(tmp_path):
 # 2. Secret pipeline variables must not reach SQL / email / notification sinks
 # ═════════════════════════════════════════════════════════════════════════════
 
-_SECRET = 'hunter2-super-secret'
-_SECRET_CTX = {'api_token': _SECRET, '_secret_var_keys': {'api_token'}, 'steps': {}}
+_CANARY = 'canary-9f3a1c'
+_GUARDED_CTX = {'canary_var': _CANARY, '_secret_var_keys': {'canary_var'}, 'steps': {}}
 
 
 def _assert_blocked_without_leaking(result: StepResult):
     assert result.success is False
-    assert 'api_token' in result.error          # names the variable so the author can fix it…
-    assert _SECRET not in result.error          # …but never echoes its value
-    assert _SECRET not in (result.logs or '')
+    assert 'canary_var' in result.error          # names the variable so the author can fix it…
+    assert _CANARY not in result.error          # …but never echoes its value
+    assert _CANARY not in (result.logs or '')
 
 
 def test_db_query_blocks_secret_in_sql():
     from flowforge.steps.db_query import DbQueryStep
-    step = DbQueryStep(name='q', config={'query': "SELECT '{{ api_token }}'"})
+    step = DbQueryStep(name='q', config={'query': "SELECT '{{ canary_var }}'"})
     with patch('flowforge.connections.factory.get_connection') as get_conn:
-        result = _run_step_with_retry('p', step, dict(_SECRET_CTX), 0, 0)
+        result = _run_step_with_retry('p', step, dict(_GUARDED_CTX), 0, 0)
     _assert_blocked_without_leaking(result)
     get_conn.assert_not_called()
 
@@ -145,21 +145,21 @@ def test_db_query_blocks_secret_in_sql():
 def test_data_load_blocks_secret_in_source_query():
     step = _data_load({
         'target_connection_id': 'conn-1', 'target_table': 'staging.t', 'mode': 'append',
-        'source': {'type': 'query', 'connection_id': 'src', 'query': "SELECT '{{ api_token }}'"},
+        'source': {'type': 'query', 'connection_id': 'src', 'query': "SELECT '{{ canary_var }}'"},
     })
     with patch('flowforge.connections.factory.get_connection') as get_conn:
-        result = _run_step_with_retry('p', step, dict(_SECRET_CTX), 0, 0)
+        result = _run_step_with_retry('p', step, dict(_GUARDED_CTX), 0, 0)
     assert result.success is False
-    assert _SECRET not in result.error
+    assert _CANARY not in result.error
     get_conn.assert_not_called()
 
 
 def test_report_blocks_secret_in_report_query():
     from flowforge.steps.report import ReportStep
     step = ReportStep(name='r', config={'report_config_id': 'x'})
-    cfg = {'query': "SELECT '{{ api_token }}'", 'format': 'csv', 'output_filename': 'o.csv'}
+    cfg = {'query': "SELECT '{{ canary_var }}'", 'format': 'csv', 'output_filename': 'o.csv'}
     with patch.object(ReportStep, '_load_config', return_value=cfg):
-        result = _run_step_with_retry('p', step, dict(_SECRET_CTX), 0, 0)
+        result = _run_step_with_retry('p', step, dict(_GUARDED_CTX), 0, 0)
     _assert_blocked_without_leaking(result)
 
 
@@ -167,10 +167,10 @@ def test_report_blocks_secret_in_report_query():
 def test_notification_blocks_secret_in_message_and_title(field):
     from flowforge.steps.notification import NotificationStep
     cfg = {'platform': 'slack', 'webhook_url': 'https://hooks.slack.com/services/T/B/X', 'message': 'ok'}
-    cfg[field] = 'token={{ api_token }}'
+    cfg[field] = 'value={{ canary_var }}'
     step = NotificationStep(name='n', config=cfg)
     with patch('flowforge.net_guard.safe_urlopen') as urlopen:
-        result = step.run(dict(_SECRET_CTX))
+        result = step.run(dict(_GUARDED_CTX))
     _assert_blocked_without_leaking(result)
     urlopen.assert_not_called()
 
@@ -178,18 +178,18 @@ def test_notification_blocks_secret_in_message_and_title(field):
 def test_email_sinks_block_secret_in_subject_body_and_drive_message():
     """email_step renders subject/body/drive message through these two helpers."""
     from flowforge.engine.context import SecretLeakError, render_guarded, render_simple_document
-    for tmpl in ('Report for {{ api_token }}', 'Dear user, key is {{ api_token }}'):
+    for tmpl in ('Report for {{ canary_var }}', 'Dear user, key is {{ canary_var }}'):
         with pytest.raises(SecretLeakError) as exc:
-            render_guarded(tmpl, dict(_SECRET_CTX), sink='email subject')
-        assert _SECRET not in str(exc.value)
+            render_guarded(tmpl, dict(_GUARDED_CTX), sink='email subject')
+        assert _CANARY not in str(exc.value)
         with pytest.raises(SecretLeakError) as exc:
-            render_simple_document(tmpl, dict(_SECRET_CTX), sink='email body')
-        assert _SECRET not in str(exc.value)
+            render_simple_document(tmpl, dict(_GUARDED_CTX), sink='email body')
+        assert _CANARY not in str(exc.value)
 
 
 def test_non_secret_variables_still_render_in_every_sink():
     from flowforge.engine.context import render_guarded, render_simple_document, render_sql
-    ctx = {'month': '2026-05', '_secret_var_keys': {'api_token'}, 'api_token': _SECRET, 'steps': {}}
+    ctx = {'month': '2026-05', '_secret_var_keys': {'canary_var'}, 'canary_var': _CANARY, 'steps': {}}
     assert render_sql('SELECT {{ month }}', ctx) == 'SELECT 2026-05'
     assert render_guarded('{{ month }}', ctx) == '2026-05'
     assert '2026-05' in render_simple_document('{{ month }}', ctx)
