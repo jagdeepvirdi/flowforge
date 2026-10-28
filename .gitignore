@@ -78,3 +78,7 @@ LAUNCH_STRATEGY.md
 
 # Legacy AI logic extracted for the private flowforge-brain repo (docs/BRAIN_DECOUPLING_PLAN.md §5)
 extracted_ai_logic.md
+
+# DevBrain session hook output (auto-generated each session; docs/TASKS.md is the real task list)
+/TASKS.md
+sessions/
