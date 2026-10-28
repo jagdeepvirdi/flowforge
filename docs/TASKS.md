@@ -18,12 +18,12 @@
 | **v3.0** | New connectors/providers, pipeline DAGs, plugin system, visual canvas | Shipped |
 | **Telecom RA MVP** | Orphaned-subscription audit on a design partner's data; Muscle/Brain split | **Muscle side of the split done (v2.0.0, AI removed from Core); Brain not built; nothing telecom-specific shipped** — see §B–§C |
 
-CI is green on `master` (backend, frontend, bandit, CodeQL, TruffleHog) after #129 (msgpack CVE-2026-114613 had turned it red on 2026-10-27). Core is at **v2.1.0** (2026-10-28): all AI/LLM code removed from Core in v2.0.0 (#130), `run_if` conditional steps, the audit regression tests and the `# nosec` policy in v2.1.0. On `master` and unreleased: the user CLI, generated first-run password, throwaway E2E user and credential guard (see A4). The Brain service itself is not built.
+CI is green on `master` (backend, frontend, bandit, CodeQL, TruffleHog) after #129 (msgpack CVE-2026-114613 had turned it red on 2026-10-27). Core is at **v2.2.0** (2026-10-28): all AI/LLM code removed from Core in v2.0.0 (#130), `run_if` conditional steps, the audit regression tests and the `# nosec` policy in v2.1.0. v2.2.0 adds the user CLI, a generated first-run password, the throwaway E2E user, the credential guard and the audit-log fix for MFA, reset and SSO events. The Brain service itself is not built.
 Latest code-review score table: **7.8 / 10 (2026-05-25)** — stale; the 2026-07-24 architect/VC audit scored 6/10
 (Security 3/10 at the time; all its Critical items are fixed, and the 2026-10-27 re-audit closed the remaining SSRF
 and dependency gaps — Claude's estimate ≈ 6.5–7/10, a judgment, not a rubric). Re-score after §A and §B land.
 
-**Open items: 57** — §A Now (8) · §B Telecom MVP track (12) · §C Gating decisions (6) · §D Go-to-market (7) · §E Product polish (5) · §F Engineering quality (7) · §G Dev environment (4) · §H Parked (8)
+**Open items: 56** — §A Now (7) · §B Telecom MVP track (12) · §C Gating decisions (6) · §D Go-to-market (7) · §E Product polish (5) · §F Engineering quality (7) · §G Dev environment (4) · §H Parked (8)
 
 **Priority rule:** §A and §B come first; §C runs in parallel (the design partner is the longest lead time, so start it now);
 §D keeps moving but is ordered behind the Brain scrub so nothing is published that the scrub makes untrue; §E–§G are
@@ -77,7 +77,7 @@ launch assets are recorded or published** (published posts advertise "local AI")
 
 ### A4. Release and verification
 
-- [ ] **Cut v2.2.0** *(≈ 1 h)* — shipped on `master` since v2.1.0: `flowforge user create/delete`, generated first-run admin password, throwaway-user E2E setup, the credential guard, and the refreshed manual guide. Bump `flowforge/__init__.py` and `pyproject.toml`, cut the `CHANGELOG` section, merge, wait for `master` CI, then tag `v2.2.0` (the tag publishes to PyPI).
+- [x] **Cut v2.2.0** *(done 2026-10-28: user CLI, generated first-run password, throwaway E2E user, credential guard, audit-log fix, refreshed manual guide)*
 - [ ] **Run the manual guide against a live stack** *(≈ 1 day)* — the 2026-10-28 refresh verified claims against the code but did not execute the 44 sections. Drive every section that needs no external account (bulk/data load, DB query and capture rows, variables, report formats, retry and failure webhook, audit log, roles, `run_if`, user CLI, DAG canvas, IP allowlist, plugin loading) and correct whatever the guide gets wrong. The email, Drive, SFTP, SSO and cloud sections need your accounts and stay owner-run.
 
 ---
