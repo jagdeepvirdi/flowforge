@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "flowforge-io"
-version = "1.3.0"
+version = "2.0.0"
 description = "Database-driven pipeline orchestrator. Configure everything from the UI — no YAML required."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -99,9 +99,6 @@ celery = [
 ]
 ses = [
     "boto3>=1.34",
-]
-claude = [
-    "anthropic>=0.25",
 ]
 sso = [
     # Google SSO — shares credentials with [gmail]; add only if gmail not already installed

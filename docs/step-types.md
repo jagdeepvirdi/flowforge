@@ -374,62 +374,9 @@ config:
 
 ## ai_analyze
 
-Runs a SQL query, formats the results as a data table, passes it to an LLM with a user-defined prompt, and stores the response in a pipeline variable. Use it to generate natural-language summaries, anomaly explanations, or commentary that can be embedded in downstream email bodies.
-
-```yaml
-step_type: ai_analyze
-config:
-  connection_id:   <uuid>                              # DB connection (optional — falls back to DB_* env vars)
-  query: >
-    SELECT region, SUM(revenue) AS total_revenue
-    FROM sales
-    WHERE month = '{{ current_month }}'
-    GROUP BY region
-    ORDER BY total_revenue DESC
-  prompt: >
-    Summarise the regional revenue distribution for {{ current_month }} in 3 sentences.
-    Highlight the top and bottom performers and flag any unusual patterns.
-  output_variable: ai_summary                          # name of the pipeline variable (default: ai_summary)
-  provider:        ollama                              # 'ollama' (default, free, local) | 'claude' | 'gemini'
-  model:           llama3.2:3b                         # optional — overrides OLLAMA_QUERY_MODEL / default Claude/Gemini model
-  max_rows:        100                                 # rows sent to LLM (default 100, hard cap 500)
-```
-
-**How it works:**
-
-1. The SQL query is rendered with Jinja2 variables and executed against the configured connection.
-2. Column names and up to `max_rows` rows are formatted as a pipe-delimited text table.
-3. The table is prepended to the `prompt` and sent to the AI provider.
-4. The response is stored in `output_variable` (top-level context) and in `{{ steps.<name>.ai_summary }}` (step context).
-
-**Providers:**
-
-| `provider` | Requirement | Default model |
-|---|---|---|
-| `ollama` (default) | Ollama running at `OLLAMA_URL` | `OLLAMA_QUERY_MODEL` (default `llama3.2:3b`) |
-| `claude` | `ANTHROPIC_API_KEY` set + `pip install anthropic` | `claude-haiku-4-5-20251001` |
-| `gemini` | `GEMINI_API_KEY` set (free tier available — [aistudio.google.com/apikey](https://aistudio.google.com/apikey)) | `GEMINI_QUERY_MODEL` (default `gemini-2.5-flash`) |
-
-**Using the result downstream:**
-
-In an `email` step's `body_template`:
-```html
-<p>{{ ai_summary }}</p>
-```
-
-Or using the step namespace (useful when multiple ai_analyze steps run):
-```html
-<p>{{ steps.analyze_revenue.ai_summary }}</p>
-```
-
-**`max_rows` guidance:** Keep this below 200 for `llama3.2:3b` (4 GB context limit). Larger models tolerate more. If the query returns more rows than `max_rows`, a truncation note is appended to the prompt so the LLM knows it is working with a sample.
-
-**Outputs:**
-- `{{ <output_variable> }}` — LLM response at top-level context (default: `{{ ai_summary }}`)
-- `{{ steps.<name>.ai_summary }}` — same value, always accessible as `ai_summary` on the step regardless of `output_variable` name
-- `{{ steps.<name>.rows_affected }}` — total rows the query returned (before truncation)
-
-**Error behaviour:** If the query fails or the AI provider is unreachable, the step fails. Set `on_error: continue` to let the pipeline proceed anyway (downstream steps receive an empty `{{ ai_summary }}`).
+> **Removed from Core.** The LLM logic moved to the external `flowforge-brain` service. The step type remains
+> registered only so saved pipelines still load: running it fails with a clear "Brain not attached" message and is
+> hidden from the step picker. Use `on_error: continue` if a legacy pipeline must keep running. See [brain.md](brain.md).
 
 ---
 
@@ -810,9 +757,7 @@ Use with a Jinja2 guard for delta queries:
 |---|---|
 | `{{ steps.<name>.output_path }}` | `report` step |
 | `{{ steps.<name>.drive_url }}` | `drive_upload`, `onedrive_upload`, or `email` step (smart attachment) |
-| `{{ steps.<name>.rows_affected }}` | `db_query`, `data_load`, `ai_analyze` steps |
-| `{{ steps.<name>.ai_summary }}` | `ai_analyze` step |
-| `{{ ai_summary }}` | `ai_analyze` step — also injected to top-level context as `output_variable` |
+| `{{ steps.<name>.rows_affected }}` | `db_query`, `data_load` steps |
 | `{{ steps.<name>.files_found }}` | `bulk_load`, `sftp_transfer` (download) steps |
 | `{{ steps.<name>.files_loaded }}` | `bulk_load`, `sftp_transfer` steps |
 | `{{ steps.<name>.files_failed }}` | `sftp_transfer` (download directory) step |

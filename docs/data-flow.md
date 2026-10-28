@@ -100,9 +100,8 @@ unless explicitly configured to transmit to:
 - **Snowflake / BigQuery / Amazon Redshift** — if a pipeline's `db_procedure`/`db_query` steps reference a connection of that type (query result rows leave FlowForge's infrastructure for the cloud data warehouse's, same as any other configured DB connection)
 - **Google / Microsoft OAuth2** — for SSO login (redirects only; no data sent to FlowForge from the IdP beyond email + name)
 - **SAML 2.0 IdP** (Okta / Azure AD / PingFederate) — for enterprise SSO login (browser redirect + POST of a signed assertion; no data sent to FlowForge beyond the NameID/email in the assertion)
-- **Ollama** — local AI; data stays on your machine
-- **Claude API (Anthropic)** — only if `ANTHROPIC_API_KEY` is set, either via an `ai_analyze` step's `provider: "claude"`, or as the automatic fallback for SQL Explain/Optimize, Data Profiler, Chart Generator, and Pipeline Failure Diagnosis when Ollama is unreachable; query result rows are sent to Anthropic for analysis
-- **Gemini API (Google)** — only if `GEMINI_API_KEY` is set, either via an `ai_analyze` step's `provider: "gemini"`, or as the automatic fallback (after Claude) for the same UI AI features when Ollama is unreachable; query result rows are sent to Google for analysis
+- **flowforge-brain** (optional, `FLOWFORGE_BRAIN_URL`) — external AI diagnostic service. Core sends only grouped
+  signatures, counts and a capped, anonymized sample; no LLM SDK, prompt or provider key exists in Core. Unset = no egress.
 
 ---
 

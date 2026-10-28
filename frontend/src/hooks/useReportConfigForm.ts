@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { getReportConfig, createReportConfig, updateReportConfig, getDbConnections, getSetupStatus } from '../lib/api'
+import { getReportConfig, createReportConfig, updateReportConfig, getDbConnections } from '../lib/api'
 import type { ColumnFormatRule } from '../lib/types'
 import { useProjectStore } from '../lib/store'
 
@@ -31,8 +31,6 @@ export function useReportConfigForm() {
 
   const { data: existing, isLoading } = useQuery({ queryKey: ['report-config', id], queryFn: () => getReportConfig(id!), enabled: !isNew })
   const { data: dbConns = [] } = useQuery({ queryKey: ['db-connections'], queryFn: getDbConnections })
-  const { data: setupStatus } = useQuery({ queryKey: ['setup-status'], queryFn: getSetupStatus, staleTime: 60_000 })
-  const aiEnabled = setupStatus?.ai?.enabled ?? true
 
   const { register, handleSubmit, watch, getValues, setValue, reset, formState: { errors, isSubmitting } } = useForm<ReportFormValues>({
     resolver: zodResolver(schema),
@@ -86,7 +84,7 @@ export function useReportConfigForm() {
   }
 
   return {
-    id, isNew, isLoading, dbConns, aiEnabled,
+    id, isNew, isLoading, dbConns,
     register, handleSubmit, watch, getValues, setValue, errors, isSubmitting,
     columnFormatting, setColumnFormatting,
     error, setError,

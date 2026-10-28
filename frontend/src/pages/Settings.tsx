@@ -6,18 +6,18 @@ import ChangePasswordCard from '../components/settings/ChangePasswordCard'
 import MfaCard from '../components/settings/MfaCard'
 import GoogleOAuthCard from '../components/settings/GoogleOAuthCard'
 import Microsoft365Card from '../components/settings/Microsoft365Card'
-import AiOllamaCard from '../components/settings/AiOllamaCard'
+import BrainCard from '../components/settings/BrainCard'
 import RetentionCard from '../components/settings/RetentionCard'
 import YamlCard from '../components/settings/YamlCard'
 import DocsCard from '../components/settings/DocsCard'
 import { getSetupStatus } from '../lib/api'
 
-type Tab = 'account' | 'email' | 'ai' | 'system' | 'docs'
+type Tab = 'account' | 'email' | 'brain' | 'system' | 'docs'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'account', label: 'Account' },
   { id: 'email', label: 'Email' },
-  { id: 'ai', label: 'AI' },
+  { id: 'brain', label: 'Brain' },
   { id: 'system', label: 'System' },
   { id: 'docs', label: 'Docs' },
 ]
@@ -68,8 +68,8 @@ export default function Settings() {
             </>
           )}
 
-          {tab === 'ai' && (
-            <AiOllamaCard status={status} isLoading={isLoading} />
+          {tab === 'brain' && (
+            <BrainCard status={status} isLoading={isLoading} />
           )}
 
           {tab === 'system' && (

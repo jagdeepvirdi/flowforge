@@ -47,11 +47,6 @@ diagnostics from the Brain over HTTP. If no Brain is attached, no AI UI is shown
 - Evidence is **anonymized and minimized in the core** before it leaves; Brain output is advisory and never
   triggers changes automatically.
 
-> **Transition note (2026-10-27):** the repository still contains the legacy in-repo AI features (Ollama/Claude/
-> Gemini helpers and the `ai_analyze` step) while they are being extracted. Removal is planned in
-> [`docs/BRAIN_DECOUPLING_PLAN.md`](docs/BRAIN_DECOUPLING_PLAN.md); this README describes the target state and no
-> longer documents those features.
-
 ## What is FlowForge Core?
 
 FlowForge Core runs ordered data pipelines: call database procedures, run queries, generate reports (Excel/PDF/CSV/JSON), send emails with smart attachment handling, upload files to Google Drive, OneDrive, S3 or Azure Blob, and transfer files over SFTP. Everything is configured through a web frontend — no config files to edit, no Python DAGs to write. These are the building blocks for the revenue-assurance audits above.
