@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] — 2026-10-28
+
 *V2.0 Audit Action Items — see [`docs/TASKS.md`](docs/TASKS.md) for full detail on each item.*
 
 ### Removed (BREAKING) — 2026-10-28
@@ -602,7 +604,8 @@ below — see those entries for the full feature breakdown.
 - `flowforge-io[pdf]` — `weasyprint`
 - `flowforge-io[dev]` — `pytest`, `pytest-mock`, `responses`, `pytest-cov`
 
-[Unreleased]: https://github.com/jagdeepvirdi/flowforge/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/jagdeepvirdi/flowforge/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/jagdeepvirdi/flowforge/compare/v1.3.0...v2.0.0
 [1.3.0]: https://github.com/jagdeepvirdi/flowforge/compare/v1.1.0...v1.3.0
 [1.0.0]: https://github.com/jagdeepvirdi/flowforge/compare/v0.1.5...v1.0.0
 [1.2.0]: https://github.com/jagdeepvirdi/flowforge/compare/v1.1.0...v1.2.0
