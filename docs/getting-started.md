@@ -159,44 +159,15 @@ Add an `onedrive_upload` step to any pipeline, or configure `onedrive_folder_id`
 
 See [Step Types Reference → onedrive_upload](step-types.md#onedrive_upload) for the full config reference.
 
-## AI Features (Optional)
+## AI Diagnostics (Optional, external)
 
-FlowForge ships with six AI-powered features. By default these run through [Ollama](https://ollama.com) locally — no data leaves your machine and there is no API cost. If `ANTHROPIC_API_KEY` or `GEMINI_API_KEY` is set (Settings → AI), the five UI-driven features below automatically fall back to Claude, then Gemini, whenever Ollama is unreachable. The `ai_analyze` pipeline step instead lets you pick the provider explicitly per step via `provider: "claude"` or `provider: "gemini"` (Gemini has a [free tier](https://aistudio.google.com/apikey)).
+FlowForge Core contains no AI/LLM code. AI diagnostics (root-cause analysis, SQL explain/optimize, failure
+diagnosis) are provided by the separate `flowforge-brain` service. Set `FLOWFORGE_BRAIN_URL` (and
+`FLOWFORGE_BRAIN_API_KEY` if the Brain requires a credential) to attach one; with it unset, no AI UI is shown and
+everything else works unchanged. The Brain service itself is not shipped yet, so AI stays off today. See [brain.md](brain.md).
 
-| Feature | Where | What it does |
-|---|---|---|
-| AI Chart Generator | Report Preview panel | Suggests the best chart type and axes for your query result |
-| SQL Explainer | SQL editor | Explains tables, joins, filters, and potential issues in plain English |
-| SQL Optimizer | SQL editor | Rewrites queries for better performance; shows a side-by-side diff |
-| Pipeline Failure Diagnosis | Run Detail → Logs tab | Explains a failed step error and suggests a fix |
-| Data Profiler | Report Preview panel | Summarises value ranges, nulls, and outliers in your data sample |
-| Run History Anomaly Alerts | Run Detail page | Flags steps whose row counts or durations are statistical outliers |
-
-### Enabling AI
-
-Install Ollama from [ollama.com](https://ollama.com), then pull a model:
-
-```bash
-ollama pull llama3.2:3b
-```
-
-AI is enabled by default. To disable all AI features (hides buttons in the UI):
-
-```env
-FLOWFORGE_AI_ENABLED=false
-```
-
-### Configuring models
-
-```env
-OLLAMA_URL=http://localhost:11434          # default
-OLLAMA_CHART_MODEL=llama3.2:3b            # chart suggestions + data profiling
-OLLAMA_QUERY_MODEL=llama3.2:3b            # SQL tasks + failure diagnosis
-```
-
-Use `mistral:7b` for better SQL quality if you have enough RAM. Use `phi3:mini` if RAM is constrained.
-
-All AI calls are best-effort: if Ollama is unreachable the AI buttons show *"AI unavailable — is Ollama running?"* and the rest of the UI is unaffected.
+Run History **Anomaly Alerts** (statistical outlier detection on step row counts and durations) are part of Core and
+need no Brain.
 
 ## Your First Pipeline
 
@@ -284,10 +255,8 @@ All step config fields are rendered as Jinja2 templates. Key variables:
 | `{{ my_var }}` / `{{ vars.my_var }}` | Pipeline variable (set in Pipeline Builder → Variables card) |
 | `{{ steps.my_step.output_path }}` | File path from a previous `report` step |
 | `{{ steps.my_step.drive_url }}` | Drive URL from a previous `drive_upload`, `onedrive_upload`, or `email` step |
-| `{{ ai_summary }}` | LLM response from a previous `ai_analyze` step |
-| `{{ steps.my_step.ai_summary }}` | Same, using the step namespace |
 
-See [Step Types Reference](step-types.md#variable-reference) for the full variable list including `bulk_load` and `ai_analyze` output variables.
+See [Step Types Reference](step-types.md#variable-reference) for the full variable list including `bulk_load` output variables.
 
 ## Smart Attachments
 

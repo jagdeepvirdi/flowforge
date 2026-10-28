@@ -45,13 +45,13 @@ FlowForge becomes a deterministic ETL/SQL orchestrator; all LLM logic moves to a
 output; disabled routes return `503 brain_not_attached`; the `ai_analyze` step fails with a clear message. **Do this before the §D
 launch assets are recorded or published** (published posts advertise "local AI"). Effort ≈ 3–4 days. Runs in parallel with A2.
 
-- [ ] **A0 Prep** — tag `pre-brain-split`; branch/worktree `scrub/brain-decoupling`; record baseline test counts. *(The uncommitted auth/users work was committed in PR #123.)*
-- [ ] **A1 Extract** — write `extracted_ai_logic.md` (prompts, provider code, endpoint contracts, step spec, UX contract, test behavior) **before deleting anything**; decide commit vs gitignore (public repo). *Keep it as a record only: the legacy prompts are generic and will not drive the telecom RCA design.*
-- [ ] **A2 Gate module** — `flowforge/brain.py`: `brain_enabled()` (Phase A: always False, TODO comment) + `brain_unavailable_response()`.
-- [ ] **A3 Backend** — gut `routes/ai.py` to 503 shells, `ai_analyze` to a failing step, `setup.py` ai block → `{enabled, brain_url_configured}`; keep secret blocklist + historic migrations.
+- [x] **A0 Prep** — tag `pre-brain-split`; branch/worktree `scrub/brain-decoupling`; record baseline test counts. *(The uncommitted auth/users work was committed in PR #123.)*
+- [x] **A1 Extract** — write `extracted_ai_logic.md` (prompts, provider code, endpoint contracts, step spec, UX contract, test behavior) **before deleting anything**; decide commit vs gitignore (public repo). *Keep it as a record only: the legacy prompts are generic and will not drive the telecom RCA design.*
+- [x] **A2 Gate module** — `flowforge/brain.py`: `brain_enabled()` (Phase A: always False, TODO comment) + `brain_unavailable_response()`.
+- [x] **A3 Backend** — gut `routes/ai.py` to 503 shells, `ai_analyze` to a failing step, `setup.py` ai block → `{enabled, brain_url_configured}`; keep secret blocklist + historic migrations.
 - [ ] **A4 Backend tests** — replace `test_ai.py`/`test_ai_analyze.py` with `test_brain_gate.py`; fix 4 other test files; check coverage gate.
 - [ ] **A5 Frontend** — default-off gating (`?? false`), BrainCard replaces AiOllamaCard, remove AI calls/strings, hide `ai_analyze` from picker (keep badge), keep `ChartPreview` + anomaly detection; manual Playwright pass.
-- [ ] **A6 Dependencies & config** — add a CI deny-list test (no LLM SDK imports/deps in `flowforge/`); remove `claude` extra (`anthropic`) from `pyproject.toml`; replace `.env.example` AI block with `FLOWFORGE_BRAIN_URL`/`_API_KEY`.
+- [x] **A6 Dependencies & config** — add a CI deny-list test (no LLM SDK imports/deps in `flowforge/`); remove `claude` extra (`anthropic`) from `pyproject.toml`; replace `.env.example` AI block with `FLOWFORGE_BRAIN_URL`/`_API_KEY`.
 - [ ] **A7 Docs & positioning** — CLAUDE.md, README, ROADMAP, ~14 docs, new `docs/brain.md`, CHANGELOG breaking entry; rewrite GTM copy; check published Reddit/LinkedIn posts (see §D).
 - [ ] **A8 Ship** — version decision (v2.0.0 vs 1.4.0 + BREAKING), PR with CI green.
 - [ ] **Decide before A3:** check your DB for saved `ai_analyze` steps (they will fail after the scrub) — query in the plan §7.3.

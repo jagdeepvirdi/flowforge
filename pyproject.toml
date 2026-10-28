@@ -100,9 +100,6 @@ celery = [
 ses = [
     "boto3>=1.34",
 ]
-claude = [
-    "anthropic>=0.25",
-]
 sso = [
     # Google SSO — shares credentials with [gmail]; add only if gmail not already installed
     "google-auth-oauthlib>=1.2",

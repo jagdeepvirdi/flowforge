@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 *V2.0 Audit Action Items — see [`docs/TASKS.md`](docs/TASKS.md) for full detail on each item.*
 
+### Removed (BREAKING) — 2026-10-28
+
+- **All AI/LLM code removed from Core.** AI diagnostics move to the separate `flowforge-brain` service ([`docs/brain.md`](docs/brain.md)). `/api/ai/*` routes return `503 brain_not_attached`; the `ai_analyze` step fails with a clear message and is hidden from the step picker (saved pipelines still load); the AI UI is removed and a Brain status card added to Settings. The `claude` install extra and the `OLLAMA_*`, `ANTHROPIC_API_KEY`, `GEMINI_*` and `FLOWFORGE_AI_ENABLED` settings are gone; `FLOWFORGE_BRAIN_URL` / `FLOWFORGE_BRAIN_API_KEY` are reserved. A CI test now fails if an LLM SDK is imported or declared as a dependency.
+
 ### Security — 2026-10-28
 
 - Bumped `msgpack` 1.2.1 → 1.2.3 in `requirements-dev.txt` (CVE-2026-114613, flagged by pip-audit).
