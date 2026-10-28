@@ -288,6 +288,42 @@ def render(template_str: str, context: dict[str, Any]) -> str:
     return _jinja.from_string(template_str).render(**context)
 
 
+MAX_CONDITION_LEN = 500
+
+
+def validate_condition(expr: str) -> str | None:
+    """Return an error message if `expr` is not a valid `run_if` expression, else None."""
+    if not isinstance(expr, str):
+        return "run_if must be a string"
+    if len(expr) > MAX_CONDITION_LEN:
+        return f"run_if exceeds {MAX_CONDITION_LEN} characters"
+    try:
+        _jinja.compile_expression(expr)
+    except Exception as e:
+        return f"run_if is not a valid expression: {e}"
+    return None
+
+
+def evaluate_condition(expr: str, context: dict[str, Any]) -> bool:
+    """Evaluate a step's `run_if` Jinja2 expression (e.g. ``steps.check.rows_affected > 0``).
+
+    Sandboxed like every other template. Raises ValueError for a malformed expression or a
+    reference to a secret pipeline variable, and jinja2.UndefinedError / TypeError when the
+    expression cannot be evaluated against the context (e.g. a typo'd step name) — callers
+    treat any exception as a step failure rather than silently skipping.
+    """
+    secrets_used = _referenced_secrets('{{ ' + expr + ' }}', context)
+    if secrets_used:
+        raise ValueError(
+            f"run_if references secret pipeline variable(s) {', '.join(sorted(secrets_used))}; "
+            "secret variables cannot be used in conditions"
+        )
+    err = validate_condition(expr)
+    if err:
+        raise ValueError(err)
+    return bool(_jinja.compile_expression(expr)(**context))
+
+
 def render_guarded(template_str: str, context: dict[str, Any], *, sink: str = 'this field') -> str:
     """Render a template, hard-blocking if a secret pipeline variable is referenced.
 

@@ -1,5 +1,6 @@
 import type { PipelineStep } from '../../lib/types'
 import FieldTooltip from '../shared/FieldTooltip'
+import RunIfField from './RunIfField'
 import StepConfigForm from './StepConfigForm'
 
 type Props = Readonly<{
@@ -78,6 +79,11 @@ export default function StepConfigBody({ step, onChange, allSteps, dbConnections
           />
         </div>
       </div>
+
+      <RunIfField
+        value={typeof cfg.run_if === 'string' ? cfg.run_if : ''}
+        onChange={v => onChange(step.id, { config: { ...cfg, run_if: v } })}
+      />
 
       <StepConfigForm
         step={step}

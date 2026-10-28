@@ -14,6 +14,29 @@ All steps share these fields (set in the pipeline builder, not in `config`):
 | `step_order` | integer | Execution order (1-based, drag to reorder in UI) |
 | `on_error` | `stop` \| `continue` | Whether to halt the pipeline or continue when this step fails |
 | `enabled` | boolean | Disable to skip without deleting |
+| `config.run_if` | string (optional) | Jinja2 expression; the step is **skipped** when it is false. See below |
+
+### Conditional execution (`run_if`)
+
+Gate any step on an earlier result, for example to send an alert only when a threshold is crossed:
+
+```yaml
+- name: check_mismatches
+  step_type: db_query
+  config:
+    capture_rows: true
+    query: SELECT count(*) AS n FROM billing_mismatch
+
+- name: alert
+  step_type: notification
+  config:
+    run_if: "steps.check_mismatches.rows[0].n|int > 100"
+```
+
+- The expression is evaluated just before the step would run, against the same variables as any template (`steps.<name>.*`, pipeline variables, `current_date`, …). It is sandboxed; a missing step or a comparison that cannot be evaluated (for example a string against a number — use `|int`) **fails the step** with a `run_if could not be evaluated` error, honouring `on_error`, rather than silently skipping, so a mistyped alert gate cannot quietly never fire.
+- A skipped step is recorded in run history with status `skipped`, does not count as run or failed, and does not fail the pipeline. Its outputs are empty and `steps.<name>.skipped` is `true`, so a later step can use `run_if: steps.alert.skipped`.
+- **Both engines:** in the default sequential/parallel-wave engine, later steps simply carry on. In the DAG engine a skipped step *satisfies* its dependents (like a disabled step), so they still run; it does not skip its descendants, and a step's `run_if` only sees its ancestors' results. To skip a whole branch, put the same `run_if` on its steps.
+- Secret pipeline variables cannot be used in a condition. Expressions are limited to 500 characters and are checked when the pipeline is saved.
 
 ---
 

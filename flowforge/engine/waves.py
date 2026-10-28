@@ -16,6 +16,7 @@ from flowforge.engine.step_exec import (
     _BUILT_IN_VAR_KEYS,
     _CONTEXT_META_KEYS,
     PipelineResult,
+    _evaluate_gate,
     _get_retry_config,
     _run_step_with_retry,
     _write_step_run,
@@ -55,6 +56,8 @@ def _expose_step_outputs(context: dict, pipeline_name: str, step_name: str, step
         'kv_html':        step_result.kv_html,
         'ai_summary':     step_result.ai_summary,
     }
+    if step_result.skipped:
+        context['steps'][step_name]['skipped'] = True
     if step_result.output_variables:
         collisions = _CONTEXT_META_KEYS & step_result.output_variables.keys()
         if collisions:
@@ -123,14 +126,17 @@ def _run_sequential_step(
     wave_num: int,
 ) -> bool:
     """Run a single non-parallel step. Returns True if the pipeline should stop."""
-    logger.info("[%s] Starting step: %s", pipeline_name, step.name)
     retry_count, retry_delay = _get_retry_config(step)
     step_start = datetime.now(UTC)
-    step_result = _run_step_with_retry(pipeline_name, step, context, retry_count, retry_delay)
+    step_result = _evaluate_gate(pipeline_name, step, context)
+    if step_result is None:
+        logger.info("[%s] Starting step: %s", pipeline_name, step.name)
+        step_result = _run_step_with_retry(pipeline_name, step, context, retry_count, retry_delay)
     step_end = datetime.now(UTC)
     duration_ms = int((step_end - step_start).total_seconds() * 1000)
     result.step_results[step.name] = step_result
-    result.steps_run += 1
+    if not step_result.skipped:
+        result.steps_run += 1
     _expose_step_outputs(context, pipeline_name, step.name, step_result)
     _write_step_run(run_record, step, step.db_step_order or wave_num,
                     step_result, step_start, step_end, duration_ms, vars_log)
@@ -165,7 +171,10 @@ def _run_parallel_wave(
         step = wave[idx]
         retry_count, retry_delay = _get_retry_config(step)
         t0 = datetime.now(UTC)
-        step_results[idx] = _run_step_with_retry(pipeline_name, step, snapshots[idx], retry_count, retry_delay)
+        step_results[idx] = (
+            _evaluate_gate(pipeline_name, step, snapshots[idx])
+            or _run_step_with_retry(pipeline_name, step, snapshots[idx], retry_count, retry_delay)
+        )
         step_times[idx] = (t0, datetime.now(UTC))
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=n, thread_name_prefix='ff_parallel') as executor:
@@ -187,7 +196,8 @@ def _run_parallel_wave(
         duration_ms = int((t1 - t0).total_seconds() * 1000)
 
         result.step_results[step.name] = step_result
-        result.steps_run += 1
+        if not step_result.skipped:
+            result.steps_run += 1
         _expose_step_outputs(context, pipeline_name, step.name, step_result)
         _write_step_run(run_record, step, step.db_step_order or (i + 1),
                         step_result, t0, t1, duration_ms,

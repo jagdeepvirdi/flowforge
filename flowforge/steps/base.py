@@ -37,6 +37,8 @@ class StepResult:
     kv_html: str = ''
     # legacy ai_analyze output field, kept so old run history still renders
     ai_summary: str = ''
+    # set by the engines (never by a step) when a step's `run_if` condition was false
+    skipped: bool = False
 
 
 class BaseStep(ABC):

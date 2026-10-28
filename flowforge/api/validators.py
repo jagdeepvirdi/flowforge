@@ -38,9 +38,27 @@ def validate_pipeline(data: dict) -> str | None:
         _check_len(data.get('description'), 'description', 2000),
         _check_len(data.get('schedule'),    'schedule',    100),
         validate_webhook_url(data.get('on_failure_webhook_url')),
+        _validate_step_conditions(data.get('steps')),
     ):
         if err:
             return err
+    return None
+
+
+def _validate_step_conditions(steps) -> str | None:
+    """Reject a malformed `run_if` expression on save instead of at run time."""
+    if not isinstance(steps, list):
+        return None
+    from flowforge.engine.context import validate_condition
+    for i, step in enumerate(steps, start=1):
+        cfg = step.get('config') if isinstance(step, dict) else None
+        expr = cfg.get('run_if') if isinstance(cfg, dict) else None
+        if expr in (None, ''):
+            continue
+        err = validate_condition(expr)
+        if err:
+            name = step.get('name') or f'#{i}'
+            return f"Step '{name}': {err}"
     return None
 
 
