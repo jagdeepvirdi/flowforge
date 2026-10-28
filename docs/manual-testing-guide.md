@@ -4,18 +4,29 @@ Use this document to verify each major feature end-to-end before shipping or
 after a significant change. Work through each section in order — earlier
 sections create the connections and configs that later sections depend on.
 
-Mark each checkbox as you complete it.
+Mark each checkbox as you complete it. `<repo>` below means the folder you cloned
+FlowForge into.
 
-------------------------------$
+**Already covered by automated tests** (no need to repeat by hand): the backend
+suite (`pytest`) and the Playwright E2E suite (`frontend/e2e`). The E2E suite
+includes the "Brain not attached" checks (no AI UI anywhere, `/api/ai/*` returns
+`503`). This guide is for what
+automation cannot judge: real email and cloud delivery, files on disk, and
+anything that needs an external account.
+
+---
 
 ## Prerequisites
 
 - FlowForge server running: `flowforge web` (or `.\flowforge.ps1 start` / `./flowforge.sh start`)
 - PostgreSQL running on `localhost:5434`
 - Browser open at `http://localhost:5000`
-- Logged in as `admin`
+- An admin account to log in with. On a fresh install run `flowforge db seed`: it prints a
+  one-time password (change it at first login). To add a throwaway tester later:
+  `flowforge user create tester --role admin --generate-password`. The password is printed
+  once; no password is ever stored in a file or typed on a command line.
 
-------------------------------$
+---
 
 ## 1. Connections Setup
 
@@ -39,7 +50,7 @@ These are required by almost every test below. Set them up first.
 3. Click **Test connection** — expect green / latency shown
 4. Save
 
-- [X] Connection saved and test passes
+- [ ] Connection saved and test passes
 
 ### 1b. Gmail provider
 
@@ -49,7 +60,7 @@ These are required by almost every test below. Set them up first.
 4. Fill in Client ID, Client Secret, Refresh Token, Sender email
 5. Save and test
 
-- [X] Gmail provider saved
+- [ ] Gmail provider saved
 
 ### 1c. Microsoft 365 provider
 
@@ -60,8 +71,8 @@ These are required by almost every test below. Set them up first.
 4. Run: `flowforge setup microsoft365` to complete device-code auth
 5. Save and test
 
-- [X] M365 provider saved
-- [X] Test send succeeds (check inbox at `jagdeep.singh.virdi@gmail.com`)
+- [ ] M365 provider saved
+- [ ] Test send succeeds (check the inbox of the sender address)
 
 ### 1d. SMTP provider (optional — covers Outlook, Yahoo, custom)
 
@@ -70,13 +81,13 @@ These are required by almost every test below. Set them up first.
 3. Fill in host, port, credentials
 4. Save and test
 
-- [X] SMTP provider saved
+- [ ] SMTP provider saved
 
-------------------------------$
+---
 
 ## 2. Bulk Load
 
-Sample data is committed at `D:\Project\flowforge\sample_data\bulk_load\`.
+Sample data is committed at `<repo>\sample_data\bulk_load\`.
 
 ### 2a. Create the target table
 
@@ -84,7 +95,7 @@ Run once in any SQL client (pgAdmin, DBeaver, or the one-liner below):
 
 ```powershell
 python -c "
-import psycopg2
+import os, psycopg2
 conn = psycopg2.connect(os.environ['FLOWFORGE_DB_URL'])
 cur = conn.cursor()
 cur.execute(open('sample_data/bulk_load/setup_table.sql').read())
@@ -93,7 +104,7 @@ print('Done.')
 "
 ```
 
-- [X] `public.bulk_test_subscribers` table created
+- [ ] `public.bulk_test_subscribers` table created
 
 ### 2b. Create the Bulk Load config
 
@@ -105,18 +116,18 @@ Go to **Bulk Loads → New Bulk Load** and fill in:
 | Connection | `FlowForge DB` |
 | Target table | `public.bulk_test_subscribers` |
 | Load mode | `Replace` |
-| Source directory | `D:\Project\flowforge\sample_data\bulk_load\incoming` |
+| Source directory | `<repo>\sample_data\bulk_load\incoming` |
 | File type | `CSV` |
 | File prefix | `SUBS_` |
 | Header rows | `1` |
 | Footer rows | `0` |
 | Delimiter | `,` |
 | On no files | `Skip (succeed)` |
-| Archive directory | `D:\Project\flowforge\sample_data\bulk_load\archive\{{ current_date }}` |
+| Archive directory | `<repo>\sample_data\bulk_load\archive\{{ current_date }}` |
 
 Save the config.
 
-- [X] Bulk Load config saved
+- [ ] Bulk Load config saved
 
 ### 2c. Add to a pipeline and run
 
@@ -134,10 +145,10 @@ Expected results:
 | records_loaded | 20 |
 | records_failed | 0 |
 
-- [X] Run succeeds
-- [X] Step log shows 2 files, 20 records
-- [X] CSV files moved to `sample_data\bulk_load\archive\<today>\`
-- [X] `ORDERS_20260522.csv` was NOT loaded (prefix filtered)
+- [ ] Run succeeds
+- [ ] Step log shows 2 files, 20 records
+- [ ] CSV files moved to `sample_data\bulk_load\archive\<today>\`
+- [ ] `ORDERS_20260522.csv` was NOT loaded (prefix filtered)
 
 ### 2d. Verify data in DB
 
@@ -159,21 +170,21 @@ Expected:
 | standard | active | 5 | 299.95 |
 | standard | cancelled | 1 | 59.99 |
 
-- [X] Data matches expected
+- [ ] Data matches expected
 
 ### 2e. Re-run test (restore files first)
 
 ```powershell
-Copy-Item "D:\Project\flowforge\sample_data\bulk_load\archive\*\SUBS_*.csv" `
-          "D:\Project\flowforge\sample_data\bulk_load\incoming\"
+Copy-Item "<repo>\sample_data\bulk_load\archive\*\SUBS_*.csv" `
+          "<repo>\sample_data\bulk_load\incoming\"
 ```
 
 Run the pipeline again. Because load mode is **Replace**, the table should
 still have exactly 20 rows after the second run (not 40).
 
-- [X] Second run succeeds with 20 rows, not 40
+- [ ] Second run succeeds with 20 rows, not 40
 
-------------------------------$
+---
 
 ## 3. DB Query Step
 
@@ -194,7 +205,7 @@ CREATE TABLE public.subscriber_summary (
 );
 ```
 
-- [X] `public.subscriber_summary` table created
+- [ ] `public.subscriber_summary` table created
 
 1. Create a pipeline: `DB Query Test`
 2. Add a **DB Query** step named `plan_summary`:
@@ -209,8 +220,8 @@ CREATE TABLE public.subscriber_summary (
 
 3. Run the pipeline
 
-- [X] Step succeeds
-- [X] `public.subscriber_summary` populated (6 rows)
+- [ ] Step succeeds
+- [ ] `public.subscriber_summary` populated (6 rows)
 
 ### 3b. Query with Jinja2 variable + downstream email
 
@@ -249,10 +260,10 @@ Expected rows (premium only):
 | premium | active | 6 | 599.94 |
 | premium | suspended | 1 | 99.99 |
 
-- [X] Variable resolved correctly — query filtered to premium only
-- [X] `public.subscriber_summary` now holds 2 rows, not 6 — `Replace` mode
+- [ ] Variable resolved correctly — query filtered to premium only
+- [ ] `public.subscriber_summary` now holds 2 rows, not 6 — `Replace` mode
       overwrote 3a's result
-- [X] Email received with a table showing exactly those 2 rows
+- [ ] Email received with a table showing exactly those 2 rows
 
 ### 3c. Query → email with results (capture_rows)
 
@@ -275,8 +286,8 @@ in a sent email — without the user writing any raw Jinja2.
 3. Add an **Email** step (using your Gmail config):
    - In the Pipeline Builder, look at the **Query data** section under the email step — it should list `load_summary` with three snippet options.
 
-- [X] "Query data — available in email body" section appears in the email step, listing `load_summary`
-- [X] Three snippet lines visible: `table_html`, `kv_html`, custom loop
+- [ ] "Query data — available in email body" section appears in the email step, listing `load_summary`
+- [ ] Three snippet lines visible: `table_html`, `kv_html`, custom loop
 
 **Setup — configure the email body**
 
@@ -303,40 +314,37 @@ in a sent email — without the user writing any raw Jinja2.
 
 6. Check the **Available variables** card on the right — confirm `{{ steps.step_name.table_html }}`, `{{ steps.step_name.kv_html }}`, and the `{% for row %}` loop are listed.
 
-- [X] New capture variables present in Available Variables card
+- [ ] New capture variables present in Available Variables card
 
 **Run and verify**
 
 7. Save the email config and return to the pipeline. Run it via **Run Now**.
 
-- [X] Pipeline succeeds — both steps green in Run History
-- [X] Email received — note: goes to the recipient group's To address
-      (`jagdeepvirdi@advancetech.co.th` for the `Premium Subscriber Details`
-      config used here), not necessarily `jagdeep.singh.virdi@gmail.com` —
-      check which recipient group/addresses the email config you use is
-      actually wired to
-- [X] Email body contains an HTML `<table>` with columns `plan`, `status`, `subscribers`, `mrr`
-- [X] Table has 6 data rows (one per plan/status combination)
-- [X] `kv_html` block shows the first row as a key-value list (`plan`, `status`, `subscribers`, `mrr` as label:value)
-- [X] Custom loop `<ul>` contains 6 `<li>` items with plan/status/count/mrr values
+- [ ] Pipeline succeeds — both steps green in Run History
+- [ ] Email received. It goes to the To address of the email config you picked (a direct address or its
+      recipient group), so check the inbox that config is actually wired to
+- [ ] Email body contains an HTML `<table>` with columns `plan`, `status`, `subscribers`, `mrr`
+- [ ] Table has 6 data rows (one per plan/status combination)
+- [ ] `kv_html` block shows the first row as a key-value list (`plan`, `status`, `subscribers`, `mrr` as label:value)
+- [ ] Custom loop `<ul>` contains 6 `<li>` items with plan/status/count/mrr values
 
 **Row limit test**
 
 8. Edit the `load_summary` step — set **Row limit** to `2`
 9. Re-run the pipeline
 
-- [X] Email table now has exactly 2 data rows (not 6)
-- [X] `rows_affected` in the step run log still shows `6` (full query count, not capped)
+- [ ] Email table now has exactly 2 data rows (not 6)
+- [ ] `rows_affected` in the step run log still shows `6` (full query count, not capped)
 
 **Capture disabled test**
 
 10. Untick **Capture rows for email** on the `load_summary` step
 11. Re-run the pipeline
 
-- [X] Email sent without error (body renders with empty strings where `table_html`/`kv_html` were)
-- [X] "Query data" section disappears from the email step in Pipeline Builder
+- [ ] Email sent without error (body renders with empty strings where `table_html`/`kv_html` were)
+- [ ] "Query data" section disappears from the email step in Pipeline Builder
 
-------------------------------$
+---
 
 ## 4. DB Procedure Step
 
@@ -368,15 +376,15 @@ Then in a pipeline, add a **DB Procedure** step:
 
 Run the pipeline.
 
-- [X] Step succeeds with no error
-- [X] Logs visible in step run detail
+- [ ] Step succeeds with no error
+- [ ] Logs visible in step run detail
 
 ### 4b. Oracle package (if Oracle connection configured)
 
 Create a test package first. The db_procedure step runs `BEGIN name(:param1, ...); END;`,
 so `name` must resolve to a callable procedure — a package-qualified procedure
 (`PKG_NAME.PROC_NAME`) works, same as a standalone one. Connect as the app user
-(see `docs/credentials.local.md` — Oracle App User `oracle` / FREEPDB1) and run:
+of your Oracle test database and run:
 
 ```sql
 CREATE OR REPLACE PACKAGE pkg_ff_test AS
@@ -403,10 +411,10 @@ Then in a pipeline, add a **DB Procedure** step:
 
 Run the pipeline.
 
-- [X] Step succeeds with no error
-- [X] Logs visible in step run detail
+- [ ] Step succeeds with no error
+- [ ] Logs visible in step run detail
 
-------------------------------$
+---
 
 ## 5. Report Generation
 
@@ -442,7 +450,7 @@ Repeat 5a with format `PDF`.
 
 - [ ] PDF generated (or clear error if WeasyPrint not installed)
 
-------------------------------$
+---
 
 ## 6. Email — Gmail
 
@@ -455,7 +463,7 @@ Repeat 5a with format `PDF`.
    |---|---|
    | Name | `Test Email — Gmail` |
    | Provider | Gmail provider |
-   | To | `jagdeep.singh.virdi@gmail.com` |
+   | To | an address you can read |
    | Subject | `FlowForge test email {{ current_date }}` |
    | Body | `<p>This is a test email sent at {{ current_date }}.</p>` |
 
@@ -484,7 +492,7 @@ Repeat 5a with format `PDF`.
 
 - [ ] Reset max attachment size back to `10` MB after testing
 
-------------------------------$
+---
 
 ## 7. Email — Microsoft 365
 
@@ -493,7 +501,7 @@ Repeat tests 6a and 6b using the M365 provider instead of Gmail.
 - [ ] Email received via M365
 - [ ] Attachment delivered correctly
 
-------------------------------$
+---
 
 ## 8. Google Drive Upload
 
@@ -514,7 +522,7 @@ Repeat tests 6a and 6b using the M365 provider instead of Gmail.
 - [ ] File appears in Google Drive folder with correct name
 - [ ] `drive_url` visible in step run log
 
-------------------------------$
+---
 
 ## 9. Data Load Step (data_load)
 
@@ -525,7 +533,7 @@ Repeat tests 6a and 6b using the M365 provider instead of Gmail.
    | Field | Value |
    |---|---|
    | Source type | `File` |
-   | File path | `D:\Project\flowforge\sample_data\bulk_load\incoming\SUBS_20260522_001.csv` |
+   | File path | `<repo>\sample_data\bulk_load\incoming\SUBS_20260522_001.csv` |
    | Target connection | `FlowForge DB` |
    | Target table | `public.bulk_test_subscribers` |
    | Mode | `Append` |
@@ -563,7 +571,7 @@ Repeat tests 6a and 6b using the M365 provider instead of Gmail.
 
 - [ ] `public.active_subscribers` created and populated with active subscribers only
 
-------------------------------$
+---
 
 ## 10. Pipeline Variables
 
@@ -661,7 +669,7 @@ Also available: `{{ last_success_date }}` — same run, YYYY-MM-DD format.
 - [ ] Secret var shows `***` in the UI — plaintext never returned
 - [ ] Variable is still usable in step configs (resolved at runtime)
 
-------------------------------$
+---
 
 ## 11. Data Load — create_if_missing
 
@@ -673,7 +681,7 @@ Also available: `{{ last_success_date }}` — same run, YYYY-MM-DD format.
    | Field | Value |
    |---|---|
    | Source type | `File` |
-   | File path | `D:\Project\flowforge\sample_data\bulk_load\incoming\SUBS_20260522_001.csv` |
+   | File path | `<repo>\sample_data\bulk_load\incoming\SUBS_20260522_001.csv` |
    | Target connection | `FlowForge DB` |
    | Target table | `public.dl_auto_{{ current_date }}` |
    | Mode | `Append` |
@@ -720,7 +728,7 @@ that doesn't exist yet (rename `target_table` to `public.dl_replace_test`).
 - [ ] Table auto-created AND truncated on first run
 - [ ] Second run: table truncated, same row count (not doubled)
 
-------------------------------$
+---
 
 ## 12. Scheduling
 
@@ -732,7 +740,7 @@ that doesn't exist yet (rename `target_table` to `public.dl_replace_test`).
 - [ ] Scheduled run appears in history with `triggered_by = scheduler`
 - [ ] Schedule disabled without deleting the pipeline
 
-------------------------------$
+---
 
 ## 13. OneDrive Upload
 
@@ -777,46 +785,15 @@ Same credentials as M365 email — set `MICROSOFT_TENANT_ID`, `MICROSOFT_CLIENT_
 - [ ] Email received with OneDrive link in body instead of direct attachment
 - [ ] Log shows "smart attachment → OneDrive"
 
-------------------------------$
+---
 
-## 14. AI Features — Brain not attached
-
-*(Core has no AI code since v2.0.0. With no Brain attached, every AI surface must stay dark and nothing may break.)*
-
-### 14a. No AI UI renders
-
-- [ ] Report Designer SQL editor: no Explain / Optimize buttons
-- [ ] Report Preview: no Visualize / Profile buttons (the manual chart builder and `ChartPreview` still work)
-- [ ] Run Detail → Logs: no "Diagnose" button
-- [ ] Step picker in the Pipeline Builder does not offer `ai_analyze`
-
-### 14b. Settings → Brain card
-
-- [ ] Shows "not attached"; no Ollama / Claude / Gemini fields anywhere in Settings
-- [ ] With `FLOWFORGE_BRAIN_URL` set, the card still reports "Not attached" (the Core→Brain contract is not built yet; the card only shows the env-var hint)
-
-### 14c. API gate
-
-- [ ] `GET/POST /api/ai/*` returns `503` with `{"error": "brain_not_attached"}`
-
-### 14d. Anomaly alerts still work (no Brain needed)
-
-- [ ] Run Detail shows the statistical anomaly badge for a step whose row count or duration is a >2σ outlier
-
-## 15. Legacy ai_analyze step
-
-- [ ] A saved pipeline containing an `ai_analyze` step still loads and shows the step with its badge
-- [ ] Running it fails that step with a clear "requires the Brain service" message
-- [ ] `on_error: stop` halts the pipeline; `on_error: continue` runs the next step
-- [ ] `{{ ai_summary }}` in a downstream template renders empty
-
-## 16. SFTP Transfer Step (sftp_transfer)
+## 14. SFTP Transfer Step (sftp_transfer)
 
 *(Requires an accessible SFTP server. For local testing:
 `docker run -p 2222:22 -e SSH_USERS="testuser:1001" atmoz/sftp` or
 use any accessible SFTP endpoint you have credentials for.)*
 
-### 16a. Download single file
+### 14a. Download single file
 
 1. Create a pipeline: `SFTP Test`
 2. Add an **SFTP Transfer** step:
@@ -829,7 +806,7 @@ use any accessible SFTP endpoint you have credentials for.)*
    | Password | *(your SFTP password)* |
    | Operation | `download` |
    | Remote path | `/upload/test_file.csv` (a file that exists on the server) |
-   | Local path | `D:\Project\flowforge\sample_data\sftp_test\` |
+   | Local path | `<repo>\sample_data\sftp_test\` |
 
 3. Run the pipeline
 
@@ -838,17 +815,17 @@ use any accessible SFTP endpoint you have credentials for.)*
 - [ ] `output_path` visible in step run log
 - [ ] `files_loaded = 1` in log
 
-### 16b. Download directory with glob pattern
+### 14b. Download directory with glob pattern
 
 1. Edit the step:
    - Remote path: `/upload/` (a directory)
    - Pattern: `*.csv`
-   - Local path: `D:\Project\flowforge\sample_data\sftp_test\`
+   - Local path: `<repo>\sample_data\sftp_test\`
 
 - [ ] Only `.csv` files downloaded (any `.txt` or other files skipped)
 - [ ] `files_found` and `files_loaded` counts visible in log
 
-### 16c. overwrite=false skips existing
+### 14c. overwrite=false skips existing
 
 1. Run the download step again with `overwrite: false`
 
@@ -856,7 +833,7 @@ use any accessible SFTP endpoint you have credentials for.)*
 - [ ] `files_loaded = 0` — already-downloaded files are skipped, not overwritten
 - [ ] No error
 
-### 16d. Upload file
+### 14d. Upload file
 
 1. Generate a small file locally (or use a report output)
 2. Add an SFTP Transfer step:
@@ -874,7 +851,7 @@ use any accessible SFTP endpoint you have credentials for.)*
 - [ ] Remote directory created automatically (if it didn't exist)
 - [ ] `files_loaded = 1` in log
 
-### 16e. Private key authentication
+### 14e. Private key authentication
 
 1. Configure the step with `key_path` (path to a local private key) instead of `password`
 2. Run the pipeline
@@ -882,21 +859,21 @@ use any accessible SFTP endpoint you have credentials for.)*
 - [ ] Step connects successfully using the private key
 - [ ] No error about missing password
 
-### 16f. Invalid host / credentials
+### 14f. Invalid host / credentials
 
 1. Set the host to a non-existent server and run
 
 - [ ] Step fails with a clear "SFTP error" message
 - [ ] Pipeline error recorded in Run History with the step name
 
-------------------------------$
+---
 
-## 17. Multi-User Roles & Access Control
+## 15. Multi-User Roles & Access Control
 
-*(Requires the server running with multi-user support. Create test accounts via
-Settings → Users.)*
+*(Create the test accounts below in Settings → Users, or from a terminal with
+`flowforge user create editor_test --role editor --generate-password`.)*
 
-### 17a. Create users with different roles
+### 15a. Create users with different roles
 
 1. Log in as `admin`
 2. Go to **Settings → Users → Add User**
@@ -910,7 +887,7 @@ Settings → Users.)*
 
 - [ ] All three users created and visible in the user list
 
-### 17b. Viewer restrictions
+### 15b. Viewer restrictions
 
 1. Log out and log in as `viewer_test`
 2. Open the Dashboard — pipelines are visible
@@ -920,7 +897,7 @@ Settings → Users.)*
 - [ ] Connections page: no **Add** or **Delete** buttons
 - [ ] Settings → Users page: not accessible (redirected or 403)
 
-### 17c. Editor permissions
+### 15c. Editor permissions
 
 1. Log in as `editor_test`
 2. Create a new pipeline, add a step, and save
@@ -929,7 +906,7 @@ Settings → Users.)*
 - [ ] **Run Now** works — pipeline runs
 - [ ] Settings → Users page: not accessible
 
-### 17d. Admin full access
+### 15d. Admin full access
 
 1. Log in as `admin_test`
 
@@ -937,7 +914,7 @@ Settings → Users.)*
 - [ ] Can create/edit/delete users
 - [ ] Can run pipelines and edit all configs
 
-### 17e. Self-service password change
+### 15e. Self-service password change
 
 1. Log in as `editor_test`
 2. Go to **Settings → Change Password**
@@ -947,10 +924,10 @@ Settings → Users.)*
 - [ ] Can log in with the new password
 - [ ] Old password rejected
 
-### 17f. JWT token revocation (logout)
+### 15f. JWT token revocation (logout)
 
-1. Log in as any user — capture the JWT token from browser DevTools (Application → Local Storage → `token`)
-2. Log out via **Settings → Logout** (or the top-right menu)
+1. Log in as any user — capture the JWT token from browser DevTools (Application → Local Storage → `flowforge-auth` → the `token` value inside `state`)
+2. Click **Sign out** at the bottom of the sidebar
 3. In Postman or curl, call any protected endpoint with the old token:
    ```
    GET /api/pipelines
@@ -960,24 +937,24 @@ Settings → Users.)*
 - [ ] Server returns `401 Unauthorized` — token is revoked immediately on logout
 - [ ] Logging back in issues a new token that works
 
-------------------------------$
+---
 
-## 18. Pipeline Clone & YAML Import/Export
+## 16. Pipeline Clone & YAML Import/Export
 
-### 18a. Clone a pipeline
+### 16a. Clone a pipeline
 
 1. Go to **Pipelines**
 2. Open any pipeline with at least two steps
 3. Click the **Clone** button (three-dot menu or toolbar)
-4. Confirm — a copy is created with name `<original> (copy)`
+4. Confirm — a copy is created named `<original> (Copy)` (a second clone becomes `<original> (Copy) 2`)
 
 - [ ] Clone appears in the pipeline list
 - [ ] All steps, schedules, and variables are copied
 - [ ] Editing the clone does not affect the original
 
-### 18b. Export pipeline as YAML
+### 16b. Export pipeline as YAML
 
-1. Open a pipeline → click **Export YAML** (Settings or toolbar)
+1. On the **Pipelines** page, click **Export YAML** for a pipeline
 2. Download the `.yaml` file
 
 - [ ] File downloads successfully
@@ -991,10 +968,10 @@ flowforge export "Pipeline Name"
 
 - [ ] CLI produces same YAML content as the UI export
 
-### 18c. Import pipeline from YAML
+### 16c. Import pipeline from YAML
 
 1. Modify the exported YAML — change the `name` to `Imported Pipeline`
-2. Go to **Settings → Import YAML** (or **Pipelines → Import**)
+2. On the **Pipelines** page, click the **Import** (upload) button
 3. Upload the modified file
 
 - [ ] Pipeline imported and visible in the list with the new name
@@ -1009,11 +986,11 @@ flowforge import pipeline.yaml --overwrite   # replace if name exists
 - [ ] CLI import succeeds
 - [ ] `--overwrite` replaces an existing pipeline without error
 
-------------------------------$
+---
 
-## 19. Step Retry & Failure Webhook
+## 17. Step Retry & Failure Webhook
 
-### 19a. Step retry on transient failure
+### 17a. Step retry on transient failure
 
 1. Open a pipeline → edit a step → expand **Advanced**
 2. Set:
@@ -1026,10 +1003,11 @@ flowforge import pipeline.yaml --overwrite   # replace if name exists
 3. Point the step at a temporarily unavailable resource (e.g. a wrong DB host) and run
 
 - [ ] Run History shows the step retried 3 times before failing
-- [ ] Step logs show "attempt 1/4", "attempt 2/4", etc.
+- [ ] The server log shows `failed (attempt 1/4), retrying in 5s`, then attempt 2/4, and so on
+      (retry attempts go to the server log, not the step's run-history log)
 - [ ] Total run duration reflects the delays (≥ 15 s)
 
-### 19b. Retry succeeds on later attempt
+### 17b. Retry succeeds on later attempt
 
 1. Configure a step that will fail once then succeed (e.g. restore the correct DB host mid-run, or use `on_error: continue` on a preceding step)
 2. Set retry count to `2`
@@ -1037,7 +1015,7 @@ flowforge import pipeline.yaml --overwrite   # replace if name exists
 - [ ] Step log shows it succeeded on attempt 2 (not attempt 1)
 - [ ] Pipeline overall status is `success`
 
-### 19c. Failure webhook
+### 17c. Failure webhook
 
 1. Open a pipeline → **Advanced** → set **On-failure webhook URL** to a public test endpoint (e.g. `https://webhook.site/<your-id>`)
 2. Add a step that will intentionally fail (bad SQL)
@@ -1051,13 +1029,13 @@ flowforge import pipeline.yaml --overwrite   # replace if name exists
 
 - [ ] Webhook does **not** fire on success
 
-------------------------------$
+---
 
-## 20. API / Webhook Trigger
+## 18. API / Webhook Trigger
 
-### 20a. Get the pipeline trigger token
+### 18a. Get the pipeline trigger token
 
-1. Open a pipeline → **Settings** (or three-dot menu) → **API Trigger**
+1. Open a pipeline → the **Triggers** card → the API/webhook trigger section
 2. Copy the trigger URL and token, e.g.:
    ```
    POST /api/pipelines/<id>/trigger?token=flwf_...
@@ -1066,7 +1044,7 @@ flowforge import pipeline.yaml --overwrite   # replace if name exists
 - [ ] Token is shown (masked, with a reveal button)
 - [ ] Token starts with `flwf_`
 
-### 20b. Trigger via curl / Postman
+### 18b. Trigger via curl / Postman
 
 ```powershell
 Invoke-WebRequest -Method POST `
@@ -1074,10 +1052,10 @@ Invoke-WebRequest -Method POST `
   -UseBasicParsing
 ```
 
-- [ ] Response: `{ "run_id": "...", "status": "accepted" }`
+- [ ] Response `202` with `{ "run_id": "...", "status": "running", "pipeline_name": "..." }`
 - [ ] Run appears in Run History with `triggered_by = api`
 
-### 20c. Invalid token is rejected
+### 18c. Invalid token is rejected
 
 ```powershell
 Invoke-WebRequest -Method POST `
@@ -1088,29 +1066,30 @@ Invoke-WebRequest -Method POST `
 - [ ] Response: `401 Unauthorized`
 - [ ] No run created
 
-### 20d. Audit trail
+### 18d. Audit trail
 
 1. Go to **Settings → Audit Log**
-2. Filter by action `PIPELINE_TRIGGER`
+2. Filter by action `WEBHOOK_TRIGGER`
 
 - [ ] Trigger event logged with the pipeline name and `triggered_by = api`
 
-------------------------------$
+---
 
-## 21. Audit Log
+## 19. Audit Log
 
 1. Go to **Settings → Audit Log** (admin only)
 
-### 21a. Events are recorded
+### 19a. Events are recorded
 
 Perform these actions and confirm each appears in the log:
 - [ ] Login → action `LOGIN_SUCCESS`
-- [ ] Failed login (wrong password) → action `LOGIN_FAILURE`
-- [ ] Create a pipeline → action `PIPELINE_CREATE`
-- [ ] Run a pipeline → action `PIPELINE_RUN`
-- [ ] Delete a connection → action `CONNECTION_DELETE`
+- [ ] Failed login (wrong password) → action `LOGIN_FAILED`
+- [ ] Create a pipeline → action `PIPELINE_CFG_CREATED`
+- [ ] Run a pipeline → `PIPELINE_STARTED`, then `PIPELINE_SUCCESS` (or `PIPELINE_FAILED`)
+- [ ] Delete a connection → action `CONNECTION_DELETED`
+- [ ] Create, edit and delete a user → `USER_CREATED`, `USER_UPDATED`, `USER_DELETED`
 
-### 21b. Filters
+### 19b. Filters
 
 1. Filter by **Action** = `PIPELINE_RUN`
 - [ ] Only run events shown
@@ -1118,7 +1097,7 @@ Perform these actions and confirm each appears in the log:
 2. Filter by **Username** = `admin`
 - [ ] Only admin events shown
 
-### 21c. Pagination
+### 19c. Pagination
 
 1. Generate more than 50 audit events (run several pipelines, login/logout multiple times)
 2. Open the Audit Log page
@@ -1126,25 +1105,25 @@ Perform these actions and confirm each appears in the log:
 - [ ] Paginated — 50 rows per page
 - [ ] Next/Previous page controls work
 
-### 21d. CSV export
+### 19d. CSV export
 
 1. Click **Export CSV**
 
 - [ ] CSV downloads with all visible (filtered) log entries
-- [ ] Columns: `timestamp`, `action`, `username`, `ip_address`, `details`
+- [ ] Columns: `ID`, `Timestamp`, `Action`, `Username`, `User ID`, `IP Address`, `Details`
 
-### 21e. Viewer/editor cannot access audit log
+### 19e. Viewer/editor cannot access audit log
 
 1. Log in as `viewer_test` or `editor_test`
 2. Navigate to `/settings/audit`
 
 - [ ] Redirected or `403 Forbidden`
 
-------------------------------$
+---
 
-## 22. Notification Step (Slack / Teams / Telegram)
+## 20. Notification Step (Slack / Teams / Telegram)
 
-### 22a. Slack
+### 20a. Slack
 
 1. Set up a Slack incoming webhook in your Slack workspace (Apps → Incoming Webhooks)
 2. Create a pipeline with a **Notification** step:
@@ -1160,7 +1139,7 @@ Perform these actions and confirm each appears in the log:
 - [ ] Slack message received with variables resolved
 - [ ] Message not empty or literal `{{ pipeline_name }}`
 
-### 22b. Microsoft Teams
+### 20b. Microsoft Teams
 
 1. Set up an Incoming Webhook connector in a Teams channel
 2. Add a **Notification** step:
@@ -1174,7 +1153,7 @@ Perform these actions and confirm each appears in the log:
 
 - [ ] Teams message received with bold title and resolved variables
 
-### 22c. Telegram
+### 20c. Telegram
 
 1. Create a Telegram bot via @BotFather; note the bot token
 2. Get your chat ID (send `/start` to the bot then call `https://api.telegram.org/bot<token>/getUpdates`)
@@ -1190,7 +1169,7 @@ Perform these actions and confirm each appears in the log:
 
 - [ ] Telegram message received with bold formatting applied
 
-### 22d. Notification on pipeline failure
+### 20d. Notification on pipeline failure
 
 1. Add a **Notification** step at the end of a pipeline that also has a step set to `on_error: continue`
 2. Force the first step to fail
@@ -1199,18 +1178,18 @@ Perform these actions and confirm each appears in the log:
 - [ ] Notification step still runs after the failed step
 - [ ] Message body includes `{{ failed_step }}` (if used in the template)
 
-### 22e. Invalid webhook URL
+### 20e. Invalid webhook URL
 
 1. Set an obviously wrong webhook URL and run
 
 - [ ] Step fails with a clear error message
 - [ ] Pipeline run status reflects the failure
 
-------------------------------$
+---
 
-## 23. Additional Email Providers
+## 21. Additional Email Providers
 
-### 23a. SMTP (generic)
+### 21a. SMTP (generic)
 
 1. Go to **Connections → Email Providers → Add Provider → SMTP**
 2. Fill in:
@@ -1228,7 +1207,7 @@ Perform these actions and confirm each appears in the log:
 - [ ] Test email received
 - [ ] SMTP provider saved and selectable in Email configs
 
-### 23b. SendGrid
+### 21b. SendGrid
 
 *(Requires a SendGrid account and API key with `Mail Send` permission.)*
 
@@ -1246,7 +1225,7 @@ Perform these actions and confirm each appears in the log:
 - [ ] Test email received via SendGrid
 - [ ] Provider saved
 
-### 23c. AWS SES
+### 21c. AWS SES
 
 *(Requires an AWS account, SES verified sender, and an IAM key with `ses:SendRawEmail`.)*
 
@@ -1265,7 +1244,7 @@ Perform these actions and confirm each appears in the log:
 - [ ] Email delivered via SES
 - [ ] Provider saved
 
-### 23d. Mailgun
+### 21d. Mailgun
 
 *(Requires a Mailgun account. Free tier allows 5,000 emails/month.)*
 
@@ -1284,11 +1263,11 @@ Perform these actions and confirm each appears in the log:
 - [ ] Email delivered via Mailgun
 - [ ] Provider saved
 
-------------------------------$
+---
 
-## 24. Additional Database Connections
+## 22. Additional Database Connections
 
-### 24a. MySQL / MariaDB
+### 22a. MySQL / MariaDB
 
 *(Requires MySQL or MariaDB running. Docker: `docker run -p 3306:3306 -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=testdb mysql:8`.)*
 
@@ -1299,7 +1278,7 @@ Perform these actions and confirm each appears in the log:
 - [ ] Test passes (latency shown)
 - [ ] Add a DB Query step pointing at this connection — query executes
 
-### 24b. MSSQL / SQL Server
+### 22b. MSSQL / SQL Server
 
 *(Requires SQL Server or Azure SQL. Docker: `mcr.microsoft.com/mssql/server:2022-latest`.)*
 
@@ -1319,7 +1298,7 @@ Perform these actions and confirm each appears in the log:
 - [ ] Test passes
 - [ ] DB Query step runs a simple `SELECT 1` successfully
 
-### 24c. ODBC (generic)
+### 22c. ODBC (generic)
 
 1. Go to **Connections → Add Connection → ODBC**
 2. Provide a DSN or connection string (e.g. `DSN=MyDSN` or a full ODBC connection string)
@@ -1327,9 +1306,9 @@ Perform these actions and confirm each appears in the log:
 
 - [ ] Connection tested (result depends on your ODBC driver/DSN)
 
-------------------------------$
+---
 
-## 25. Report — JSON Format
+## 23. Report — JSON Format
 
 1. Go to **Reports → New Report**
 2. Fill in:
@@ -1349,13 +1328,13 @@ Perform these actions and confirm each appears in the log:
 - [ ] Column names match query result columns
 - [ ] Output path visible in step run log
 
-------------------------------$
+---
 
-## 26. Celery / Redis Task Queue (optional)
+## 24. Celery / Redis Task Queue (optional)
 
 *(Requires Redis running. Docker: `docker run -p 6379:6379 redis:7`. Set `FLOWFORGE_REDIS_URL=redis://localhost:6379/0` in `.env` and restart.)*
 
-### 26a. Worker starts and picks up tasks
+### 24a. Worker starts and picks up tasks
 
 In a separate terminal, start a Celery worker:
 ```powershell
@@ -1364,7 +1343,7 @@ flowforge worker --concurrency 4
 
 - [ ] Worker starts and logs `[celery.worker.consumer] Connected to redis://localhost:6379/0`
 
-### 26b. Pipeline run dispatched as Celery task
+### 24b. Pipeline run dispatched as Celery task
 
 1. Trigger a pipeline via **Run Now**
 2. Watch the Celery worker terminal
@@ -1373,7 +1352,7 @@ flowforge worker --concurrency 4
 - [ ] Run History shows `triggered_by = web_ui`
 - [ ] Run completes and status updates in the UI
 
-### 26c. Fallback when Redis is unavailable
+### 24c. Fallback when Redis is unavailable
 
 1. Stop Redis
 2. Restart the FlowForge server (without `FLOWFORGE_REDIS_URL` set, or with Redis stopped)
@@ -1382,11 +1361,11 @@ flowforge worker --concurrency 4
 - [ ] Pipeline runs via background thread (no Celery error)
 - [ ] Run History shows the run completed normally
 
-------------------------------$
+---
 
-## 27. Snowflake / BigQuery / Redshift Connections
+## 25. Snowflake / BigQuery / Redshift Connections
 
-### 27a. Snowflake
+### 25a. Snowflake
 
 *(Requires a Snowflake account and `pip install flowforge[snowflake]`.)*
 
@@ -1408,7 +1387,7 @@ flowforge worker --concurrency 4
 - [ ] Test passes (latency shown)
 - [ ] Add a DB Query step pointing at this connection — query executes and returns rows
 
-### 27b. BigQuery
+### 25b. BigQuery
 
 *(Requires a GCP project and `pip install flowforge[bigquery]`.)*
 
@@ -1427,7 +1406,7 @@ flowforge worker --concurrency 4
 - [ ] Test passes leaving the key blank (if `gcloud auth application-default login` has been run on the host)
 - [ ] A DB Query step using a named `@param` (not positional `%s`) resolves correctly — BigQuery has no positional placeholder support
 
-### 27c. Redshift
+### 25c. Redshift
 
 *(Uses the same connection form as PostgreSQL/MySQL/Oracle — Redshift is wire-compatible with Postgres, no dedicated form.)*
 
@@ -1438,11 +1417,11 @@ flowforge worker --concurrency 4
 - [ ] Test passes
 - [ ] DB Query step runs a simple `SELECT 1` successfully
 
-------------------------------$
+---
 
-## 28. S3 / Azure Blob Upload Steps
+## 26. S3 / Azure Blob Upload Steps
 
-### 28a. S3 upload
+### 26a. S3 upload
 
 *(Requires `pip install flowforge[s3]` and either `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`/`AWS_DEFAULT_REGION` set, or a working boto3 default credential chain — e.g. an IAM instance role.)*
 
@@ -1465,7 +1444,7 @@ flowforge worker --concurrency 4
 - [ ] Untick "Return presigned URL" and re-run — log shows a plain `s3://bucket/key` URI instead
 - [ ] Presigned URL opens the file directly in a browser without AWS credentials, and expires after ~1 hour
 
-### 28b. Azure Blob upload
+### 26b. Azure Blob upload
 
 *(Requires `pip install flowforge[azure_blob]` and `AZURE_STORAGE_CONNECTION_STRING`, or `AZURE_STORAGE_ACCOUNT_URL` + optionally `AZURE_STORAGE_ACCOUNT_KEY`.)*
 
@@ -1486,13 +1465,13 @@ flowforge worker --concurrency 4
 - [ ] With `AZURE_STORAGE_ACCOUNT_KEY` set: step log shows a SAS URL (24h expiry) that opens the file without further auth
 - [ ] With only `AZURE_STORAGE_CONNECTION_STRING`/`AZURE_STORAGE_ACCOUNT_URL` and no account key: log shows a plain blob URL instead (SAS generation requires the account key) — not an error
 
-------------------------------$
+---
 
-## 29. MFA (TOTP)
+## 27. MFA (TOTP)
 
 *(Requires `pip install pyotp`.)*
 
-### 29a. Enroll
+### 27a. Enroll
 
 1. Log in as any user → **Settings**
 2. Find the **Two-Factor Authentication (MFA)** card (status badge shows "Disabled")
@@ -1506,7 +1485,7 @@ flowforge worker --concurrency 4
 - [ ] Correct code activates MFA — a "backup codes" banner appears with 10 one-time codes
 - [ ] Click **Done — I've saved my backup codes** — MFA card now shows "Active"
 
-### 29b. Login with MFA enabled
+### 27b. Login with MFA enabled
 
 1. Log out
 2. Log in with username/password as usual
@@ -1516,7 +1495,7 @@ flowforge worker --concurrency 4
 
 - [ ] Login succeeds and issues a normal session token
 
-### 29c. Login with a backup code
+### 27c. Login with a backup code
 
 1. Log out, log in with username/password again
 2. At the authenticator-code prompt, use the backup-code fallback link
@@ -1526,7 +1505,7 @@ flowforge worker --concurrency 4
 - [ ] The same backup code is rejected if used a second time (one-time use)
 - [ ] Response after backup-code login shows how many backup codes remain
 
-### 29d. Disable MFA
+### 27d. Disable MFA
 
 1. Settings → MFA card → **Disable MFA**
 2. Confirm current password
@@ -1534,11 +1513,11 @@ flowforge worker --concurrency 4
 - [ ] MFA disabled — card returns to "Disabled" state
 - [ ] Next login does not prompt for a TOTP/backup code
 
-------------------------------$
+---
 
-## 30. SSO (Google / Microsoft) and SAML
+## 28. SSO (Google / Microsoft) and SAML
 
-### 30a. Google SSO
+### 28a. Google SSO
 
 *(Requires `GOOGLE_SSO_CLIENT_ID`/`GOOGLE_SSO_CLIENT_SECRET` set, `pip install google-auth-oauthlib`, and a matching OAuth redirect URI `{FLOWFORGE_APP_URL}/api/auth/sso/google/callback` registered in Google Cloud Console.)*
 
@@ -1549,7 +1528,7 @@ flowforge worker --concurrency 4
 - [ ] With `FLOWFORGE_SSO_AUTO_CREATE=false` (default) and no matching existing username: login is rejected with "Account not found. Contact your administrator."
 - [ ] With `FLOWFORGE_SSO_AUTO_CREATE=true`: a new user is auto-created on first SSO login
 
-### 30b. Microsoft SSO
+### 28b. Microsoft SSO
 
 *(Requires `MICROSOFT_SSO_TENANT_ID`/`MICROSOFT_SSO_CLIENT_ID`/`MICROSOFT_SSO_CLIENT_SECRET`, `pip install msal`, and a matching Azure AD app registration.)*
 
@@ -1559,24 +1538,24 @@ flowforge worker --concurrency 4
 - [ ] Redirects back and logs in successfully
 - [ ] Auto-create behavior matches the Google case (`FLOWFORGE_SSO_AUTO_CREATE`)
 
-### 30c. SAML
+### 28c. SAML
 
 *(Requires `SAML_SP_ENTITY_ID`, `SAML_IDP_ENTITY_ID`, `SAML_IDP_SSO_URL`, `SAML_IDP_X509_CERT`, and `pip install python3-saml`.)*
 
-1. Fetch `GET /auth/sso/saml/metadata` and register it (or the individual fields) with your IdP (Okta, Azure AD, PingFederate)
+1. Fetch `GET /api/auth/sso/saml/metadata` and register it (or the individual fields) with your IdP (Okta, Azure AD, PingFederate)
 2. Confirm a **"Sign in with SSO"** button appears on Login
 3. Click it → complete the IdP login
 
 - [ ] Redirects to the IdP, then back to FlowForge via the ACS endpoint, and logs in successfully
-- [ ] `GET /auth/sso/providers` correctly reflects which of `google`/`microsoft`/`saml` are configured (used to decide which buttons render)
+- [ ] `GET /api/auth/sso/providers` correctly reflects which of `google`/`microsoft`/`saml` are configured (used to decide which buttons render)
 
-------------------------------$
+---
 
-## 31. GDPR Export / Deletion
+## 29. GDPR Export / Deletion
 
 *(Admin only — Settings → Users.)*
 
-### 31a. Data export
+### 29a. Data export
 
 1. Go to **Settings → Users**
 2. Click the download icon next to a non-current-user account ("GDPR export — download all personal data as JSON")
@@ -1585,7 +1564,7 @@ flowforge worker --concurrency 4
 - [ ] File contains `user`, `audit_log` (up to 1000 entries), and `pipeline_runs` (up to 500 entries)
 - [ ] Data matches what's visible elsewhere in the UI for that user
 
-### 31b. GDPR purge
+### 29b. GDPR purge
 
 1. Click the **GDPR** button next to a non-current-user account
 2. Confirm the dialog: "GDPR purge: delete '<user>' and anonymise all their audit log entries?"
@@ -1594,20 +1573,20 @@ flowforge worker --concurrency 4
 - [ ] Audit Log entries previously attributed to that user now show `username = [deleted:<uid8>]` with `ip_address` cleared, instead of disappearing entirely
 - [ ] Attempting to purge your own currently-logged-in account: the delete/GDPR buttons are not shown at all
 
-### 31c. Plain delete (no purge)
+### 29c. Plain delete (no purge)
 
 1. Click the trash icon next to a user (not the GDPR button)
 2. Confirm "Delete user '<user>'? This cannot be undone."
 
 - [ ] User is deleted, but their audit log entries retain the original username (no anonymisation) — confirms plain delete and GDPR purge are genuinely different operations
 
-------------------------------$
+---
 
-## 32. Plugin System
+## 30. Plugin System
 
 *(Reference: `docs/plugins.md`, example at `examples/plugins/http_webhook_step.py`.)*
 
-### 32a. Load a plugin step type
+### 30a. Load a plugin step type
 
 1. Set `FLOWFORGE_PLUGIN_DIR=./plugins` in `.env` (this is also the default if unset)
 2. Copy `examples/plugins/http_webhook_step.py` into that directory
@@ -1616,7 +1595,7 @@ flowforge worker --concurrency 4
 - [ ] `GET /api/step-types` now includes an entry with `"plugin": true` for the new type, alongside the built-ins (`"plugin": false`)
 - [ ] In Pipeline Builder, the new step type appears in the **Steps** add-button row, labelled `(plugin)`
 
-### 32b. Configure and run a plugin step
+### 30b. Configure and run a plugin step
 
 1. Add the plugin step to a pipeline
 
@@ -1626,7 +1605,7 @@ flowforge worker --concurrency 4
 - [ ] Step executes using the same retry / `on_error` / `parallel_group` machinery as built-in steps
 - [ ] Step failure (e.g. malformed config) is reported in Run History like any other step failure
 
-### 32c. Conflicting or broken plugin
+### 30c. Conflicting or broken plugin
 
 1. Add a second plugin file whose `step_type` string duplicates an existing built-in (e.g. `email`)
 2. Restart FlowForge
@@ -1636,7 +1615,7 @@ flowforge worker --concurrency 4
 
 - [ ] Server still starts — the broken plugin is skipped with a logged error, other plugins/built-ins still load
 
-### 32d. Plugin connection / email provider
+### 30d. Plugin connection / email provider
 
 1. Add a plugin file defining a `BaseConnection` subclass with a unique `db_type` and a `from_config(cls, cfg)` classmethod (see `docs/plugins.md` § Connection plugins), restart FlowForge
 
@@ -1648,11 +1627,11 @@ flowforge worker --concurrency 4
 - [ ] Test succeeds using the plugin's own `test()` implementation
 3. Repeat steps 1-2 for a plugin `EmailProvider` subclass (`provider_type` + `from_config`) — same checks against `GET /api/registry/email_providers` and the Email Providers tab
 
-------------------------------$
+---
 
-## 33. Team-Scoped Project Members
+## 31. Team-Scoped Project Members
 
-### 33a. Add and remove members
+### 31a. Add and remove members
 
 1. Log in as `admin` → **Projects**
 2. Click the members icon ("Manage members") on a project card
@@ -1666,7 +1645,7 @@ flowforge worker --concurrency 4
 
 - [ ] Member is removed from the list
 
-### 33b. Non-member access is blocked
+### 31b. Non-member access is blocked
 
 1. Create `member_test` (editor role), add them to Project A only (not Project B)
 2. Log in as `member_test`
@@ -1675,17 +1654,17 @@ flowforge worker --concurrency 4
 - [ ] Attempting to access a Project B resource directly (e.g. via its URL/API) returns `403 Access denied to this project`
 - [ ] Project A resources remain fully visible and editable per the user's role (editor)
 
-### 33c. Admin bypass
+### 31c. Admin bypass
 
 1. Log in as `admin` (not added to Project B as a member)
 
 - [ ] Admin can see and edit Project B's resources anyway — admins bypass project membership entirely
 
-------------------------------$
+---
 
-## 34. Pipeline Dependencies (Fan-Out) and Parallel Step Execution
+## 32. Pipeline Dependencies (Fan-Out) and Parallel Step Execution
 
-### 34a. Upstream dependency triggers downstream automatically
+### 32a. Upstream dependency triggers downstream automatically
 
 1. Create Pipeline A (`Upstream Test`) and Pipeline B (`Downstream Test`), both enabled
 2. Open Pipeline B → **Triggers** card → **Dependencies** tab → **"+ Add upstream dependency…"** → select Pipeline A
@@ -1696,7 +1675,7 @@ flowforge worker --concurrency 4
 - [ ] Pipeline B's Run History shows the triggered run with `triggered_by = dependency`
 - [ ] If Pipeline A fails instead, Pipeline B does **not** auto-trigger
 
-### 34b. Parallel step execution
+### 32b. Parallel step execution
 
 1. In a pipeline, add two independent steps (e.g. two DB Query steps against different tables)
 2. On both steps, set the **"∥ Group"** field to the same value, e.g. `group1`
@@ -1707,9 +1686,9 @@ flowforge worker --concurrency 4
 - [ ] Both steps' start times overlap in Run History (visible via step timestamps/durations) rather than running strictly sequentially
 - [ ] If one step in the group fails and has `on_error: stop`, the pipeline halts only after the whole wave completes (not mid-wave)
 
-------------------------------$
+---
 
-## 35. Pipeline Run Diff View
+## 33. Pipeline Run Diff View
 
 1. Run a pipeline successfully at least twice, changing the underlying data slightly between runs (e.g. insert a few more rows)
 2. Go to **Run History** → open the most recent run's **Run Detail**
@@ -1719,9 +1698,9 @@ flowforge worker --concurrency 4
 - [ ] A step that's new in this run (didn't exist in the previous run) is marked as new, not shown with a misleading delta
 - [ ] On the very first successful run of a pipeline (no prior run to diff against), the panel explains there's nothing to compare instead of erroring
 
-------------------------------$
+---
 
-## 36. Report Column Formatting
+## 34. Report Column Formatting
 
 1. Go to **Reports** → open or create a report with at least one numeric and one date column
 2. Find the **Column Formatting** card → click **Add rule**
@@ -1750,9 +1729,9 @@ flowforge worker --concurrency 4
 - [ ] Add a second, conflicting condition on the same column — confirm the **first** matching condition wins (not the last)
 - [ ] A custom raw number-format string (not one of the presets) is also accepted and applied correctly
 
-------------------------------$
+---
 
-## 37. Environment Promotion Workflow
+## 35. Environment Promotion Workflow
 
 *(Requires at least two Projects to exist.)*
 
@@ -1767,11 +1746,11 @@ flowforge worker --concurrency 4
 - [ ] Editing the promoted copy does not affect the original pipeline
 - [ ] Attempting to promote to the *same* project the pipeline is already in is rejected with a clear error
 
-------------------------------$
+---
 
-## 38. Prometheus Metrics + Flower Dashboard
+## 36. Prometheus Metrics + Flower Dashboard
 
-### 38a. Metrics endpoint
+### 36a. Metrics endpoint
 
 1. Log in via the API to obtain a JWT (`POST /api/auth/login`)
 2. Call `GET /api/metrics` with `Authorization: Bearer <token>`
@@ -1782,25 +1761,26 @@ flowforge worker --concurrency 4
 - [ ] Contains `flowforge_queue_depth` — with `FLOWFORGE_REDIS_URL` unset, this reads `0` rather than erroring
 - [ ] Calling `/api/metrics` with no `Authorization` header (or an invalid token) returns `401`, same as any other `/api` endpoint
 
-### 38b. Flower dashboard
+### 36b. Flower dashboard
 
-*(Requires Celery/Redis configured — see §26.)*
+*(Requires Celery/Redis configured — see §24.)*
 
 1. Start the stack with the monitoring profile: `docker compose --profile monitoring up`
 2. Browse to `http://localhost:5555` (or your configured `FLOWER_PORT`)
 
-- [ ] Basic-auth prompt appears; default credentials `admin:changeme` (or your `FLOWER_BASIC_AUTH` override) work
+- [ ] Basic-auth prompt appears; the credentials you set in `FLOWER_BASIC_AUTH` work (`docker compose` refuses to start without it)
+- [ ] No default or well-known credentials are accepted
 - [ ] Dashboard shows active Celery workers and task history
 - [ ] Trigger a pipeline run — the corresponding `flowforge.run_pipeline_task` appears in Flower's task list
 - [ ] Without `--profile monitoring`, `docker compose up` does **not** start the Flower container (opt-in only)
 
-------------------------------$
+---
 
-## 39. IP Allowlisting
+## 37. IP Allowlisting
 
 *(Off by default — only active when `FLOWFORGE_ALLOWED_IPS` is set. If testing locally, note that requests from `127.0.0.1`/`::1` may not match a CIDR you'd expect; adjust the allowlist to include your actual test client IP.)*
 
-### 39a. Allowed IP passes through
+### 37a. Allowed IP passes through
 
 1. Set `FLOWFORGE_ALLOWED_IPS=127.0.0.1/32` (or your actual client IP) and restart
 2. Use the app normally from that IP
@@ -1808,14 +1788,14 @@ flowforge worker --concurrency 4
 - [ ] All `/api/*` requests succeed as before
 - [ ] Non-API routes (frontend static assets, the SPA shell) are unaffected regardless of IP — the filter only applies to `/api/*`
 
-### 39b. Disallowed IP is blocked
+### 37b. Disallowed IP is blocked
 
 1. Set `FLOWFORGE_ALLOWED_IPS` to a CIDR that does **not** include your test client (e.g. `10.99.99.0/24`) and restart
 2. Attempt any `/api/*` call
 
 - [ ] Response is `403 {"error": "Access denied: your IP is not allowed"}`
 
-### 39c. Invalid CIDR handling
+### 37c. Invalid CIDR handling
 
 1. Set `FLOWFORGE_ALLOWED_IPS=not-a-real-cidr,10.0.0.0/8` and restart
 
@@ -1824,11 +1804,11 @@ flowforge worker --concurrency 4
 
 - [ ] No IP filtering applied — behavior identical to before this feature existed
 
-------------------------------$
+---
 
-## 40. Visual Pipeline Canvas & Step-Level DAG Dependencies
+## 38. Visual Pipeline Canvas & Step-Level DAG Dependencies
 
-### 40a. Canvas layout (Option A)
+### 38a. Canvas layout (Option A)
 
 1. Open a pipeline with at least 3 steps, two of them sharing the same `parallel_group`
 2. Toggle the grid icon above the step list
@@ -1837,7 +1817,7 @@ flowforge worker --concurrency 4
 - [ ] Dragging a node reorders it, or moves it into/out of the group column; toggling back to the list view reflects the change
 - [ ] Clicking a node opens its config in a side panel; add/duplicate/delete work from the node's hover actions
 
-### 40b. Drawing a real step dependency (DAG mode)
+### 38b. Drawing a real step dependency (DAG mode)
 
 1. In the canvas view, drag from one step node's handle to another step node's handle
 2. Reload the page (no Save click needed first)
@@ -1846,7 +1826,7 @@ flowforge worker --concurrency 4
 - [ ] The edge still shows after reload (persisted via `POST /api/pipelines/{id}/step-dependencies`, not just client-side state)
 - [ ] Once any real edge exists for the pipeline, only real edges render — the synthetic wave-layout edges disappear for that pipeline
 
-### 40c. Cycle / self-connect rejection
+### 38c. Cycle / self-connect rejection
 
 1. With an existing A → B edge, try to draw B → A
 
@@ -1855,7 +1835,7 @@ flowforge worker --concurrency 4
 
 - [ ] Rejected client-side before any API call is made
 
-### 40d. Branch-scoped failure in DAG mode
+### 38d. Branch-scoped failure in DAG mode
 
 1. Build a small DAG: A → B, with A's `on_error` set to `stop`; add an independent step C with no edges to A or B
 2. Make step A fail (e.g. point a `db_query` step at a nonexistent table) and run the pipeline
@@ -1864,13 +1844,13 @@ flowforge worker --concurrency 4
 - [ ] Step A shows `failed`, step B shows `skipped`, step C shows `success` — C is not held up by A's failure
 - [ ] This differs from a plain sequential/parallel-group pipeline, where a `stop` failure halts every later step regardless of relation to the failed one
 
-------------------------------$
+---
 
-## 41. SSH Command Step (ssh_command)
+## 39. SSH Command Step (ssh_command)
 
-*(Requires an accessible SSH server — same setup as §16's Docker SFTP container works, or any host you have credentials for. Create an **SSH Connection** first: Connections → Add Connection → SSH.)*
+*(Requires an accessible SSH server — same setup as §14's Docker SFTP container works, or any host you have credentials for. Create an **SSH Connection** first: Connections → Add Connection → SSH.)*
 
-### 41a. Basic command execution
+### 39a. Basic command execution
 
 1. Create a pipeline: `SSH Command Test`
 2. Add an **SSH Command** step:
@@ -1887,7 +1867,7 @@ flowforge worker --concurrency 4
 - [ ] Step log shows `STDOUT: hello from SSH Command Test` (variable resolved, not literal `{{ pipeline_name }}`)
 - [ ] Log includes `Exit status: 0`
 
-### 41b. Capture stdout into a pipeline variable
+### 39b. Capture stdout into a pipeline variable
 
 1. Edit the step: set **Output variable** to `script_result`, command to `echo captured-value`
 2. Add a downstream **Email** step with body `<p>{{ script_result }}</p>`
@@ -1895,7 +1875,7 @@ flowforge worker --concurrency 4
 
 - [ ] Email received containing `captured-value` (not the literal `{{ script_result }}`)
 
-### 41c. Save output to file and attach to email
+### 39c. Save output to file and attach to email
 
 1. Tick **Save output**, set **Output filename** to `ssh_output_{{ current_date }}.log`
 2. Add a downstream **Email** step with attachment `{{ steps.<step_name>.output_path }}`
@@ -1904,7 +1884,7 @@ flowforge worker --concurrency 4
 - [ ] Email received with the `.log` file attached
 - [ ] File contents match the command's stdout
 
-### 41d. Non-zero exit fails the step
+### 39d. Non-zero exit fails the step
 
 1. Set command to `exit 1`
 2. Run the pipeline
@@ -1912,7 +1892,7 @@ flowforge worker --concurrency 4
 - [ ] Step fails with `Command failed with exit status 1`
 - [ ] `output_path` is still set if **Save output** was ticked (log file available even on failure)
 
-### 41e. Unknown host key rejected by default
+### 39e. Unknown host key rejected by default
 
 1. Point the SSH connection at a host not in the FlowForge server's `known_hosts`
 2. Run the step (with `FLOWFORGE_SSH_ALLOW_UNKNOWN_HOSTS` unset or `false`)
@@ -1920,13 +1900,13 @@ flowforge worker --concurrency 4
 - [ ] Step fails with a host-key/SSH error, not a silent connect
 - [ ] Setting `FLOWFORGE_SSH_ALLOW_UNKNOWN_HOSTS=true` and restarting allows the connection through
 
-------------------------------$
+---
 
-## 42. Database Health Check Step (db_health_check)
+## 40. Database Health Check Step (db_health_check)
 
 *(Run against each DB type you have available — PostgreSQL is required for the rest of this guide, so at minimum test that one.)*
 
-### 42a. PostgreSQL health check
+### 40a. PostgreSQL health check
 
 1. Create a pipeline: `DB Health Check Test`
 2. Add a **Database Health Check** step:
@@ -1942,39 +1922,39 @@ flowforge worker --concurrency 4
 - [ ] Step log shows `PostgreSQL Health Check`, `Active Sessions: N`, and a Cache Hit Ratio line
 - [ ] Generated Excel file has one sheet per section (Sessions, Cache Performance, and Replication Lag if replicas exist)
 
-### 42b. CSV format
+### 40b. CSV format
 
 1. Change **Format** to `CSV`, re-run
 
 - [ ] CSV file generated instead of Excel, same sections as text
 
-### 42c. Oracle / MySQL health check (if a connection is configured)
+### 40c. Oracle / MySQL health check (if a connection is configured)
 
-1. Repeat 42a against an Oracle or MySQL connection
+1. Repeat 40a against an Oracle or MySQL connection
 
 - [ ] Oracle: log shows Active User Sessions, Buffer Cache Hit Ratio, and any tablespaces over 80% usage (section omitted if none)
 - [ ] MySQL: log shows Connected Threads
 
-### 42d. Unsupported connection type
+### 40d. Unsupported connection type
 
 1. Point the step at a connection type other than PostgreSQL/Oracle/MySQL (e.g. Snowflake)
 
 - [ ] Step fails with a clear `unsupported database type` error, not a crash
 
-### 42e. Attach to email
+### 40e. Attach to email
 
 1. Add a downstream **Email** step with attachment `{{ steps.<step_name>.output_path }}`
 2. Run the pipeline
 
 - [ ] Email received with the health report attached
 
-------------------------------$
+---
 
-## 43. SSH Server Health Check Step (ssh_health_check)
+## 41. SSH Server Health Check Step (ssh_health_check)
 
 *(Requires an accessible Linux SSH host — the metric commands, e.g. `free -m`, `df -h`, assume Linux.)*
 
-### 43a. All metrics (default)
+### 41a. All metrics (default)
 
 1. Create a pipeline: `SSH Health Check Test`
 2. Add an **SSH Health Check** step pointing at your SSH connection, leaving **Metrics** unset (all four collected by default)
@@ -1984,14 +1964,14 @@ flowforge worker --concurrency 4
 - [ ] Excel file has 4 sheets: Load Average, Memory (MB), Disk Usage, Top Processes (CPU)
 - [ ] Step log lists a row count per sheet
 
-### 43b. Select specific metrics
+### 41b. Select specific metrics
 
 1. Set **Metrics** to only `load_average` and `disk_usage`
 2. Run the pipeline
 
 - [ ] Report contains only those 2 sheets, not all 4
 
-### 43c. Partial metric failure is tolerated
+### 41c. Partial metric failure is tolerated
 
 1. Point the connection at a host that lacks one of the commands (e.g. a minimal container without `ps`)
 2. Run the pipeline
@@ -1999,19 +1979,19 @@ flowforge worker --concurrency 4
 - [ ] Step still succeeds with the remaining metrics collected
 - [ ] A warning is logged for the failed metric, not a step failure
 
-### 43d. All metrics fail
+### 41d. All metrics fail
 
 1. Point at a host where none of the metric commands work (or an SSH connection that can authenticate but has a broken shell)
 
 - [ ] Step fails with `no metrics could be collected`
 
-------------------------------$
+---
 
-## 44. Script / Data Report Step (data_report)
+## 42. Script / Data Report Step (data_report)
 
 Turns a pipeline variable (from `ssh_command`'s `output_var` or elsewhere) into a formatted report file — see the SSH → Excel example in `docs/step-types.md`'s `data_report` section.
 
-### 44a. CSV variable → Excel report
+### 42a. CSV variable → Excel report
 
 1. Create a pipeline: `Data Report Test`
 2. Add an **SSH Command** step (or any step that sets a pipeline variable) producing a CSV string with a header row, e.g. command:
@@ -2034,27 +2014,107 @@ Turns a pipeline variable (from `ssh_command`'s `output_var` or elsewhere) into 
 - [ ] Step succeeds
 - [ ] Generated Excel file has a `Plans` sheet with columns `plan`, `cnt` and 2 data rows
 
-### 44b. JSON variable → PDF report
+### 42b. JSON variable → PDF report
 
 1. Set an upstream variable to a JSON array string, e.g. `[{"plan":"basic","cnt":6},{"plan":"premium","cnt":7}]`
 2. Set **Data format** to `JSON`, **Output format** to `PDF`, **Title** to `Plan Report`
 
 - [ ] PDF generated with a title and a table matching the JSON objects' keys/values
 
-### 44c. Empty variable
+### 42c. Empty variable
 
 1. Point **Data variable** at a variable that resolves to an empty string
 
 - [ ] Step succeeds (not fails) with log "No data found in variable; skipping report generation"
 - [ ] No output file created, `output_path` empty
 
-### 44d. Column override
+### 42d. Column override
 
-1. Set **Columns** to a custom list, e.g. `["Plan Name", "Count"]`, using the same 2-column CSV data from 44a
+1. Set **Columns** to a custom list, e.g. `["Plan Name", "Count"]`, using the same 2-column CSV data from 42a
 
 - [ ] Generated report's header row shows `Plan Name`, `Count` instead of the original `plan`, `cnt`
 
-------------------------------$
+---
+
+## 43. Conditional Step Execution (run_if)
+
+Gates a step on an earlier result. `run_if` is a Jinja2 expression in the step's
+config; when it is false the step is skipped. Reference: `docs/step-types.md`
+(Conditional execution).
+
+### 43a. Skipped when false, runs when true
+
+1. Create a pipeline `Conditional Test` with two steps:
+   - `check`: a **DB Query** step, `SELECT 1 WHERE false` (zero rows), **Capture rows** ticked
+   - `alert`: a **Notification** or **Email** step, with **Run only if** set to `steps.check.rows_affected > 0`
+2. Run the pipeline
+
+- [ ] Run History shows `check` as `success` and `alert` as `skipped` (not failed)
+- [ ] The pipeline status is `success` and `alert` sent nothing
+3. Change `check` to `SELECT 1` (one row) and run again
+
+- [ ] `alert` now runs and sends
+
+### 43b. A skipped step is visible to later steps
+
+1. Add a third step `all_clear` with **Run only if** `steps.alert.skipped`
+2. Make `check` return zero rows again and run
+
+- [ ] `alert` is skipped and `all_clear` runs
+
+### 43c. A bad expression is rejected, a broken one fails loudly
+
+1. Enter `steps.check.rows_affected >` (incomplete) in **Run only if** and save
+
+- [ ] Saving is refused with a message naming the step and the problem
+2. Enter `steps.typo.rows_affected > 0` (a step that does not exist) and run
+
+- [ ] The step **fails** with `run_if could not be evaluated` instead of being silently skipped
+- [ ] With `on_error: stop` the pipeline halts; with `continue` later steps still run
+
+### 43d. DAG mode
+
+1. On the canvas, draw a dependency `check` → `alert` → `follow_up`, with `run_if` only on `alert`
+2. Run with `check` returning zero rows
+
+- [ ] `alert` is skipped, and `follow_up` still **runs** (a condition-skipped step does not skip its descendants)
+- [ ] A `run_if` that refers to a step that is not an ancestor fails rather than skipping
+
+---
+
+## 44. User Accounts from the CLI
+
+### 44a. Generated password
+
+```powershell
+flowforge user create cli_tester --role editor --generate-password
+```
+
+- [ ] A password is printed once; it is not written to any file or log (the audit log records only that the user was created)
+- [ ] First login with it asks you to set a new password before a session is issued
+- [ ] Running the same command again fails with "already exists"
+
+### 44b. Prompted password and no password on the command line
+
+```powershell
+flowforge user create cli_tester2 --role viewer
+```
+
+- [ ] You are prompted for a password twice and nothing is echoed
+- [ ] `flowforge user create --help` shows no `--password` option
+
+### 44c. Delete
+
+```powershell
+flowforge user delete cli_tester --yes
+flowforge user delete cli_tester2 --yes --purge
+```
+
+- [ ] Both accounts disappear from Settings → Users and can no longer log in
+- [ ] `--purge` anonymises that user's audit-log entries (their username becomes `[deleted:...]`)
+- [ ] Deleting a user that does not exist exits with an error
+
+---
 
 ## Notes
 
