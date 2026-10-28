@@ -112,7 +112,7 @@ def mfa_confirm():
     _save_backup_codes(user, backup_codes)
     db.session.commit()
 
-    audit.log_pipeline_change('MFA_ENABLED', user.username, user.id)
+    audit.log_auth_event('MFA_ENABLED', user.username, user.id)
 
     return jsonify({'backup_codes': backup_codes})
 
@@ -138,7 +138,7 @@ def mfa_disable():
     user.mfa_backup_codes = None
     db.session.commit()
 
-    audit.log_pipeline_change('MFA_DISABLED', user.username, user.id)
+    audit.log_auth_event('MFA_DISABLED', user.username, user.id)
 
     return jsonify({'message': 'MFA disabled'})
 
@@ -199,6 +199,6 @@ def mfa_use_backup():
     _save_backup_codes(user, codes)
     db.session.commit()
 
-    audit.log_pipeline_change('MFA_BACKUP_CODE_USED', user.username, user.id)
+    audit.log_auth_event('MFA_BACKUP_CODE_USED', user.username, user.id)
 
     return jsonify({'token': generate_token(user), 'backup_codes_remaining': len(codes)})

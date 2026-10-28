@@ -70,7 +70,7 @@ FlowForge supports TOTP-based MFA (RFC 6238, via `pyotp`), opt-in per user (`flo
 | Secret storage | `ff_users.mfa_secret` — AES-256-GCM encrypted, same key as connection/provider credentials |
 | Disabling MFA | `POST /api/auth/mfa/disable` requires re-entering the account password — an active session alone is not sufficient |
 
-MFA enrollment and disable events are written to the audit log (`MFA_ENABLED`, `MFA_DISABLED`, `MFA_BACKUP_CODE_USED`).
+MFA enrollment, disable and backup-code events (`MFA_ENABLED`, `MFA_DISABLED`, `MFA_BACKUP_CODE_USED`) and password-reset events (`PASSWORD_RESET_REQUESTED`, `PASSWORD_RESET_COMPLETED`) are written to the audit log under exactly these names.
 
 ---
 

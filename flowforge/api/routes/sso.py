@@ -99,7 +99,7 @@ def _find_or_create_user(email: str, provider: str) -> User | None:
     if default_project:
         db.session.add(ProjectMember(project_id=default_project.id, user_id=user.id))
     db.session.commit()
-    audit.log_pipeline_change('SSO_USER_CREATED', username, user.id)
+    audit.log_auth_event('SSO_USER_CREATED', username, user.id)
     return user
 
 

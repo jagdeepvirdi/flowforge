@@ -92,7 +92,7 @@ def request_reset():
     except Exception:
         return jsonify({'message': 'If an account with that username and a registered email exists, a reset link has been sent.'})
 
-    audit.log_pipeline_change('PASSWORD_RESET_REQUESTED', user.username, user.id)
+    audit.log_auth_event('PASSWORD_RESET_REQUESTED', user.username, user.id)
     return jsonify({'message': 'If an account with that username and a registered email exists, a reset link has been sent.'})
 
 
@@ -122,7 +122,7 @@ def confirm_reset():
     entry.used_at      = now
     db.session.commit()
 
-    audit.log_pipeline_change('PASSWORD_RESET_COMPLETED', user.username, user.id)
+    audit.log_auth_event('PASSWORD_RESET_COMPLETED', user.username, user.id)
     return jsonify({'message': 'Password reset successfully. You can now log in.'})
 
 

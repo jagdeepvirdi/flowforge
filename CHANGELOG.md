@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Account-security events are audited under their own names.** MFA enrol/disable/backup-code, password-reset request/completion and first-time SSO user creation were recorded as `PIPELINE_CFG_MFA_ENABLED`, `PIPELINE_CFG_PASSWORD_RESET_REQUESTED`, etc. They are now `MFA_ENABLED`, `MFA_DISABLED`, `MFA_BACKUP_CODE_USED`, `PASSWORD_RESET_REQUESTED`, `PASSWORD_RESET_COMPLETED` and `SSO_USER_CREATED`, matching `docs/security.md`. Events written before this change keep their old `PIPELINE_CFG_*` action names (the audit log is append-only), so filter on both when reviewing history. When nobody is signed in (a reset request, a backup-code login, a first SSO login) the affected account is recorded as the actor, as with `LOGIN_*` events.
+
 ### Added
 
 - **`flowforge user create` / `flowforge user delete`.** Passwords are generated and printed once (`--generate-password`) or prompted for, never accepted on the command line. `flowforge db seed` now generates a one-time password when `FLOWFORGE_PASSWORD` is unset (the account must change it at first login); a plaintext `FLOWFORGE_PASSWORD` is rejected, only a bcrypt hash is accepted.

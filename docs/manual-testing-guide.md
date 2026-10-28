@@ -1088,6 +1088,8 @@ Perform these actions and confirm each appears in the log:
 - [ ] Run a pipeline → `PIPELINE_STARTED`, then `PIPELINE_SUCCESS` (or `PIPELINE_FAILED`)
 - [ ] Delete a connection → action `CONNECTION_DELETED`
 - [ ] Create, edit and delete a user → `USER_CREATED`, `USER_UPDATED`, `USER_DELETED`
+- [ ] Enable then disable MFA → `MFA_ENABLED`, `MFA_DISABLED` (not `PIPELINE_CFG_MFA_*`)
+- [ ] Request and complete a password reset → `PASSWORD_RESET_REQUESTED`, `PASSWORD_RESET_COMPLETED`
 
 ### 19b. Filters
 
