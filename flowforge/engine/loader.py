@@ -41,6 +41,7 @@ _STEP_CLASSES: dict[str, str | type[BaseStep]] = {
     'sftp_transfer':   'flowforge.steps.sftp_transfer.SftpTransferStep',
     'ssh_command':      'flowforge.steps.ssh_command.SshCommandStep',
     'db_health_check':  'flowforge.steps.db_health_check.DbHealthCheckStep',
+    'reconcile':        'flowforge.steps.reconcile.ReconcileStep',
     'data_report':      'flowforge.steps.script_report.ScriptReportStep',
     'ssh_health_check': 'flowforge.steps.ssh_health_check.SshHealthCheckStep',
     'notification':     'flowforge.steps.notification.NotificationStep',
