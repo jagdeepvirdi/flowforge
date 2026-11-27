@@ -3,6 +3,7 @@ from flask import Blueprint, jsonify, request
 import flowforge.audit as audit
 from flowforge.api.auth import require_auth, require_role
 from flowforge.api.validators import validate_connection
+from flowforge.connections import internal_guard
 from flowforge.crypto import decrypt_config, encrypt_config
 from flowforge.db.models import DbConnection, db
 
@@ -50,6 +51,10 @@ def create_connection():
         return jsonify({'error': f'db_type must be one of: {", ".join(sorted(_VALID_TYPES))}'}), 400
     if not data.get('config'):
         return jsonify({'error': 'config is required'}), 400
+    try:
+        internal_guard.check_config(data['db_type'], data['config'])
+    except internal_guard.InternalDatabaseConnectionError as e:
+        return jsonify({'error': str(e)}), 400
 
     conn = DbConnection(
         name=data['name'],
@@ -90,6 +95,10 @@ def update_connection(conn_id):
         for k, v in data['config'].items():
             if v != '***':
                 existing[k] = v
+        try:
+            internal_guard.check_config(conn.db_type, existing)
+        except internal_guard.InternalDatabaseConnectionError as e:
+            return jsonify({'error': str(e)}), 400
         conn.config = encrypt_config(existing)
 
     db.session.commit()
@@ -118,6 +127,10 @@ def test_connection_raw():
     data = request.get_json() or {}
     db_type = data.get('db_type')
     cfg = data.get('config', {})
+    try:
+        internal_guard.check_config(db_type, cfg)
+    except internal_guard.InternalDatabaseConnectionError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
     try:
         if db_type == 'postgresql':
             import psycopg2

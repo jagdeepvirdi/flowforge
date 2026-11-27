@@ -58,7 +58,7 @@ FlowForge Core runs ordered data pipelines: call database procedures, run querie
 ### Pipeline Engine
 - **No-YAML config** — pipelines, reports, email templates, and schedules are all managed in the UI
 - **Multi-project workspace** — organize resources by team or department in one instance, with team-scoped project membership
-- **16 step types** — db_procedure, db_query, report, email, drive_upload, onedrive_upload, s3_upload, azure_blob_upload, data_load, bulk_load, sftp_transfer, ssh_command, ssh_health_check, db_health_check, data_report, notification (Slack/Teams/Telegram)
+- **17 step types** — db_procedure, db_query, reconcile, report, email, drive_upload, onedrive_upload, s3_upload, azure_blob_upload, data_load, bulk_load, sftp_transfer, ssh_command, ssh_health_check, db_health_check, data_report, notification (Slack/Teams/Telegram)
 - **Plugin system** — drop a custom `BaseStep` subclass into `FLOWFORGE_PLUGIN_DIR` to add community/internal step types without forking
 - **Pipeline dependencies** — chain pipelines so a downstream one launches automatically after all its upstreams succeed; cycle detection included
 - **Parallel step execution** — group steps with `parallel_group` to run them concurrently in a pipeline
@@ -167,6 +167,7 @@ FlowForge behaves exactly the same minus those panels.
 |---|---|
 | `db_procedure` | Call a stored procedure or Oracle package |
 | `db_query` | Run a SQL query and write results to a table; capture a scalar or full rows into pipeline context |
+| `reconcile` | Compare keyed results from two connections (e.g. billing vs. HLR): orphans on either side, value mismatches within a tolerance, capped sample of offending keys |
 | `report` | Generate Excel / CSV / PDF / JSON from a SQL query |
 | `email` | Send email with smart attachment handling (Drive, OneDrive, S3, or Azure Blob fallback) |
 | `drive_upload` | Upload a file to Google Drive; get a shareable link |
