@@ -552,6 +552,48 @@ def import_pipeline(file_path: str, overwrite: bool):
             )
 
 
+@cli.group('tokens')
+def tokens_group():
+    """Work with subscriber-identifier tokens (see docs/security.md)."""
+
+
+@tokens_group.command('find')
+@click.argument('values', nargs=-1, required=True)
+@click.option('--kind', type=click.Choice(['msisdn', 'imsi', 'generic']), default='msisdn', show_default=True)
+def tokens_find(values: tuple[str, ...], kind: str):
+    """Print the token for each identifier, to search findings for a subscriber.
+
+    Needs the tokenization key (FLOWFORGE_TOKEN_KEY, or FLOWFORGE_SECRET_KEY) but no database.
+    """
+    from flowforge.tokenization import TokenizationError, tokenize
+    try:
+        for v in values:
+            click.echo(f'{v}\t{tokenize(v, kind) or "(empty after normalisation)"}')
+    except TokenizationError as e:
+        click.echo(f'ERROR: {e}', err=True)
+        sys.exit(1)
+
+
+@tokens_group.command('purge')
+@click.option('--older-than-days', type=click.IntRange(min=1), default=None,
+              help='Delete mappings not seen for this many days.')
+@click.option('--all', 'purge_all', is_flag=True, help='Delete every stored token -> identifier mapping.')
+@click.option('--yes', is_flag=True, help='Do not ask for confirmation.')
+def tokens_purge(older_than_days: int | None, purge_all: bool, yes: bool):
+    """Delete stored token -> identifier mappings (the retention job also does this daily)."""
+    if (older_than_days is None) == (not purge_all):
+        click.echo('ERROR: give exactly one of --older-than-days N or --all', err=True)
+        sys.exit(2)
+    if not yes:
+        click.confirm('Delete ALL token mappings?' if purge_all
+                      else f'Delete token mappings not seen for {older_than_days} days?', abort=True)
+    app = _create_app()
+    with app.app_context():
+        from flowforge import token_store
+        deleted = token_store.purge(0 if purge_all else older_than_days)
+    click.echo(f'Deleted {deleted} token mapping(s).')
+
+
 def _create_app():
     from flowforge.api.app import create_app
     return create_app()

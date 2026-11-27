@@ -102,3 +102,38 @@ def test_missing_configuration_names_the_variable_without_leaking_values(monkeyp
     assert 'FLOWFORGE_BENCH_PG_DSN' in str(e.value)
     monkeypatch.setenv('FLOWFORGE_BENCH_PG_DSN', 'postgresql://u:topsecret@h/db')
     assert bench._pg_dsn().endswith('/db')
+
+
+# -- partition variants ---------------------------------------------------------------------
+
+def test_parse_variants():
+    assert bench.parse_variants('1:python,4:sql, 8') == [(1, 'python'), (4, 'sql'), (8, 'python')]
+    for bad in ('0', 'x', '4:nope', '-1:sql', '4:'):
+        if bad == '4:':
+            assert bench.parse_variants(bad) == [(4, 'python')]      # a bare colon defaults to python
+        else:
+            with pytest.raises(ValueError):
+                bench.parse_variants(bad)
+
+
+def test_sql_partitioned_queries_filter_every_side_in_its_own_dialect():
+    q = bench.audit_queries(bench.LAYOUTS['cross'], sql_partition=True)
+    for sql in q.values():
+        assert '{{ partitions }}' in sql and '{{ partition_index }}' in sql
+    assert 'CAST(msisdn AS BIGINT)' in q['crm_keys'] and 'TO_NUMBER' not in q['crm_keys']     # CRM is PostgreSQL
+    assert 'TO_NUMBER(msisdn)' in q['billing'] and 'TO_NUMBER(msisdn)' in q['hlr']            # these are Oracle
+    plain = bench.audit_queries(bench.LAYOUTS['cross'])
+    assert all('partition' not in sql for sql in plain.values())                              # off unless asked
+    assert all('@' not in sql for sql in list(q.values()) + list(plain.values()))
+
+
+def test_summary_keeps_partition_variants_apart():
+    rows = bench.summarize([
+        {**_run('pg', 1000, 1.0), 'partitions': 1, 'partition_mode': 'python'},
+        {**_run('pg', 1000, 4.0), 'partitions': 4, 'partition_mode': 'python'},
+        {**_run('pg', 1000, 1.5), 'partitions': 4, 'partition_mode': 'sql'},
+        _run('oracle', 1000, 2.0),                                  # older records have no partition fields
+    ])
+    keyed = {(r['layout'], r['partitions'], r['partition_mode']): r['best_s'] for r in rows}
+    assert keyed == {('pg', 1, 'python'): 1.0, ('pg', 4, 'python'): 4.0, ('pg', 4, 'sql'): 1.5,
+                     ('oracle', 1, 'python'): 2.0}

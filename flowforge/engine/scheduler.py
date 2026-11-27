@@ -159,6 +159,7 @@ def _cleanup_job() -> None:
     _prune_expired_password_reset_tokens()
     _prune_old_runs()
     _prune_old_audit_logs()
+    _prune_old_token_map()
 
 
 def _prune_old_runs() -> None:
@@ -210,6 +211,23 @@ def _prune_old_audit_logs() -> None:
                 logger.info("Pruned %d audit log(s) older than %d days.", deleted, retention_days)
     except Exception:
         logger.exception("Audit log pruning failed")
+
+
+def _prune_old_token_map() -> None:
+    """Delete token -> subscriber mappings not seen within FLOWFORGE_TOKEN_MAP_RETENTION_DAYS."""
+    if _app is None:
+        return
+    try:
+        from flowforge import token_store
+        with _app.app_context():
+            days = token_store.retention_days()
+            if days <= 0:
+                return
+            deleted = token_store.purge(days)
+            if deleted:
+                logger.info("Pruned %d token mapping(s) not seen for %d days.", deleted, days)
+    except Exception:
+        logger.exception("Token map pruning failed")
 
 
 def _prune_token_blocklist() -> None:

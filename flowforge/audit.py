@@ -202,6 +202,16 @@ def log_auth_event(action: str, username: str, user_id: str) -> None:
     _write_db_audit(action, actor, actor_id, '', {'name': username, 'id': user_id})
 
 
+def log_token_reveal(requested: int, found: int, tokens: list[str], remote_addr: str = '') -> None:
+    """A privileged lookup of subscriber identifiers behind tokens. Records who, how many and which
+    tokens (pseudonymous) - never the revealed values."""
+    shown = tokens[:50]
+    _get_logger().info('TOKEN      REVEALED  requested=%d  found=%d  ip=%s  by=%s  user_id=%s',
+                       requested, found, remote_addr or 'unknown', _current_user(), _current_user_id())
+    _write_db_audit('TOKEN_REVEALED', _current_user(), _current_user_id(), remote_addr,
+                    {'requested': requested, 'found': found, 'tokens': shown, 'truncated': len(tokens) > len(shown)})
+
+
 def log_email_sent(
     pipeline_name: str,
     step_name: str,

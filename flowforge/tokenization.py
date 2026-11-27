@@ -12,9 +12,11 @@ Properties and limits — keep these honest in docs and sales material:
 * Pseudonymisation, not anonymisation: whoever holds the key can confirm a guess, and tokens
   of the same identifier are linkable across runs and exports. Treat the key like any other
   credential.
-* One-way: a token cannot be turned back into an identifier. Mapping findings back to
-  subscribers is done by re-running the audit inside the network, or by tokenizing a known
-  identifier and searching. (A reversible lookup table is not implemented.)
+* One-way by itself: a token cannot be computed back into an identifier. To find a
+  subscriber, tokenize their number with the same key and search (``flowforge tokens find``).
+  To go from a finding to a subscriber, ``reconcile`` can opt in to ``token_store``, which
+  saves the sampled identifiers encrypted in ``ff_token_map`` for an admin to reveal
+  (flowforge/token_store.py). That table is personal data; it is off by default.
 * Rotating the key changes every token; old and new tokens do not match.
 * Normalisation is deliberately minimal: for ``msisdn``/``imsi`` only the digits are kept,
   so ``+1 555 000`` and ``1555000`` match. National-format numbers with a trunk prefix are

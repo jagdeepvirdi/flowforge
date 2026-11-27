@@ -1,0 +1,497 @@
+{
+  "started": "2026-11-27T08:04:33+00:00",
+  "environment": {
+    "platform": "Windows-11-10.0.26300-SP0",
+    "python": "3.14.10",
+    "cpu_count": 16,
+    "postgresql": "PostgreSQL 16.14 (Debian 16.14-1.pgdg13+1)",
+    "oracle": "Oracle AI Database 26ai Free Release 23.26.1.0.0 - Develop, Learn, and Run for Free",
+    "docker_desktop": "16 CPUs, 15.3 GiB RAM visible to containers (default PostgreSQL 16 and Oracle Free containers, no tuning)"
+  },
+  "orphan_rate": 0.02,
+  "in_flight_rate": 0.005,
+  "seed": 42,
+  "seeding": {
+    "5000000": {
+      "seed_pg_seconds": 134.3,
+      "seed_oracle_seconds": 138.9
+    }
+  },
+  "runs": [
+    {
+      "layout": "pg",
+      "size": 5000000,
+      "partitions": 1,
+      "partition_mode": "python",
+      "total_seconds": 44.91,
+      "peak_rss_mb": 959.3,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 27.047,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4775000,
+          "rows_per_second": 356792,
+          "found": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 17.864,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4875000,
+          "rows_per_second": 545801,
+          "found": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "cross",
+      "size": 5000000,
+      "partitions": 1,
+      "partition_mode": "python",
+      "total_seconds": 48.77,
+      "peak_rss_mb": 971.9,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 27.677,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4775000,
+          "rows_per_second": 348659,
+          "found": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 21.092,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4875000,
+          "rows_per_second": 462260,
+          "found": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "pg",
+      "size": 5000000,
+      "partitions": 4,
+      "partition_mode": "python",
+      "total_seconds": 135.829,
+      "peak_rss_mb": 328.1,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 77.133,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4775000,
+          "rows_per_second": 125109,
+          "found": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 58.697,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4875000,
+          "rows_per_second": 166108,
+          "found": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "cross",
+      "size": 5000000,
+      "partitions": 4,
+      "partition_mode": "python",
+      "total_seconds": 159.695,
+      "peak_rss_mb": 340.5,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 86.784,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4775000,
+          "rows_per_second": 111196,
+          "found": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 72.912,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4875000,
+          "rows_per_second": 133724,
+          "found": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "pg",
+      "size": 5000000,
+      "partitions": 4,
+      "partition_mode": "sql",
+      "total_seconds": 52.263,
+      "peak_rss_mb": 328.1,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 30.101,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4775000,
+          "rows_per_second": 320589,
+          "found": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 22.162,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4875000,
+          "rows_per_second": 439943,
+          "found": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "cross",
+      "size": 5000000,
+      "partitions": 4,
+      "partition_mode": "sql",
+      "total_seconds": 68.921,
+      "peak_rss_mb": 339.8,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 36.961,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4775000,
+          "rows_per_second": 261087,
+          "found": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 31.96,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4875000,
+          "rows_per_second": 305070,
+          "found": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "pg",
+      "size": 5000000,
+      "partitions": 8,
+      "partition_mode": "sql",
+      "total_seconds": 63.132,
+      "peak_rss_mb": 222.8,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 34.308,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4775000,
+          "rows_per_second": 281276,
+          "found": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 28.825,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4875000,
+          "rows_per_second": 338254,
+          "found": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "cross",
+      "size": 5000000,
+      "partitions": 8,
+      "partition_mode": "sql",
+      "total_seconds": 79.428,
+      "peak_rss_mb": 236.4,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 43.097,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4775000,
+          "rows_per_second": 223914,
+          "found": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 36.331,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4875000,
+          "rows_per_second": 268364,
+          "found": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    }
+  ],
+  "summary": [
+    {
+      "size": 5000000,
+      "layout": "cross",
+      "partitions": 1,
+      "partition_mode": "python",
+      "runs": 1,
+      "correct_runs": 1,
+      "best_s": 48.77,
+      "median_s": 48.77,
+      "worst_s": 48.77,
+      "peak_rss_mb": 971.9
+    },
+    {
+      "size": 5000000,
+      "layout": "cross",
+      "partitions": 4,
+      "partition_mode": "python",
+      "runs": 1,
+      "correct_runs": 1,
+      "best_s": 159.695,
+      "median_s": 159.69,
+      "worst_s": 159.695,
+      "peak_rss_mb": 340.5
+    },
+    {
+      "size": 5000000,
+      "layout": "cross",
+      "partitions": 4,
+      "partition_mode": "sql",
+      "runs": 1,
+      "correct_runs": 1,
+      "best_s": 68.921,
+      "median_s": 68.92,
+      "worst_s": 68.921,
+      "peak_rss_mb": 339.8
+    },
+    {
+      "size": 5000000,
+      "layout": "cross",
+      "partitions": 8,
+      "partition_mode": "sql",
+      "runs": 1,
+      "correct_runs": 1,
+      "best_s": 79.428,
+      "median_s": 79.43,
+      "worst_s": 79.428,
+      "peak_rss_mb": 236.4
+    },
+    {
+      "size": 5000000,
+      "layout": "pg",
+      "partitions": 1,
+      "partition_mode": "python",
+      "runs": 1,
+      "correct_runs": 1,
+      "best_s": 44.91,
+      "median_s": 44.91,
+      "worst_s": 44.91,
+      "peak_rss_mb": 959.3
+    },
+    {
+      "size": 5000000,
+      "layout": "pg",
+      "partitions": 4,
+      "partition_mode": "python",
+      "runs": 1,
+      "correct_runs": 1,
+      "best_s": 135.829,
+      "median_s": 135.83,
+      "worst_s": 135.829,
+      "peak_rss_mb": 328.1
+    },
+    {
+      "size": 5000000,
+      "layout": "pg",
+      "partitions": 4,
+      "partition_mode": "sql",
+      "runs": 1,
+      "correct_runs": 1,
+      "best_s": 52.263,
+      "median_s": 52.26,
+      "worst_s": 52.263,
+      "peak_rss_mb": 328.1
+    },
+    {
+      "size": 5000000,
+      "layout": "pg",
+      "partitions": 8,
+      "partition_mode": "sql",
+      "runs": 1,
+      "correct_runs": 1,
+      "best_s": 63.132,
+      "median_s": 63.13,
+      "worst_s": 63.132,
+      "peak_rss_mb": 222.8
+    }
+  ],
+  "recorded": "2026-11-27"
+}

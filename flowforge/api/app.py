@@ -234,12 +234,13 @@ def _register_blueprints(app: Flask) -> None:
     from flowforge.api.routes.setup import bp as setup_bp
     from flowforge.api.routes.sso import bp as sso_bp
     from flowforge.api.routes.steps import bp as steps_bp
+    from flowforge.api.routes.tokens import bp as tokens_bp
     from flowforge.api.routes.users import bp as users_bp
 
     for blueprint in (
         ai_bp, audit_bp, auth_bp, bulk_loads_bp, connections_bp, emails_bp, metrics_bp,
         mfa_bp, password_reset_bp, pipelines_bp, projects_bp, providers_bp, recipients_bp,
-        registry_bp, reports_bp, runs_bp, settings_bp, setup_bp, sso_bp, steps_bp, users_bp,
+        registry_bp, reports_bp, runs_bp, settings_bp, setup_bp, sso_bp, steps_bp, tokens_bp, users_bp,
     ):
         app.register_blueprint(blueprint, url_prefix='/api')
 
