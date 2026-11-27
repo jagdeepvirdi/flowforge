@@ -112,9 +112,11 @@ def test_template_imports_through_the_api(client, headers):
 class _PgConn:
     """Minimal stand-in for a FlowForge connection backed by a real psycopg2 connection."""
 
-    def __init__(self, dsn):
+    def __init__(self, dsn, tz='UTC'):
         import psycopg2
         self._c = psycopg2.connect(dsn)
+        with self._c.cursor() as cur:
+            cur.execute('SET TIME ZONE %s', (tz,))
 
     def __enter__(self):
         return self
@@ -142,13 +144,19 @@ def seeded_dsn():
     return url, ds.truth
 
 
-def _run(doc, name, dsn):
+# The provisioning window compares against now(); the result must not depend on the session
+# time zone (a naive-timestamp version of the demo schema flagged in-flight subscribers
+# whenever the zone was ahead of UTC).
+SESSION_ZONES = ('UTC', 'Asia/Kolkata', 'Pacific/Kiritimati', 'Pacific/Pago_Pago')
+
+
+def _run(doc, name, dsn, tz='UTC'):
     cfg = copy.deepcopy(_step(doc, name)['config'])
     cfg['sample_size'] = 1000          # large enough to return every planted key
     for side in ('left', 'right'):
         cfg[f'{side}_connection_id'] = 'pg'
     context = {**_vars(doc), 'steps': {}}
-    with patch.object(ReconcileStep, '_open', lambda self, cid: _PgConn(dsn)):
+    with patch.object(ReconcileStep, '_open', lambda self, cid: _PgConn(dsn, tz)):
         return ReconcileStep(name, cfg).run(context)
 
 
@@ -161,9 +169,10 @@ def _tok(msisdns):
     return {tokenize(m) for m in msisdns}
 
 
-def test_live_billing_audit_finds_exactly_the_planted_anomalies(doc, seeded_dsn):
+@pytest.mark.parametrize('tz', SESSION_ZONES)
+def test_live_billing_audit_finds_exactly_the_planted_anomalies(doc, seeded_dsn, tz):
     dsn, truth = seeded_dsn
-    r = _run(doc, 'audit_crm_vs_billing', dsn)
+    r = _run(doc, 'audit_crm_vs_billing', dsn, tz)
     assert r.success, r.error
     assert _keys(r, 'only_in_left') == _tok(truth.keys['active_unbilled'])
     assert _keys(r, 'value_mismatch') == _tok(truth.keys['charge_mismatch'])
@@ -172,9 +181,10 @@ def test_live_billing_audit_finds_exactly_the_planted_anomalies(doc, seeded_dsn)
     assert not any(m in repr(r.rows) for m in truth.keys['active_unbilled'])
 
 
-def test_live_hlr_audit_finds_exactly_the_planted_anomalies(doc, seeded_dsn):
+@pytest.mark.parametrize('tz', SESSION_ZONES)
+def test_live_hlr_audit_finds_exactly_the_planted_anomalies(doc, seeded_dsn, tz):
     dsn, truth = seeded_dsn
-    r = _run(doc, 'audit_crm_vs_hlr', dsn)
+    r = _run(doc, 'audit_crm_vs_hlr', dsn, tz)
     assert r.success, r.error
     assert _keys(r, 'only_in_left') == _tok(truth.keys['billed_unprovisioned'])
     assert _keys(r, 'only_in_right') == _tok(truth.keys['status_mismatch'])

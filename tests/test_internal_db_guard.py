@@ -161,7 +161,7 @@ def test_route_update_cannot_repoint_a_connection_at_the_internal_db(client, hea
     assert created.status_code == 201, created.get_json()
     cid = created.get_json()['id']
     try:
-        monkeypatch.delenv(ALLOW_ENV)
+        monkeypatch.delenv(ALLOW_ENV, raising=False)
         r = client.put(f'/api/db-connections/{cid}', headers=headers,
                        json={'config': {'host': live_db_config['host'], 'port': live_db_config['port'],
                                         'database': live_db_config['database']}})

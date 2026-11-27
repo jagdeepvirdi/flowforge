@@ -22,6 +22,11 @@
 #     only_left   -> active in CRM, not provisioned in HLR (billed-but-no-service risk)
 #     only_right  -> active in HLR, not active in CRM      (free network use)
 #
+# Time zones: the demo's activated_at is TIMESTAMPTZ, so now() comparisons are zone-independent.
+# If your CRM stores a zone-less timestamp, compare it in the zone it was written in (e.g.
+# now() AT TIME ZONE 'UTC'); otherwise the window shifts by the UTC offset and in-flight
+# subscribers get flagged as orphans.
+#
 # The provisioning window (PROVISIONING_WINDOW_HOURS) excludes subscribers CRM activated
 # recently: they are legitimately not in HLR/billing yet and must not be flagged.
 # An HLR-active subscriber whose CRM activation falls inside the window is reported as

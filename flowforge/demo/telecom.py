@@ -15,6 +15,9 @@ Planted categories (ground truth is returned in :class:`GroundTruth`):
                            HLR/billing: a *correct* state audits must NOT flag
 ``charge_mismatch``        in all three systems, but billing charge differs from plan price
 
+``activated_at`` is TIMESTAMPTZ, so ``now() - interval`` comparisons do not depend on the
+session time zone.
+
 Example reconcile queries over the seeded tables (left = CRM, right = billing)::
 
     SELECT msisdn FROM demo_crm_subscribers
@@ -41,7 +44,7 @@ SCHEMA_SQL = """
 DROP TABLE IF EXISTS demo_crm_subscribers, demo_billing_accounts, demo_hlr_subscribers;
 CREATE TABLE demo_crm_subscribers (
     msisdn VARCHAR(20) PRIMARY KEY, status VARCHAR(20) NOT NULL,
-    plan VARCHAR(20) NOT NULL, activated_at TIMESTAMP NOT NULL);
+    plan VARCHAR(20) NOT NULL, activated_at TIMESTAMPTZ NOT NULL);
 CREATE TABLE demo_billing_accounts (
     msisdn VARCHAR(20) PRIMARY KEY, plan VARCHAR(20) NOT NULL,
     monthly_charge NUMERIC(10,2) NOT NULL);
@@ -122,7 +125,11 @@ def generate(subscribers: int = 10_000, orphan_rate: float = 0.02, in_flight_rat
 def _copy(cur, table: str, rows: list[tuple]) -> None:
     buf = io.StringIO()
     for r in rows:
-        buf.write('\t'.join(str(v) for v in r) + '\n')
+        # Dataset timestamps are naive UTC; write an explicit offset so the value is the same
+        # instant whatever the session TimeZone is (the column is TIMESTAMPTZ).
+        buf.write('\t'.join(
+            (v.strftime('%Y-%m-%d %H:%M:%S.%f') + '+00') if isinstance(v, datetime) else str(v)
+            for v in r) + '\n')
     buf.seek(0)
     cur.copy_expert(f'COPY {table} FROM STDIN WITH (FORMAT text)', buf)
 
