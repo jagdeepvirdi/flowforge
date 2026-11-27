@@ -6,6 +6,7 @@ from typing import Any
 
 from psycopg2 import pool
 
+from flowforge.connections import internal_guard
 from flowforge.connections.base import BaseConnection
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,7 @@ class PostgreSQLConnection(BaseConnection):
     db_type = 'postgresql'
 
     def __init__(self, host: str, database: str, user: str, password: str, port: int = 5432):
+        internal_guard.check_allowed(host, port, database)
         key = (host, port, database, user, password)
         if key not in _pools:
             _pools[key] = pool.ThreadedConnectionPool(

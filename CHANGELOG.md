@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **Behaviour change:** database connections that point at FlowForge's own PostgreSQL database (same host, port and database name as `FLOWFORGE_DB_URL`) are now refused, at save/test time and whenever a connection is opened. Editors can run arbitrary SQL through connections, so such a connection let them read or alter FlowForge's tables, including the audit log. Existing pipelines that deliberately use one will fail with an explanatory error; set `FLOWFORGE_ALLOW_INTERNAL_DB_CONNECTIONS=true` to keep them working. This is defence in depth, not a replacement for least-privilege database roles. The audit log itself is still not tamper-proof; see `docs/security.md`, "Audit log integrity".
+
+### Added
+- Oracle seeding for the synthetic telecom dataset (`--oracle-dsn`), a streaming `generate_batches`, and a volume benchmark for `reconcile` (`python -m flowforge.demo.bench`, results in `docs/benchmark.md`: up to 5M subscribers on PostgreSQL, Oracle Free and a cross-system layout; local containers, synthetic data, not a production-capacity claim).
+- `reconcile` step: compare keyed results from two connections (keys present on one side only, optional value mismatches with tolerance), with a capped sample of offending keys.
+- Synthetic telecom dataset generator (`python -m flowforge.demo.telecom`) with planted anomalies and a known ground truth, for demos, tests and benchmarks.
+- `examples/telecom-orphaned-subscriptions.yaml`: scheduled CRM-vs-billing and CRM-vs-HLR audit with a threshold alert. Not yet run against a live PostgreSQL/Oracle database or an operator's data.
+- Keyed tokenization (`flowforge/tokenization.py`): HMAC-SHA256 tokens for MSISDN/IMSI under a per-deployment key (`FLOWFORGE_TOKEN_KEY`, or derived from `FLOWFORGE_SECRET_KEY`), plus a free-text scrubber. `reconcile` gains `tokenize_keys` / `token_kind`; the step fails rather than emit raw keys when no key is configured. Pseudonymisation, not anonymisation; tokens are one-way and a reversible lookup table is not implemented.
+
+## [2.2.0] — 2026-10-28
+
 ### Fixed
 
 - **Account-security events are audited under their own names.** MFA enrol/disable/backup-code, password-reset request/completion and first-time SSO user creation were recorded as `PIPELINE_CFG_MFA_ENABLED`, `PIPELINE_CFG_PASSWORD_RESET_REQUESTED`, etc. They are now `MFA_ENABLED`, `MFA_DISABLED`, `MFA_BACKUP_CODE_USED`, `PASSWORD_RESET_REQUESTED`, `PASSWORD_RESET_COMPLETED` and `SSO_USER_CREATED`, matching `docs/security.md`. Events written before this change keep their old `PIPELINE_CFG_*` action names (the audit log is append-only), so filter on both when reviewing history. When nobody is signed in (a reset request, a backup-code login, a first SSO login) the affected account is recorded as the actor, as with `LOGIN_*` events.
@@ -20,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Removed hard-coded development credentials from documentation and helper scripts, and added `tests/test_no_plaintext_credentials.py`, which fails the build on credentials and 64-hex keys in tracked files. Treat any credential that was ever committed as exposed and rotate it.
 - `tests/run_tests.*` and `verify_celery.py` generate throwaway keys instead of using a built-in one.
+
+### Changed
+
+- `docs/manual-testing-guide.md` refreshed: the AI sections are removed, claims that no longer matched the code are corrected (audit action names, trigger response, Flower credentials, YAML import location), and sections for `run_if` and the user CLI are added.
 
 ## [2.1.0] — 2026-10-28
 
@@ -628,7 +644,8 @@ below — see those entries for the full feature breakdown.
 - `flowforge-io[pdf]` — `weasyprint`
 - `flowforge-io[dev]` — `pytest`, `pytest-mock`, `responses`, `pytest-cov`
 
-[Unreleased]: https://github.com/jagdeepvirdi/flowforge/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/jagdeepvirdi/flowforge/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/jagdeepvirdi/flowforge/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/jagdeepvirdi/flowforge/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/jagdeepvirdi/flowforge/compare/v1.3.0...v2.0.0
 [1.3.0]: https://github.com/jagdeepvirdi/flowforge/compare/v1.1.0...v1.3.0

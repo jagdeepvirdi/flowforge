@@ -96,6 +96,61 @@ config:
 
 ---
 
+## reconcile
+
+Compares keyed results from **two connections** — the primitive for audits where the systems being compared (CRM, billing, HLR/HSS) live in different databases. Each side is one query; the step reports keys present on only one side and, optionally, keys whose value disagrees.
+
+```yaml
+step_type: reconcile
+config:
+  left_connection_id:  <uuid>          # e.g. HLR/HSS
+  left_label:          hlr
+  left_query: >
+    SELECT msisdn FROM subscribers WHERE status = 'ACTIVE'
+  right_connection_id: <uuid>          # e.g. billing
+  right_label:         billing
+  right_query: >
+    SELECT msisdn FROM billing_accounts
+    WHERE status = 'ACTIVE' AND activated_at < now() - interval '48 hours'
+  compare:       keys       # keys | values
+  sample_size:   20
+  output_prefix: recon
+```
+
+**Query contract:** the first column is the key. With `compare: values`, the second column is the value that is compared for keys found on both sides (status, balance, plan code…). Put filters, aggregation and **in-flight provisioning windows** in the queries — they run inside the source databases, which is where the volume is.
+
+| Field | Default | Meaning |
+|---|---|---|
+| `compare` | `keys` | `keys` = presence only; `values` = also compare the second column |
+| `tolerance` / `tolerance_pct` | `0` | Numeric values within the absolute / percent-of-left tolerance count as equal |
+| `key_trim` | `true` | Strip whitespace from keys |
+| `key_case` | `none` | `upper` / `lower` to fold case. Numeric keys are normalised, so `NUMBER 4915` equals `'4915'` |
+| `sample_size` | `20` | Cap on offending keys returned **per category**; `0` returns counts only. Samples contain raw key values unless `tokenize_keys` is on |
+| `tokenize_keys` | `false` | Replace sampled keys with keyed HMAC tokens (`tk_msisdn_…`). Matching and counts are unaffected. Fails the step before any query runs if no key is configured — it never falls back to raw keys |
+| `token_kind` | `msisdn` | `msisdn` / `imsi` (digits only are tokenized) or `generic` (trimmed text) |
+| `max_rows` | `5000000` | Cap on distinct keys per side; exceeding it fails the step instead of exhausting memory |
+| `output_prefix` | `recon` | Prefix of the output variables |
+
+**Tokenization:** tokens are HMAC-SHA256 under a key derived from `FLOWFORGE_SECRET_KEY` (or set `FLOWFORGE_TOKEN_KEY`, 32+ bytes hex). This is *pseudonymisation*, not anonymisation: anyone holding the key can confirm a guess, the same subscriber gets the same token on every run, and tokens cannot be reversed — to find a subscriber, tokenize their number with the same key. Rotating the key changes every token. Only keys are tokenized; never select PII as the value column. Details and limits: `flowforge/tokenization.py`.
+
+**Memory:** the left side is held in memory (`{key: value}`) and the right side is streamed, so peak memory is roughly one side. Put the smaller or more selective set on the left. Duplicate keys are counted and ignored (first occurrence wins), not matched twice.
+
+**Outputs:**
+- `{{ steps.<name>.rows_affected }}` — total discrepancies (only-left + only-right + mismatches)
+- Pipeline variables (with the default prefix): `{{ recon_left_count }}`, `{{ recon_right_count }}`, `{{ recon_matched }}`, `{{ recon_only_left }}`, `{{ recon_only_right }}`, `{{ recon_mismatched }}`, `{{ recon_discrepancies }}`, `{{ recon_left_duplicates }}`, `{{ recon_right_duplicates }}`
+- `{{ steps.<name>.table_html }}` — the capped sample as an HTML table for an email body
+
+**Threshold alerting** uses conditional execution — send the alert only when the audit finds something:
+```yaml
+step_type: notification
+config:
+  run_if: "steps.audit.rows_affected > 100"
+```
+
+> **What "orphaned" means is up to your queries.** The step is deliberately generic; it does not decide whether "active in HLR but unbilled" or "billed but unprovisioned" is an orphan. Express that as the two queries (and the provisioning grace window) so the definition is explicit and reviewable.
+
+---
+
 ## report
 
 Generates a report file (Excel, CSV, PDF, or JSON) from a saved report config. The report config holds the query, format, and output filename.

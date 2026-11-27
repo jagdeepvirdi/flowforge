@@ -1,0 +1,1202 @@
+{
+  "recorded": "2026-11-27",
+  "environment": {
+    "platform": "Windows-11-10.0.26300-SP0",
+    "python": "3.14.10",
+    "cpu_count": 16,
+    "postgresql": "PostgreSQL 16.14 (Debian 16.14-1.pgdg13+1)",
+    "oracle": "Oracle AI Database 26ai Free Release 23.26.1.0.0 - Develop, Learn, and Run for Free",
+    "docker_desktop": "16 CPUs, 15.3 GiB RAM visible to containers (default PostgreSQL 16 and Oracle Free containers, no tuning)"
+  },
+  "orphan_rate": 0.02,
+  "in_flight_rate": 0.005,
+  "seed": 42,
+  "seeding": {
+    "100000": {
+      "seed_pg_seconds": 2.4,
+      "seed_oracle_seconds": 2.7
+    },
+    "1000000": {
+      "seed_pg_seconds": 20.6,
+      "seed_oracle_seconds": 22.5
+    },
+    "5000000": {
+      "seed_pg_seconds": 119.0,
+      "seed_oracle_seconds": 132.2
+    }
+  },
+  "runs": [
+    {
+      "layout": "pg",
+      "size": 100000,
+      "total_seconds": 1.084,
+      "peak_rss_mb": 71.3,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 0.718,
+          "success": true,
+          "left_rows": 97500,
+          "right_rows": 95500,
+          "rows_per_second": 268724,
+          "found": {
+            "only_left": 2000,
+            "only_right": 0,
+            "mismatched": 2000
+          },
+          "expected": {
+            "only_left": 2000,
+            "only_right": 0,
+            "mismatched": 2000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 0.366,
+          "success": true,
+          "left_rows": 97500,
+          "right_rows": 97500,
+          "rows_per_second": 532743,
+          "found": {
+            "only_left": 2000,
+            "only_right": 2000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 2000,
+            "only_right": 2000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "pg",
+      "size": 100000,
+      "total_seconds": 1.036,
+      "peak_rss_mb": 71.1,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 0.713,
+          "success": true,
+          "left_rows": 97500,
+          "right_rows": 95500,
+          "rows_per_second": 270808,
+          "found": {
+            "only_left": 2000,
+            "only_right": 0,
+            "mismatched": 2000
+          },
+          "expected": {
+            "only_left": 2000,
+            "only_right": 0,
+            "mismatched": 2000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 0.323,
+          "success": true,
+          "left_rows": 97500,
+          "right_rows": 97500,
+          "rows_per_second": 603445,
+          "found": {
+            "only_left": 2000,
+            "only_right": 2000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 2000,
+            "only_right": 2000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "pg",
+      "size": 100000,
+      "total_seconds": 1.128,
+      "peak_rss_mb": 71.2,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 0.803,
+          "success": true,
+          "left_rows": 97500,
+          "right_rows": 95500,
+          "rows_per_second": 240259,
+          "found": {
+            "only_left": 2000,
+            "only_right": 0,
+            "mismatched": 2000
+          },
+          "expected": {
+            "only_left": 2000,
+            "only_right": 0,
+            "mismatched": 2000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 0.324,
+          "success": true,
+          "left_rows": 97500,
+          "right_rows": 97500,
+          "rows_per_second": 601085,
+          "found": {
+            "only_left": 2000,
+            "only_right": 2000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 2000,
+            "only_right": 2000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "oracle",
+      "size": 100000,
+      "total_seconds": 1.304,
+      "peak_rss_mb": 70.8,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 0.863,
+          "success": true,
+          "left_rows": 97500,
+          "right_rows": 95500,
+          "rows_per_second": 223713,
+          "found": {
+            "only_left": 2000,
+            "only_right": 0,
+            "mismatched": 2000
+          },
+          "expected": {
+            "only_left": 2000,
+            "only_right": 0,
+            "mismatched": 2000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 0.441,
+          "success": true,
+          "left_rows": 97500,
+          "right_rows": 97500,
+          "rows_per_second": 442364,
+          "found": {
+            "only_left": 2000,
+            "only_right": 2000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 2000,
+            "only_right": 2000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "oracle",
+      "size": 100000,
+      "total_seconds": 1.326,
+      "peak_rss_mb": 70.8,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 0.883,
+          "success": true,
+          "left_rows": 97500,
+          "right_rows": 95500,
+          "rows_per_second": 218536,
+          "found": {
+            "only_left": 2000,
+            "only_right": 0,
+            "mismatched": 2000
+          },
+          "expected": {
+            "only_left": 2000,
+            "only_right": 0,
+            "mismatched": 2000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 0.443,
+          "success": true,
+          "left_rows": 97500,
+          "right_rows": 97500,
+          "rows_per_second": 440664,
+          "found": {
+            "only_left": 2000,
+            "only_right": 2000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 2000,
+            "only_right": 2000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "oracle",
+      "size": 100000,
+      "total_seconds": 1.285,
+      "peak_rss_mb": 71.4,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 0.841,
+          "success": true,
+          "left_rows": 97500,
+          "right_rows": 95500,
+          "rows_per_second": 229379,
+          "found": {
+            "only_left": 2000,
+            "only_right": 0,
+            "mismatched": 2000
+          },
+          "expected": {
+            "only_left": 2000,
+            "only_right": 0,
+            "mismatched": 2000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 0.444,
+          "success": true,
+          "left_rows": 97500,
+          "right_rows": 97500,
+          "rows_per_second": 439330,
+          "found": {
+            "only_left": 2000,
+            "only_right": 2000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 2000,
+            "only_right": 2000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "cross",
+      "size": 100000,
+      "total_seconds": 1.29,
+      "peak_rss_mb": 83.2,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 0.887,
+          "success": true,
+          "left_rows": 97500,
+          "right_rows": 95500,
+          "rows_per_second": 217671,
+          "found": {
+            "only_left": 2000,
+            "only_right": 0,
+            "mismatched": 2000
+          },
+          "expected": {
+            "only_left": 2000,
+            "only_right": 0,
+            "mismatched": 2000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 0.404,
+          "success": true,
+          "left_rows": 97500,
+          "right_rows": 97500,
+          "rows_per_second": 483255,
+          "found": {
+            "only_left": 2000,
+            "only_right": 2000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 2000,
+            "only_right": 2000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "cross",
+      "size": 100000,
+      "total_seconds": 1.357,
+      "peak_rss_mb": 83.0,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 0.957,
+          "success": true,
+          "left_rows": 97500,
+          "right_rows": 95500,
+          "rows_per_second": 201569,
+          "found": {
+            "only_left": 2000,
+            "only_right": 0,
+            "mismatched": 2000
+          },
+          "expected": {
+            "only_left": 2000,
+            "only_right": 0,
+            "mismatched": 2000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 0.4,
+          "success": true,
+          "left_rows": 97500,
+          "right_rows": 97500,
+          "rows_per_second": 487977,
+          "found": {
+            "only_left": 2000,
+            "only_right": 2000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 2000,
+            "only_right": 2000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "cross",
+      "size": 100000,
+      "total_seconds": 1.373,
+      "peak_rss_mb": 83.4,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 0.962,
+          "success": true,
+          "left_rows": 97500,
+          "right_rows": 95500,
+          "rows_per_second": 200662,
+          "found": {
+            "only_left": 2000,
+            "only_right": 0,
+            "mismatched": 2000
+          },
+          "expected": {
+            "only_left": 2000,
+            "only_right": 0,
+            "mismatched": 2000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 0.411,
+          "success": true,
+          "left_rows": 97500,
+          "right_rows": 97500,
+          "rows_per_second": 474399,
+          "found": {
+            "only_left": 2000,
+            "only_right": 2000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 2000,
+            "only_right": 2000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "pg",
+      "size": 1000000,
+      "total_seconds": 8.798,
+      "peak_rss_mb": 243.8,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 5.223,
+          "success": true,
+          "left_rows": 975000,
+          "right_rows": 955000,
+          "rows_per_second": 369526,
+          "found": {
+            "only_left": 20000,
+            "only_right": 0,
+            "mismatched": 20000
+          },
+          "expected": {
+            "only_left": 20000,
+            "only_right": 0,
+            "mismatched": 20000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 3.575,
+          "success": true,
+          "left_rows": 975000,
+          "right_rows": 975000,
+          "rows_per_second": 545434,
+          "found": {
+            "only_left": 20000,
+            "only_right": 20000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 20000,
+            "only_right": 20000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "pg",
+      "size": 1000000,
+      "total_seconds": 8.629,
+      "peak_rss_mb": 243.4,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 5.227,
+          "success": true,
+          "left_rows": 975000,
+          "right_rows": 955000,
+          "rows_per_second": 369224,
+          "found": {
+            "only_left": 20000,
+            "only_right": 0,
+            "mismatched": 20000
+          },
+          "expected": {
+            "only_left": 20000,
+            "only_right": 0,
+            "mismatched": 20000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 3.402,
+          "success": true,
+          "left_rows": 975000,
+          "right_rows": 975000,
+          "rows_per_second": 573234,
+          "found": {
+            "only_left": 20000,
+            "only_right": 20000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 20000,
+            "only_right": 20000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "pg",
+      "size": 1000000,
+      "total_seconds": 8.533,
+      "peak_rss_mb": 244.1,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 5.138,
+          "success": true,
+          "left_rows": 975000,
+          "right_rows": 955000,
+          "rows_per_second": 375623,
+          "found": {
+            "only_left": 20000,
+            "only_right": 0,
+            "mismatched": 20000
+          },
+          "expected": {
+            "only_left": 20000,
+            "only_right": 0,
+            "mismatched": 20000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 3.395,
+          "success": true,
+          "left_rows": 975000,
+          "right_rows": 975000,
+          "rows_per_second": 574428,
+          "found": {
+            "only_left": 20000,
+            "only_right": 20000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 20000,
+            "only_right": 20000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "oracle",
+      "size": 1000000,
+      "total_seconds": 10.996,
+      "peak_rss_mb": 244.1,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 6.374,
+          "success": true,
+          "left_rows": 975000,
+          "right_rows": 955000,
+          "rows_per_second": 302797,
+          "found": {
+            "only_left": 20000,
+            "only_right": 0,
+            "mismatched": 20000
+          },
+          "expected": {
+            "only_left": 20000,
+            "only_right": 0,
+            "mismatched": 20000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 4.622,
+          "success": true,
+          "left_rows": 975000,
+          "right_rows": 975000,
+          "rows_per_second": 421869,
+          "found": {
+            "only_left": 20000,
+            "only_right": 20000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 20000,
+            "only_right": 20000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "oracle",
+      "size": 1000000,
+      "total_seconds": 11.025,
+      "peak_rss_mb": 244.1,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 6.538,
+          "success": true,
+          "left_rows": 975000,
+          "right_rows": 955000,
+          "rows_per_second": 295185,
+          "found": {
+            "only_left": 20000,
+            "only_right": 0,
+            "mismatched": 20000
+          },
+          "expected": {
+            "only_left": 20000,
+            "only_right": 0,
+            "mismatched": 20000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 4.487,
+          "success": true,
+          "left_rows": 975000,
+          "right_rows": 975000,
+          "rows_per_second": 434596,
+          "found": {
+            "only_left": 20000,
+            "only_right": 20000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 20000,
+            "only_right": 20000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "oracle",
+      "size": 1000000,
+      "total_seconds": 10.897,
+      "peak_rss_mb": 243.5,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 6.448,
+          "success": true,
+          "left_rows": 975000,
+          "right_rows": 955000,
+          "rows_per_second": 299298,
+          "found": {
+            "only_left": 20000,
+            "only_right": 0,
+            "mismatched": 20000
+          },
+          "expected": {
+            "only_left": 20000,
+            "only_right": 0,
+            "mismatched": 20000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 4.449,
+          "success": true,
+          "left_rows": 975000,
+          "right_rows": 975000,
+          "rows_per_second": 438329,
+          "found": {
+            "only_left": 20000,
+            "only_right": 20000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 20000,
+            "only_right": 20000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "cross",
+      "size": 1000000,
+      "total_seconds": 9.672,
+      "peak_rss_mb": 255.3,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 5.688,
+          "success": true,
+          "left_rows": 975000,
+          "right_rows": 955000,
+          "rows_per_second": 339315,
+          "found": {
+            "only_left": 20000,
+            "only_right": 0,
+            "mismatched": 20000
+          },
+          "expected": {
+            "only_left": 20000,
+            "only_right": 0,
+            "mismatched": 20000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 3.984,
+          "success": true,
+          "left_rows": 975000,
+          "right_rows": 975000,
+          "rows_per_second": 489428,
+          "found": {
+            "only_left": 20000,
+            "only_right": 20000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 20000,
+            "only_right": 20000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "cross",
+      "size": 1000000,
+      "total_seconds": 9.536,
+      "peak_rss_mb": 255.5,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 5.57,
+          "success": true,
+          "left_rows": 975000,
+          "right_rows": 955000,
+          "rows_per_second": 346525,
+          "found": {
+            "only_left": 20000,
+            "only_right": 0,
+            "mismatched": 20000
+          },
+          "expected": {
+            "only_left": 20000,
+            "only_right": 0,
+            "mismatched": 20000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 3.966,
+          "success": true,
+          "left_rows": 975000,
+          "right_rows": 975000,
+          "rows_per_second": 491650,
+          "found": {
+            "only_left": 20000,
+            "only_right": 20000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 20000,
+            "only_right": 20000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "cross",
+      "size": 1000000,
+      "total_seconds": 9.993,
+      "peak_rss_mb": 255.4,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 5.656,
+          "success": true,
+          "left_rows": 975000,
+          "right_rows": 955000,
+          "rows_per_second": 341201,
+          "found": {
+            "only_left": 20000,
+            "only_right": 0,
+            "mismatched": 20000
+          },
+          "expected": {
+            "only_left": 20000,
+            "only_right": 0,
+            "mismatched": 20000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 4.337,
+          "success": true,
+          "left_rows": 975000,
+          "right_rows": 975000,
+          "rows_per_second": 449619,
+          "found": {
+            "only_left": 20000,
+            "only_right": 20000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 20000,
+            "only_right": 20000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "pg",
+      "size": 5000000,
+      "total_seconds": 46.031,
+      "peak_rss_mb": 960.3,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 27.187,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4775000,
+          "rows_per_second": 354955,
+          "found": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 18.844,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4875000,
+          "rows_per_second": 517397,
+          "found": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "pg",
+      "size": 5000000,
+      "total_seconds": 47.792,
+      "peak_rss_mb": 959.7,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 28.32,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4775000,
+          "rows_per_second": 340750,
+          "found": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 19.472,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4875000,
+          "rows_per_second": 500715,
+          "found": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "oracle",
+      "size": 5000000,
+      "total_seconds": 56.488,
+      "peak_rss_mb": 960.3,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 32.682,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4775000,
+          "rows_per_second": 295272,
+          "found": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 23.806,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4875000,
+          "rows_per_second": 409554,
+          "found": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "oracle",
+      "size": 5000000,
+      "total_seconds": 56.011,
+      "peak_rss_mb": 959.5,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 32.237,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4775000,
+          "rows_per_second": 299347,
+          "found": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 23.774,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4875000,
+          "rows_per_second": 410108,
+          "found": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "cross",
+      "size": 5000000,
+      "total_seconds": 48.496,
+      "peak_rss_mb": 972.3,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 27.671,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4775000,
+          "rows_per_second": 348742,
+          "found": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 20.826,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4875000,
+          "rows_per_second": 468174,
+          "found": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    },
+    {
+      "layout": "cross",
+      "size": 5000000,
+      "total_seconds": 48.223,
+      "peak_rss_mb": 971.6,
+      "steps": {
+        "audit_crm_vs_billing": {
+          "seconds": 27.337,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4775000,
+          "rows_per_second": 352996,
+          "found": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 0,
+            "mismatched": 100000
+          },
+          "correct": true
+        },
+        "audit_crm_vs_hlr": {
+          "seconds": 20.886,
+          "success": true,
+          "left_rows": 4875000,
+          "right_rows": 4875000,
+          "rows_per_second": 466827,
+          "found": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "expected": {
+            "only_left": 100000,
+            "only_right": 100000,
+            "mismatched": 0
+          },
+          "correct": true
+        }
+      },
+      "correct": true
+    }
+  ],
+  "summary": [
+    {
+      "size": 100000,
+      "layout": "cross",
+      "runs": 3,
+      "correct_runs": 3,
+      "best_s": 1.29,
+      "median_s": 1.36,
+      "worst_s": 1.373,
+      "peak_rss_mb": 83.4
+    },
+    {
+      "size": 100000,
+      "layout": "oracle",
+      "runs": 3,
+      "correct_runs": 3,
+      "best_s": 1.285,
+      "median_s": 1.3,
+      "worst_s": 1.326,
+      "peak_rss_mb": 71.4
+    },
+    {
+      "size": 100000,
+      "layout": "pg",
+      "runs": 3,
+      "correct_runs": 3,
+      "best_s": 1.036,
+      "median_s": 1.08,
+      "worst_s": 1.128,
+      "peak_rss_mb": 71.3
+    },
+    {
+      "size": 1000000,
+      "layout": "cross",
+      "runs": 3,
+      "correct_runs": 3,
+      "best_s": 9.536,
+      "median_s": 9.67,
+      "worst_s": 9.993,
+      "peak_rss_mb": 255.5
+    },
+    {
+      "size": 1000000,
+      "layout": "oracle",
+      "runs": 3,
+      "correct_runs": 3,
+      "best_s": 10.897,
+      "median_s": 11.0,
+      "worst_s": 11.025,
+      "peak_rss_mb": 244.1
+    },
+    {
+      "size": 1000000,
+      "layout": "pg",
+      "runs": 3,
+      "correct_runs": 3,
+      "best_s": 8.533,
+      "median_s": 8.63,
+      "worst_s": 8.798,
+      "peak_rss_mb": 244.1
+    },
+    {
+      "size": 5000000,
+      "layout": "cross",
+      "runs": 2,
+      "correct_runs": 2,
+      "best_s": 48.223,
+      "median_s": 48.36,
+      "worst_s": 48.496,
+      "peak_rss_mb": 972.3
+    },
+    {
+      "size": 5000000,
+      "layout": "oracle",
+      "runs": 2,
+      "correct_runs": 2,
+      "best_s": 56.011,
+      "median_s": 56.25,
+      "worst_s": 56.488,
+      "peak_rss_mb": 960.3
+    },
+    {
+      "size": 5000000,
+      "layout": "pg",
+      "runs": 2,
+      "correct_runs": 2,
+      "best_s": 46.031,
+      "median_s": 46.91,
+      "worst_s": 47.792,
+      "peak_rss_mb": 960.3
+    }
+  ]
+}
