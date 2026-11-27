@@ -9,10 +9,26 @@ in different ones. This step runs one query per side and diffs the results:
 
 Memory model: the *left* result is held in memory as ``{key: value}`` and the
 *right* result is streamed in chunks, so peak memory is roughly one side, not
-both. ``max_rows`` caps each side; exceeding it fails the step with a clear
-message instead of exhausting memory. Heavy lifting (filters, in-flight
-provisioning windows, aggregation) belongs in the two queries, which run
-inside the source databases.
+both (about 180 bytes per distinct left key, see docs/benchmark.md). ``max_rows``
+caps each side; exceeding it fails the step with a clear message instead of
+exhausting memory. Heavy lifting (filters, in-flight provisioning windows,
+aggregation) belongs in the two queries, which run inside the source databases.
+
+Bounded memory for very large tables: ``partitions: N`` runs the comparison as N
+independent passes over disjoint subsets of the keys, so each pass holds about 1/N
+of the left side. Counts add up exactly across passes (the subsets do not overlap)
+and ``max_rows`` applies per pass. Two ways to split:
+
+* ``partition_mode: python`` (default) - every pass reads both full result sets and keeps
+  only keys whose ``crc32(normalized key) % N`` equals the pass number. Works across any
+  mix of databases with no SQL changes, but each pass re-reads everything: memory drops,
+  time rises roughly N-fold.
+* ``partition_mode: sql`` - the queries receive ``{{ partition_index }}`` and
+  ``{{ partitions }}`` and must filter in SQL (e.g. ``MOD(CAST(msisdn AS BIGINT), {{ partitions }})
+  = {{ partition_index }}``), so each pass reads only about 1/N of the rows: memory *and*
+  total time stay flat. The predicate must select the same keys on both sides. That
+  cannot be verified here, so a predicate that differs between sides gives wrong counts;
+  the step only checks that both queries reference ``partition_index``.
 
 Only counts and a capped sample of offending keys are returned. The sample
 contains raw key values unless ``tokenize_keys`` is on (keyed HMAC tokens instead); set
@@ -20,6 +36,7 @@ contains raw key values unless ``tokenize_keys`` is on (keyed HMAC tokens instea
 """
 import logging
 import re
+import zlib
 from decimal import Decimal
 from typing import Any
 
@@ -31,6 +48,8 @@ logger = logging.getLogger(__name__)
 _PREFIX_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 _VALID_COMPARE = {'keys', 'values'}
 _VALID_CASE = {'none', 'upper', 'lower'}
+_VALID_PARTITION_MODE = {'python', 'sql'}
+_MAX_PARTITIONS = 256
 _DEFAULT_MAX_ROWS = 5_000_000
 _DEFAULT_SAMPLE = 20
 _MAX_SAMPLE = 1000
@@ -70,6 +89,15 @@ def _display(value: Any) -> Any:
     return str(value)
 
 
+def _in_partition(key: str, part: tuple[int, int]) -> bool:
+    """Whether ``key`` (already normalized) belongs to pass ``part[0]`` of ``part[1]``.
+
+    crc32, not hash(): Python's hash() is randomized per process, and the split must be the same
+    on the left and right side and stable between runs.
+    """
+    return zlib.crc32(key.encode('utf-8')) % part[1] == part[0]
+
+
 def _shown(cfg: dict, key: str) -> str:
     """The key as it may leave the step: a keyed token when ``tokenize_keys`` is on."""
     return tokenize(key, cfg['token_kind']) if cfg['tokenize'] else key
@@ -107,7 +135,11 @@ class ReconcileStep(BaseStep):
                           the step if no key is configured. Matching is unaffected. Only keys
                           are tokenized — never select PII as the value column
         token_kind        'msisdn' (default) | 'imsi' | 'generic' — see flowforge/tokenization.py
-        max_rows          cap on rows read per side (default 5,000,000)
+        max_rows          cap on distinct keys per side, per pass (default 5,000,000)
+        partitions        number of passes over disjoint key subsets (default 1, max 256);
+                          bounds memory to about 1/N of the left side - see module docstring
+        partition_mode    'python' (default; filters in Python, time rises ~N-fold) | 'sql'
+                          (queries use {{ partition_index }} / {{ partitions }}; time stays flat)
         output_prefix     prefix for output variables (default 'recon')
     """
 
@@ -126,18 +158,34 @@ class ReconcileStep(BaseStep):
                 return StepResult(success=False, error=f'reconcile: tokenize_keys is on but {e}')
 
         from flowforge.engine.context import render_sql
-        left_sql = render_sql(self.config['left_query'], context)
-        right_sql = render_sql(self.config['right_query'], context)
+        passes = cfg['partitions']
+        totals = {'left': 0, 'left_dups': 0, 'only_left': 0, 'right': 0, 'matched': 0,
+                  'only_right': 0, 'mismatched': 0, 'right_dups': 0}
+        # one shared sample, so sample_size caps each category across all passes
+        sample: dict[str, list[dict]] = {'only_right': [], 'mismatched': [], 'only_left': []}
 
         try:
-            left, left_dups = self._load_left(cfg, left_sql)
-            counts, sample = self._stream_right(cfg, left, right_sql)
+            for k in range(passes):
+                ctx = {**context, 'partition_index': k, 'partitions': passes}
+                left_sql = render_sql(self.config['left_query'], ctx)
+                right_sql = render_sql(self.config['right_query'], ctx)
+                # in 'python' mode this pass keeps only its own keys; in 'sql' mode (and for a
+                # single pass) the queries have already selected them, so nothing is filtered here
+                part = (k, passes) if passes > 1 and cfg['partition_mode'] == 'python' else None
+                left, left_dups = self._load_left(cfg, left_sql, part)
+                counts, seen = self._stream_right(cfg, left, right_sql, part, sample)
+                totals['only_left'] += self._only_left(cfg, left, seen, sample)
+                totals['left'] += len(left)
+                totals['left_dups'] += left_dups
+                for name in ('right', 'matched', 'only_right', 'mismatched', 'right_dups'):
+                    totals[name] += counts[name]
+                del left, seen          # free this partition before the next one is loaded
         except ReconcileError as e:
             return StepResult(success=False, error=f'reconcile: {e}')
         except Exception as e:
             logger.exception('Reconcile step failed')
             return StepResult(success=False, error=f'reconcile: {e}')
-        return self._finish(cfg, left, left_dups, counts, sample)
+        return self._finish(cfg, totals, sample)
 
     # -- configuration ------------------------------------------------------
 
@@ -169,7 +217,26 @@ class ReconcileStep(BaseStep):
             raise ReconcileError('tolerance and tolerance_pct must not be negative')
         if max_rows < 1:
             raise ReconcileError('max_rows must be at least 1')
+        partition_mode = str(c.get('partition_mode', 'python')).lower()
+        if partition_mode not in _VALID_PARTITION_MODE:
+            raise ReconcileError(f"partition_mode must be one of: {', '.join(sorted(_VALID_PARTITION_MODE))}")
+        try:
+            partitions = int(c.get('partitions', 1))
+        except (TypeError, ValueError):
+            raise ReconcileError('partitions must be a whole number') from None
+        if not 1 <= partitions <= _MAX_PARTITIONS:
+            raise ReconcileError(f'partitions must be between 1 and {_MAX_PARTITIONS}')
+        if partitions > 1 and partition_mode == 'sql':
+            # without this guard every pass would read everything and every count would be N times too big
+            for field in ('left_query', 'right_query'):
+                if 'partition_index' not in str(c[field]):
+                    raise ReconcileError(
+                        f"partition_mode 'sql' needs {field} to filter on {{{{ partition_index }}}} "
+                        "(and {{ partitions }}); otherwise every pass reads all rows"
+                    )
         return {
+            'partitions': partitions,
+            'partition_mode': partition_mode,
             'compare': compare,
             'trim': bool(c.get('key_trim', True)),
             'case': case,
@@ -198,7 +265,7 @@ class ReconcileStep(BaseStep):
                 f"(key{', value' if need == 2 else ''}); it returned {len(columns)}"
             )
 
-    def _load_left(self, cfg: dict, sql: str):
+    def _load_left(self, cfg: dict, sql: str, part: tuple[int, int] | None = None):
         left: dict[str, Any] = {}
         dups = 0
         with self._open(self.config['left_connection_id']) as conn:
@@ -206,6 +273,8 @@ class ReconcileStep(BaseStep):
             self._check_columns(cfg, columns, cfg['left_label'])
             for row in rows:
                 key = normalize_key(row[0], cfg['trim'], cfg['case'])
+                if part is not None and not _in_partition(key, part):
+                    continue
                 if key in left:
                     dups += 1
                     continue
@@ -217,17 +286,19 @@ class ReconcileStep(BaseStep):
                 left[key] = row[1] if cfg['compare'] == 'values' else None
         return left, dups
 
-    def _stream_right(self, cfg: dict, left: dict[str, Any], sql: str):
+    def _stream_right(self, cfg: dict, left: dict[str, Any], sql: str, part: tuple[int, int] | None,
+                      sample: dict[str, list[dict]]):
         compare_values = cfg['compare'] == 'values'
         seen: set[str] = set()
         counts = {'right': 0, 'matched': 0, 'only_right': 0, 'mismatched': 0, 'right_dups': 0}
-        sample: dict[str, list[dict]] = {'only_right': [], 'mismatched': [], 'only_left': []}
         cap = cfg['sample_size']
         with self._open(self.config['right_connection_id']) as conn:
             columns, rows = conn.execute_query_with_columns_chunked(sql, (), _CHUNK)
             self._check_columns(cfg, columns, cfg['right_label'])
             for row in rows:
                 key = normalize_key(row[0], cfg['trim'], cfg['case'])
+                if part is not None and not _in_partition(key, part):
+                    continue
                 if key in seen:
                     counts['right_dups'] += 1
                     continue
@@ -257,13 +328,12 @@ class ReconcileStep(BaseStep):
                             'issue': 'value_mismatch', 'key': _shown(cfg, key),
                             'left_value': _display(left[key]), 'right_value': _display(row[1]),
                         })
-        counts['_seen'] = seen
-        return counts, sample
+        return counts, seen
 
     # -- result -------------------------------------------------------------
 
-    def _finish(self, cfg, left, left_dups, counts, sample) -> StepResult:
-        seen = counts.pop('_seen')
+    def _only_left(self, cfg, left: dict[str, Any], seen: set[str], sample: dict[str, list[dict]]) -> int:
+        """Count (and sample) this pass's left keys that the right side never produced."""
         only_left = 0
         for key, value in left.items():
             if key in seen:
@@ -274,27 +344,33 @@ class ReconcileStep(BaseStep):
                     'issue': 'only_in_left', 'key': _shown(cfg, key),
                     'left_value': _display(value), 'right_value': None,
                 })
-        discrepancies = only_left + counts['only_right'] + counts['mismatched']
+        return only_left
+
+    def _finish(self, cfg, t: dict[str, int], sample: dict[str, list[dict]]) -> StepResult:
+        discrepancies = t['only_left'] + t['only_right'] + t['mismatched']
         p = cfg['prefix']
         output_vars = {
-            f'{p}_left_count': len(left),
-            f'{p}_right_count': counts['right'],
-            f'{p}_matched': counts['matched'],
-            f'{p}_only_left': only_left,
-            f'{p}_only_right': counts['only_right'],
-            f'{p}_mismatched': counts['mismatched'],
+            f'{p}_left_count': t['left'],
+            f'{p}_right_count': t['right'],
+            f'{p}_matched': t['matched'],
+            f'{p}_only_left': t['only_left'],
+            f'{p}_only_right': t['only_right'],
+            f'{p}_mismatched': t['mismatched'],
             f'{p}_discrepancies': discrepancies,
-            f'{p}_left_duplicates': left_dups,
-            f'{p}_right_duplicates': counts['right_dups'],
+            f'{p}_left_duplicates': t['left_dups'],
+            f'{p}_right_duplicates': t['right_dups'],
+            f'{p}_passes': cfg['partitions'],
         }
         rows = sample['only_left'] + sample['only_right'] + sample['mismatched']
         from flowforge.steps.db_query import _render_table_html
         logs = (
-            f"Reconciled {cfg['left_label']} ({len(left)} keys) vs {cfg['right_label']} "
-            f"({counts['right']} keys): {counts['matched']} matched, "
-            f"{only_left} only in {cfg['left_label']}, {counts['only_right']} only in {cfg['right_label']}"
-            + (f", {counts['mismatched']} value mismatches" if cfg['compare'] == 'values' else '')
-            + f". Duplicate keys ignored: {left_dups} left, {counts['right_dups']} right."
+            f"Reconciled {cfg['left_label']} ({t['left']} keys) vs {cfg['right_label']} "
+            f"({t['right']} keys): {t['matched']} matched, "
+            f"{t['only_left']} only in {cfg['left_label']}, {t['only_right']} only in {cfg['right_label']}"
+            + (f", {t['mismatched']} value mismatches" if cfg['compare'] == 'values' else '')
+            + f". Duplicate keys ignored: {t['left_dups']} left, {t['right_dups']} right."
+            + (f" Compared in {cfg['partitions']} {cfg['partition_mode']}-partitioned passes."
+               if cfg['partitions'] > 1 else '')
         )
         logger.info(logs)
         return StepResult(
