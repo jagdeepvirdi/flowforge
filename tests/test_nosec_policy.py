@@ -35,6 +35,7 @@ BASELINE = {
     'flowforge/connections/ssh.py': 1,
     'flowforge/db/migrations/versions/0006_projects.py': 2,
     'flowforge/db/migrations/versions/0028_project_members.py': 1,
+    'flowforge/demo/bench.py': 2,
     'flowforge/email_providers/gmail.py': 1,
     'flowforge/engine/concurrency.py': 3,
     'flowforge/engine/notifications.py': 1,

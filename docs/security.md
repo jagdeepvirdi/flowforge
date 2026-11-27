@@ -140,6 +140,18 @@ Set `FLOWFORGE_AUDIT_STDOUT=true` to emit audit events as JSON lines to stdout �
 
 The file handler retains 5 rotated backups (~50 MB total). For long-term retention, consume the structured stdout stream and forward to your log platform.
 
+### Integrity — what is and is not guaranteed
+
+The audit log is **append-only in application code. It is not immutable and not tamper-evident.** Do not describe it as "immutable" or "tamper-proof" in documentation or to a customer. Findings from a code review (not from probing a live database):
+
+- **No database-level protection.** The only migration touching `ff_audit_log` creates it. There is no trigger, no revoked privilege and no hash chain. The application connects as the same role that owns the table (`FLOWFORGE_DB_URL` is used for both migrations and runtime), so that role can `UPDATE`, `DELETE`, `TRUNCATE` or `DROP` it.
+- **Three intended exceptions in code**, pinned by `tests/test_audit_log_mutation_sites.py` (a new modifying site fails the build): the retention job deletes rows older than the retention window, and the GDPR purge (`DELETE /users/<id>?purge=true`, and `flowforge user delete --purge`) anonymises `username`, `user_id` and `ip_address` of a deleted user's rows.
+- **Editors can reach the table through a connection to FlowForge's own database.** `editor`-role users can run arbitrary SQL through `db_query`/`db_procedure` (see `threat-model.md`); if a connection carries a role with write access to `ff_audit_log`, they can alter or delete audit rows. FlowForge therefore **refuses connections that point at its own PostgreSQL database** (same host, port and database name as `FLOWFORGE_DB_URL`; checked when a connection is created, updated or tested, and again whenever one is opened, including the `DB_HOST`/`DB_NAME` fallback in steps). This is defence in depth, not a full control: it cannot see through a proxy or pooler on another port, or a second database that mirrors the metadata. The real control is a least-privilege database role for every connection. To monitor FlowForge's own database deliberately (for example with `db_health_check`), set `FLOWFORGE_ALLOW_INTERNAL_DB_CONNECTIONS=true` and accept this caveat.
+- **Writes are best-effort.** A failed insert is swallowed so that auditing never crashes a request; the event is then missing from the table. The `logs/audit.log` file and the stdout stream are separate copies, but the file rotates (oldest entries are overwritten) and is an ordinary editable file.
+- **The retention window removes history.** With the default 90 days, older audit rows are deleted.
+
+For a stronger guarantee today, ship the stdout stream (`FLOWFORGE_AUDIT_STDOUT=true`) to a write-once or access-controlled log platform and treat that copy, not the table, as the record. Options for making the table itself tamper-resistant (a trigger plus a separate migration role, or a hash chain) are tracked in `TASKS.md` §B.
+
 ---
 
 ## Template Sandbox
