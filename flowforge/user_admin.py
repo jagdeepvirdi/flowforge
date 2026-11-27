@@ -10,7 +10,7 @@ import secrets
 import bcrypt
 
 from flowforge import audit
-from flowforge.db.models import AuditLog, User, db
+from flowforge.db.models import User, db
 
 VALID_ROLES = ('admin', 'editor', 'viewer')
 MIN_PASSWORD_LEN = 8
@@ -72,11 +72,9 @@ def delete_user(username: str, purge: bool = False) -> bool:
         return False
     uid = user.id
     if purge:
+        from flowforge import audit_chain
         anon_name = f'[deleted:{uid[:8]}]'
-        (db.session.query(AuditLog)
-         .filter((AuditLog.user_id == uid) | (AuditLog.username == username))
-         .update({'username': anon_name, 'user_id': None, 'ip_address': None},
-                 synchronize_session=False))
+        audit_chain.anonymize_actor(db.session.connection(), uid, username, anon_name)
     db.session.delete(user)
     db.session.commit()
     audit.log_user_change('DELETED', username, uid)

@@ -88,17 +88,23 @@ def _write_db_audit(action: str, username: str, user_id: str, ip_address: str, d
             return
         from sqlalchemy import insert
 
+        from flowforge import audit_chain
         from flowforge.db.models import AuditLog, db
-        
-        stmt = insert(AuditLog).values(
-            action=action,
-            username=username,
-            user_id=user_id if user_id != 'system' else None,
-            ip_address=ip_address,
-            details=details
-        )
+
+        user_id = user_id if user_id != 'system' else None
+        sealed = None
         with db.engine.begin() as conn:
-            conn.execute(stmt)
+            try:
+                sealed = audit_chain.append(conn, action, username, user_id, ip_address, details)
+            except audit_chain.ChainKeyError:
+                # No key: still record the event, but unchained. `flowforge audit verify` reports
+                # such rows, so a gap cannot hide behind a missing key.
+                conn.execute(insert(AuditLog).values(
+                    action=action, username=username, user_id=user_id,
+                    ip_address=ip_address, details=details))
+        if sealed:
+            # The external anchor: ship this line to storage an attacker with database access cannot edit.
+            _get_logger().info('CHAIN      seq=%d  hash=%s', *sealed)
     except Exception:  # nosec B110 — audit logging must never crash the app
         pass
 

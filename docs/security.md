@@ -152,15 +152,37 @@ Subscriber identifiers are pseudonymised with keyed HMAC tokens (`flowforge/toke
 
 ### Integrity — what is and is not guaranteed
 
-The audit log is **append-only in application code. It is not immutable and not tamper-evident.** Do not describe it as "immutable" or "tamper-proof" in documentation or to a customer. Findings from a code review (not from probing a live database):
+**What you may say:** the audit log is append-only in the application, protected by a database trigger against accidental or application-level edits, and *tamper-evident*: every row is sealed into a keyed hash chain that `flowforge audit verify` checks. **What you may not say:** "immutable" or "tamper-proof". Someone with the table owner's credentials can still change it; the design makes that *detectable*, not impossible.
 
-- **No database-level protection.** The only migration touching `ff_audit_log` creates it. There is no trigger, no revoked privilege and no hash chain. The application connects as the same role that owns the table (`FLOWFORGE_DB_URL` is used for both migrations and runtime), so that role can `UPDATE`, `DELETE`, `TRUNCATE` or `DROP` it.
-- **Three intended exceptions in code**, pinned by `tests/test_audit_log_mutation_sites.py` (a new modifying site fails the build): the retention job deletes rows older than the retention window, and the GDPR purge (`DELETE /users/<id>?purge=true`, and `flowforge user delete --purge`) anonymises `username`, `user_id` and `ip_address` of a deleted user's rows.
-- **Editors can reach the table through a connection to FlowForge's own database.** `editor`-role users can run arbitrary SQL through `db_query`/`db_procedure` (see `threat-model.md`); if a connection carries a role with write access to `ff_audit_log`, they can alter or delete audit rows. FlowForge therefore **refuses connections that point at its own PostgreSQL database** (same host, port and database name as `FLOWFORGE_DB_URL`; checked when a connection is created, updated or tested, and again whenever one is opened, including the `DB_HOST`/`DB_NAME` fallback in steps). This is defence in depth, not a full control: it cannot see through a proxy or pooler on another port, or a second database that mirrors the metadata. The real control is a least-privilege database role for every connection. To monitor FlowForge's own database deliberately (for example with `db_health_check`), set `FLOWFORGE_ALLOW_INTERNAL_DB_CONNECTIONS=true` and accept this caveat.
-- **Writes are best-effort.** A failed insert is swallowed so that auditing never crashes a request; the event is then missing from the table. The `logs/audit.log` file and the stdout stream are separate copies, but the file rotates (oldest entries are overwritten) and is an ordinary editable file.
-- **The retention window removes history.** With the default 90 days, older audit rows are deleted.
+**Layer 1 — a write-blocking trigger.** A trigger on `ff_audit_log` refuses `UPDATE`, `DELETE` and `TRUNCATE` unless the transaction has set `flowforge.audit_maintenance = 'on'`. Only two code paths set it, both in `flowforge/audit_chain.py` and pinned by `tests/test_audit_log_mutation_sites.py`: the retention prune, and the GDPR purge (`DELETE /users/<id>?purge=true`, `flowforge user delete --purge`). This stops bugs, SQL-injection-style exploits in the app, and anyone running ad-hoc SQL as a role that does not know about the gate. **It does not stop the table owner**, who can set the flag or drop the trigger. (The application connects as the owner today, because `FLOWFORGE_DB_URL` is used for both migrations and runtime; separating the roles is not built, see below.)
 
-For a stronger guarantee today, ship the stdout stream (`FLOWFORGE_AUDIT_STDOUT=true`) to a write-once or access-controlled log platform and treat that copy, not the table, as the record. Options for making the table itself tamper-resistant (a trigger plus a separate migration role, or a hash chain) are tracked in `TASKS.md` §B.
+**Layer 2 — a keyed hash chain.** Each row written since migration `0035_audit_chain` carries `seq`, `prev_hash`, a `content_digest` of its fields, and `row_hash = HMAC-SHA256(key, seq | prev_hash | content_digest)`. The key is `FLOWFORGE_AUDIT_CHAIN_KEY` (64+ hex chars), or derived from `FLOWFORGE_SECRET_KEY`. An owner who edits a row, deletes one from the middle, or reorders rows breaks the chain, and cannot repair it without the key. Run it:
+
+```bash
+flowforge audit verify                 # exit 0 = intact, 1 = problems, 2 = bad usage
+flowforge audit verify --anchor 4812:ab12...   # also prove nothing newer was cut off
+flowforge audit anchor                 # print the current "seq:hash" to store elsewhere
+# or GET /api/audit-logs/verify[?anchor=seq:hash]   (admin)
+```
+
+**Operating it.** Schedule `flowforge audit verify` (it streams, so memory stays flat; time is linear in the number of rows) and alert on a non-zero exit. Every audit write also logs a `CHAIN seq=... hash=...` line to `logs/audit.log` and the stdout stream: ship those to storage the database owner cannot edit, and pass the latest one as `--anchor`.
+
+**What verification detects:** an edited row (any field), a deleted row in the middle, reordered rows, a forged row (no key), rows inserted without a chain after it started, a deleted head with no retention record, and (with an anchor) a rewritten row or a chain cut back past the anchor.
+
+**What it does not detect — be honest about these:**
+
+- **Removal of the newest rows** (tail truncation) is invisible without an anchor: a shorter chain is still a valid chain. The anchor is what closes this, and only if it is stored somewhere the attacker cannot reach.
+- **An attacker who has the key** (host access to the app, or the environment) can rewrite the whole chain consistently. Protect `FLOWFORGE_SECRET_KEY` / `FLOWFORGE_AUDIT_CHAIN_KEY` like any other secret, and prefer an external anchor.
+- **Rows written before the chain existed ("legacy", `seq` NULL)** can never be verified and age out with retention. A forged row with an old timestamp and no `seq` looks exactly like one.
+- **GDPR-purged rows** (`anonymized = true`) keep their place in the chain, but their content is no longer checked. Each purge writes a chained `AUDIT_ANONYMIZED` event with a row count, and verification fails if the number of anonymised rows does not match those records, so flagging extra rows to hide an edit is caught; but a purged row's contents are, by definition, no longer evidence.
+- **Key rotation.** Changing `FLOWFORGE_SECRET_KEY` makes every existing row fail verification (reported as "wrong key"). Set `FLOWFORGE_AUDIT_CHAIN_KEY` to a fixed value *before* the first rotation to decouple them; there is no re-sealing tool yet.
+- **Writes are best-effort.** A failed insert is swallowed so auditing never crashes a request; the event is then missing. If no key is available the event is still written, but *unchained*, and `verify` reports it. The file and stdout copies are separate, but the file rotates and is an ordinary editable file.
+
+**Retention.** The prune removes the oldest rows (default 90 days) and first appends a chained `AUDIT_PRUNED` row recording the hash of the last row it removed, so the new head still links to something the chain vouches for. Deleting the head *without* that record is reported. With no key available the prune deletes nothing (it could not record the checkpoint).
+
+**Editors can reach the table through a connection to FlowForge's own database.** `editor`-role users can run arbitrary SQL through `db_query`/`db_procedure` (see `threat-model.md`). FlowForge therefore **refuses connections that point at its own PostgreSQL database** (same host, port and database name as `FLOWFORGE_DB_URL`; checked when a connection is created, updated or tested, and again whenever one is opened, including the `DB_HOST`/`DB_NAME` fallback in steps). The trigger now also blocks such SQL from editing audit rows even if a connection to the metadata database slipped through, but an owner-level connection could still open the gate, so the guard stays. Both are defence in depth: neither can see through a proxy or pooler on another port, or a second database that mirrors the metadata. The real control is a least-privilege database role for every connection. To monitor FlowForge's own database deliberately (for example with `db_health_check`), set `FLOWFORGE_ALLOW_INTERNAL_DB_CONNECTIONS=true` and accept this caveat.
+
+**Not built: separate database roles.** The strongest prevention would run migrations as an owner role and the app as a role with `INSERT`/`SELECT` only on `ff_audit_log`, with retention and the GDPR purge exposed as `SECURITY DEFINER` functions. That changes how deployments are set up and is not done; until it is, the table owner can open the trigger gate, and the chain plus an external anchor is the control that covers that case.
 
 ---
 

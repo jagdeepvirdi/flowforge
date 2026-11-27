@@ -199,11 +199,10 @@ def delete_user(user_id):
 
 def _gdpr_anonymize(user_id: str, username: str) -> None:
     """Anonymize all personal data in audit log entries for this user."""
+    from flowforge import audit_chain
     anon_name = f'[deleted:{user_id[:8]}]'
-    (db.session.query(AuditLog)
-     .filter((AuditLog.user_id == user_id) | (AuditLog.username == username))
-     .update({'username': anon_name, 'user_id': None, 'ip_address': None},
-             synchronize_session=False))
+    # same transaction as the user delete; keeps the audit chain verifiable (audit_chain.anonymize_actor)
+    audit_chain.anonymize_actor(db.session.connection(), user_id, username, anon_name)
 
 
 @bp.get('/users/<uuid:user_id>/export')

@@ -199,14 +199,16 @@ def _prune_old_audit_logs() -> None:
             retention_days = get_audit_retention_days()
             if retention_days <= 0:
                 return
-            from flowforge.db.models import AuditLog, db
+            from flowforge import audit_chain
+            from flowforge.db.models import db
             cutoff = datetime.now(UTC) - timedelta(days=retention_days)
-            deleted = (
-                db.session.query(AuditLog)
-                .filter(AuditLog.timestamp < cutoff)
-                .delete(synchronize_session=False)
-            )
-            db.session.commit()
+            try:
+                # leaves a chained AUDIT_PRUNED checkpoint so the log stays verifiable (audit_chain.py)
+                deleted = audit_chain.prune(db.session.connection(), cutoff)
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+                raise
             if deleted:
                 logger.info("Pruned %d audit log(s) older than %d days.", deleted, retention_days)
     except Exception:

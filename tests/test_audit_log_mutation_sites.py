@@ -14,9 +14,10 @@ PKG = Path(__file__).resolve().parent.parent / 'flowforge'
 
 # (file relative to flowforge/, function) -> why this site may modify audit rows
 ALLOWED = {
-    ('engine/scheduler.py', '_prune_old_audit_logs'): 'retention: deletes rows older than the retention window',
-    ('api/routes/users.py', '_gdpr_anonymize'): 'GDPR purge: anonymises username/user_id/ip of a deleted user',
-    ('user_admin.py', 'delete_user'): 'CLI equivalent of the GDPR purge',
+    # The scheduler job, the API purge and the CLI purge all delegate to these two functions, which
+    # open the database trigger's maintenance gate and keep the hash chain verifiable.
+    ('audit_chain.py', 'prune'): 'retention: deletes old rows and appends a chained AUDIT_PRUNED checkpoint',
+    ('audit_chain.py', 'anonymize_actor'): 'GDPR purge: blanks the actor fields of a deleted user, records AUDIT_ANONYMIZED',
 }
 
 _MUTATORS = {'delete', 'update', 'bulk_update_mappings', 'bulk_save_objects'}
@@ -28,13 +29,18 @@ def find_mutation_sites(source: str) -> set[str]:
     or that contain raw SQL modifying ff_audit_log. ('<module>' for module-level code.)"""
     tree = ast.parse(source)
     sites: set[str] = set()
+    # Docstrings talk about UPDATE/DELETE in prose; only real statements count.
+    docstrings = {id(n.body[0].value) for n in ast.walk(tree)
+                  if isinstance(n, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+                  and n.body and isinstance(n.body[0], ast.Expr)
+                  and isinstance(n.body[0].value, ast.Constant) and isinstance(n.body[0].value.value, str)}
 
     def scan(node, name):
         mentions = any(isinstance(n, ast.Name) and n.id == 'AuditLog' for n in ast.walk(node))
         calls = any(isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr in _MUTATORS
                     for n in ast.walk(node))
-        raw = any(isinstance(n, ast.Constant) and isinstance(n.value, str) and _RAW_SQL.search(n.value)
-                  for n in ast.walk(node))
+        raw = any(isinstance(n, ast.Constant) and isinstance(n.value, str) and id(n) not in docstrings
+                  and _RAW_SQL.search(n.value) for n in ast.walk(node))
         if (mentions and calls) or raw:
             sites.add(name)
 
@@ -89,3 +95,16 @@ def test_scanner_ignores_reads_inserts_and_other_tables():
     assert find_mutation_sites('def w(conn):\n    conn.execute(insert(AuditLog).values(a=1))') == set()
     assert find_mutation_sites('def o():\n    db.session.query(PipelineRun).delete()') == set()
     assert find_mutation_sites('def s(c):\n    c.execute("SELECT * FROM ff_audit_log")') == set()
+
+
+def test_scanner_ignores_docstrings_but_not_real_sql():
+    prose = 'The trigger blocks UPDATE and DELETE on ff_audit_log.'
+    only_docs = ('"""' + prose + '"""\n'
+                 'def f():\n'
+                 '    """' + prose + '"""\n'
+                 '    return 1\n')
+    assert find_mutation_sites(only_docs) == set()
+    real = ('def f(c):\n'
+            '    """' + prose + '"""\n'
+            '    c.execute("DELETE FROM ff_audit_log")\n')
+    assert find_mutation_sites(real) == {'f'}
