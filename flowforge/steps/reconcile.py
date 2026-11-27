@@ -15,7 +15,8 @@ provisioning windows, aggregation) belongs in the two queries, which run
 inside the source databases.
 
 Only counts and a capped sample of offending keys are returned. The sample
-contains raw key values — set ``sample_size`` to 0 to return counts only.
+contains raw key values unless ``tokenize_keys`` is on (keyed HMAC tokens instead); set
+``sample_size`` to 0 to return counts only.
 """
 import logging
 import re
@@ -23,6 +24,7 @@ from decimal import Decimal
 from typing import Any
 
 from flowforge.steps.base import BaseStep, StepResult
+from flowforge.tokenization import TOKEN_KINDS, TokenizationError, check_ready, tokenize
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +70,11 @@ def _display(value: Any) -> Any:
     return str(value)
 
 
+def _shown(cfg: dict, key: str) -> str:
+    """The key as it may leave the step: a keyed token when ``tokenize_keys`` is on."""
+    return tokenize(key, cfg['token_kind']) if cfg['tokenize'] else key
+
+
 def values_differ(left: Any, right: Any, tolerance: float, tolerance_pct: float,
                   trim: bool, case: str) -> bool:
     if left is None or right is None:
@@ -96,6 +103,10 @@ class ReconcileStep(BaseStep):
         key_trim          strip whitespace from keys (default true)
         key_case          'none' (default) | 'upper' | 'lower'
         sample_size       cap on offending keys returned per category (default 20, 0 = none)
+        tokenize_keys     replace sampled keys with keyed HMAC tokens (default false); fails
+                          the step if no key is configured. Matching is unaffected. Only keys
+                          are tokenized — never select PII as the value column
+        token_kind        'msisdn' (default) | 'imsi' | 'generic' — see flowforge/tokenization.py
         max_rows          cap on rows read per side (default 5,000,000)
         output_prefix     prefix for output variables (default 'recon')
     """
@@ -107,6 +118,12 @@ class ReconcileStep(BaseStep):
             cfg = self._parse_config()
         except ReconcileError as e:
             return StepResult(success=False, error=f'reconcile: {e}')
+
+        if cfg['tokenize']:
+            try:
+                check_ready()   # fail before any query runs; never fall back to raw keys
+            except TokenizationError as e:
+                return StepResult(success=False, error=f'reconcile: tokenize_keys is on but {e}')
 
         from flowforge.engine.context import render_sql
         left_sql = render_sql(self.config['left_query'], context)
@@ -135,6 +152,9 @@ class ReconcileStep(BaseStep):
         case = str(c.get('key_case', 'none')).lower()
         if case not in _VALID_CASE:
             raise ReconcileError(f"key_case must be one of: {', '.join(sorted(_VALID_CASE))}")
+        token_kind = str(c.get('token_kind', 'msisdn')).lower()
+        if token_kind not in TOKEN_KINDS:
+            raise ReconcileError(f"token_kind must be one of: {', '.join(TOKEN_KINDS)}")
         prefix = str(c.get('output_prefix') or 'recon')
         if not _PREFIX_RE.match(prefix):
             raise ReconcileError('output_prefix must be a valid variable name (letters, digits, underscore)')
@@ -154,6 +174,8 @@ class ReconcileStep(BaseStep):
             'trim': bool(c.get('key_trim', True)),
             'case': case,
             'prefix': prefix,
+            'tokenize': bool(c.get('tokenize_keys', False)),
+            'token_kind': token_kind,
             'tolerance': tolerance,
             'tolerance_pct': tolerance_pct,
             'sample_size': max(0, min(sample_size, _MAX_SAMPLE)),
@@ -220,7 +242,7 @@ class ReconcileStep(BaseStep):
                     counts['only_right'] += 1
                     if len(sample['only_right']) < cap:
                         sample['only_right'].append({
-                            'issue': 'only_in_right', 'key': key,
+                            'issue': 'only_in_right', 'key': _shown(cfg, key),
                             'left_value': None,
                             'right_value': _display(row[1]) if compare_values else None,
                         })
@@ -232,7 +254,7 @@ class ReconcileStep(BaseStep):
                     counts['mismatched'] += 1
                     if len(sample['mismatched']) < cap:
                         sample['mismatched'].append({
-                            'issue': 'value_mismatch', 'key': key,
+                            'issue': 'value_mismatch', 'key': _shown(cfg, key),
                             'left_value': _display(left[key]), 'right_value': _display(row[1]),
                         })
         counts['_seen'] = seen
@@ -249,7 +271,7 @@ class ReconcileStep(BaseStep):
             only_left += 1
             if len(sample['only_left']) < cfg['sample_size']:
                 sample['only_left'].append({
-                    'issue': 'only_in_left', 'key': key,
+                    'issue': 'only_in_left', 'key': _shown(cfg, key),
                     'left_value': _display(value), 'right_value': None,
                 })
         discrepancies = only_left + counts['only_right'] + counts['mismatched']

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `reconcile` step: compare keyed results from two connections (keys present on one side only, optional value mismatches with tolerance), with a capped sample of offending keys.
+- Synthetic telecom dataset generator (`python -m flowforge.demo.telecom`) with planted anomalies and a known ground truth, for demos, tests and benchmarks.
+- `examples/telecom-orphaned-subscriptions.yaml`: scheduled CRM-vs-billing and CRM-vs-HLR audit with a threshold alert. Not yet run against a live PostgreSQL/Oracle database or an operator's data.
+- Keyed tokenization (`flowforge/tokenization.py`): HMAC-SHA256 tokens for MSISDN/IMSI under a per-deployment key (`FLOWFORGE_TOKEN_KEY`, or derived from `FLOWFORGE_SECRET_KEY`), plus a free-text scrubber. `reconcile` gains `tokenize_keys` / `token_kind`; the step fails rather than emit raw keys when no key is configured. Pseudonymisation, not anonymisation; tokens are one-way and a reversible lookup table is not implemented.
+
 ## [2.2.0] — 2026-10-28
 
 ### Fixed

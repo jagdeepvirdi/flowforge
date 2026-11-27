@@ -27,9 +27,13 @@
 # An HLR-active subscriber whose CRM activation falls inside the window is reported as
 # "only_right" by the HLR check; widen or align the right-side filter if your process allows it.
 #
-# DATA HANDLING: the result sample contains RAW MSISDNs (sample_size caps it per category).
-# Set sample_size: 0 to get counts only. Do not send this email outside your trust boundary
-# until the PII tokenization step exists (docs/TASKS.md §B).
+# DATA HANDLING: sampled keys are replaced by keyed HMAC tokens (tokenize_keys: true, key derived
+# from FLOWFORGE_SECRET_KEY or set FLOWFORGE_TOKEN_KEY), so the email and run history carry
+# tk_msisdn_... tokens, not subscriber numbers. This is pseudonymisation, not anonymisation:
+# anyone with the key can confirm a guess, and the same subscriber gets the same token on every
+# run. To find a subscriber's findings, tokenize their number with the same key. Rotating the
+# key changes all tokens. The step fails (rather than sending raw numbers) if no key is set.
+# Counts-only output: set sample_size: 0. Do not select PII as the value column.
 #
 # HOW TO USE:
 #   1. Settings -> Import Pipeline, upload this file.
@@ -71,6 +75,7 @@ steps:
       compare: values
       tolerance: 0.005
       sample_size: 20
+      tokenize_keys: true
       output_prefix: billing
     on_error: stop
     enabled: true
@@ -92,6 +97,7 @@ steps:
         SELECT msisdn FROM demo_hlr_subscribers WHERE state = 'active'
       compare: keys
       sample_size: 20
+      tokenize_keys: true
       output_prefix: hlr
     on_error: stop
     enabled: true

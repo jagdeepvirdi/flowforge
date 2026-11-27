@@ -125,9 +125,13 @@ config:
 | `tolerance` / `tolerance_pct` | `0` | Numeric values within the absolute / percent-of-left tolerance count as equal |
 | `key_trim` | `true` | Strip whitespace from keys |
 | `key_case` | `none` | `upper` / `lower` to fold case. Numeric keys are normalised, so `NUMBER 4915` equals `'4915'` |
-| `sample_size` | `20` | Cap on offending keys returned **per category**; `0` returns counts only. Samples contain raw key values |
+| `sample_size` | `20` | Cap on offending keys returned **per category**; `0` returns counts only. Samples contain raw key values unless `tokenize_keys` is on |
+| `tokenize_keys` | `false` | Replace sampled keys with keyed HMAC tokens (`tk_msisdn_…`). Matching and counts are unaffected. Fails the step before any query runs if no key is configured — it never falls back to raw keys |
+| `token_kind` | `msisdn` | `msisdn` / `imsi` (digits only are tokenized) or `generic` (trimmed text) |
 | `max_rows` | `5000000` | Cap on distinct keys per side; exceeding it fails the step instead of exhausting memory |
 | `output_prefix` | `recon` | Prefix of the output variables |
+
+**Tokenization:** tokens are HMAC-SHA256 under a key derived from `FLOWFORGE_SECRET_KEY` (or set `FLOWFORGE_TOKEN_KEY`, 32+ bytes hex). This is *pseudonymisation*, not anonymisation: anyone holding the key can confirm a guess, the same subscriber gets the same token on every run, and tokens cannot be reversed — to find a subscriber, tokenize their number with the same key. Rotating the key changes every token. Only keys are tokenized; never select PII as the value column. Details and limits: `flowforge/tokenization.py`.
 
 **Memory:** the left side is held in memory (`{key: value}`) and the right side is streamed, so peak memory is roughly one side. Put the smaller or more selective set on the left. Duplicate keys are counted and ignored (first occurrence wins), not matched twice.
 

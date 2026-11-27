@@ -21,6 +21,7 @@ import yaml
 from flowforge.demo.telecom import generate, seed_postgres
 from flowforge.engine.context import evaluate_condition, validate_condition
 from flowforge.steps.reconcile import ReconcileStep
+from flowforge.tokenization import tokenize
 
 TEMPLATE = Path(__file__).resolve().parent.parent / 'examples' / 'telecom-orphaned-subscriptions.yaml'
 
@@ -28,6 +29,13 @@ TEMPLATE = Path(__file__).resolve().parent.parent / 'examples' / 'telecom-orphan
 @pytest.fixture(scope='module')
 def doc():
     return yaml.safe_load(TEMPLATE.read_text(encoding='utf-8'))
+
+
+@pytest.fixture(autouse=True)
+def _token_key(monkeypatch):
+    # tokenization needs a key; use the environment's if present, else a throwaway one
+    if not (os.environ.get('FLOWFORGE_SECRET_KEY') or os.environ.get('FLOWFORGE_TOKEN_KEY')):
+        monkeypatch.setenv('FLOWFORGE_SECRET_KEY', 'cd' * 32)
 
 
 def _step(doc, name):
@@ -69,6 +77,12 @@ def test_alert_condition_is_valid_and_thresholded(doc):
     assert evaluate_condition(expr, ctx(60, 41)) is True       # 101 > 100
     assert evaluate_condition(expr, ctx(60, 40)) is False      # 100 is not > 100
     assert evaluate_condition(expr, ctx(0, 0)) is False
+
+
+def test_samples_are_tokenized_by_default(doc):
+    for s in doc['steps']:
+        if s['step_type'] == 'reconcile':
+            assert s['config']['tokenize_keys'] is True, f"{s['name']} would emit raw MSISDNs"
 
 
 def test_no_secret_variables_and_no_credentials_in_template(doc):
@@ -142,20 +156,27 @@ def _keys(result, issue):
     return {r['key'] for r in result.rows if r['issue'] == issue}
 
 
+def _tok(msisdns):
+    # the template tokenizes sampled keys, so ground truth is compared as tokens
+    return {tokenize(m) for m in msisdns}
+
+
 def test_live_billing_audit_finds_exactly_the_planted_anomalies(doc, seeded_dsn):
     dsn, truth = seeded_dsn
     r = _run(doc, 'audit_crm_vs_billing', dsn)
     assert r.success, r.error
-    assert _keys(r, 'only_in_left') == set(truth.keys['active_unbilled'])
-    assert _keys(r, 'value_mismatch') == set(truth.keys['charge_mismatch'])
+    assert _keys(r, 'only_in_left') == _tok(truth.keys['active_unbilled'])
+    assert _keys(r, 'value_mismatch') == _tok(truth.keys['charge_mismatch'])
     assert _keys(r, 'only_in_right') == set()
-    assert not (set(truth.keys['in_flight']) & {row['key'] for row in r.rows})
+    assert not (_tok(truth.keys['in_flight']) & {row['key'] for row in r.rows})
+    assert not any(m in repr(r.rows) for m in truth.keys['active_unbilled'])
 
 
 def test_live_hlr_audit_finds_exactly_the_planted_anomalies(doc, seeded_dsn):
     dsn, truth = seeded_dsn
     r = _run(doc, 'audit_crm_vs_hlr', dsn)
     assert r.success, r.error
-    assert _keys(r, 'only_in_left') == set(truth.keys['billed_unprovisioned'])
-    assert _keys(r, 'only_in_right') == set(truth.keys['status_mismatch'])
-    assert not (set(truth.keys['in_flight']) & {row['key'] for row in r.rows})
+    assert _keys(r, 'only_in_left') == _tok(truth.keys['billed_unprovisioned'])
+    assert _keys(r, 'only_in_right') == _tok(truth.keys['status_mismatch'])
+    assert not (_tok(truth.keys['in_flight']) & {row['key'] for row in r.rows})
+    assert not any(m in repr(r.rows) for m in truth.keys['active_unbilled'])
