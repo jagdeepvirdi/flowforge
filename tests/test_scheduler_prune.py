@@ -166,9 +166,29 @@ def test_prune_old_audit_logs_deletes_and_commits():
     mock_db = _mock_db_session()
     try:
         with patch.dict(os.environ, {'FLOWFORGE_AUDIT_RETENTION_DAYS': '30'}), \
-             patch('flowforge.db.models.db', mock_db):
+             patch('flowforge.db.models.db', mock_db), \
+             patch('flowforge.audit_chain.prune', return_value=3) as mock_prune:
             sched_mod._prune_old_audit_logs()
+        # the deletion itself (and its chained checkpoint) is audit_chain.prune, tested on a real DB
+        mock_prune.assert_called_once()
         mock_db.session.commit.assert_called_once()
+        mock_db.session.rollback.assert_not_called()
+    finally:
+        sched_mod._app = original
+
+
+def test_prune_old_audit_logs_rolls_back_when_the_prune_fails():
+    import flowforge.engine.scheduler as sched_mod
+    original = sched_mod._app
+    sched_mod._app = _make_mock_app()
+    mock_db = _mock_db_session()
+    try:
+        with patch.dict(os.environ, {'FLOWFORGE_AUDIT_RETENTION_DAYS': '30'}), \
+             patch('flowforge.db.models.db', mock_db), \
+             patch('flowforge.audit_chain.prune', side_effect=RuntimeError('boom')):
+            sched_mod._prune_old_audit_logs()          # logged, never raised
+        mock_db.session.rollback.assert_called_once()
+        mock_db.session.commit.assert_not_called()
     finally:
         sched_mod._app = original
 
@@ -196,7 +216,8 @@ def test_prune_old_audit_logs_defaults_to_run_retention():
                  if k not in ('FLOWFORGE_AUDIT_RETENTION_DAYS',)}
     try:
         with patch.dict(os.environ, {**env_clean, **env}, clear=True), \
-             patch('flowforge.db.models.db', mock_db):
+             patch('flowforge.db.models.db', mock_db), \
+             patch('flowforge.audit_chain.prune', return_value=0):
             sched_mod._prune_old_audit_logs()
         mock_db.session.commit.assert_called_once()
     finally:

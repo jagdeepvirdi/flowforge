@@ -265,9 +265,10 @@ code review comment.
 - **Transport & auth:** TLS (or mTLS) between Core and Brain; service-to-service credential for Core→Brain;
   short-lived audience-scoped tokens for UI→Brain; no long-lived secrets in the browser.
 - **Audit:** every evidence submission is recorded in Core's audit log (who/what/when/size/`case_id`), never the
-  content itself. **Do not describe the audit log as "immutable" yet**: it is append-only in application code, but
-  DB-level protection against UPDATE/DELETE has not been verified and the retention job deletes old rows. Verify
-  (revoked privileges / trigger / hash chain) before making that claim to a buyer.
+  content itself. **Never describe the audit log as "immutable" or "tamper-proof"**: it is append-only in the app,
+  guarded by a write-blocking database trigger and sealed in a keyed hash chain, so tampering is *detectable* with
+  `flowforge audit verify` (and an external anchor for tail truncation) but not impossible for a table owner or anyone
+  holding the key. What it does and does not guarantee: `docs/security.md`, "Integrity".
 - **Untrusted input:** logs are attacker-influenced text. Brain must treat them as data (prompt-injection
   aware), enforce a JSON output schema, give the model **no tools** and no network, and never follow
   instructions found in logs.

@@ -552,6 +552,85 @@ def import_pipeline(file_path: str, overwrite: bool):
             )
 
 
+@cli.group('audit')
+def audit_group():
+    """Check and anchor the tamper-evident audit log (see docs/security.md)."""
+
+
+@audit_group.command('verify')
+@click.option('--anchor', default=None, metavar='SEQ:HASH',
+              help='A "seq:hash" saved earlier (the CHAIN line in the audit log): proves the chain still '
+                   'contains that row and was not cut back past it.')
+@click.option('--json', 'as_json', is_flag=True, help='Print the full report as JSON.')
+def audit_verify(anchor: str | None, as_json: bool):
+    """Recompute the audit hash chain; exit 1 if anything does not add up."""
+    import json as _json
+    app = _create_app()
+    with app.app_context():
+        from flowforge import audit_chain
+        from flowforge.db.models import db
+        try:
+            with db.engine.connect() as conn:
+                rep = audit_chain.verify(conn, anchor=anchor)
+        except ValueError as e:
+            click.echo(f'ERROR: {e}', err=True)
+            sys.exit(2)
+    if as_json:
+        click.echo(_json.dumps(rep.to_dict(), indent=2))
+    else:
+        click.echo(f'{"OK" if rep.ok else "FAILED"}: {rep.chained_rows} chained rows'
+                   f' (seq {rep.first_seq}..{rep.last_seq}), {rep.anonymized_rows} anonymized, '
+                   f'{rep.legacy_rows} legacy.')
+        for note in rep.notes:
+            click.echo(f'  note: {note}')
+        for problem in rep.problems:
+            click.echo(f'  PROBLEM: {problem}', err=True)
+        if rep.tail:
+            click.echo(f'tail (save this somewhere an attacker cannot edit): {rep.tail}')
+    sys.exit(0 if rep.ok else 1)
+
+
+@audit_group.command('status')
+@click.option('--json', 'as_json', is_flag=True, help='Print the status as JSON.')
+def audit_status(as_json: bool):
+    """Is the scheduled audit verification still running and passing? Exit 1 if not (for probes/cron).
+
+    Use the same environment (FLOWFORGE_AUDIT_VERIFY_CRON ...) as the scheduler. For a push-style
+    alert that survives the whole host dying, set FLOWFORGE_AUDIT_HEARTBEAT_URL instead.
+    """
+    import json as _json
+    app = _create_app()
+    with app.app_context():
+        from flowforge import audit_chain
+        from flowforge.db.models import db
+        with db.engine.connect() as conn:
+            st = audit_chain.verification_status(conn)
+    if as_json:
+        click.echo(_json.dumps(st, indent=2))
+    else:
+        click.echo(f'{st["state"].upper()}: {st["detail"]}'
+                   + (f' (last run {st["last_run_at"]}, {st["age_hours"]} h ago, limit {st["max_age_hours"]} h)'
+                      if st['last_run_at'] else ''))
+    sys.exit(0 if st['healthy'] else 1)
+
+
+@audit_group.command('anchor')
+def audit_anchor():
+    """Print the current chain tail as seq:hash, to store outside the database."""
+    app = _create_app()
+    with app.app_context():
+        from sqlalchemy import text
+
+        from flowforge.db.models import db
+        with db.engine.connect() as conn:
+            row = conn.execute(text('SELECT seq, row_hash FROM ff_audit_log WHERE seq IS NOT NULL '
+                                    'ORDER BY seq DESC LIMIT 1')).first()
+    if not row:
+        click.echo('ERROR: no chained audit rows yet', err=True)
+        sys.exit(1)
+    click.echo(f'{row.seq}:{row.row_hash}')
+
+
 @cli.group('tokens')
 def tokens_group():
     """Work with subscriber-identifier tokens (see docs/security.md)."""

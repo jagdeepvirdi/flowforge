@@ -12,6 +12,34 @@ from flowforge.db.models import AuditLog
 
 bp = Blueprint('audit', __name__)
 
+@bp.get('/audit-logs/verify/status')
+@require_role('admin')
+def verify_status():
+    """Is the scheduled chain verification running and passing? (state ok/failed/stale/never/pending/disabled)"""
+    from flowforge import audit_chain
+    from flowforge.db.models import db
+    with db.engine.connect() as conn:
+        return jsonify(audit_chain.verification_status(conn))
+
+
+@bp.get('/audit-logs/verify')
+@require_role('admin')
+def verify_audit_chain():
+    """Recompute the audit hash chain (O(rows); streams, so memory stays flat).
+
+    Query: ``anchor=<seq>:<hash>`` to also prove the chain was not cut back past a saved point.
+    """
+    from flowforge import audit_chain
+    from flowforge.db.models import db
+    try:
+        with db.engine.connect() as conn:
+            rep = audit_chain.verify(conn, anchor=request.args.get('anchor') or None)
+    except ValueError:
+        # fixed text, never the exception's own message (the only ValueError here is a malformed anchor)
+        return jsonify({'error': 'anchor must look like "<seq>:<64 hex chars>" (the CHAIN line in the audit log)'}), 400
+    return jsonify(rep.to_dict())
+
+
 @bp.get('/audit-logs/export')
 @require_role('admin')
 def export_audit_logs():
