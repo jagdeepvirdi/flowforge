@@ -37,6 +37,10 @@ if 'test' not in _db_name.lower():
     )
     sys.exit(1)
 
+# Many tests create connections to the test database itself; the internal-DB guard
+# (flowforge/connections/internal_guard.py) has its own tests that unset this.
+os.environ.setdefault('FLOWFORGE_ALLOW_INTERNAL_DB_CONNECTIONS', 'true')
+
 # Safe dummy keys for test runs — 64 hex chars = 32 bytes
 os.environ.setdefault('FLOWFORGE_SECRET_KEY', 'a' * 64)
 os.environ.setdefault('FLOWFORGE_JWT_SECRET',  'b' * 64)

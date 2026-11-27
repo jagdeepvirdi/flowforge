@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **Behaviour change:** database connections that point at FlowForge's own PostgreSQL database (same host, port and database name as `FLOWFORGE_DB_URL`) are now refused, at save/test time and whenever a connection is opened. Editors can run arbitrary SQL through connections, so such a connection let them read or alter FlowForge's tables, including the audit log. Existing pipelines that deliberately use one will fail with an explanatory error; set `FLOWFORGE_ALLOW_INTERNAL_DB_CONNECTIONS=true` to keep them working. This is defence in depth, not a replacement for least-privilege database roles. The audit log itself is still not tamper-proof; see `docs/security.md`, "Audit log integrity".
+
 ### Added
 - `reconcile` step: compare keyed results from two connections (keys present on one side only, optional value mismatches with tolerance), with a capped sample of offending keys.
 - Synthetic telecom dataset generator (`python -m flowforge.demo.telecom`) with planted anomalies and a known ground truth, for demos, tests and benchmarks.
