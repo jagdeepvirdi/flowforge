@@ -218,6 +218,46 @@ def log_token_reveal(requested: int, found: int, tokens: list[str], remote_addr:
                     {'requested': requested, 'found': found, 'tokens': shown, 'truncated': len(tokens) > len(shown)})
 
 
+_VERIFY_ALERT_PROBLEMS = 10
+
+
+def log_chain_verification(report=None, error: str | None = None) -> bool:
+    """Record a scheduled audit-chain verification and alert when it did not pass. Returns ok.
+
+    Every outcome leaves a chained audit row (AUDIT_CHAIN_VERIFIED / AUDIT_CHAIN_VERIFY_FAILED), so the
+    absence of recent ones is itself a signal. A failure also logs at ERROR and, if
+    FLOWFORGE_AUDIT_ALERT_WEBHOOK_URL is set, POSTs a JSON alert through the SSRF-guarded sender. A
+    verifier that could not run at all (``error``) counts as a failure: silence must not read as
+    "all clear". Messages carry sequence numbers and action names only, never usernames or values.
+    """
+    ok = error is None and report is not None and report.ok
+    d = report.to_dict() if report is not None else {}
+    problems = ([f'verification could not run: {error}'] if error else []) + list(d.get('problems') or [])
+    details = {k: d.get(k) for k in ('chained_rows', 'anonymized_rows', 'legacy_rows', 'unchained_after_start',
+                                     'first_seq', 'last_seq', 'tail')}
+    details.update({'ok': ok, 'problem_count': len(problems), 'problems': problems[:_VERIFY_ALERT_PROBLEMS]})
+    if ok:
+        _get_logger().info('AUDIT      CHAIN VERIFIED  rows=%s  anonymized=%s  legacy=%s',
+                           details['chained_rows'], details['anonymized_rows'], details['legacy_rows'])
+    else:
+        _get_logger().error('AUDIT      CHAIN VERIFY FAILED  problems=%d  first=%s', len(problems), problems[0])
+    _write_db_audit('AUDIT_CHAIN_VERIFIED' if ok else 'AUDIT_CHAIN_VERIFY_FAILED', 'system', 'system', '', details)
+    url = os.environ.get('FLOWFORGE_AUDIT_ALERT_WEBHOOK_URL', '').strip()
+    if url and not ok:
+        from flowforge.engine.notifications import _fire_failure_webhook
+        _fire_failure_webhook(url, {
+            'event': 'audit_chain_verification_failed',
+            'severity': 'critical',
+            'text': f'FlowForge audit log integrity check FAILED: {len(problems)} problem(s). First: {problems[0]}',
+            'problem_count': len(problems),
+            'problems': problems[:_VERIFY_ALERT_PROBLEMS],
+            'chained_rows': details['chained_rows'],
+            'tail': details['tail'],
+            'checked_at': datetime.now(UTC).strftime('%Y-%m-%dT%H:%M:%SZ'),
+        })
+    return ok
+
+
 def log_email_sent(
     pipeline_name: str,
     step_name: str,

@@ -44,6 +44,7 @@ def start_scheduler(app) -> None:
 
     _register_cleanup_job()
     _register_sync_job()
+    _register_audit_verify_job()
 
     from flowforge.engine import leader
 
@@ -131,6 +132,71 @@ def _register_cleanup_job() -> None:
         misfire_grace_time=3600,
     )
     logger.info("Registered daily output cleanup job (02:00 UTC).")
+
+
+DEFAULT_AUDIT_VERIFY_CRON = '0 3 * * *'      # after the 02:00 retention prune, so it checks the pruned log
+_AUDIT_VERIFY_JOB_ID = 'audit_chain_verify'
+
+
+def _audit_verify_trigger():
+    """CronTrigger from FLOWFORGE_AUDIT_VERIFY_CRON; ``None`` only when explicitly turned off.
+
+    A bad expression falls back to the default (with an error), never to "disabled": a typo must not
+    quietly switch off the integrity check.
+    """
+    from apscheduler.triggers.cron import CronTrigger
+    raw = os.environ.get('FLOWFORGE_AUDIT_VERIFY_CRON', '').strip()
+    if raw.lower() in ('off', 'false', 'disabled', 'none'):
+        return None
+    try:
+        return CronTrigger.from_crontab(raw or DEFAULT_AUDIT_VERIFY_CRON, timezone='UTC')
+    except ValueError as e:
+        logger.error("FLOWFORGE_AUDIT_VERIFY_CRON=%r is not a valid 5-field cron expression (%s); "
+                     "using the default %r", raw, e, DEFAULT_AUDIT_VERIFY_CRON)
+        return CronTrigger.from_crontab(DEFAULT_AUDIT_VERIFY_CRON, timezone='UTC')
+
+
+def _register_audit_verify_job() -> None:
+    from apscheduler.jobstores.base import JobLookupError
+    trigger = _audit_verify_trigger()
+    if trigger is None:
+        try:
+            _scheduler.remove_job(_AUDIT_VERIFY_JOB_ID)        # it may persist in the job store from an earlier run
+        except JobLookupError:
+            pass
+        logger.warning("Audit chain verification is DISABLED (FLOWFORGE_AUDIT_VERIFY_CRON=off): tampering "
+                       "with the audit log will not be detected until `flowforge audit verify` is run by hand.")
+        return
+    _scheduler.add_job(
+        _verify_audit_chain_job,
+        trigger=trigger,
+        id=_AUDIT_VERIFY_JOB_ID,
+        replace_existing=True,
+        misfire_grace_time=3600,
+        coalesce=True,
+        max_instances=1,
+    )
+    logger.info("Registered audit chain verification job (%s).", trigger)
+
+
+def _verify_audit_chain_job() -> None:
+    """Recompute the audit hash chain and alert if it does not pass (see flowforge/audit_chain.py)."""
+    if _app is None:
+        return
+    try:
+        from flowforge import audit, audit_chain
+        with _app.app_context():
+            from flowforge.db.models import db
+            try:
+                with db.engine.connect() as conn:
+                    report = audit_chain.verify(conn)
+            except Exception as e:
+                logger.exception("Audit chain verification could not run")
+                audit.log_chain_verification(error=f'{type(e).__name__}: {str(e)[:200]}')
+                return
+            audit.log_chain_verification(report)
+    except Exception:
+        logger.exception("Audit chain verification job failed")
 
 
 def _register_sync_job() -> None:
