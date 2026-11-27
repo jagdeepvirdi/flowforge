@@ -25,10 +25,13 @@ and ``max_rows`` applies per pass. Two ways to split:
   time rises roughly N-fold.
 * ``partition_mode: sql`` - the queries receive ``{{ partition_index }}`` and
   ``{{ partitions }}`` and must filter in SQL (e.g. ``MOD(CAST(msisdn AS BIGINT), {{ partitions }})
-  = {{ partition_index }}``), so each pass reads only about 1/N of the rows: memory *and*
-  total time stay flat. The predicate must select the same keys on both sides. That
-  cannot be verified here, so a predicate that differs between sides gives wrong counts;
-  the step only checks that both queries reference ``partition_index``.
+  = {{ partition_index }}``), so each pass moves only about 1/N of the rows to FlowForge. Memory
+  falls like 1/N and the total time rises far less than in python mode (measured on PostgreSQL
+  at 5M subscribers: +16% at 4 passes, +41% at 8, against about 3x for python mode at 4). It is
+  not free: a predicate on a function of the key cannot use an index range, so every pass
+  scans the table again, and that cost grows with N. The predicate must select the same keys on
+  both sides. That cannot be verified here, so a predicate that differs between sides gives
+  wrong counts; the step only checks that both queries reference ``partition_index``.
 
 Only counts and a capped sample of offending keys are returned. The sample
 contains raw key values unless ``tokenize_keys`` is on (keyed HMAC tokens instead); set
@@ -100,7 +103,12 @@ def _in_partition(key: str, part: tuple[int, int]) -> bool:
 
 def _shown(cfg: dict, key: str) -> str:
     """The key as it may leave the step: a keyed token when ``tokenize_keys`` is on."""
-    return tokenize(key, cfg['token_kind']) if cfg['tokenize'] else key
+    if not cfg['tokenize']:
+        return key
+    token = tokenize(key, cfg['token_kind'])
+    if cfg['token_store'] and token:
+        cfg['_remember'].append((cfg['token_kind'], token, key))
+    return token
 
 
 def values_differ(left: Any, right: Any, tolerance: float, tolerance_pct: float,
@@ -135,11 +143,14 @@ class ReconcileStep(BaseStep):
                           the step if no key is configured. Matching is unaffected. Only keys
                           are tokenized — never select PII as the value column
         token_kind        'msisdn' (default) | 'imsi' | 'generic' — see flowforge/tokenization.py
+        token_store       also save token -> identifier for the SAMPLED keys (encrypted, default false;
+                          needs tokenize_keys) so an admin can reveal them later; see flowforge/token_store.py
         max_rows          cap on distinct keys per side, per pass (default 5,000,000)
         partitions        number of passes over disjoint key subsets (default 1, max 256);
                           bounds memory to about 1/N of the left side - see module docstring
         partition_mode    'python' (default; filters in Python, time rises ~N-fold) | 'sql'
-                          (queries use {{ partition_index }} / {{ partitions }}; time stays flat)
+                          (queries use {{ partition_index }} / {{ partitions }}; each pass moves ~1/N of
+                          the rows, but the table is scanned once per pass)
         output_prefix     prefix for output variables (default 'recon')
     """
 
@@ -185,7 +196,7 @@ class ReconcileStep(BaseStep):
         except Exception as e:
             logger.exception('Reconcile step failed')
             return StepResult(success=False, error=f'reconcile: {e}')
-        return self._finish(cfg, totals, sample)
+        return self._finish(cfg, totals, sample, self._remember(cfg))
 
     # -- configuration ------------------------------------------------------
 
@@ -217,6 +228,8 @@ class ReconcileStep(BaseStep):
             raise ReconcileError('tolerance and tolerance_pct must not be negative')
         if max_rows < 1:
             raise ReconcileError('max_rows must be at least 1')
+        if c.get('token_store') and not c.get('tokenize_keys'):
+            raise ReconcileError('token_store needs tokenize_keys: there is nothing to look up without tokens')
         partition_mode = str(c.get('partition_mode', 'python')).lower()
         if partition_mode not in _VALID_PARTITION_MODE:
             raise ReconcileError(f"partition_mode must be one of: {', '.join(sorted(_VALID_PARTITION_MODE))}")
@@ -242,6 +255,8 @@ class ReconcileStep(BaseStep):
             'case': case,
             'prefix': prefix,
             'tokenize': bool(c.get('tokenize_keys', False)),
+            'token_store': bool(c.get('token_store', False)),
+            '_remember': [],            # (kind, token, original) of sampled keys, filled by _shown()
             'token_kind': token_kind,
             'tolerance': tolerance,
             'tolerance_pct': tolerance_pct,
@@ -346,7 +361,20 @@ class ReconcileStep(BaseStep):
                 })
         return only_left
 
-    def _finish(self, cfg, t: dict[str, int], sample: dict[str, list[dict]]) -> StepResult:
+    def _remember(self, cfg) -> str | None:
+        """Persist the sampled token mappings. A failure must not lose the audit result, so it is
+        reported (output variable and log line) instead of failing the step."""
+        if not cfg['token_store']:
+            return None
+        try:
+            from flowforge import token_store
+            token_store.remember_many(cfg['_remember'])
+            return 'ok'
+        except Exception as e:
+            logger.exception('Reconcile: could not store token mappings')
+            return f'failed: {e}'
+
+    def _finish(self, cfg, t: dict[str, int], sample: dict[str, list[dict]], store_status: str | None = None) -> StepResult:
         discrepancies = t['only_left'] + t['only_right'] + t['mismatched']
         p = cfg['prefix']
         output_vars = {
@@ -361,6 +389,8 @@ class ReconcileStep(BaseStep):
             f'{p}_right_duplicates': t['right_dups'],
             f'{p}_passes': cfg['partitions'],
         }
+        if store_status is not None:
+            output_vars[f'{p}_token_store_ok'] = store_status == 'ok'
         rows = sample['only_left'] + sample['only_right'] + sample['mismatched']
         from flowforge.steps.db_query import _render_table_html
         logs = (
@@ -371,6 +401,7 @@ class ReconcileStep(BaseStep):
             + f". Duplicate keys ignored: {t['left_dups']} left, {t['right_dups']} right."
             + (f" Compared in {cfg['partitions']} {cfg['partition_mode']}-partitioned passes."
                if cfg['partitions'] > 1 else '')
+            + (f" Token mappings: {store_status}." if store_status is not None else '')
         )
         logger.info(logs)
         return StepResult(

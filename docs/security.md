@@ -140,6 +140,16 @@ Set `FLOWFORGE_AUDIT_STDOUT=true` to emit audit events as JSON lines to stdout �
 
 The file handler retains 5 rotated backups (~50 MB total). For long-term retention, consume the structured stdout stream and forward to your log platform.
 
+### Token lookup table (`ff_token_map`)
+
+Subscriber identifiers are pseudonymised with keyed HMAC tokens (`flowforge/tokenization.py`). The reverse lookup is **opt-in**: with `token_store: true` on a `reconcile` step, the *sampled* identifiers (at most `sample_size` per category per run) are saved so an admin can turn a finding back into a subscriber. Treat that table as personal data:
+
+- **Encrypted at rest.** Only the AES-GCM ciphertext (under `FLOWFORGE_SECRET_KEY`) holds the identifier; the token and kind are plain. Someone with database access *and* the secret key can read it.
+- **Reveal is admin-only and audited.** `POST /api/tokens/reveal` (1–100 tokens) requires the `admin` role, is not cacheable, and writes a `TOKEN_REVEALED` audit entry with the counts and the tokens, never the values.
+- **Temporary.** Mappings are deleted `FLOWFORGE_TOKEN_MAP_RETENTION_DAYS` (default 30; `0` = keep forever) after they were last seen, by the daily maintenance job; `flowforge tokens purge --older-than-days N | --all` deletes on demand. Include the table in any data-subject erasure process.
+- **Key rotation.** Changing `FLOWFORGE_SECRET_KEY` makes stored ciphertext unreadable (reveal reports `undecryptable`); there is no re-encryption tool yet. Changing the tokenization key changes all future tokens, so old rows stop matching and age out.
+- **Not a control against an insider with the key.** Pseudonymisation reduces exposure in emails, run history and exports; it does not make the data anonymous.
+
 ### Integrity — what is and is not guaranteed
 
 The audit log is **append-only in application code. It is not immutable and not tamper-evident.** Do not describe it as "immutable" or "tamper-proof" in documentation or to a customer. Findings from a code review (not from probing a live database):

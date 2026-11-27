@@ -30,6 +30,7 @@ from flowforge.db.models.pipelines import (
 from flowforge.db.models.projects import Project
 from flowforge.db.models.reports import ReportConfig
 from flowforge.db.models.settings import SystemSettings
+from flowforge.db.models.tokens import TokenMap
 
 __all__ = [
     'db',
@@ -54,6 +55,7 @@ __all__ = [
     'StepRun',
     'SystemSettings',
     'TokenBlocklist',
+    'TokenMap',
     'User',
     'WebhookToken',
 ]
