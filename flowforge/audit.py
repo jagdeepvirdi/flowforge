@@ -242,6 +242,12 @@ def log_chain_verification(report=None, error: str | None = None) -> bool:
     else:
         _get_logger().error('AUDIT      CHAIN VERIFY FAILED  problems=%d  first=%s', len(problems), problems[0])
     _write_db_audit('AUDIT_CHAIN_VERIFIED' if ok else 'AUDIT_CHAIN_VERIFY_FAILED', 'system', 'system', '', details)
+    beat = os.environ.get('FLOWFORGE_AUDIT_HEARTBEAT_URL', '').strip()
+    if beat and ok:
+        # Dead-man's switch: pinged only after a check that PASSED. If pings stop, the external monitor
+        # alerts - whether the scheduler died, the host is gone, or the chain no longer verifies.
+        from flowforge.engine.notifications import _ping_heartbeat
+        _ping_heartbeat(beat)
     url = os.environ.get('FLOWFORGE_AUDIT_ALERT_WEBHOOK_URL', '').strip()
     if url and not ok:
         from flowforge.engine.notifications import _fire_failure_webhook

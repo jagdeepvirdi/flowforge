@@ -590,6 +590,30 @@ def audit_verify(anchor: str | None, as_json: bool):
     sys.exit(0 if rep.ok else 1)
 
 
+@audit_group.command('status')
+@click.option('--json', 'as_json', is_flag=True, help='Print the status as JSON.')
+def audit_status(as_json: bool):
+    """Is the scheduled audit verification still running and passing? Exit 1 if not (for probes/cron).
+
+    Use the same environment (FLOWFORGE_AUDIT_VERIFY_CRON ...) as the scheduler. For a push-style
+    alert that survives the whole host dying, set FLOWFORGE_AUDIT_HEARTBEAT_URL instead.
+    """
+    import json as _json
+    app = _create_app()
+    with app.app_context():
+        from flowforge import audit_chain
+        from flowforge.db.models import db
+        with db.engine.connect() as conn:
+            st = audit_chain.verification_status(conn)
+    if as_json:
+        click.echo(_json.dumps(st, indent=2))
+    else:
+        click.echo(f'{st["state"].upper()}: {st["detail"]}'
+                   + (f' (last run {st["last_run_at"]}, {st["age_hours"]} h ago, limit {st["max_age_hours"]} h)'
+                      if st['last_run_at'] else ''))
+    sys.exit(0 if st['healthy'] else 1)
+
+
 @audit_group.command('anchor')
 def audit_anchor():
     """Print the current chain tail as seq:hash, to store outside the database."""

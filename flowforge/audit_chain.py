@@ -38,7 +38,7 @@ import json
 import os
 import uuid
 from dataclasses import asdict, dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
@@ -196,6 +196,85 @@ def _actor() -> tuple[str, str | None]:
     from flowforge import audit
     uid = audit._current_user_id()
     return audit._current_user(), (None if uid == 'system' else uid)
+
+
+# -- is the scheduled check itself still running? -----------------------------------------
+
+VERIFY_ACTIONS = ('AUDIT_CHAIN_VERIFIED', 'AUDIT_CHAIN_VERIFY_FAILED')
+_STALE_GRACE = timedelta(hours=1)
+HEALTHY_STATES = ('ok', 'pending', 'disabled')
+
+
+def expected_max_age(now: datetime | None = None) -> timedelta | None:
+    """How old the newest verification may be before it counts as stale; ``None`` if it is switched off.
+
+    Derived from FLOWFORGE_AUDIT_VERIFY_CRON (1.5x the longest gap between the next fire times, plus an
+    hour), so a custom schedule cannot leave this checking against a wrong hard-coded number. Override
+    with FLOWFORGE_AUDIT_VERIFY_MAX_AGE_HOURS. Reads the environment of the process asking: run the
+    check with the same settings as the scheduler.
+    """
+    from flowforge.engine.scheduler import _audit_verify_trigger
+    trigger = _audit_verify_trigger()
+    if trigger is None:
+        return None
+    override = os.environ.get('FLOWFORGE_AUDIT_VERIFY_MAX_AGE_HOURS', '').strip()
+    if override:
+        try:
+            if float(override) > 0:
+                return timedelta(hours=float(override))
+        except ValueError:
+            pass                                           # not a number: use the derived value
+    t = trigger.get_next_fire_time(None, now or datetime.now(UTC))
+    gaps = []
+    for _ in range(8):
+        nxt = trigger.get_next_fire_time(t, t + timedelta(seconds=1)) if t else None
+        if nxt is None:
+            break
+        gaps.append(nxt - t)
+        t = nxt
+    return (max(gaps) if gaps else timedelta(hours=24)) * 1.5 + _STALE_GRACE
+
+
+def verification_status(conn, now: datetime | None = None) -> dict:
+    """Has the scheduled verification run recently, and did it pass?
+
+    ``state``: ``ok`` | ``failed`` (the last run did not pass) | ``stale`` (it passed but is overdue:
+    the scheduler is probably not running) | ``never`` (no record, and the system is old enough that
+    there should be one) | ``pending`` (no record yet, but it has not had time) | ``disabled``.
+    ``healthy`` is true for ok / pending / disabled. Only *chained* records count, so an unchained
+    "verified" row inserted by hand is ignored.
+    """
+    now = now or datetime.now(UTC)
+    max_age = expected_max_age(now)
+    row = conn.execute(text(
+        'SELECT action, timestamp, details FROM ff_audit_log WHERE seq IS NOT NULL AND action IN (:ok, :bad) '
+        'ORDER BY seq DESC LIMIT 1'), {'ok': VERIFY_ACTIONS[0], 'bad': VERIFY_ACTIONS[1]}).first()
+    last_ok = age = None
+    if row is not None:
+        last_ok = row.action == VERIFY_ACTIONS[0]
+        age = now - row.timestamp
+    if max_age is None:
+        state, detail = 'disabled', 'scheduled verification is switched off (FLOWFORGE_AUDIT_VERIFY_CRON)'
+    elif row is None:
+        first = conn.execute(text('SELECT min(timestamp) FROM ff_audit_log')).scalar()
+        if first is None or now - first < max_age:
+            state, detail = 'pending', 'no verification has run yet, but it has not had time to'
+        else:
+            state, detail = 'never', 'the audit log is older than one verification interval and no verification was ever recorded'
+    elif not last_ok:
+        state, detail = 'failed', 'the last verification did not pass: run `flowforge audit verify`'
+    elif age > max_age:
+        state, detail = 'stale', 'the last passing verification is overdue: the scheduler is probably not running'
+    else:
+        state, detail = 'ok', 'the last verification passed on schedule'
+    return {
+        'state': state, 'healthy': state in HEALTHY_STATES, 'detail': detail,
+        'last_run_at': row.timestamp.astimezone(UTC).strftime('%Y-%m-%dT%H:%M:%SZ') if row is not None else None,
+        'last_ok': last_ok,
+        'age_hours': round(age.total_seconds() / 3600, 2) if age is not None else None,
+        'max_age_hours': round(max_age.total_seconds() / 3600, 2) if max_age is not None else None,
+        'problem_count': (row.details or {}).get('problem_count') if row is not None else None,
+    }
 
 
 # -- verification -------------------------------------------------------------------------

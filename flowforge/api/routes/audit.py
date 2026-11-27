@@ -12,6 +12,16 @@ from flowforge.db.models import AuditLog
 
 bp = Blueprint('audit', __name__)
 
+@bp.get('/audit-logs/verify/status')
+@require_role('admin')
+def verify_status():
+    """Is the scheduled chain verification running and passing? (state ok/failed/stale/never/pending/disabled)"""
+    from flowforge import audit_chain
+    from flowforge.db.models import db
+    with db.engine.connect() as conn:
+        return jsonify(audit_chain.verification_status(conn))
+
+
 @bp.get('/audit-logs/verify')
 @require_role('admin')
 def verify_audit_chain():
