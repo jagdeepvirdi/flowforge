@@ -1,25 +1,54 @@
 version: 2
 
+# Policy (see docs/TASKS.md, "Dependabot hygiene"):
+#  * pip and npm are checked WEEKLY so the hash-pinned lock files and the audit gates (pip-audit,
+#    npm audit) do not drift for a month. A new advisory on a transitive dependency turns the backend
+#    job red and skips every test (see the 2026-11 tornado incident), so a stale lock is a real risk.
+#  * Patch and minor updates are SEPARATE groups. They used to share one group, so one risky minor
+#    (SQLAlchemy 2.1) held every safe patch hostage and the lock files stopped moving.
+#  * `ignore` is used only where there is a recorded reason, each with how to lift it. Anything else
+#    stays visible as an open PR for a deliberate decision.
+#  * Dependabot SECURITY updates are a repository setting (Settings -> Code security), separate from
+#    this file, and must be enabled there; this file does not turn them on.
+
 updates:
   - package-ecosystem: pip
     directory: "/"
     schedule:
-      interval: monthly
+      interval: weekly
+      day: monday
     open-pull-requests-limit: 5
     labels: [dependencies, python]
     groups:
-      pip-minor-patch:
-        update-types: [minor, patch]
+      pip-patch:
+        update-types: [patch]
+      pip-minor:
+        update-types: [minor]
+    ignore:
+      # SQLAlchemy 2.1 makes a bare "postgresql://" URL resolve to the psycopg (v3) driver, which is not
+      # installed, so the whole test suite errors at setup (seen on the 2.1.9 bump PR). Needs its own
+      # migration: pin "postgresql+psycopg2://" everywhere (or move to psycopg 3), then remove this rule.
+      # 2.0.x patch releases still flow.
+      - dependency-name: "sqlalchemy"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
 
   - package-ecosystem: npm
     directory: "/frontend"
     schedule:
-      interval: monthly
+      interval: weekly
+      day: monday
     open-pull-requests-limit: 5
     labels: [dependencies, javascript]
     groups:
-      npm-minor-patch:
-        update-types: [minor, patch]
+      npm-patch:
+        update-types: [patch]
+      npm-minor:
+        update-types: [minor]
+    ignore:
+      # ESLint 10 fails the "Frontend (npm audit + vitest)" job (seen on the 10.x bump PR): the lint
+      # config needs migrating first. Remove this rule once the frontend lints clean on 10.
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"
@@ -44,3 +73,10 @@ updates:
       interval: monthly
     open-pull-requests-limit: 5
     labels: [dependencies, docker]
+    ignore:
+      # The Python base image decides which Python the product runs on, but CI tests on a separate
+      # Python 3.11 runner and never builds or runs the image, so a green check on a 3.x bump proves
+      # nothing about it. Move the base image deliberately, together with the CI test matrix. Digest
+      # refreshes of the pinned tag are NOT ignored.
+      - dependency-name: "python"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
