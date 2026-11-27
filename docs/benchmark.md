@@ -69,6 +69,41 @@ depending on the step and database, and held steady from 1M to 5M.
 - **Tokenizing the sample should be negligible**: it touches at most 20 keys per category. I did not
   time a run with it off, so this is by construction, not measured.
 
+## Bounded memory: partitioned passes
+
+`partitions: N` (see `docs/step-types.md`) runs the comparison as N passes over disjoint key subsets.
+Measured on 5,000,000 subscribers, one run per cell (same machine and setup as above, seeded fresh for
+this run), raw data in [`benchmarks/reconcile-partitions-2026-11-27.json`](benchmarks/reconcile-partitions-2026-11-27.json).
+Every run was correct against the planted ground truth.
+
+| Layout | Passes | Mode | Time | vs 1 pass | Peak memory | vs 1 pass |
+|---|---:|---|---:|---:|---:|---:|
+| pg | 1 | - | 44.9 s | - | 959 MB | - |
+| pg | 4 | python | 135.8 s | 3.0x | 328 MB | -66% |
+| pg | 4 | sql | 52.3 s | 1.16x | 328 MB | -66% |
+| pg | 8 | sql | 63.1 s | 1.41x | 223 MB | -77% |
+| cross | 1 | - | 48.8 s | - | 972 MB | - |
+| cross | 4 | python | 159.7 s | 3.3x | 341 MB | -65% |
+| cross | 4 | sql | 68.9 s | 1.41x | 340 MB | -65% |
+| cross | 8 | sql | 79.4 s | 1.63x | 236 MB | -76% |
+
+- **Memory falls roughly as 1/N**, down to a floor of about 70 MB for the process itself. It is a little
+  above the ideal `(959 - 71)/N + 71` because partitions are not perfectly even.
+- **Python mode buys memory with time**: each pass re-reads both full result sets, so 4 passes cost about 3x.
+  Its advantage is that it works across any databases with no SQL changes.
+- **SQL mode costs far less time but is not free**: +16% to +63% here. The predicate
+  (`MOD(CAST(msisdn AS BIGINT), N) = k`, `TO_NUMBER` on Oracle) is a function of the key, so it cannot
+  use an index range and each pass scans the table again; that cost grows with N. A predicate the
+  database can use an index for (a key range) would likely be cheaper, but ranges are only balanced if
+  the keys are spread evenly, which synthetic data is and real numbering plans often are not. Not tested.
+- **The SQL predicate must pick the same keys on both sides.** The step cannot check that. A mismatch
+  gives wrong counts, not an error; the step only refuses queries that never mention `partition_index`.
+- **One run per cell**, so no spread is shown. The earlier tables use 2-3 runs and were within a few
+  percent of each other, but these cells could vary more than that.
+- **Not tested**: more than 8 passes, the Oracle-only layout, sizes above 5M, a left side larger than
+  RAM even when partitioned (each pass still holds its whole partition), or the unpartitioned
+  default `max_rows` cap of 5M (this run raised `max_rows`; with partitions the cap applies per pass).
+
 ## What this does not tell you
 
 - **Not production scale.** Largest size 5M subscribers. Nothing above that was run.
@@ -90,11 +125,12 @@ would need roughly **9 GB** of RAM and on the order of **8-10 minutes** for this
 an estimate to be tested, not a result. More importantly, the step's default `max_rows` of
 5,000,000 distinct keys per side would stop it first: it fails with a clear message instead of
 exhausting memory. For tables beyond a few tens of millions of keys the current design needs
-either a narrower left side (filter or aggregate in SQL) or a different algorithm. Options, none
-built yet:
+either a narrower left side (filter or aggregate in SQL) or partitioned passes. **Partitioned passes
+are now built and measured up to 5M** (section above): with 8 SQL-mode passes a 50M-key side would be
+projected at roughly 1 GB per pass instead of 9 GB, but that is an extrapolation of a 77% reduction
+measured at 5M, and the extra table scans per pass at that size were not measured. Other options, not
+built:
 
-- **Hash-partitioned passes**: run N passes, each restricted to `MOD(hash(msisdn), N) = k` in SQL,
-  so each pass holds 1/N of the keys. Same code path, bounded memory, N times the scans.
 - **Streamed merge**: `ORDER BY key` on both sides and merge-join without holding either side. Needs a
   sort in each source database and consistent collation across systems.
 - **Push the set difference into SQL** where both systems can see each other (database link or

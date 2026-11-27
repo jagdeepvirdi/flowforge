@@ -88,17 +88,23 @@ def _write_db_audit(action: str, username: str, user_id: str, ip_address: str, d
             return
         from sqlalchemy import insert
 
+        from flowforge import audit_chain
         from flowforge.db.models import AuditLog, db
-        
-        stmt = insert(AuditLog).values(
-            action=action,
-            username=username,
-            user_id=user_id if user_id != 'system' else None,
-            ip_address=ip_address,
-            details=details
-        )
+
+        user_id = user_id if user_id != 'system' else None
+        sealed = None
         with db.engine.begin() as conn:
-            conn.execute(stmt)
+            try:
+                sealed = audit_chain.append(conn, action, username, user_id, ip_address, details)
+            except audit_chain.ChainKeyError:
+                # No key: still record the event, but unchained. `flowforge audit verify` reports
+                # such rows, so a gap cannot hide behind a missing key.
+                conn.execute(insert(AuditLog).values(
+                    action=action, username=username, user_id=user_id,
+                    ip_address=ip_address, details=details))
+        if sealed:
+            # The external anchor: ship this line to storage an attacker with database access cannot edit.
+            _get_logger().info('CHAIN      seq=%d  hash=%s', *sealed)
     except Exception:  # nosec B110 — audit logging must never crash the app
         pass
 
@@ -200,6 +206,62 @@ def log_auth_event(action: str, username: str, user_id: str) -> None:
         actor, actor_id = username, user_id
     _get_logger().info('AUTH         %-24s name=%-30r  id=%s  by=%s  user_id=%s', action, username, user_id, actor, actor_id)
     _write_db_audit(action, actor, actor_id, '', {'name': username, 'id': user_id})
+
+
+def log_token_reveal(requested: int, found: int, tokens: list[str], remote_addr: str = '') -> None:
+    """A privileged lookup of subscriber identifiers behind tokens. Records who, how many and which
+    tokens (pseudonymous) - never the revealed values."""
+    shown = tokens[:50]
+    _get_logger().info('TOKEN      REVEALED  requested=%d  found=%d  ip=%s  by=%s  user_id=%s',
+                       requested, found, remote_addr or 'unknown', _current_user(), _current_user_id())
+    _write_db_audit('TOKEN_REVEALED', _current_user(), _current_user_id(), remote_addr,
+                    {'requested': requested, 'found': found, 'tokens': shown, 'truncated': len(tokens) > len(shown)})
+
+
+_VERIFY_ALERT_PROBLEMS = 10
+
+
+def log_chain_verification(report=None, error: str | None = None) -> bool:
+    """Record a scheduled audit-chain verification and alert when it did not pass. Returns ok.
+
+    Every outcome leaves a chained audit row (AUDIT_CHAIN_VERIFIED / AUDIT_CHAIN_VERIFY_FAILED), so the
+    absence of recent ones is itself a signal. A failure also logs at ERROR and, if
+    FLOWFORGE_AUDIT_ALERT_WEBHOOK_URL is set, POSTs a JSON alert through the SSRF-guarded sender. A
+    verifier that could not run at all (``error``) counts as a failure: silence must not read as
+    "all clear". Messages carry sequence numbers and action names only, never usernames or values.
+    """
+    ok = error is None and report is not None and report.ok
+    d = report.to_dict() if report is not None else {}
+    problems = ([f'verification could not run: {error}'] if error else []) + list(d.get('problems') or [])
+    details = {k: d.get(k) for k in ('chained_rows', 'anonymized_rows', 'legacy_rows', 'unchained_after_start',
+                                     'first_seq', 'last_seq', 'tail')}
+    details.update({'ok': ok, 'problem_count': len(problems), 'problems': problems[:_VERIFY_ALERT_PROBLEMS]})
+    if ok:
+        _get_logger().info('AUDIT      CHAIN VERIFIED  rows=%s  anonymized=%s  legacy=%s',
+                           details['chained_rows'], details['anonymized_rows'], details['legacy_rows'])
+    else:
+        _get_logger().error('AUDIT      CHAIN VERIFY FAILED  problems=%d  first=%s', len(problems), problems[0])
+    _write_db_audit('AUDIT_CHAIN_VERIFIED' if ok else 'AUDIT_CHAIN_VERIFY_FAILED', 'system', 'system', '', details)
+    beat = os.environ.get('FLOWFORGE_AUDIT_HEARTBEAT_URL', '').strip()
+    if beat and ok:
+        # Dead-man's switch: pinged only after a check that PASSED. If pings stop, the external monitor
+        # alerts - whether the scheduler died, the host is gone, or the chain no longer verifies.
+        from flowforge.engine.notifications import _ping_heartbeat
+        _ping_heartbeat(beat)
+    url = os.environ.get('FLOWFORGE_AUDIT_ALERT_WEBHOOK_URL', '').strip()
+    if url and not ok:
+        from flowforge.engine.notifications import _fire_failure_webhook
+        _fire_failure_webhook(url, {
+            'event': 'audit_chain_verification_failed',
+            'severity': 'critical',
+            'text': f'FlowForge audit log integrity check FAILED: {len(problems)} problem(s). First: {problems[0]}',
+            'problem_count': len(problems),
+            'problems': problems[:_VERIFY_ALERT_PROBLEMS],
+            'chained_rows': details['chained_rows'],
+            'tail': details['tail'],
+            'checked_at': datetime.now(UTC).strftime('%Y-%m-%dT%H:%M:%SZ'),
+        })
+    return ok
 
 
 def log_email_sent(

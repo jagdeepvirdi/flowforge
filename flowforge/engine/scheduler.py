@@ -44,6 +44,7 @@ def start_scheduler(app) -> None:
 
     _register_cleanup_job()
     _register_sync_job()
+    _register_audit_verify_job()
 
     from flowforge.engine import leader
 
@@ -133,6 +134,71 @@ def _register_cleanup_job() -> None:
     logger.info("Registered daily output cleanup job (02:00 UTC).")
 
 
+DEFAULT_AUDIT_VERIFY_CRON = '0 3 * * *'      # after the 02:00 retention prune, so it checks the pruned log
+_AUDIT_VERIFY_JOB_ID = 'audit_chain_verify'
+
+
+def _audit_verify_trigger():
+    """CronTrigger from FLOWFORGE_AUDIT_VERIFY_CRON; ``None`` only when explicitly turned off.
+
+    A bad expression falls back to the default (with an error), never to "disabled": a typo must not
+    quietly switch off the integrity check.
+    """
+    from apscheduler.triggers.cron import CronTrigger
+    raw = os.environ.get('FLOWFORGE_AUDIT_VERIFY_CRON', '').strip()
+    if raw.lower() in ('off', 'false', 'disabled', 'none'):
+        return None
+    try:
+        return CronTrigger.from_crontab(raw or DEFAULT_AUDIT_VERIFY_CRON, timezone='UTC')
+    except ValueError as e:
+        logger.error("FLOWFORGE_AUDIT_VERIFY_CRON=%r is not a valid 5-field cron expression (%s); "
+                     "using the default %r", raw, e, DEFAULT_AUDIT_VERIFY_CRON)
+        return CronTrigger.from_crontab(DEFAULT_AUDIT_VERIFY_CRON, timezone='UTC')
+
+
+def _register_audit_verify_job() -> None:
+    from apscheduler.jobstores.base import JobLookupError
+    trigger = _audit_verify_trigger()
+    if trigger is None:
+        try:
+            _scheduler.remove_job(_AUDIT_VERIFY_JOB_ID)        # it may persist in the job store from an earlier run
+        except JobLookupError:
+            pass
+        logger.warning("Audit chain verification is DISABLED (FLOWFORGE_AUDIT_VERIFY_CRON=off): tampering "
+                       "with the audit log will not be detected until `flowforge audit verify` is run by hand.")
+        return
+    _scheduler.add_job(
+        _verify_audit_chain_job,
+        trigger=trigger,
+        id=_AUDIT_VERIFY_JOB_ID,
+        replace_existing=True,
+        misfire_grace_time=3600,
+        coalesce=True,
+        max_instances=1,
+    )
+    logger.info("Registered audit chain verification job (%s).", trigger)
+
+
+def _verify_audit_chain_job() -> None:
+    """Recompute the audit hash chain and alert if it does not pass (see flowforge/audit_chain.py)."""
+    if _app is None:
+        return
+    try:
+        from flowforge import audit, audit_chain
+        with _app.app_context():
+            from flowforge.db.models import db
+            try:
+                with db.engine.connect() as conn:
+                    report = audit_chain.verify(conn)
+            except Exception as e:
+                logger.exception("Audit chain verification could not run")
+                audit.log_chain_verification(error=f'{type(e).__name__}: {str(e)[:200]}')
+                return
+            audit.log_chain_verification(report)
+    except Exception:
+        logger.exception("Audit chain verification job failed")
+
+
 def _register_sync_job() -> None:
     _scheduler.add_job(
         _sync_db_job,
@@ -159,6 +225,7 @@ def _cleanup_job() -> None:
     _prune_expired_password_reset_tokens()
     _prune_old_runs()
     _prune_old_audit_logs()
+    _prune_old_token_map()
 
 
 def _prune_old_runs() -> None:
@@ -198,18 +265,37 @@ def _prune_old_audit_logs() -> None:
             retention_days = get_audit_retention_days()
             if retention_days <= 0:
                 return
-            from flowforge.db.models import AuditLog, db
+            from flowforge import audit_chain
+            from flowforge.db.models import db
             cutoff = datetime.now(UTC) - timedelta(days=retention_days)
-            deleted = (
-                db.session.query(AuditLog)
-                .filter(AuditLog.timestamp < cutoff)
-                .delete(synchronize_session=False)
-            )
-            db.session.commit()
+            try:
+                # leaves a chained AUDIT_PRUNED checkpoint so the log stays verifiable (audit_chain.py)
+                deleted = audit_chain.prune(db.session.connection(), cutoff)
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+                raise
             if deleted:
                 logger.info("Pruned %d audit log(s) older than %d days.", deleted, retention_days)
     except Exception:
         logger.exception("Audit log pruning failed")
+
+
+def _prune_old_token_map() -> None:
+    """Delete token -> subscriber mappings not seen within FLOWFORGE_TOKEN_MAP_RETENTION_DAYS."""
+    if _app is None:
+        return
+    try:
+        from flowforge import token_store
+        with _app.app_context():
+            days = token_store.retention_days()
+            if days <= 0:
+                return
+            deleted = token_store.purge(days)
+            if deleted:
+                logger.info("Pruned %d token mapping(s) not seen for %d days.", deleted, days)
+    except Exception:
+        logger.exception("Token map pruning failed")
 
 
 def _prune_token_blocklist() -> None:

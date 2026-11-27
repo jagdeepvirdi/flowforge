@@ -43,6 +43,31 @@ def _fire_failure_webhook(url: str, payload: dict) -> None:
         logger.warning("Failure webhook POST to %s failed: %s", host, exc)
 
 
+def _ping_heartbeat(url: str) -> bool:
+    """GET a dead-man's-switch URL (healthchecks.io style); errors are logged, never raised.
+
+    The point of a heartbeat is that the *absence* of pings raises the alarm, so a failed ping is
+    only a warning here. Same SSRF guard as the webhook sender, and only the host is logged because
+    these URLs usually embed a secret token. Returns True when the ping was delivered.
+    """
+    if not url:
+        return False
+    from urllib.parse import urlparse
+
+    from flowforge.net_guard import UnsafeUrlError, safe_urlopen
+    host = urlparse(url).netloc or '<invalid>'
+    try:
+        with safe_urlopen(url, timeout=10):
+            pass
+        logger.info("Heartbeat ping delivered to %s", host)
+        return True
+    except UnsafeUrlError as exc:
+        logger.warning("Heartbeat ping to %s blocked by SSRF guard: %s", host, exc)
+    except Exception as exc:
+        logger.warning("Heartbeat ping to %s failed: %s", host, exc)
+    return False
+
+
 def _notify_devbrain(
     pipeline_name: str, run_id: str, success: bool,
     error_step: str = '', error_message: str = '',

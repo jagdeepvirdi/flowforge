@@ -70,6 +70,17 @@ LAYOUTS = {
 _CRM_VALUES_SQL = ("SELECT msisdn, CASE plan WHEN 'basic' THEN 10 WHEN 'plus' THEN 25 WHEN 'max' THEN 60 END "
                    "FROM demo_crm_subscribers WHERE @CRM_FILTER@")
 _CRM_KEYS_SQL = 'SELECT msisdn FROM demo_crm_subscribers WHERE @CRM_FILTER@'
+_BILLING_SQL = 'SELECT msisdn, monthly_charge FROM demo_billing_accounts@BILLING_WHERE@'
+_HLR_SQL = "SELECT msisdn FROM demo_hlr_subscribers WHERE state = 'active'@HLR_AND@"
+
+
+def _partition_predicate(dialect: str) -> str:
+    """SQL-mode partition filter. The same numeric MSISDN lands in the same partition in both
+    databases, which is what lets a cross-system audit split consistently. It is a function of the
+    key, so it forces a scan per pass (no index range), a cost the benchmark reports honestly."""
+    if dialect == 'oracle':
+        return 'MOD(TO_NUMBER(msisdn), {{ partitions }}) = {{ partition_index }}'
+    return 'MOD(CAST(msisdn AS BIGINT), {{ partitions }}) = {{ partition_index }}'
 
 
 def _past_window(dialect: str) -> str:
@@ -79,14 +90,22 @@ def _past_window(dialect: str) -> str:
     return f"activated_at < now() - interval '{h} hours'"
 
 
-def audit_queries(dialect_of: dict[str, str]) -> dict[str, str]:
-    """The four audit queries, each written in the dialect of the system it runs in."""
+def audit_queries(dialect_of: dict[str, str], sql_partition: bool = False) -> dict[str, str]:
+    """The four audit queries, each written in the dialect of the system it runs in.
+
+    With ``sql_partition`` each also filters on ``{{ partition_index }}`` / ``{{ partitions }}``
+    (reconcile's ``partition_mode: sql``)."""
+    def pred(system: str) -> str:
+        return _partition_predicate(dialect_of[system]) if sql_partition else ''
+
     crm_filter = "status = 'active' AND " + _past_window(dialect_of['crm'])
+    if sql_partition:
+        crm_filter += ' AND ' + pred('crm')
     return {
         'crm_values': _CRM_VALUES_SQL.replace('@CRM_FILTER@', crm_filter),
         'crm_keys': _CRM_KEYS_SQL.replace('@CRM_FILTER@', crm_filter),
-        'billing': 'SELECT msisdn, monthly_charge FROM demo_billing_accounts',
-        'hlr': "SELECT msisdn FROM demo_hlr_subscribers WHERE state = 'active'",
+        'billing': _BILLING_SQL.replace('@BILLING_WHERE@', ' WHERE ' + pred('billing') if sql_partition else ''),
+        'hlr': _HLR_SQL.replace('@HLR_AND@', ' AND ' + pred('hlr') if sql_partition else ''),
     }
 
 
@@ -165,12 +184,13 @@ def _open_oracle():
 
 # -- one scenario (runs inside a subprocess) -----------------------------------------------
 
-def run_scenario(layout: str, size: int, orphan_rate: float, in_flight_rate: float, seed: int) -> dict:
+def run_scenario(layout: str, size: int, orphan_rate: float, in_flight_rate: float, seed: int,
+                 partitions: int = 1, partition_mode: str = 'python') -> dict:
     os.environ.setdefault('FLOWFORGE_SECRET_KEY', 'ab' * 32)       # tokenization key for the sample
     from flowforge.steps.reconcile import ReconcileStep
 
     systems = LAYOUTS[layout]
-    q = audit_queries(systems)
+    q = audit_queries(systems, sql_partition=partitions > 1 and partition_mode == 'sql')
     openers = {'pg': _open_pg, 'oracle': _open_oracle}
     truth, _ = generate_batches(size, orphan_rate, in_flight_rate, seed)
 
@@ -189,6 +209,7 @@ def run_scenario(layout: str, size: int, orphan_rate: float, in_flight_rate: flo
         cfg = {'left_connection_id': f'L:{systems[lt]}', 'right_connection_id': f'R:{systems[rt]}',
                'left_query': lq, 'right_query': rq, 'compare': compare, 'tolerance': 0.005,
                'sample_size': 20, 'tokenize_keys': True, 'output_prefix': prefix,
+               'partitions': partitions, 'partition_mode': partition_mode,
                'max_rows': max(5_000_000, size * 2)}
         t0 = time.perf_counter()
         r = _Bench(name, cfg).run({'steps': {}})
@@ -206,7 +227,8 @@ def run_scenario(layout: str, size: int, orphan_rate: float, in_flight_rate: flo
             'rows_per_second': round((v[f'{prefix}_left_count'] + v[f'{prefix}_right_count']) / dt),
             'found': got, 'expected': want[name], 'correct': got == want[name],
         }
-    return {'layout': layout, 'size': size, 'total_seconds': round(total, 3),
+    return {'layout': layout, 'size': size, 'partitions': partitions, 'partition_mode': partition_mode,
+            'total_seconds': round(total, 3),
             'peak_rss_mb': round(peak_rss_mb(), 1), 'steps': out_steps,
             'correct': all(s.get('correct') for s in out_steps.values())}
 
@@ -249,27 +271,44 @@ def seed_all(size: int, orphan_rate: float, in_flight_rate: float, seed: int) ->
     return timings
 
 
-def _run_child(layout: str, size: int, orphan_rate: float, in_flight_rate: float, seed: int) -> dict:
+def _run_child(layout: str, size: int, orphan_rate: float, in_flight_rate: float, seed: int,
+               partitions: int = 1, partition_mode: str = 'python') -> dict:
     cmd = [sys.executable, '-I', '-m', 'flowforge.demo.bench', 'scenario', '--layout', layout,
            '--size', str(size), '--orphan-rate', str(orphan_rate),
-           '--in-flight-rate', str(in_flight_rate), '--seed', str(seed)]
+           '--in-flight-rate', str(in_flight_rate), '--seed', str(seed),
+           '--partitions', str(partitions), '--partition-mode', partition_mode]
     p = subprocess.run(cmd, capture_output=True, text=True, env=os.environ.copy(), check=False)  # nosec B603 - fixed argv list, no shell, sys.executable only
     if p.returncode != 0:
-        return {'layout': layout, 'size': size, 'error': (p.stderr or p.stdout)[-800:], 'correct': False}
+        return {'layout': layout, 'size': size, 'partitions': partitions, 'partition_mode': partition_mode,
+                'error': (p.stderr or p.stdout)[-800:], 'correct': False}
     return json.loads(p.stdout.strip().splitlines()[-1])
 
 
+def parse_variants(text: str) -> list[tuple[int, str]]:
+    """``'1:python,4:sql'`` -> ``[(1, 'python'), (4, 'sql')]``; a bare ``'4'`` means python mode."""
+    out = []
+    for item in (x.strip() for x in text.split(',') if x.strip()):
+        n, _, mode = item.partition(':')
+        mode = mode or 'python'
+        if not n.isdigit() or int(n) < 1 or mode not in ('python', 'sql'):
+            raise ValueError(f'bad variant {item!r}: expected N or N:python or N:sql with N >= 1')
+        out.append((int(n), mode))
+    return out
+
+
 def summarize(runs: list[dict]) -> list[dict]:
-    """Group repeated runs of one (layout, size) into best/median/worst."""
+    """Group repeated runs of one (size, layout, partitions, mode) into best/median/worst."""
     groups: dict[tuple, list[dict]] = {}
     for r in runs:
-        groups.setdefault((r['size'], r['layout']), []).append(r)
+        key = (r['size'], r['layout'], r.get('partitions', 1), r.get('partition_mode', 'python'))
+        groups.setdefault(key, []).append(r)
     rows = []
-    for (size, layout), rs in sorted(groups.items()):
+    for (size, layout, partitions, mode), rs in sorted(groups.items()):
         ok = [r for r in rs if r.get('correct')]
         times = [r['total_seconds'] for r in ok]
         rows.append({
-            'size': size, 'layout': layout, 'runs': len(rs), 'correct_runs': len(ok),
+            'size': size, 'layout': layout, 'partitions': partitions, 'partition_mode': mode,
+            'runs': len(rs), 'correct_runs': len(ok),
             'best_s': min(times) if times else None,
             'median_s': round(statistics.median(times), 2) if times else None,
             'worst_s': max(times) if times else None,
@@ -284,24 +323,33 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser('scenario', help='(internal) run one layout/size and print JSON')
     s.add_argument('--layout', choices=sorted(LAYOUTS), required=True)
     s.add_argument('--size', type=int, required=True)
+    s.add_argument('--partitions', type=int, default=1)
+    s.add_argument('--partition-mode', choices=['python', 'sql'], default='python')
     for sp in (s, p):
         sp.add_argument('--orphan-rate', type=float, default=DEFAULT_ORPHAN_RATE)
         sp.add_argument('--in-flight-rate', type=float, default=DEFAULT_IN_FLIGHT_RATE)
         sp.add_argument('--seed', type=int, default=DEFAULT_SEED)
     p.add_argument('--sizes', default='100000,1000000', help='comma-separated subscriber counts')
     p.add_argument('--layouts', default=','.join(LAYOUTS))
+    p.add_argument('--variants', default='1:python',
+                   help="reconcile partitioning to measure, e.g. '1:python,4:python,4:sql' (N passes : mode)")
     p.add_argument('--repeat', type=int, default=3)
     p.add_argument('--out', default='benchmark-results.json')
     a = p.parse_args(argv)
 
     if a.cmd == 'scenario':
-        print(json.dumps(run_scenario(a.layout, a.size, a.orphan_rate, a.in_flight_rate, a.seed)))
+        print(json.dumps(run_scenario(a.layout, a.size, a.orphan_rate, a.in_flight_rate, a.seed,
+                                      a.partitions, a.partition_mode)))
         return 0
 
     layouts = [x for x in a.layouts.split(',') if x]
     bad = [x for x in layouts if x not in LAYOUTS]
     if bad:
         p.error(f'unknown layout(s): {bad}')
+    try:
+        variants = parse_variants(a.variants)
+    except ValueError as e:
+        p.error(str(e))
     result: dict = {'started': datetime.now(UTC).isoformat(timespec='seconds'), 'environment': _server_info(),
                     'orphan_rate': a.orphan_rate, 'in_flight_rate': a.in_flight_rate, 'seed': a.seed,
                     'seeding': {}, 'runs': []}
@@ -309,12 +357,15 @@ def main(argv: list[str] | None = None) -> int:
         print(f'== {size:,} subscribers: seeding ...', flush=True)
         result['seeding'][str(size)] = seed_all(size, a.orphan_rate, a.in_flight_rate, a.seed)
         print(f'   {result["seeding"][str(size)]}', flush=True)
-        for layout in layouts:
-            for i in range(a.repeat):
-                r = _run_child(layout, size, a.orphan_rate, a.in_flight_rate, a.seed)
-                result['runs'].append(r)
-                print(f'   {layout:6} run {i + 1}: ' + (f'{r["total_seconds"]}s, peak {r["peak_rss_mb"]} MB, '
-                      f'correct={r["correct"]}' if 'error' not in r else f'ERROR {r["error"][:200]}'), flush=True)
+        for partitions, mode in variants:
+            for layout in layouts:
+                for i in range(a.repeat):
+                    r = _run_child(layout, size, a.orphan_rate, a.in_flight_rate, a.seed, partitions, mode)
+                    result['runs'].append(r)
+                    label = f'{layout:6} {partitions}x{mode:6}'
+                    print(f'   {label} run {i + 1}: ' + (f'{r["total_seconds"]}s, peak {r["peak_rss_mb"]} MB, '
+                          f'correct={r["correct"]}' if 'error' not in r else f'ERROR {r["error"][:200]}'),
+                          flush=True)
     result['summary'] = summarize(result['runs'])
     with open(a.out, 'w', encoding='utf-8') as f:
         json.dump(result, f, indent=2)
