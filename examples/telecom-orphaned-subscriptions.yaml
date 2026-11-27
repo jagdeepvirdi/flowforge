@@ -1,0 +1,116 @@
+# FlowForge — Orphaned-subscription audit (CRM vs billing vs HLR)
+#
+# A scheduled revenue-assurance audit built from the `reconcile` step. It compares the
+# three systems' view of the subscriber base *in place* (each query runs inside its own
+# database; FlowForge only receives keys, counts and a capped sample) and emails only
+# when the number of discrepancies crosses a threshold.
+#
+# Runs against the synthetic dataset out of the box:
+#     python -m flowforge.demo.telecom --dsn postgresql://user:pass@host/db --subscribers 10000
+# That seeds demo_crm_subscribers / demo_billing_accounts / demo_hlr_subscribers with planted
+# anomalies. Point all three connections at that database for the demo; in a real deployment
+# they are three different connections and the table names/columns below are replaced by
+# your own schema. The CASE price list in step 1 stands in for a join to your rating table.
+#
+# What each check means (definitions live in the SQL so they are reviewable):
+#   audit_crm_vs_billing   left = CRM subscribers ACTIVE and older than the provisioning window
+#                          right = billing accounts
+#     only_left   -> active in CRM but not billed         (revenue leakage)
+#     only_right  -> billed but not active in CRM          (possible over-billing)
+#     mismatched  -> billed amount differs from plan price (rating/charge error)
+#   audit_crm_vs_hlr       left = same CRM set; right = HLR entries in state 'active'
+#     only_left   -> active in CRM, not provisioned in HLR (billed-but-no-service risk)
+#     only_right  -> active in HLR, not active in CRM      (free network use)
+#
+# The provisioning window (PROVISIONING_WINDOW_HOURS) excludes subscribers CRM activated
+# recently: they are legitimately not in HLR/billing yet and must not be flagged.
+# An HLR-active subscriber whose CRM activation falls inside the window is reported as
+# "only_right" by the HLR check; widen or align the right-side filter if your process allows it.
+#
+# DATA HANDLING: the result sample contains RAW MSISDNs (sample_size caps it per category).
+# Set sample_size: 0 to get counts only. Do not send this email outside your trust boundary
+# until the PII tokenization step exists (docs/TASKS.md §B).
+#
+# HOW TO USE:
+#   1. Settings -> Import Pipeline, upload this file.
+#   2. Replace every <YOUR_*_ID> placeholder with a real UUID.
+#   3. Alert email body (Email Designer) can show the sample with
+#        {{ steps.audit_crm_vs_billing.table_html }}   and   {{ steps.audit_crm_vs_hlr.table_html }}
+#      and the counts with {{ billing_discrepancies }} / {{ hlr_discrepancies }}.
+#   4. Set ALERT_THRESHOLD, then enable the pipeline.
+#
+# Status: the step logic is unit-tested and the SQL is checked against the synthetic dataset
+# by tests/test_telecom_audit_template.py (live-PostgreSQL test, skipped without a database).
+# It has not been run on an operator's data.
+
+name: Orphaned Subscription Audit
+description: >
+  Daily CRM-vs-billing and CRM-vs-HLR reconciliation. Emails only when the total number of
+  discrepancies exceeds ALERT_THRESHOLD. Runs in place in the source databases.
+schedule: "0 6 * * *"
+enabled: false
+timeout_minutes: 60
+
+steps:
+  - name: audit_crm_vs_billing
+    step_type: reconcile
+    step_order: 1
+    config:
+      left_connection_id: <YOUR_CRM_CONNECTION_ID>
+      left_label: crm
+      left_query: >-
+        SELECT msisdn,
+               CASE plan WHEN 'basic' THEN 10.00 WHEN 'plus' THEN 25.00 WHEN 'max' THEN 60.00 END
+          FROM demo_crm_subscribers
+         WHERE status = 'active'
+           AND activated_at < now() - interval '{{ PROVISIONING_WINDOW_HOURS | int }} hours'
+      right_connection_id: <YOUR_BILLING_CONNECTION_ID>
+      right_label: billing
+      right_query: >-
+        SELECT msisdn, monthly_charge FROM demo_billing_accounts
+      compare: values
+      tolerance: 0.005
+      sample_size: 20
+      output_prefix: billing
+    on_error: stop
+    enabled: true
+
+  - name: audit_crm_vs_hlr
+    step_type: reconcile
+    step_order: 2
+    config:
+      left_connection_id: <YOUR_CRM_CONNECTION_ID>
+      left_label: crm
+      left_query: >-
+        SELECT msisdn
+          FROM demo_crm_subscribers
+         WHERE status = 'active'
+           AND activated_at < now() - interval '{{ PROVISIONING_WINDOW_HOURS | int }} hours'
+      right_connection_id: <YOUR_HLR_CONNECTION_ID>
+      right_label: hlr
+      right_query: >-
+        SELECT msisdn FROM demo_hlr_subscribers WHERE state = 'active'
+      compare: keys
+      sample_size: 20
+      output_prefix: hlr
+    on_error: stop
+    enabled: true
+
+  # Alert only when the combined discrepancy count crosses the threshold. Pipeline variables are
+  # strings, hence `| int`. A healthy day skips this step (visible as "skipped" in Run History).
+  - name: send_alert
+    step_type: email
+    step_order: 3
+    config:
+      email_config_id: <YOUR_EMAIL_CONFIG_ID>
+      run_if: "(steps.audit_crm_vs_billing.rows_affected + steps.audit_crm_vs_hlr.rows_affected) > (ALERT_THRESHOLD | int)"
+    on_error: continue
+    enabled: true
+
+variables:
+  - var_key: PROVISIONING_WINDOW_HOURS
+    var_value: "48"
+    is_secret: false
+  - var_key: ALERT_THRESHOLD
+    var_value: "100"
+    is_secret: false

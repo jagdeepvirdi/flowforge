@@ -31,7 +31,7 @@ import argparse
 import io
 import random
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 PLANS = {'basic': 10.0, 'plus': 25.0, 'max': 60.0}
 CATEGORIES = ('active_unbilled', 'billed_unprovisioned', 'status_mismatch', 'charge_mismatch')
@@ -75,7 +75,7 @@ def generate(subscribers: int = 10_000, orphan_rate: float = 0.02, in_flight_rat
     if not 0 <= orphan_rate <= 0.2 or not 0 <= in_flight_rate <= 0.2:
         raise ValueError('orphan_rate and in_flight_rate must be between 0 and 0.2')
     rng = random.Random(seed)
-    now = (now or datetime(2026, 1, 1, tzinfo=timezone.utc)).replace(tzinfo=None)
+    now = (now or datetime(2026, 1, 1, tzinfo=UTC)).replace(tzinfo=None)
 
     n_each = int(subscribers * orphan_rate)
     n_flight = int(subscribers * in_flight_rate)
@@ -151,7 +151,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument('--in-flight-rate', type=float, default=0.005)
     p.add_argument('--seed', type=int, default=42)
     a = p.parse_args(argv)
-    ds = generate(a.subscribers, a.orphan_rate, a.in_flight_rate, a.seed)
+    # Anchor timestamps to the current time: audit queries use now() for the provisioning
+    # window, so a fixed default date would make the in-flight subscribers look old.
+    ds = generate(a.subscribers, a.orphan_rate, a.in_flight_rate, a.seed, now=datetime.now(UTC))
     seed_postgres(a.dsn, ds)
     print(f'Seeded {a.subscribers} subscribers. Planted: {ds.truth.counts}')
     return 0
