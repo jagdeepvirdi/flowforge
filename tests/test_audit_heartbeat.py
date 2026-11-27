@@ -1,6 +1,7 @@
 """Is the scheduled audit verification still running? Heartbeat (push) and status (pull)."""
 import json
 import logging
+import re
 import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
@@ -220,7 +221,8 @@ def test_ping_delivers_a_plain_get_through_the_guarded_opener():
 def test_ping_failures_are_logged_never_raised(exc, caplog):
     with patch('flowforge.net_guard.safe_urlopen', side_effect=exc), caplog.at_level(logging.WARNING):
         assert notifications._ping_heartbeat(BEAT) is False
-    assert any('hc-ping.example.com' in r.getMessage() for r in caplog.records)
+    hosts = {m.group(1) for r in caplog.records if (m := re.match(r'Heartbeat ping to (\S+) ', r.getMessage()))}
+    assert hosts == {'hc-ping.example.com'}            # exactly the host, and nothing from the path
 
 
 def test_the_secret_in_the_url_is_never_logged(caplog):

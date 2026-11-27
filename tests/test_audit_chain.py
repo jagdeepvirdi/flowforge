@@ -472,7 +472,9 @@ def test_verify_endpoint_reports_ok_and_tampering(app, client, headers):
 
 def test_verify_endpoint_validates_the_anchor_and_is_admin_only(app, client, headers):
     _write(app, 2)
-    assert client.get('/api/audit-logs/verify?anchor=nope', headers=headers).status_code == 400
+    bad = client.get('/api/audit-logs/verify?anchor=nope-secret-marker', headers=headers)
+    assert bad.status_code == 400
+    assert 'seq' in bad.get_json()['error'] and 'nope-secret-marker' not in bad.get_data(as_text=True)   # fixed text, no echo
     assert client.get('/api/audit-logs/verify').status_code == 401
 
 

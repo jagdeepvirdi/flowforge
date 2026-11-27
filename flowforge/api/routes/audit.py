@@ -34,8 +34,9 @@ def verify_audit_chain():
     try:
         with db.engine.connect() as conn:
             rep = audit_chain.verify(conn, anchor=request.args.get('anchor') or None)
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
+    except ValueError:
+        # fixed text, never the exception's own message (the only ValueError here is a malformed anchor)
+        return jsonify({'error': 'anchor must look like "<seq>:<64 hex chars>" (the CHAIN line in the audit log)'}), 400
     return jsonify(rep.to_dict())
 
 
