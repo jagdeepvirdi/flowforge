@@ -88,7 +88,7 @@ export default function StepTrendsPanel({ pipelineId }: { pipelineId?: string })
                     <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
                     <XAxis dataKey="date" tick={axisStyle} axisLine={false} tickLine={false} />
                     <YAxis tick={axisStyle} axisLine={false} tickLine={false} width={54} tickFormatter={v => fmtDur(v)} />
-                    <Tooltip {...tipStyle} formatter={(value: number) => fmtDur(value)} />
+                    <Tooltip {...tipStyle} formatter={value => fmtDur(Number(value))} />
                     <Legend wrapperStyle={{ fontSize: 11, color: '#94A3B8' }} />
                     <Line name="Avg duration" dataKey="avg_duration_ms" stroke="#F97316" strokeWidth={2} dot={false} activeDot={{ r: 4 }} connectNulls />
                     <Line name="p95 duration" dataKey="p95_duration_ms" stroke="#3B82F6" strokeWidth={2} strokeDasharray="4 3" dot={false} activeDot={{ r: 4 }} connectNulls />
