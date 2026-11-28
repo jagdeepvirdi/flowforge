@@ -150,6 +150,26 @@ pre .k { color: var(--accent-text); }
 .res td.n { font-family: var(--mono); text-align: right; }
 .res th.n { text-align: right; }
 .res tr:last-child td { border-bottom: 0; }
+
+/* capability catalogue + data-boundary diagram */
+.grid.wide { grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
+.card ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 0.92rem; display: grid; gap: 8px; }
+.card ul code, .card p code { font-size: 0.85em; }
+.diagram { display: grid; gap: 0; }
+.boundary { border: 1.5px dashed var(--accent); border-radius: 10px; padding: 18px; background: var(--surface-2); }
+.outside { border: 1px solid var(--line); border-radius: 10px; padding: 18px; background: var(--surface-2); }
+.zone { font: 500 0.72rem var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+.flow { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.15fr) auto minmax(0, 1.15fr); gap: 12px; align-items: stretch; }
+.node { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.node p { color: var(--muted); font-size: 0.88rem; }
+.node.core { border-color: var(--ok); }
+.node.gate, .node.brain { border-color: var(--accent-text); }
+.arrow { align-self: center; color: var(--accent-text); font: 600 1.3rem var(--mono); }
+.cross { text-align: center; padding: 12px 8px; font: 500 0.78rem var(--mono); color: var(--accent-text); }
+.cross span { font-size: 1.2rem; margin-right: 8px; vertical-align: -2px; }
+@media (max-width: 900px) { .flow { grid-template-columns: minmax(0, 1fr); } .arrow { transform: rotate(90deg); justify-self: center; } }
+.status-note { display: grid; gap: 10px; margin-top: 24px; font-size: 0.93rem; color: var(--muted); }
+.status-note .pill { margin-right: 8px; }
 footer { border-top: 1px solid var(--line); padding-block: 36px 48px; color: var(--muted); font-size: 0.88rem; }
 footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: center; }
 footer .grow { margin-right: auto; }
@@ -160,7 +180,7 @@ footer .grow { margin-right: auto; }
   <div class="wrap">
     <a class="brand" href="#top"><span class="mark"><i></i></span>FlowForge</a>
     <div class="links">
-      <a class="opt" href="#capabilities">What it does</a>
+      <a class="opt" href="#capabilities">The Muscle</a>
       <a class="opt" href="#example">Example audit</a>
       <a class="opt" href="#architecture">Muscle &amp; Brain</a>
       <a href="#status">Status</a>
@@ -200,36 +220,22 @@ footer .grow { margin-right: auto; }
 <section id="capabilities">
   <div class="wrap">
     <div class="head">
-      <p class="eyebrow">The engine, shipping today</p>
-      <h2>Pipelines are ordered steps, configured in the browser. No YAML, no hand-wiring.</h2>
+      <p class="eyebrow">The Muscle, shipping today</p>
+      <h2>Everything the deterministic core does today.</h2>
+      <p class="lede">Each item is a step type you add to a pipeline in the browser and wire together, with no YAML. All of it runs in your environment, and none of it uses AI.</p>
     </div>
-    <div class="grid">
-      <div class="card">
-        <h3>Run work against your databases</h3>
-        <p>Call stored procedures and Oracle packages, run queries into tables, and bulk-load files with PostgreSQL <code>COPY</code>.</p>
-        <div class="chips"><span class="chip">PostgreSQL</span><span class="chip">Oracle</span><span class="chip">MySQL</span><span class="chip">SQL Server</span><span class="chip">Snowflake</span><span class="chip">BigQuery</span><span class="chip">Redshift</span></div>
-      </div>
-      <div class="card">
-        <h3>Compare two systems</h3>
-        <p>The <code>reconcile</code> step diffs keyed results from two connections, such as billing against a network register, and reports orphans on either side and value mismatches within a tolerance.</p>
-      </div>
-      <div class="card">
-        <h3>Produce and deliver reports</h3>
-        <p>Excel, CSV, PDF and JSON from a SQL query. Email goes out over Gmail, Microsoft 365, SMTP, SendGrid, SES or Mailgun. Oversized files upload to Drive, OneDrive, S3 or Azure Blob and the email carries a link.</p>
-      </div>
-      <div class="card">
-        <h3>Move files and check systems</h3>
-        <p>SFTP and SSH steps, database and server health checks, and Slack, Teams or Telegram notifications. Community step types load as plugins.</p>
-      </div>
-      <div class="card">
-        <h3>Schedule, retry, branch</h3>
-        <p>Cron scheduling with run history, per-step logs and failure alerts. Steps can be conditional, and a pipeline can be drawn as a dependency graph. Celery workers are optional.</p>
-      </div>
-      <div class="card">
-        <h3>Control who can do what</h3>
-        <p>Admin, editor and viewer roles, MFA and SSO. Stored credentials are encrypted with AES-256-GCM. The audit log is hash-chained, so edits and deletions are detectable.</p>
-      </div>
+    <div class="grid wide">
+      <div class="card"><h3>Query databases, call packages</h3><div class="chips"><span class="chip">db_procedure</span><span class="chip">db_query</span></div><ul><li>Call PostgreSQL procedures and Oracle packages (<code>package.procedure</code>) with templated parameters</li><li>Run a query and write the result to a table: replace, append or truncate-insert</li><li>Eight database types: PostgreSQL, Oracle, MySQL/MariaDB, SQL Server, ODBC, Snowflake, BigQuery, Redshift</li></ul></div>
+      <div class="card"><h3>Load data in</h3><div class="chips"><span class="chip">bulk_load</span><span class="chip">data_load</span></div><ul><li>Bulk-load daily file drops by name prefix (such as <code>SUBS_20260522.csv</code>) using PostgreSQL <code>COPY</code> or Oracle SQL*Loader</li><li>Load a file or a query result into any table, creating it if missing, with column mapping</li><li>Date, timestamp and delta variables for incremental loads</li></ul></div>
+      <div class="card"><h3>Reconcile two systems</h3><div class="chips"><span class="chip">reconcile</span></div><ul><li>Compare keyed results from two databases: orphans on either side, and values that differ beyond a tolerance</li><li>Each query runs inside its own database; the step returns counts and a capped sample</li><li>Sampled subscriber keys are replaced by keyed tokens before they reach a report, email or run log</li></ul></div>
+      <div class="card"><h3>Generate files</h3><div class="chips"><span class="chip">report</span><span class="chip">data_report</span></div><ul><li>Excel (with an optional template and sheet name), CSV, PDF and JSON, straight from a SQL query</li><li>The same formats from data captured earlier in the run, such as SSH command output</li><li>File names built from variables, such as <code>report_{{ current_month }}.xlsx</code>; remote command output can be saved as a text file</li></ul></div>
+      <div class="card"><h3>Email and notify</h3><div class="chips"><span class="chip">email</span><span class="chip">notification</span></div><ul><li>Send over Gmail, Microsoft 365, SMTP, SendGrid, SES or Mailgun, with recipient groups, To/CC/BCC and HTML templates</li><li>Smart attachments: a file over your size limit is uploaded and replaced by a share link</li><li>Slack, Teams and Telegram messages, including failure-only alerts</li></ul></div>
+      <div class="card"><h3>Move files and run remote commands</h3><div class="chips"><span class="chip">sftp_transfer</span><span class="chip">ssh_command</span><span class="chip">*_upload</span></div><ul><li>SFTP download and upload, by password or private key, with glob patterns and whole directories</li><li>Upload to Google Drive, OneDrive/SharePoint, Amazon S3 or Azure Blob</li><li>Run a command on a server over SSH and keep its output as a variable or a file</li></ul></div>
+      <div class="card"><h3>Health reports</h3><div class="chips"><span class="chip">db_health_check</span><span class="chip">ssh_health_check</span></div><ul><li>Database health as Excel or CSV: sessions and cache hit ratio, plus replication lag (PostgreSQL), tablespaces over 80% (Oracle) or connected threads (MySQL)</li><li>Server health over SSH: load average, memory, disk usage and top processes</li><li>Run history flags statistical outliers (over 2σ) in step row counts and durations</li></ul></div>
+      <div class="card"><h3>Schedule and control</h3><div class="chips"><span class="chip">cron</span><span class="chip">run_if</span><span class="chip">retries</span></div><ul><li>Cron schedules you can pause without deleting the pipeline, with run history and per-step logs</li><li>Conditional steps, retries with backoff, parallel groups, and a dependency graph drawn on the canvas</li><li>Trigger over an API token, post to a webhook on failure, and add Celery workers when you need them</li></ul></div>
+      <div class="card"><h3>Secure and manage</h3><div class="chips"><span class="chip">RBAC</span><span class="chip">MFA</span><span class="chip">audit</span></div><ul><li>Admin, editor and viewer roles, project-level access, MFA, and Google, Microsoft or SAML single sign-on</li><li>Stored credentials encrypted with AES-256-GCM; webhook and notification URLs checked against private-network targets</li><li>Hash-chained audit log, YAML import and export, pipeline clone, and plugins for your own step types</li></ul></div>
     </div>
+    <p class="small">Step names are shown as <code>code</code>. The complete reference, with every option, is <a href="https://github.com/jagdeepvirdi/flowforge/blob/master/docs/step-types.md" rel="noopener">docs/step-types.md</a>.</p>
   </div>
 </section>
 
@@ -305,22 +311,69 @@ footer .grow { margin-right: auto; }
   <div class="wrap">
     <div class="head">
       <p class="eyebrow">Architecture</p>
-      <h2>Deterministic work and AI diagnosis are kept apart.</h2>
-      <p class="lede">The core never calls a language model. Diagnosis is a separate, optional service, so a pipeline behaves the same with or without it.</p>
+      <h2>The Brain is designed never to see your data, only a small tokenised summary.</h2>
+      <p class="lede">The Muscle runs against your databases and keeps everything sensitive. The Brain is a separate, optional service that Core will be able to send an evidence package to. These are the rules it is being built to; a pipeline behaves the same with or without it.</p>
     </div>
-    <div class="split">
+
+    <div class="diagram" role="group" aria-label="Data boundary diagram: your systems feed FlowForge Core inside your infrastructure; only a small evidence package may leave, to the optional Brain service.">
+      <div class="boundary">
+        <p class="zone">Inside your infrastructure · self-hosted</p>
+        <div class="flow">
+          <div class="node">
+            <span class="role">Your systems</span>
+            <h3>CRM, billing, HLR</h3>
+            <p>Subscriber records and credentials stay here.</p>
+          </div>
+          <span class="arrow" aria-hidden="true">→</span>
+          <div class="node core">
+            <span class="role on">Muscle · FlowForge Core</span>
+            <h3>Runs the work</h3>
+            <p>Queries, reconciliation, reports, alerts. Holds the credentials and the token key.</p>
+          </div>
+          <span class="arrow" aria-hidden="true">→</span>
+          <div class="node gate">
+            <span class="role next">Evidence gate · partly built</span>
+            <h3>Reduce, then tokenise</h3>
+            <p>Group into signatures, keep counts and a capped sample, replace identifiers with tokens.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="cross" aria-hidden="true"><span>↓</span> only the evidence package crosses · optional · asynchronous · short timeout</div>
+
+      <div class="outside">
+        <p class="zone">Outside · separate service, not built yet</p>
+        <div class="node brain">
+          <span class="role next">Brain · flowforge-brain</span>
+          <h3>Suggests root causes</h3>
+          <p>Receives the package and returns an advisory diagnosis. It owns the model, its prompts and its provider keys. It cannot change a pipeline.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="split" style="margin-top:16px">
       <div class="card">
-        <span class="role on">Muscle · this repository</span>
-        <h3>FlowForge Core</h3>
-        <p>Scheduling, ETL, SQL audits, reconciliation, reports and alerts. The same input gives the same output. It has no AI or LLM code and no model keys.</p>
-        <p class="rule">Everything under “The engine, shipping today” is Core.</p>
+        <span class="role on">What the Brain will receive</span>
+        <ul>
+          <li>Grouped error signatures and their counts</li>
+          <li>A capped sample of keys, as tokens such as <code>tk_msisdn_9f3a…c1e0</code></li>
+          <li>Context: pipeline, time window, thresholds</li>
+        </ul>
       </div>
       <div class="card">
-        <span class="role next">Brain · separate service</span>
-        <h3>Root-cause analysis</h3>
-        <p>An optional service that reads anonymised evidence (grouped signatures, counts and a capped sample, never raw rows) and suggests causes. Its output is advisory and never changes anything on its own.</p>
-        <p class="rule">Core is built to attach to it. The service is not part of this release.</p>
+        <span class="role next">What it will never receive</span>
+        <ul>
+          <li>Raw rows or table dumps</li>
+          <li>Phone numbers or other subscriber identifiers</li>
+          <li>Database or email credentials, or the token key</li>
+        </ul>
       </div>
+    </div>
+
+    <div class="status-note">
+      <p><span class="pill ship">Shipping</span> Core, plus the capped samples and keyed tokenisation in the <code>reconcile</code> step. Grouping into error signatures is not built yet. The step refuses to run rather than send raw keys if no token key is set.</p>
+      <p><span class="pill dir">Direction</span> The Brain service and the link from Core to it. These are the rules it will be built to, and the contract is still a draft.</p>
+      <p class="small">Tokenisation is pseudonymisation, not anonymisation: whoever holds the key can confirm a guess, and the key never leaves Core. See <a href="https://github.com/jagdeepvirdi/flowforge/blob/master/ARCHITECTURE.md" rel="noopener">ARCHITECTURE.md</a> sections 6 and 9.</p>
     </div>
   </div>
 </section>
