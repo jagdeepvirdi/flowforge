@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>FlowForge: self-hosted pipeline orchestration, built toward telecom revenue assurance</title>
+<meta name="description" content="FlowForge is a self-hosted data pipeline and ETL orchestrator that reconciles CRM, billing and network registers on a schedule. The engine ships today; the telecom layer is in development.">
+<link rel="canonical" href="https://flowforge.jagdeepsinghvirdi.com/">
+<meta property="og:title" content="FlowForge">
+<meta property="og:description" content="Self-hosted pipeline orchestration, built toward telecom revenue assurance.">
+<meta property="og:url" content="https://flowforge.jagdeepsinghvirdi.com/">
+<meta property="og:type" content="website">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+</head>
+<body>
+<style>
+/* Layout: one left-aligned column of bands; hero pairs the thesis with a drawn pipeline run. Tokens from the project's own design system. */
+:root {
+  --bg: #0F1117; --surface: #1A1D27; --surface-2: #21252F; --line: #2C3140;
+  --fg: #F1F5F9; --muted: #8B97AB; --accent: #F97316; --accent-ink: #1A0E04; --accent-text: #FB923C;
+  --ok: #22C55E; --fail: #EF4444; --run: #3B82F6;
+  --ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {
+  --bg: #F7F6F4; --surface: #FFFFFF; --surface-2: #F0EEEA; --line: #DDD9D2;
+  --fg: #16181F; --muted: #566074; --accent: #EA580C; --accent-ink: #FFFFFF; --accent-text: #C2410C;
+  --ok: #15803D; --fail: #B91C1C; --run: #1D4ED8; color-scheme: light; } }
+:root[data-theme="light"] {
+  --bg: #F7F6F4; --surface: #FFFFFF; --surface-2: #F0EEEA; --line: #DDD9D2;
+  --fg: #16181F; --muted: #566074; --accent: #EA580C; --accent-ink: #FFFFFF; --accent-text: #C2410C;
+  --ok: #15803D; --fail: #B91C1C; --run: #1D4ED8; color-scheme: light; }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 var(--ui); -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+section { padding-block: 72px; border-top: 1px solid var(--line); }
+h1, h2, h3 { text-wrap: balance; margin: 0; letter-spacing: -0.02em; line-height: 1.12; }
+h1 { font-size: clamp(2.2rem, 5.4vw, 3.9rem); font-weight: 700; }
+h2 { font-size: clamp(1.6rem, 3.2vw, 2.3rem); font-weight: 700; }
+h3 { font-size: 1.05rem; font-weight: 600; letter-spacing: -0.01em; }
+p { margin: 0; }
+.lede { color: var(--muted); font-size: 1.15rem; max-width: 56ch; }
+.eyebrow { font: 500 0.75rem/1 var(--mono); text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent-text); }
+code, .mono { font-family: var(--mono); }
+
+/* nav */
+nav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--bg); border-bottom: 1px solid var(--line); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg); }
+nav .wrap { display: flex; align-items: center; gap: 24px; height: 60px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -0.01em; text-decoration: none; }
+.mark { width: 22px; height: 22px; border-radius: 5px; background: var(--accent); display: grid; place-items: center; }
+.mark i { width: 8px; height: 8px; background: var(--accent-ink); border-radius: 2px; transform: rotate(45deg); }
+.links { margin-left: auto; display: flex; gap: 22px; font-size: 0.9rem; color: var(--muted); }
+.links a { text-decoration: none; }
+.links a:hover { color: var(--fg); }
+@media (max-width: 640px) { .links .opt { display: none; } }
+
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 6px; font: 600 0.95rem var(--ui); text-decoration: none; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn:focus-visible, .copy:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn:hover { border-color: var(--accent); }
+
+/* hero */
+.hero { padding-block: 72px 80px; border-top: 0; }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 56px; align-items: center; }
+.hero h1 em { font-style: normal; color: var(--accent-text); }
+.hero .lede { margin-top: 22px; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+.facts { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 28px; font: 400 0.8rem var(--mono); color: var(--muted); }
+@media (max-width: 900px) { .hero-grid { grid-template-columns: minmax(0, 1fr); gap: 40px; } }
+
+/* run panel */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.panel-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); font: 500 0.78rem var(--mono); color: var(--muted); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+.panel-head .tag { margin-left: auto; border: 1px solid var(--line); border-radius: 4px; padding: 2px 8px; }
+.steps { list-style: none; margin: 0; padding: 6px 0; }
+.steps li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 11px 16px; position: relative; }
+.steps li + li::before { content: ""; position: absolute; left: 26px; top: -10px; height: 20px; width: 1px; background: var(--line); }
+.tick { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--ok); display: grid; place-items: center; }
+.tick::after { content: ""; width: 5px; height: 9px; border: solid var(--ok); border-width: 0 1.8px 1.8px 0; transform: rotate(45deg) translate(-1px, -1px); }
+.steps .name { font-weight: 600; font-size: 0.95rem; }
+.steps .type { font: 400 0.74rem var(--mono); color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; }
+.steps .out { font: 400 0.78rem var(--mono); color: var(--muted); text-align: right; }
+.steps .warn { color: var(--accent-text); }
+.panel-foot { padding: 12px 16px; border-top: 1px solid var(--line); font: 400 0.76rem var(--mono); color: var(--muted); background: var(--surface-2); overflow-wrap: anywhere; }
+
+/* bands */
+.head { display: grid; gap: 14px; margin-bottom: 40px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 22px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.card p { color: var(--muted); font-size: 0.93rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.chip { font: 400 0.74rem var(--mono); border: 1px solid var(--line); border-radius: 4px; padding: 2px 8px; color: var(--muted); background: var(--surface-2); }
+
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 760px) { .split { grid-template-columns: minmax(0, 1fr); } }
+.role { font: 500 0.72rem var(--mono); letter-spacing: 0.1em; text-transform: uppercase; }
+.role.on { color: var(--ok); } .role.next { color: var(--accent-text); }
+.rule { border-left: 2px solid var(--accent); padding-left: 14px; color: var(--muted); font-size: 0.93rem; margin-top: 6px; }
+
+.status { width: 100%; border-collapse: collapse; font-size: 0.93rem; }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.status th, .status td { text-align: left; padding: 14px 18px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.status tr:last-child td { border-bottom: 0; }
+.status th { font: 500 0.72rem var(--mono); text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); background: var(--surface-2); }
+.status td:first-child { width: 36%; font-weight: 600; }
+.pill { display: inline-block; font: 500 0.72rem var(--mono); padding: 2px 8px; border-radius: 4px; border: 1px solid; white-space: nowrap; }
+.pill.ship { color: var(--ok); border-color: var(--ok); }
+.pill.dir { color: var(--accent-text); border-color: var(--accent-text); }
+
+pre { margin: 0; padding: 20px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; font: 400 0.88rem/1.7 var(--mono); overflow-x: auto; }
+pre .c { color: var(--muted); }
+.codebox { position: relative; }
+.copy { position: absolute; top: 10px; right: 10px; font: 500 0.75rem var(--mono); background: var(--surface-2); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; padding: 5px 10px; cursor: pointer; }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; align-items: start; }
+@media (max-width: 900px) { .two { grid-template-columns: minmax(0, 1fr); gap: 32px; } }
+.small { color: var(--muted); font-size: 0.9rem; margin-top: 14px; }
+
+footer { border-top: 1px solid var(--line); padding-block: 36px 48px; color: var(--muted); font-size: 0.88rem; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: center; }
+footer .grow { margin-right: auto; }
+@media (prefers-reduced-motion: no-preference) { .btn, .links a { transition: border-color .15s, color .15s; } }
+</style>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#top"><span class="mark"><i></i></span>FlowForge</a>
+    <div class="links">
+      <a class="opt" href="#capabilities">What it does</a>
+      <a class="opt" href="#architecture">Muscle &amp; Brain</a>
+      <a href="#status">Status</a>
+      <a class="opt" href="#builder">Who builds it</a>
+      <a href="https://github.com/jagdeepvirdi/flowforge" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<main id="top">
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <p class="eyebrow">Telecom revenue assurance, in development</p>
+      <h1 style="margin-top:16px">Find the revenue your network delivered and <em>your billing never charged.</em></h1>
+      <p class="lede">FlowForge reconciles your CRM, billing and network registers on a schedule and reports the gaps: active subscribers nobody billed, charges that do not match the plan. The orchestration engine underneath is shipping and runs on your own servers. The telecom layer is being built on top of it.</p>
+      <div class="cta">
+        <a class="btn primary" href="#status">See what ships today</a>
+        <a class="btn" href="#quickstart">Run it locally</a>
+      </div>
+      <div class="facts"><span>Self-hosted</span><span>PostgreSQL and Oracle</span><span>MIT licensed</span></div>
+    </div>
+
+    <div class="panel" role="img" aria-label="Example pipeline run: four steps, all succeeded, one flagged result">
+      <div class="panel-head"><span class="dot"></span>nightly-orphaned-subscriptions<span class="tag">example run</span></div>
+      <ol class="steps">
+        <li><span class="tick"></span><div><div class="name">Extract CRM actives</div><div class="type">db_query · Oracle</div></div><div class="out">rows → staging</div></li>
+        <li><span class="tick"></span><div><div class="name">CRM vs billing</div><div class="type">reconcile · tokenize_keys</div></div><div class="out warn">orphans found</div></li>
+        <li><span class="tick"></span><div><div class="name">Build Excel report</div><div class="type">report · xlsx</div></div><div class="out">leakage_{{ current_month }}.xlsx</div></li>
+        <li><span class="tick"></span><div><div class="name">Email finance team</div><div class="type">email · run_if: orphans &gt; 0</div></div><div class="out">Drive link if &gt; 10 MB</div></li>
+      </ol>
+      <div class="panel-foot">sample key in output: tk_msisdn_9f3a…c1e0 (pseudonymised, not the raw number)</div>
+    </div>
+  </div>
+</section>
+
+<section id="capabilities">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow">The engine, shipping today</p>
+      <h2>Pipelines are ordered steps, configured in the browser. No YAML, no hand-wiring.</h2>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <h3>Run work against your databases</h3>
+        <p>Call stored procedures and Oracle packages, run queries into tables, and bulk-load files with PostgreSQL <code>COPY</code>.</p>
+        <div class="chips"><span class="chip">PostgreSQL</span><span class="chip">Oracle</span><span class="chip">MySQL</span><span class="chip">SQL Server</span><span class="chip">Snowflake</span><span class="chip">BigQuery</span><span class="chip">Redshift</span></div>
+      </div>
+      <div class="card">
+        <h3>Compare two systems</h3>
+        <p>The <code>reconcile</code> step diffs keyed results from two connections, such as billing against a network register, and reports orphans on either side and value mismatches within a tolerance.</p>
+      </div>
+      <div class="card">
+        <h3>Produce and deliver reports</h3>
+        <p>Excel, CSV, PDF and JSON from a SQL query. Email goes out over Gmail, Microsoft 365, SMTP, SendGrid, SES or Mailgun. Oversized files upload to Drive, OneDrive, S3 or Azure Blob and the email carries a link.</p>
+      </div>
+      <div class="card">
+        <h3>Move files and check systems</h3>
+        <p>SFTP and SSH steps, database and server health checks, and Slack, Teams or Telegram notifications. Community step types load as plugins.</p>
+      </div>
+      <div class="card">
+        <h3>Schedule, retry, branch</h3>
+        <p>Cron scheduling with run history, per-step logs and failure alerts. Steps can be conditional, and a pipeline can be drawn as a dependency graph. Celery workers are optional.</p>
+      </div>
+      <div class="card">
+        <h3>Control who can do what</h3>
+        <p>Admin, editor and viewer roles, MFA and SSO. Stored credentials are encrypted with AES-256-GCM. The audit log is hash-chained, so edits and deletions are detectable.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="architecture">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow">Architecture</p>
+      <h2>Deterministic work and AI diagnosis are kept apart.</h2>
+      <p class="lede">The core never calls a language model. Diagnosis is a separate, optional service, so a pipeline behaves the same with or without it.</p>
+    </div>
+    <div class="split">
+      <div class="card">
+        <span class="role on">Muscle · this repository</span>
+        <h3>FlowForge Core</h3>
+        <p>Scheduling, ETL, SQL audits, reconciliation, reports and alerts. The same input gives the same output. It has no AI or LLM code and no model keys.</p>
+        <p class="rule">Everything under “The engine, shipping today” is Core.</p>
+      </div>
+      <div class="card">
+        <span class="role next">Brain · separate service</span>
+        <h3>Root-cause analysis</h3>
+        <p>An optional service that reads anonymised evidence (grouped signatures, counts and a capped sample, never raw rows) and suggests causes. Its output is advisory and never changes anything on its own.</p>
+        <p class="rule">Core is built to attach to it. The service is not part of this release.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="status">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow">Where it stands</p>
+      <h2>Telecom is the goal. Here is exactly what exists.</h2>
+      <p class="lede">The engine and the first audit are real and tested. The rest of the telecom layer is not built yet, and this table says which is which.</p>
+    </div>
+    <div class="tablewrap">
+      <table class="status">
+        <thead><tr><th>Area</th><th>State</th><th>Detail</th></tr></thead>
+        <tbody>
+          <tr><td>Pipeline engine, scheduler, run history</td><td><span class="pill ship">Shipping</span></td><td>Generic and tested. The step types above all run today.</td></tr>
+          <tr><td>Orphaned-subscription audit (CRM vs billing vs network register)</td><td><span class="pill ship">Shipping</span></td><td>A ready-made template built on the <code>reconcile</code> step. Measured on synthetic data, up to 5 million subscribers on one laptop. That is a behaviour check, not a capacity claim for an operator.</td></tr>
+          <tr><td>Tamper-evident audit log</td><td><span class="pill ship">Shipping</span></td><td>Detects edits. It is not tamper-proof, and it has not had a telecom compliance review.</td></tr>
+          <tr><td>CDR and mediation parsers, leakage KPIs, case management</td><td><span class="pill dir">Direction</span></td><td>Not built. Only CSV streams end to end today.</td></tr>
+          <tr><td>AI root-cause analysis (Brain)</td><td><span class="pill dir">Direction</span></td><td>Separate service. Core attaches to it and works without it.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small">The full gap analysis is in <a href="https://github.com/jagdeepvirdi/flowforge/blob/master/ARCHITECTURE.md" rel="noopener">ARCHITECTURE.md</a> and the benchmark method is in <a href="https://github.com/jagdeepvirdi/flowforge/blob/master/docs/benchmark.md" rel="noopener">docs/benchmark.md</a>.</p>
+  </div>
+</section>
+
+<section id="quickstart">
+  <div class="wrap two">
+    <div>
+      <p class="eyebrow">Quick start</p>
+      <h2 style="margin-top:14px">Running in five lines.</h2>
+      <p class="lede" style="margin-top:18px">Docker Compose starts the API, the web UI, PostgreSQL, the scheduler, Redis and a Celery worker. Open <code>http://localhost:5000</code>, create a connection, add a pipeline, press Run.</p>
+      <p class="small">An Oracle overlay and optional extras (PDF, Gmail, Snowflake and others) are in the README.</p>
+      <div class="cta"><a class="btn" href="https://github.com/jagdeepvirdi/flowforge#readme" rel="noopener">Read the README</a></div>
+    </div>
+    <div class="codebox">
+      <pre id="cmd">git clone https://github.com/jagdeepvirdi/flowforge.git
+cd flowforge
+cp .env.example .env
+<span class="c"># edit .env: set FLOWFORGE_SECRET_KEY and FLOWFORGE_JWT_SECRET</span>
+docker compose up</pre>
+      <button class="copy" id="copy" type="button">Copy</button>
+    </div>
+  </div>
+</section>
+
+<section id="builder">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow">Who is building it</p>
+      <h2>One developer, working with AI, building toward enterprise telecom.</h2>
+      <p class="lede">FlowForge is written by a single developer with AI assistance throughout. That is how a product of this scope is possible for one person. It also means the repository shows its work instead of asking for trust.</p>
+    </div>
+    <div class="grid">
+      <div class="card"><h3>Checks on every change</h3><p>Automated tests, CodeQL, bandit and secret scanning must pass before anything merges.</p></div>
+      <div class="card"><h3>Limits written down</h3><p>The gap analysis, benchmark method and security notes state what is not done, including what a telecom compliance review would still need.</p></div>
+      <div class="card"><h3>No customers yet</h3><p>There is no operator in production today. The first revenue-assurance team to pilot it will shape what gets built next.</p><p><a href="https://github.com/jagdeepvirdi/flowforge/issues/new" rel="noopener">Start a pilot conversation on GitHub</a></p></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span class="grow">FlowForge · MIT license · self-hosted, no vendor account needed</span>
+    <a href="https://github.com/jagdeepvirdi/flowforge" rel="noopener">GitHub</a>
+    <a href="https://github.com/jagdeepvirdi/flowforge/blob/master/ROADMAP.md" rel="noopener">Roadmap</a>
+    <a href="https://github.com/jagdeepvirdi/flowforge/blob/master/SECURITY.md" rel="noopener">Security</a>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var btn = document.getElementById('copy'), box = document.getElementById('cmd');
+  btn.addEventListener('click', function () {
+    var text = box.textContent;
+    function done(ok) { btn.textContent = ok ? 'Copied' : 'Select and copy'; setTimeout(function () { btn.textContent = 'Copy'; }, 1600); }
+    try {
+      navigator.clipboard.writeText(text).then(function () { done(true); }, fallback);
+    } catch (e) { fallback(); }
+    function fallback() {
+      try { var r = document.createRange(); r.selectNodeContents(box); var s = getSelection(); s.removeAllRanges(); s.addRange(r); } catch (e) {}
+      done(false);
+    }
+  });
+})();
+</script>
+</body>
+</html>
